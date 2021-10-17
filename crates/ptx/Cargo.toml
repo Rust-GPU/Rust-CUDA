@@ -1,0 +1,10 @@
+[package]
+name = "ptx"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+ascii = "1"
+# used for lexing/serializing very large enums of instructions/opcodes
+strum = { version = "0.21", features = ["derive"] }
+smallvec = "1.7"

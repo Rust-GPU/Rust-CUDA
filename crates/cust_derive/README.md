@@ -1,0 +1,1 @@
+Custom derive macro crate for [RustaCUDA](https://github.com/bheisler/RustaCUDA).

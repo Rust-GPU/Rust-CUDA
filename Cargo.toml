@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "crates/*",
+  "xtask"
+]
+
+[profile.release]
+debug = 2
+lto = "fat"
+codegen-units = 1

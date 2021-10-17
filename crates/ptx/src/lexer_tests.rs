@@ -1,0 +1,449 @@
+use crate::types::*;
+use TokenKind::*;
+
+macro_rules! assert_lex {
+    ($string:expr, $($token:expr),* $(,)?) => {
+        let ascii_str = ascii::AsciiStr::from_ascii($string).unwrap();
+        let tokens = crate::lexer::Lexer::new(ascii_str).map(|x| x.map(|x| x.kind)).collect::<Result<Vec<_>, _>>().expect("expected no lexing error");
+        let expected = vec![$($token),*];
+        assert_eq!(tokens, expected);
+    };
+}
+
+macro_rules! assert_values {
+    ($string:expr, $($value:expr),* $(,)?) => {
+        let ascii_str = ascii::AsciiStr::from_ascii($string).unwrap();
+        let mut lexer = crate::lexer::Lexer::new(ascii_str);
+        lexer.by_ref().map(|x| x.map(|x| x.kind)).collect::<Result<Vec<_>, _>>().expect("expected no lexing error");
+        let expected = vec![$(Some($value)),*];
+        assert_eq!(lexer.values, expected);
+    };
+}
+
+#[test]
+fn punctuation() {
+    assert_lex! {
+        "() [] {} ; : . + - ! ~ * / % << >> < <= > >= & ^ | && || ? = == != @ ,",
+        ParenOpen,
+        ParenClose,
+        SquareBracketOpen,
+        SquareBracketClose,
+        CurlyBracketOpen,
+        CurlyBracketClose,
+        Semicolon,
+        Colon,
+        Dot,
+        Plus,
+        Minus,
+        Bang,
+        Tilde,
+        Times,
+        Divide,
+        Modulo,
+        LeftShift,
+        RightShift,
+        LessThan,
+        LessThanOrEqualTo,
+        GreaterThan,
+        GreaterThanOrEqualTo,
+        And,
+        Xor,
+        Or,
+        LogicalAnd,
+        LogicalOr,
+        QuestionMark,
+        Assign,
+        Equals,
+        NotEquals,
+        At,
+        Comma,
+    }
+}
+
+#[test]
+fn idents() {
+    assert_lex! {
+        "foo foo3 %foo %bar3 %bar3_$ $foo3_ _bar_",
+        Ident,
+        Ident,
+        Ident,
+        Ident,
+        Ident,
+        Ident,
+        Ident,
+    }
+}
+
+#[test]
+fn directive() {
+    assert_values! {
+        "
+        .adresssize
+        .align
+        .branchtargets
+        .callprototype
+        .calltargets
+        .const
+        .entry
+        .extern
+        .file
+        .func
+        .global
+        .loc
+        .local
+        .maxnctapersm
+        .maxnreg
+        .maxntid
+        .minnctapersm
+        .param
+        .pragma
+        .reg
+        .reqntid
+        .section
+        .shared
+        .sreg
+        .target
+        .tex
+        .version
+        .visible
+        .weak
+        ",
+        TokenValue::Directive(DirectiveKind::AddressSize),
+        TokenValue::Directive(DirectiveKind::Align),
+        TokenValue::Directive(DirectiveKind::BranchTargets),
+        TokenValue::Directive(DirectiveKind::CallPrototype),
+        TokenValue::Directive(DirectiveKind::CallTargets),
+        TokenValue::Directive(DirectiveKind::Const),
+        TokenValue::Directive(DirectiveKind::Entry),
+        TokenValue::Directive(DirectiveKind::Extern),
+        TokenValue::Directive(DirectiveKind::File),
+        TokenValue::Directive(DirectiveKind::Func),
+        TokenValue::Directive(DirectiveKind::Global),
+        TokenValue::Directive(DirectiveKind::Loc),
+        TokenValue::Directive(DirectiveKind::Local),
+        TokenValue::Directive(DirectiveKind::MaxNCtaPerSm),
+        TokenValue::Directive(DirectiveKind::MaxNReg),
+        TokenValue::Directive(DirectiveKind::MaxNTid),
+        TokenValue::Directive(DirectiveKind::MinNCtaPerSm),
+        TokenValue::Directive(DirectiveKind::Param),
+        TokenValue::Directive(DirectiveKind::Pragma),
+        TokenValue::Directive(DirectiveKind::Reg),
+        TokenValue::Directive(DirectiveKind::ReqNTid),
+        TokenValue::Directive(DirectiveKind::Section),
+        TokenValue::Directive(DirectiveKind::Shared),
+        TokenValue::Directive(DirectiveKind::Sreg),
+        TokenValue::Directive(DirectiveKind::Target),
+        TokenValue::Directive(DirectiveKind::Tex),
+        TokenValue::Directive(DirectiveKind::Version),
+        TokenValue::Directive(DirectiveKind::Visible),
+        TokenValue::Directive(DirectiveKind::Weak),
+    }
+}
+
+#[test]
+fn instruction() {
+    assert_values! {
+        "
+        abs
+        activemask
+        add
+        addc
+        alloca
+        and
+        applypriority
+        atom
+        bar
+        barrier
+        bfe
+        bfi
+        bfind
+        bra
+        brev
+        brkpt
+        brx
+        call
+        clz
+        cnot
+        copysign
+        cos
+        cp
+        createpolicy
+        cvta
+        discard
+        div
+        dp2a
+        dp4a
+        ex2
+        exit
+        fence
+        fma
+        fns
+        isspacep
+        istypep
+        ld
+        ldmatrix
+        ldu
+        lg2
+        lop3
+        mad
+        mad24
+        madc
+        match
+        max
+        mbarrier
+        membar
+        min
+        mma
+        mov
+        mul
+        mul24
+        nanosleep
+        neg
+        not
+        or
+        pmevent
+        popc
+        prefetch
+        prefetchu
+        prmt
+        rcp
+        red
+        redux
+        rem
+        ret
+        rsqrt
+        sad
+        selp
+        set
+        setp
+        shf
+        shfl
+        shl
+        shr
+        sin
+        slct
+        sqrt
+        st
+        stackrestore
+        stacksave
+        sub
+        subc
+        suld
+        suq
+        sured
+        sust
+        tanh
+        testp
+        tex
+        tld4
+        trap
+        txq
+        vabsdiff
+        vabsdiff2
+        vabsdiff4
+        vadd
+        vadd2
+        vadd4
+        vavrg2
+        vavrg4
+        vmad
+        vmax
+        vmax2
+        vmax4
+        vmin
+        vmin2
+        vmin4
+        vote
+        vset
+        vset2
+        vset4
+        vshl
+        vshr
+        vsub
+        vsub2
+        vsub4
+        wmma
+        xor
+        ",
+        TokenValue::Instruction(InstructionKind::Abs),
+        TokenValue::Instruction(InstructionKind::Activemask),
+        TokenValue::Instruction(InstructionKind::Add),
+        TokenValue::Instruction(InstructionKind::Addc),
+        TokenValue::Instruction(InstructionKind::Alloca),
+        TokenValue::Instruction(InstructionKind::And),
+        TokenValue::Instruction(InstructionKind::Applypriority),
+        TokenValue::Instruction(InstructionKind::Atom),
+        TokenValue::Instruction(InstructionKind::Bar),
+        TokenValue::Instruction(InstructionKind::Barrier),
+        TokenValue::Instruction(InstructionKind::Bfe),
+        TokenValue::Instruction(InstructionKind::Bfi),
+        TokenValue::Instruction(InstructionKind::Bfind),
+        TokenValue::Instruction(InstructionKind::Bra),
+        TokenValue::Instruction(InstructionKind::Brev),
+        TokenValue::Instruction(InstructionKind::Brkpt),
+        TokenValue::Instruction(InstructionKind::Brx),
+        TokenValue::Instruction(InstructionKind::Call),
+        TokenValue::Instruction(InstructionKind::Clz),
+        TokenValue::Instruction(InstructionKind::Cnot),
+        TokenValue::Instruction(InstructionKind::Copysign),
+        TokenValue::Instruction(InstructionKind::Cos),
+        TokenValue::Instruction(InstructionKind::Cp),
+        TokenValue::Instruction(InstructionKind::Createpolicy),
+        TokenValue::Instruction(InstructionKind::Cvta),
+        TokenValue::Instruction(InstructionKind::Discard),
+        TokenValue::Instruction(InstructionKind::Div),
+        TokenValue::Instruction(InstructionKind::Dp2a),
+        TokenValue::Instruction(InstructionKind::Dp4a),
+        TokenValue::Instruction(InstructionKind::Ex2),
+        TokenValue::Instruction(InstructionKind::Exit),
+        TokenValue::Instruction(InstructionKind::Fence),
+        TokenValue::Instruction(InstructionKind::Fma),
+        TokenValue::Instruction(InstructionKind::Fns),
+        TokenValue::Instruction(InstructionKind::Isspacep),
+        TokenValue::Instruction(InstructionKind::Istypep),
+        TokenValue::Instruction(InstructionKind::Ld),
+        TokenValue::Instruction(InstructionKind::Ldmatrix),
+        TokenValue::Instruction(InstructionKind::Ldu),
+        TokenValue::Instruction(InstructionKind::Lg2),
+        TokenValue::Instruction(InstructionKind::Lop3),
+        TokenValue::Instruction(InstructionKind::Mad),
+        TokenValue::Instruction(InstructionKind::Mad24),
+        TokenValue::Instruction(InstructionKind::Madc),
+        TokenValue::Instruction(InstructionKind::Match),
+        TokenValue::Instruction(InstructionKind::Max),
+        TokenValue::Instruction(InstructionKind::Mbarrier),
+        TokenValue::Instruction(InstructionKind::Membar),
+        TokenValue::Instruction(InstructionKind::Min),
+        TokenValue::Instruction(InstructionKind::Mma),
+        TokenValue::Instruction(InstructionKind::Mov),
+        TokenValue::Instruction(InstructionKind::Mul),
+        TokenValue::Instruction(InstructionKind::Mul24),
+        TokenValue::Instruction(InstructionKind::Nanosleep),
+        TokenValue::Instruction(InstructionKind::Neg),
+        TokenValue::Instruction(InstructionKind::Not),
+        TokenValue::Instruction(InstructionKind::Or),
+        TokenValue::Instruction(InstructionKind::Pmevent),
+        TokenValue::Instruction(InstructionKind::Popc),
+        TokenValue::Instruction(InstructionKind::Prefetch),
+        TokenValue::Instruction(InstructionKind::Prefetchu),
+        TokenValue::Instruction(InstructionKind::Prmt),
+        TokenValue::Instruction(InstructionKind::Rcp),
+        TokenValue::Instruction(InstructionKind::Red),
+        TokenValue::Instruction(InstructionKind::Redux),
+        TokenValue::Instruction(InstructionKind::Rem),
+        TokenValue::Instruction(InstructionKind::Ret),
+        TokenValue::Instruction(InstructionKind::Rsqrt),
+        TokenValue::Instruction(InstructionKind::Sad),
+        TokenValue::Instruction(InstructionKind::Selp),
+        TokenValue::Instruction(InstructionKind::Set),
+        TokenValue::Instruction(InstructionKind::Setp),
+        TokenValue::Instruction(InstructionKind::Shf),
+        TokenValue::Instruction(InstructionKind::Shfl),
+        TokenValue::Instruction(InstructionKind::Shl),
+        TokenValue::Instruction(InstructionKind::Shr),
+        TokenValue::Instruction(InstructionKind::Sin),
+        TokenValue::Instruction(InstructionKind::Slct),
+        TokenValue::Instruction(InstructionKind::Sqrt),
+        TokenValue::Instruction(InstructionKind::St),
+        TokenValue::Instruction(InstructionKind::Stackrestore),
+        TokenValue::Instruction(InstructionKind::Stacksave),
+        TokenValue::Instruction(InstructionKind::Sub),
+        TokenValue::Instruction(InstructionKind::Subc),
+        TokenValue::Instruction(InstructionKind::Suld),
+        TokenValue::Instruction(InstructionKind::Suq),
+        TokenValue::Instruction(InstructionKind::Sured),
+        TokenValue::Instruction(InstructionKind::Sust),
+        TokenValue::Instruction(InstructionKind::Tanh),
+        TokenValue::Instruction(InstructionKind::Testp),
+        TokenValue::Instruction(InstructionKind::Tex),
+        TokenValue::Instruction(InstructionKind::Tld4),
+        TokenValue::Instruction(InstructionKind::Trap),
+        TokenValue::Instruction(InstructionKind::Txq),
+        TokenValue::Instruction(InstructionKind::Vabsdiff),
+        TokenValue::Instruction(InstructionKind::Vabsdiff2),
+        TokenValue::Instruction(InstructionKind::Vabsdiff4),
+        TokenValue::Instruction(InstructionKind::Vadd),
+        TokenValue::Instruction(InstructionKind::Vadd2),
+        TokenValue::Instruction(InstructionKind::Vadd4),
+        TokenValue::Instruction(InstructionKind::Vavrg2),
+        TokenValue::Instruction(InstructionKind::Vavrg4),
+        TokenValue::Instruction(InstructionKind::Vmad),
+        TokenValue::Instruction(InstructionKind::Vmax),
+        TokenValue::Instruction(InstructionKind::Vmax2),
+        TokenValue::Instruction(InstructionKind::Vmax4),
+        TokenValue::Instruction(InstructionKind::Vmin),
+        TokenValue::Instruction(InstructionKind::Vmin2),
+        TokenValue::Instruction(InstructionKind::Vmin4),
+        TokenValue::Instruction(InstructionKind::Vote),
+        TokenValue::Instruction(InstructionKind::Vset),
+        TokenValue::Instruction(InstructionKind::Vset2),
+        TokenValue::Instruction(InstructionKind::Vset4),
+        TokenValue::Instruction(InstructionKind::Vshl),
+        TokenValue::Instruction(InstructionKind::Vshr),
+        TokenValue::Instruction(InstructionKind::Vsub),
+        TokenValue::Instruction(InstructionKind::Vsub2),
+        TokenValue::Instruction(InstructionKind::Vsub4),
+        TokenValue::Instruction(InstructionKind::Wmma),
+        TokenValue::Instruction(InstructionKind::Xor),
+    }
+}
+
+#[test]
+fn types() {
+    assert_values! {
+        "
+        .s8
+        .s16
+        .s32
+        .s64
+        .u8
+        .u16
+        .u32
+        .u64
+        .f16
+        .f16x2
+        .f32
+        .f64
+        .ff64
+        .b8
+        .b16
+        .b32
+        .b64
+        .bb64
+        .bb128
+        .pred
+        .texref
+        .samplerref
+        .surfref
+        .v2
+        .v3
+        .v4
+        ",
+        TokenValue::Type(ReservedType::S8),
+        TokenValue::Type(ReservedType::S16),
+        TokenValue::Type(ReservedType::S32),
+        TokenValue::Type(ReservedType::S64),
+        TokenValue::Type(ReservedType::U8),
+        TokenValue::Type(ReservedType::U16),
+        TokenValue::Type(ReservedType::U32),
+        TokenValue::Type(ReservedType::U64),
+        TokenValue::Type(ReservedType::F16),
+        TokenValue::Type(ReservedType::F16x2),
+        TokenValue::Type(ReservedType::F32),
+        TokenValue::Type(ReservedType::F64),
+        TokenValue::Type(ReservedType::FF64),
+        TokenValue::Type(ReservedType::B8),
+        TokenValue::Type(ReservedType::B16),
+        TokenValue::Type(ReservedType::B32),
+        TokenValue::Type(ReservedType::B64),
+        TokenValue::Type(ReservedType::BB64),
+        TokenValue::Type(ReservedType::BB128),
+        TokenValue::Type(ReservedType::Pred),
+        TokenValue::Type(ReservedType::TexRef),
+        TokenValue::Type(ReservedType::SamplerRef),
+        TokenValue::Type(ReservedType::SurfRef),
+        TokenValue::Type(ReservedType::V2),
+        TokenValue::Type(ReservedType::V3),
+        TokenValue::Type(ReservedType::V4),
+    };
+}

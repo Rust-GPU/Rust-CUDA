@@ -1,0 +1,7 @@
+[package]
+name = "cust_raw"
+version = "0.11.2"
+edition = "2021"
+
+[build-dependencies]
+find_cuda_helper = { path = "../find_cuda_helper", version = "0.1" }

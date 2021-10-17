@@ -1,0 +1,5279 @@
+[
+  {
+    "name": "__nv_abs",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine the absolute value of the 32-bit signed integer x.",
+    "returns": "Returns the absolute value of the 32-bit signed integer x.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_acos",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the principal value of the arc cosine of the input argument x.",
+    "returns": "Result will be in radians, in the interval [0, ] for inside [-1, +1]x.\n- __nv_acos(1) returns +0.\n- __nv_acos(x) returns NaN for x outside [-1, +1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_acosf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the principal value of the arc cosine of the input argument x.",
+    "returns": "Result will be in radians, in the interval [0, ] for inside [-1, +1]x.\n- __nv_acosf(1) returns +0.\n- __nv_acosf(x) returns NaN for x outside [-1, +1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_acosh",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the nonnegative arc hyperbolic cosine of the input argument x.",
+    "returns": "Result will be in the interval [0, ].\n- __nv_acosh(1) returns 0.\n- __nv_acosh(x) returns NaN for x in the interval [ , 1).\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_acoshf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the nonnegative arc hyperbolic cosine of the input argument x.",
+    "returns": "Result will be in the interval [0, ].\n- __nv_acoshf(1) returns 0.\n- __nv_acoshf(x) returns NaN for x in the interval [ , 1).\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_asin",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the principal value of the arc sine of the input argument x.",
+    "returns": "Result will be in radians, in the interval [- /2, + /2] for inside [-1, +1]x.\n- __nv_asin(0) returns +0.\n- __nv_asin(x) returns NaN for x outside [-1, +1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_asinf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the principal value of the arc sine of the input argument x.",
+    "returns": "Result will be in radians, in the interval [- /2, + /2] for inside [-1, +1]x.\n- __nv_asinf(0) returns +0.\n- __nv_asinf(x) returns NaN for x outside [-1, +1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_asinh",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the arc hyperbolic sine of the input argument x.",
+    "returns": "- __nv_asinh(0) returns 1.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_asinhf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the arc hyperbolic sine of the input argument x.",
+    "returns": "- __nv_asinh(0) returns 1.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_atan",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the principal value of the arc tangent of the input argument x.",
+    "returns": "Result will be in radians, in the interval [- /2, + /2].\n- __nv_atan(0) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_atan2",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the principal value of the arc tangent of the ratio of first and second input\narguments / . The quadrant of the result is determined by the signs of inputs and x. y x y",
+    "returns": "Result will be in radians, in the interval [- /, + ].\n- __nv_atan2(0, 1) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_atan2f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the principal value of the arc tangent of the ratio of first and second input\narguments / . The quadrant of the result is determined by the signs of inputs and x. y x y",
+    "returns": "Result will be in radians, in the interval [- /, + ].\n- __nv_atan2f(0, 1) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_atanf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the principal value of the arc tangent of the input argument x.",
+    "returns": "Result will be in radians, in the interval [- /2, + /2].\n- __nv_atan(0) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_atanh",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the arc hyperbolic tangent of the input argument x.",
+    "returns": "- __nv_atanh( ) returns .\n- __nv_atanh( ) returns .\n- __nv_atanh(x) returns NaN for x outside interval [-1, 1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_atanhf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the arc hyperbolic tangent of the input argument x.",
+    "returns": "- __nv_atanhf( ) returns .\n- __nv_atanhf( ) returns .\n- __nv_atanhf(x) returns NaN for x outside interval [-1, 1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_brev",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Reverses the bit order of the 32 bit unsigned integer x.",
+    "returns": "Returns the bit-reversed value of . i.e. bit N of the return value corresponds to bit 31-Nx\nof x.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_brevll",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Reverses the bit order of the 64 bit unsigned integer x.",
+    "returns": "Returns the bit-reversed value of . i.e. bit N of the return value corresponds to bit 63-Nx\nof x.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_byte_perm",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        },
+        {
+          "name": "z",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "__nv_byte_perm(x,y,s) returns a 32-bit integer consisting of four bytes from eight input\nbytes provided in the two input integers and , as specified by a selector, x. y s\nThe input bytes are indexed as follows:\n input[0] = x<7:0> input[1] = x<15:8>\n input[2] = x<23:16> input[3] = x<31:24>\n input[4] = y<7:0> input[5] = y<15:8>\n input[6] = y<23:16> input[7] = y<31:24>\n \nThe selector indices are as follows (the upper 16-bits of the selector are not used):\n selector[0] = s<2:0> selector[1] = s<6:4>\n selector[2] = s<10:8> selector[3] = s<14:12>",
+    "returns": "The returned value r is computed to be: \nresult[n] := input[selector[n]]\nwhere is the nth byte of r.\nresult[n]",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_cbrt",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the cube root of , x.",
+    "returns": "Returns .\n- __nv_cbrt( ) returns .\n- __nv_cbrt( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_cbrtf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the cube root of , x.",
+    "returns": "Returns .\n- __nv_cbrtf( ) returns .\n- __nv_cbrtf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ceil",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the smallest integer value not less than x.",
+    "returns": "Returns expressed as a floating-point number.\n- __nv_ceil( ) returns .\n- __nv_ceil( ) returns .",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ceilf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the smallest integer value not less than x.",
+    "returns": "Returns expressed as a floating-point number.\n- __nv_ceilf( ) returns .\n- __nv_ceilf( ) returns .",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_clz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Count the number of consecutive leading zero bits, starting at the most significant bit\n(bit 31) of x.",
+    "returns": "Returns a value between 0 and 32 inclusive representing the number of zero bits.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_clzll",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Count the number of consecutive leading zero bits, starting at the most significant bit\n(bit 63) of x.",
+    "returns": "Returns a value between 0 and 64 inclusive representing the number of zero bits.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_copysign",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Create a floating-point value with the magnitude and the sign of x. y",
+    "returns": "Returns a value with the magnitude of and the sign of x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_copysignf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Create a floating-point value with the magnitude and the sign of x. y",
+    "returns": "Returns a value with the magnitude of and the sign of x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_cos",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the cosine of the input argument (measured in radians)x.",
+    "returns": "- __nv_cos( ) returns 1.\n- __nv_cos( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_cosf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the cosine of the input argument (measured in radians)x.",
+    "returns": "- __nv_cosf( ) returns 1.\n- __nv_cosf( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_cosh",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the hyperbolic cosine of the input argument x.",
+    "returns": "- __nv_cosh(0) returns 1.\n- __nv_cosh( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_coshf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the hyperbolic cosine of the input argument x.",
+    "returns": "- __nv_coshf(0) returns 1.\n- __nv_coshf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_cospi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the cosine of (measured in radians), where is the input argumentx. x",
+    "returns": "- __nv_cospi( ) returns 1.\n- __nv_cospi( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_cospif",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the cosine of (measured in radians), where is the input argumentx. x",
+    "returns": "- __nv_cospif( ) returns 1.\n- __nv_cospif( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dadd_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Adds two floating point values and in round-down (to negative infinity) modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dadd_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Adds two floating point values and in round-to-nearest-even modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dadd_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Adds two floating point values and in round-up (to positive infinity) modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dadd_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Adds two floating point values and in round-towards-zero modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ddiv_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Divides two floating point values by in round-down (to negative infinity) modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ddiv_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Divides two floating point values by in round-to-nearest-even modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ddiv_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Divides two floating point values by in round-up (to positive infinity) modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ddiv_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Divides two floating point values by in round-towards-zero modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dmul_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Multiplies two floating point values and in round-down (to negative infinity) modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dmul_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Multiplies two floating point values and in round-to-nearest-even modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dmul_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Multiplies two floating point values and in round-up (to positive infinity) modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dmul_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Multiplies two floating point values and in round-towards-zero modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2float_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the double-precision floating point value to a single-precision floating pointx\nvalue in round-down (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2float_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the double-precision floating point value to a single-precision floating pointx\nvalue in round-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2float_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the double-precision floating point value to a single-precision floating pointx\nvalue in round-up (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2float_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the double-precision floating point value to a single-precision floating pointx\nvalue in round-towards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2hiint",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Reinterpret the high 32 bits in the double-precision floating point value as a signedx\ninteger.",
+    "returns": "Returns reinterpreted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2int_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to a signed integer value in round-x\ndown (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2int_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to a signed integer value in round-x\nto-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2int_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to a signed integer value in round-x\nup (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2int_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to a signed integer value in round-x\ntowards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ll_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to a signed 64-bit integer value inx\nround-down (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ll_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to a signed 64-bit integer value inx\nround-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ll_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to a signed 64-bit integer value inx\nround-up (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ll_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to a signed 64-bit integer value inx\nround-towards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2loint",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Reinterpret the low 32 bits in the double-precision floating point value as a signedx\ninteger.",
+    "returns": "Returns reinterpreted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2uint_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned integer value inx\nround-down (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2uint_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned integer value inx\nround-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2uint_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned integer value inx\nround-up (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2uint_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "d",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned integer value inx\nround-towards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ull_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned 64-bit integer valuex\nin round-down (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ull_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned 64-bit integer valuex\nin round-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ull_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned 64-bit integer valuex\nin round-up (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double2ull_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the double-precision floating point value to an unsigned 64-bit integer valuex\nin round-towards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_double_as_longlong",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Reinterpret the bits in the double-precision floating point value as a signed 64-bitx\ninteger.",
+    "returns": "Returns reinterpreted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_drcp_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the reciprocal of in round-down (to negative infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_drcp_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the reciprocal of in round-to-nearest-even modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_drcp_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the reciprocal of in round-up (to positive infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_drcp_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the reciprocal of in round-towards-zero modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dsqrt_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the square root of in round-down (to negative infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dsqrt_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the square root of in round-to-nearest-even modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dsqrt_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the square root of in round-up (to positive infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_dsqrt_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the square root of in round-towards-zero modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.\nRequires compute capability >= 2.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of the error function for the input argument , x.",
+    "returns": "- __nv_erf( ) returns .\n- __nv_erf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfc",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the complementary error function of the input argument , 1 - erf( )x. x",
+    "returns": "- __nv_erfc( ) returns 2.\n- __nv_erfc( ) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfcf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the complementary error function of the input argument , 1 - erf( )x. x",
+    "returns": "- __nv_erfcf( ) returns 2.\n- __nv_erfcf( ) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfcinv",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the inverse complementary error function of the input argument , for in they y\ninterval [0, 2]. The inverse complementary error function find the value that satisfiesx\nthe equation = erfc( ), for , and .y x",
+    "returns": "- __nv_erfcinv(0) returns .\n- __nv_erfcinv(2) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfcinvf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the inverse complementary error function of the input argument , for in they y\ninterval [0, 2]. The inverse complementary error function find the value that satisfiesx\nthe equation = erfc( ), for , and .y x",
+    "returns": "- __nv_erfcinvf(0) returns .\n- __nv_erfcinvf(2) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfcx",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the scaled complementary error function of the input argument , x.",
+    "returns": "- __nv_erfcx( ) returns \n- __nv_erfcx( ) returns +0\n- __nv_erfcx(x) returns if the correctly calculated value is outside the double\nfloating point range.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfcxf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the scaled complementary error function of the input argument , x.",
+    "returns": "- __nv_erfcxf( ) returns \n- __nv_erfcxf( ) returns +0\n- __nv_erfcxf(x) returns if the correctly calculated value is outside the double\nfloating point range.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erff",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of the error function for the input argument , x.",
+    "returns": "- __nv_erff( ) returns .\n- __nv_erff( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfinv",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the inverse error function of the input argument , for in the interval [-1,y y\n1]. The inverse error function finds the value that satisfies the equation = erf( ), forx y x\n , and .",
+    "returns": "- __nv_erfinv(1) returns .\n- __nv_erfinv(-1) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_erfinvf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the inverse error function of the input argument , for in the interval [-1,y y\n1]. The inverse error function finds the value that satisfies the equation = erf( ), forx y x\n , and .",
+    "returns": "- __nv_erfinvf(1) returns .\n- __nv_erfinvf(-1) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_exp",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the base exponential of the input argument x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_exp10",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the base 10 exponential of the input argument x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_exp10f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the base 10 exponential of the input argument x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_exp2",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the base 2 exponential of the input argument x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_exp2f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the base 2 exponential of the input argument x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_expf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the base exponential of the input argument x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_expm1",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the base exponential of the input argument , minus 1x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_expm1f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the base exponential of the input argument , minus 1x.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fabs",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the absolute value of the input argument x.",
+    "returns": "Returns the absolute value of the input argument.\n- __nv_fabs( ) returns .\n- __nv_fabs( ) returns 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fabsf",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the absolute value of the input argument x.",
+    "returns": "Returns the absolute value of the input argument.\n- __nv_fabsf( ) returns .\n- __nv_fabsf( ) returns 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fadd_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the sum of and in round-down (to negative infinity) modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fadd_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the sum of and in round-to-nearest-even rounding modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fadd_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the sum of and in round-up (to positive infinity) modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fadd_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the sum of and in round-towards-zero modex. y",
+    "returns": "Returns + x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_cosf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate cosine of the input argument , measured in radiansx.",
+    "returns": "Returns the approximate cosine of x.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nInput and output in the denormal range is flushed to sign preserving 0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_exp10f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate base 10 exponential of the input argument , x.",
+    "returns": "Returns an approximation to .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nMost input and output values around denormal range are flushed to sign preserving\n0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_expf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate base exponential of the input argument , x.",
+    "returns": "Returns an approximation to .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nMost input and output values around denormal range are flushed to sign preserving\n0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_fdividef",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate division of by x. y",
+    "returns": "Returns / x. y\n- __nv_fast_fdividef( , ) returns NaN for .y\n- __nv_fast_fdividef( , ) returns 0 for and x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_log10f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate base 10 logarithm of the input argument x.",
+    "returns": "Returns an approximation to .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nMost input and output values around denormal range are flushed to sign preserving\n0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_log2f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate base 2 logarithm of the input argument x.",
+    "returns": "Returns an approximation to .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nInput and output in the denormal range is flushed to sign preserving 0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_logf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate base logarithm of the input argument x.",
+    "returns": "Returns an approximation to .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nMost input and output values around denormal range are flushed to sign preserving\n0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_powf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate of , the first input argument, raised to the power of ,x y\nthe second input argument, .",
+    "returns": "Returns an approximation to .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nMost input and output values around denormal range are flushed to sign preserving\n0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_sincosf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "sptr",
+          "type": "*mut f32"
+        },
+        {
+          "name": "cptr",
+          "type": "*mut f32"
+        }
+      ],
+      "returns": "()"
+    },
+    "description": "Calculate the fast approximate of sine and cosine of the first input argument x\n(measured in radians). The results for sine and cosine are written into the second\nargument, , and, respectively, third argument, .\nsptr zptr",
+    "returns": "- none\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nDenorm input/output is flushed to sign preserving 0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_sinf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate sine of the input argument , measured in radiansx.",
+    "returns": "Returns the approximate sine of x.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nInput and output in the denormal range is flushed to sign preserving 0.0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fast_tanf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the fast approximate tangent of the input argument , measured in radiansx.",
+    "returns": "Returns the approximate tangent of x.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.2, Table 9.\nThe result is computed as the fast divide of __nv_sinf() by __nv_cosf(). Denormal\ninput and output are flushed to sign-preserving 0.0 at each step of the computation.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fdim",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the positive difference between and . The positive difference is - when x y x y x\n> and +0 otherwise.y",
+    "returns": "Returns the positive difference between and x. y\n- __nv_fdim(x, y) returns x - y if x > y.\n- __nv_fdim(x, y) returns +0 if x y.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fdimf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the positive difference between and . The positive difference is - when x y x y x\n> and +0 otherwise.y",
+    "returns": "Returns the positive difference between and x. y\n- __nv_fdimf(x, y) returns x - y if x > y.\n- __nv_fdimf(x, y) returns +0 if x y.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fdiv_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Divide two floating point values by in round-down (to negative infinity) modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fdiv_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Divide two floating point values by in round-to-nearest-even modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fdiv_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Divide two floating point values by in round-up (to positive infinity) modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fdiv_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Divide two floating point values by in round-towards-zero modex. y",
+    "returns": "Returns / x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ffs",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Find the position of the first (least significant) bit set to 1 in , where the least significantx\nbit position is 1.",
+    "returns": "Returns a value between 0 and 32 inclusive representing the position of the first bit set.\n- __nv_ffs(0) returns 0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ffsll",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Find the position of the first (least significant) bit set to 1 in , where the least significantx\nbit position is 1.",
+    "returns": "Returns a value between 0 and 64 inclusive representing the position of the first bit set.\n- __nv_ffsll(0) returns 0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_finitef",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is a finite valuex.",
+    "returns": "Returns a non-zero value if and only if is a finite valuex.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2half_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i16"
+    },
+    "description": "Convert the single-precision float value to a half-precision floating point valuex\nrepresented in format, in round-to-nearest-even mode.\nunsigned short",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2int_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to a signed integer in round-down (tox\nnegative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2int_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to a signed integer in round-to-x\nnearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2int_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to a signed integer in round-up (tox\npositive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2int_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to a signed integer in round-towards-x\nzero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ll_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to a signed 64-bit integer in round-x\ndown (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ll_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to a signed 64-bit integer in round-to-x\nnearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ll_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to a signed 64-bit integer in round-upx\n(to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ll_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to a signed 64-bit integer in round-x\ntowards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2uint_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned integer in round-x\ndown (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2uint_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned integer in round-to-x\nnearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2uint_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned integer in round-upx\n(to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2uint_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned integer in round-x\ntowards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ull_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned 64-bit integer inx\nround-down (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ull_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned 64-bit integer inx\nround-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ull_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned 64-bit integer inx\nround-up (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float2ull_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Convert the single-precision floating point value to an unsigned 64-bit integer inx\nround-towards_zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_float_as_int",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Reinterpret the bits in the single-precision floating point value as a signed integerx.",
+    "returns": "Returns reinterpreted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_floor",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculates the largest integer value which is less than or equal to x.",
+    "returns": "Returns the largest integer value which is less than or equal to x expressed as a floating-\npoint number.\n- __nv_floor( ) returns .\n- __nv_floor( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_floorf",
+    "sig": {
+      "params": [
+        {
+          "name": "f",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculates the largest integer value which is less than or equal to x.",
+    "returns": "Returns the largest integer value which is less than or equal to x expressed as a floating-\npoint number.\n- __nv_floorf( ) returns .\n- __nv_floorf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fma",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        },
+        {
+          "name": "z",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute the value of as a single ternary operation. After computing the value\nto infinite precision, the value is rounded once.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fma( , , z) returns NaN.\n- __nv_fma( , , z) returns NaN.\n- __nv_fma(x, y, ) returns NaN if is an exact .\n- __nv_fma(x, y, ) returns NaN if is an exact .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fma_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        },
+        {
+          "name": "z",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-down (to negative infinity) mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fma_rd( , , z) returns NaN.\n- __nv_fma_rd( , , z) returns NaN.\n- __nv_fma_rd(x, y, ) returns NaN if is an exact \n- __nv_fma_rd(x, y, ) returns NaN if is an exact \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fma_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        },
+        {
+          "name": "z",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-to-nearest-even mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fma_rn( , , z) returns NaN.\n- __nv_fma_rn( , , z) returns NaN.\n- __nv_fma_rn(x, y, ) returns NaN if is an exact \n- __nv_fma_rn(x, y, ) returns NaN if is an exact \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fma_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        },
+        {
+          "name": "z",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-up (to positive infinity) mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fma_ru( , , z) returns NaN.\n- __nv_fma_ru( , , z) returns NaN.\n- __nv_fma_ru(x, y, ) returns NaN if is an exact \n- __nv_fma_ru(x, y, ) returns NaN if is an exact \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fma_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        },
+        {
+          "name": "z",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-towards-zero mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fma_rz( , , z) returns NaN.\n- __nv_fma_rz( , , z) returns NaN.\n- __nv_fma_rz(x, y, ) returns NaN if is an exact \n- __nv_fma_rz(x, y, ) returns NaN if is an exact \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmaf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        },
+        {
+          "name": "z",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the value of as a single ternary operation. After computing the value\nto infinite precision, the value is rounded once.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fmaf( , , z) returns NaN.\n- __nv_fmaf( , , z) returns NaN.\n- __nv_fmaf(x, y, ) returns NaN if is an exact .\n- __nv_fmaf(x, y, ) returns NaN if is an exact .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmaf_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        },
+        {
+          "name": "z",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-down (to negative infinity) mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fmaf_rd( , , z) returns NaN.\n- __nv_fmaf_rd( , , z) returns NaN.\n- __nv_fmaf_rd(x, y, ) returns NaN if is an exact .\n- __nv_fmaf_rd(x, y, ) returns NaN if is an exact .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmaf_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        },
+        {
+          "name": "z",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-to-nearest-even mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fmaf_rn( , , z) returns NaN.\n- __nv_fmaf_rn( , , z) returns NaN.\n- __nv_fmaf_rn(x, y, ) returns NaN if is an exact .\n- __nv_fmaf_rn(x, y, ) returns NaN if is an exact .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmaf_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        },
+        {
+          "name": "z",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-up (to positive infinity) mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fmaf_ru( , , z) returns NaN.\n- __nv_fmaf_ru( , , z) returns NaN.\n- __nv_fmaf_ru(x, y, ) returns NaN if is an exact .\n- __nv_fmaf_ru(x, y, ) returns NaN if is an exact .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmaf_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        },
+        {
+          "name": "z",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Computes the value of as a single ternary operation, rounding the result once\nin round-towards-zero mode.",
+    "returns": "Returns the rounded value of as a single operation.\n- __nv_fmaf_rz( , , z) returns NaN.\n- __nv_fmaf_rz( , , z) returns NaN.\n- __nv_fmaf_rz(x, y, ) returns NaN if is an exact .\n- __nv_fmaf_rz(x, y, ) returns NaN if is an exact .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmax",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Determines the maximum numeric value of the arguments and . Treats NaNx y\narguments as missing data. If one argument is a NaN and the other is legitimate numeric\nvalue, the numeric value is chosen.",
+    "returns": "Returns the maximum numeric values of the arguments and x. y\n- If both arguments are NaN, returns NaN.\n- If one argument is NaN, returns the numeric argument.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmaxf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Determines the maximum numeric value of the arguments and . Treats NaNx y\narguments as missing data. If one argument is a NaN and the other is legitimate numeric\nvalue, the numeric value is chosen.",
+    "returns": "Returns the maximum numeric values of the arguments and x. y\n- If both arguments are NaN, returns NaN.\n- If one argument is NaN, returns the numeric argument.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmin",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Determines the minimum numeric value of the arguments and . Treats NaNx y\narguments as missing data. If one argument is a NaN and the other is legitimate numeric\nvalue, the numeric value is chosen.",
+    "returns": "Returns the minimum numeric values of the arguments and x. y\n- If both arguments are NaN, returns NaN.\n- If one argument is NaN, returns the numeric argument.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fminf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Determines the minimum numeric value of the arguments and . Treats NaNx y\narguments as missing data. If one argument is a NaN and the other is legitimate numeric\nvalue, the numeric value is chosen.",
+    "returns": "Returns the minimum numeric values of the arguments and x. y\n- If both arguments are NaN, returns NaN.\n- If one argument is NaN, returns the numeric argument.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmod",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the floating-point remainder of / . The absolute value of the computedx y\nvalue is always less than absolute value and will have the same sign as .y's x",
+    "returns": "- Returns the floating point remainder of x / y.\n- __nv_fmod( , y) returns if y is not zero.\n- __nv_fmod(x, y) returns NaN and raised an invalid floating point exception if x is\n or is zero.y\n- __nv_fmod(x, y) returns zero if y is zero or the result would overflow.\n- __nv_fmod(x, ) returns x if x is finite.\n- __nv_fmod(x, 0) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmodf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the floating-point remainder of / . The absolute value of the computedx y\nvalue is always less than absolute value and will have the same sign as .y's x",
+    "returns": "- Returns the floating point remainder of x / y.\n- __nv_fmodf( , y) returns if y is not zero.\n- __nv_fmodf(x, y) returns NaN and raised an invalid floating point exception if x is\n or is zero.y\n- __nv_fmodf(x, y) returns zero if y is zero or the result would overflow.\n- __nv_fmodf(x, ) returns x if x is finite.\n- __nv_fmodf(x, 0) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmul_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the product of and in round-down (to negative infinity) modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmul_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the product of and in round-to-nearest-even modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmul_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the product of and in round-up (to positive infinity) modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fmul_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the product of and in round-towards-zero modex. y",
+    "returns": "Returns * x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_frcp_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the reciprocal of in round-down (to negative infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_frcp_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the reciprocal of in round-to-nearest-even modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_frcp_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the reciprocal of in round-up (to positive infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_frcp_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the reciprocal of in round-towards-zero modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_frexp",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "b",
+          "type": "*mut i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Decompose the floating-point value into a component for the normalized fractionx m\nelement and another term for the exponent. The absolute value of will be greater\nn m\nthan or equal to 0.5 and less than 1.0 or it will be equal to 0; . The integer\nexponent will be stored in the location to which points.\nn nptr",
+    "returns": "Returns the fractional component .\nm\n- __nv_frexp(0, nptr) returns 0 for the fractional component and zero for the integer\ncomponent.\n- __nv_frexp( , nptr) returns and stores zero in the location pointed to by\n.\nnptr\n- __nv_frexp( , nptr) returns and stores an unspecified value in the location\nto which points.\nnptr\n- __nv_frexp(NaN, y) returns a NaN and stores an unspecified value in the location to\nwhich points.\nnptr\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_frexpf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "b",
+          "type": "*mut i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Decompose the floating-point value into a component for the normalized fractionx m\nelement and another term for the exponent. The absolute value of will be greater\nn m\nthan or equal to 0.5 and less than 1.0 or it will be equal to 0; . The integer\nexponent will be stored in the location to which points.\nn nptr",
+    "returns": "Returns the fractional component .\nm\n- __nv_frexpf(0, nptr) returns 0 for the fractional component and zero for the integer\ncomponent.\n- __nv_frexpf( , nptr) returns and stores zero in the location pointed to by\n.\nnptr\n- __nv_frexpf( , nptr) returns and stores an unspecified value in the\nlocation to which points.\nnptr\n- __nv_frexpf(NaN, y) returns a NaN and stores an unspecified value in the location\nto which points.\nnptr\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_frsqrt_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the reciprocal square root of in round-to-nearest-even modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsqrt_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the square root of in round-down (to negative infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsqrt_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the square root of in round-to-nearest-even modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsqrt_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the square root of in round-up (to positive infinity) modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsqrt_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the square root of in round-towards-zero modex.",
+    "returns": "Returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsub_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the difference of and in round-down (to negative infinity) modex. y",
+    "returns": "Returns - x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsub_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the difference of and in round-to-nearest-even rounding modex. y",
+    "returns": "Returns - x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsub_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the difference of and in round-up (to positive infinity) modex. y",
+    "returns": "Returns - x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_fsub_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute the difference of and in round-towards-zero modex. y",
+    "returns": "Returns - x. y\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.\nThis operation will never be merged into a single multiply-add instruction.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_hadd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Compute average of signed input arguments and as ( + ) >> 1, avoiding overflowx y x y\nin the intermediate sum.",
+    "returns": "Returns a signed integer value representing the signed average value of the two inputs.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_half2float",
+    "sig": {
+      "params": [
+        {
+          "name": "h",
+          "type": "i16"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the half-precision floating point value represented in x unsigned short\nformat to a single-precision floating point value.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_hiloint2double",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Reinterpret the integer value of as the high 32 bits of a double-precision floating\nhi\npoint value and the integer value of as the low 32 bits of the same double-precision\nlo\nfloating point value.",
+    "returns": "Returns reinterpreted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_hypot",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the length of the hypotenuse of a right triangle whose two sides have lengths x\nand without undue overflow or underflow.y",
+    "returns": "Returns the length of the hypotenuse . If the correct value would overflow,\nreturns . If the correct value would underflow, returns 0. If one of the input\narguments is 0, returns the other argument\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_hypotf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the length of the hypotenuse of a right triangle whose two sides have lengths x\nand without undue overflow or underflow.y",
+    "returns": "Returns the length of the hypotenuse . If the correct value would overflow,\nreturns . If the correct value would underflow, returns 0. If one of the input\narguments is 0, returns the other argument\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ilogb",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculates the unbiased integer exponent of the input argument x.",
+    "returns": "- If successful, returns the unbiased exponent of the argument.\n- __nv_ilogb(0) returns INT_MIN.\n- __nv_ilogb(NaN) returns NaN.\n- __nv_ilogb(x) returns INT_MAX if x is or the correct value is greater than\n.\nINT_MAX\n- __nv_ilogb(x) return INT_MIN if the correct value is less than INT_MIN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ilogbf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculates the unbiased integer exponent of the input argument x.",
+    "returns": "- If successful, returns the unbiased exponent of the argument.\n- __nv_ilogbf(0) returns INT_MIN.\n- __nv_ilogbf(NaN) returns NaN.\n- __nv_ilogbf(x) returns INT_MAX if x is or the correct value is greater than\n.\nINT_MAX\n- __nv_ilogbf(x) return INT_MIN if the correct value is less than INT_MIN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_int2double_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "i",
+          "type": "i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the signed integer value to a double-precision floating point valuex.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_int2float_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed integer value to a single-precision floating point value in round-x\ndown (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_int2float_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed integer value to a single-precision floating point value in round-to-x\nnearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_int2float_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed integer value to a single-precision floating point value in round-upx\n(to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_int2float_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed integer value to a single-precision floating point value in round-x\ntowards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_int_as_float",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Reinterpret the bits in the signed integer value as a single-precision floating pointx\nvalue.",
+    "returns": "Returns reinterpreted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_isfinited",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is a finite value (zero, subnormal, orx\nnormal and not infinity or NaN).",
+    "returns": "Returns a nonzero value if and only if is a finite valuex.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_isinfd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is an infinite value (positive or negative)x.",
+    "returns": "Returns a nonzero value if and only if is a infinite valuex.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_isinff",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is an infinite value (positive or negative)x.",
+    "returns": "Returns a nonzero value if and only if is a infinite valuex.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_isnand",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is a NaNx.",
+    "returns": "Returns a nonzero value if and only if is a NaN valuex.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_isnanf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is a NaNx.",
+    "returns": "Returns a nonzero value if and only if is a NaN valuex.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_j0",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of the Bessel function of the first kind of order 0 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the first kind of order 0.\n- __nv_j0( ) returns +0.\n- __nv_j0(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_j0f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of the Bessel function of the first kind of order 0 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the first kind of order 0.\n- __nv_j0f( ) returns +0.\n- __nv_j0f(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_j1",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of the Bessel function of the first kind of order 1 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the first kind of order 1.\n- __nv_j1( ) returns .\n- __nv_j1( ) returns +0.\n- __nv_j1(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_j1f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of the Bessel function of the first kind of order 1 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the first kind of order 1.\n- __nv_j1f( ) returns .\n- __nv_j1f( ) returns +0.\n- __nv_j1f(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_jn",
+    "sig": {
+      "params": [
+        {
+          "name": "n",
+          "type": "i32"
+        },
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of the Bessel function of the first kind of order for the input\nn\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the first kind of order .\nn\n- __nv_jn(n, NaN) returns NaN.\n- __nv_jn(n, x) returns NaN for n < 0.\n- __nv_jn(n, ) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_jnf",
+    "sig": {
+      "params": [
+        {
+          "name": "n",
+          "type": "i32"
+        },
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of the Bessel function of the first kind of order for the input\nn\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the first kind of order .\nn\n- __nv_jnf(n, NaN) returns NaN.\n- __nv_jnf(n, x) returns NaN for n < 0.\n- __nv_jnf(n, ) returns +0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ldexp",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of of the input arguments and x. exp",
+    "returns": "- __nv_ldexp(x) returns if the correctly calculated value is outside the double\nfloating point range.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ldexpf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of of the input arguments and x. exp",
+    "returns": "- __nv_ldexpf(x) returns if the correctly calculated value is outside the double\nfloating point range.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_lgamma",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the natural logarithm of the absolute value of the gamma function of the input\nargument , namely the value of x",
+    "returns": "- __nv_lgamma(1) returns +0.\n- __nv_lgamma(2) returns +0.\n- __nv_lgamma(x) returns if the correctly calculated value is outside the double\nfloating point range.\n- __nv_lgamma(x) returns if x 0.\n- __nv_lgamma( ) returns .\n- __nv_lgamma( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_lgammaf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the natural logarithm of the absolute value of the gamma function of the input\nargument , namely the value of x",
+    "returns": "- __nv_lgammaf(1) returns +0.\n- __nv_lgammaf(2) returns +0.\n- __nv_lgammaf(x) returns if the correctly calculated value is outside the double\nfloating point range.\n- __nv_lgammaf(x) returns if x 0.\n- __nv_lgammaf( ) returns .\n- __nv_lgammaf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2double_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the signed 64-bit integer value to a double-precision floating point value inx\nround-down (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2double_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the signed 64-bit integer value to a double-precision floating point value inx\nround-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2double_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the signed 64-bit integer value to a double-precision floating point value inx\nround-up (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2double_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the signed 64-bit integer value to a double-precision floating point value inx\nround-towards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2float_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed integer value to a single-precision floating point value in round-x\ndown (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2float_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed 64-bit integer value to a single-precision floating point value inx\nround-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2float_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed integer value to a single-precision floating point value in round-upx\n(to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ll2float_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the signed integer value to a single-precision floating point value in round-x\ntowards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_llabs",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Determine the absolute value of the 64-bit signed integer x.",
+    "returns": "Returns the absolute value of the 64-bit signed integer x.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_llmax",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        },
+        {
+          "name": "y",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Determine the maximum value of the two 64-bit signed integers and x. y",
+    "returns": "Returns the maximum value of the two 64-bit signed integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_llmin",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        },
+        {
+          "name": "y",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Determine the minimum value of the two 64-bit signed integers and x. y",
+    "returns": "Returns the minimum value of the two 64-bit signed integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_llrint",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Round to the nearest integer value, with halfway cases rounded towards zero. If thex\nresult is outside the range of the return type, the result is undefined.",
+    "returns": "Returns rounded integer value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_llrintf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Round to the nearest integer value, with halfway cases rounded towards zero. If thex\nresult is outside the range of the return type, the result is undefined.",
+    "returns": "Returns rounded integer value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_llround",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Round to the nearest integer value, with halfway cases rounded away from zero. If thex\nresult is outside the range of the return type, the result is undefined.",
+    "returns": "Returns rounded integer value.\nThis function may be slower than alternate rounding methods. See llrint().",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_llroundf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Round to the nearest integer value, with halfway cases rounded away from zero. If thex\nresult is outside the range of the return type, the result is undefined.",
+    "returns": "Returns rounded integer value.\nThis function may be slower than alternate rounding methods. See llrint().",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_log",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the base logarithm of the input argument x.",
+    "returns": "- __nv_log( ) returns .\n- __nv_log(1) returns +0.\n- __nv_log(x) returns NaN for x < 0.\n- __nv_log( ) returns \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_log10",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the base 10 logarithm of the input argument x.",
+    "returns": "- __nv_log10( ) returns .\n- __nv_log10(1) returns +0.\n- __nv_log10(x) returns NaN for x < 0.\n- __nv_log10( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_log10f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the base 10 logarithm of the input argument x.",
+    "returns": "- __nv_log10f( ) returns .\n- __nv_log10f(1) returns +0.\n- __nv_log10f(x) returns NaN for x < 0.\n- __nv_log10f( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_log1p",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of of the input argument x.",
+    "returns": "- __nv_log1p( ) returns .\n- __nv_log1p(-1) returns +0.\n- __nv_log1p(x) returns NaN for x < -1.\n- __nv_log1p( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_log1pf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of of the input argument x.",
+    "returns": "- __nv_log1pf( ) returns .\n- __nv_log1pf(-1) returns +0.\n- __nv_log1pf(x) returns NaN for x < -1.\n- __nv_log1pf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_log2",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the base 2 logarithm of the input argument x.",
+    "returns": "- __nv_log2( ) returns .\n- __nv_log2(1) returns +0.\n- __nv_log2(x) returns NaN for x < 0.\n- __nv_log2( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_log2f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the base 2 logarithm of the input argument x.",
+    "returns": "- __nv_log2f( ) returns .\n- __nv_log2f(1) returns +0.\n- __nv_log2f(x) returns NaN for x < 0.\n- __nv_log2f( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_logb",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the floating point representation of the exponent of the input argument x.",
+    "returns": "- __nv_logb returns \n- __nv_logb returns \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_logbf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the floating point representation of the exponent of the input argument x.",
+    "returns": "- __nv_logbf returns \n- __nv_logbf returns \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_logf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the base logarithm of the input argument x.",
+    "returns": "- __nv_logf( ) returns .\n- __nv_logf(1) returns +0.\n- __nv_logf(x) returns NaN for x < 0.\n- __nv_logf( ) returns \nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_longlong_as_double",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Reinterpret the bits in the 64-bit signed integer value as a double-precision floatingx\npoint value.",
+    "returns": "Returns reinterpreted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_max",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine the maximum value of the two 32-bit signed integers and x. y",
+    "returns": "Returns the maximum value of the two 32-bit signed integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_min",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine the minimum value of the two 32-bit signed integers and x. y",
+    "returns": "Returns the minimum value of the two 32-bit signed integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_modf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "b",
+          "type": "*mut f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Break down the argument into fractional and integral parts. The integral part is storedx\nin the argument . Fractional and integral parts are given the same sign as the\niptr\nargument x.",
+    "returns": "- __nv_modf( , iptr) returns a result with the same sign as x.\n- __nv_modf( , iptr) returns and stores in the object pointed to by\n.\niptr\n- __nv_modf(NaN, iptr) stores a NaN in the object pointed to by iptr and returns a\nNaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_modff",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "b",
+          "type": "*mut f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Break down the argument into fractional and integral parts. The integral part is storedx\nin the argument . Fractional and integral parts are given the same sign as the\niptr\nargument x.",
+    "returns": "- __nv_modff( , iptr) returns a result with the same sign as x.\n- __nv_modff( , iptr) returns and stores in the object pointed to by\n.\niptr\n- __nv_modff(NaN, iptr) stores a NaN in the object pointed to by iptr and returns\na NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_mul24",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculate the least significant 32 bits of the product of the least significant 24 bits of x\nand . The high order 8 bits of and are ignored.y x y",
+    "returns": "Returns the least significant 32 bits of the product * x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_mul64hi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        },
+        {
+          "name": "y",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Calculate the most significant 64 bits of the 128-bit product * , where and are 64-x y x y\nbit integers.",
+    "returns": "Returns the most significant 64 bits of the product * x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_mulhi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculate the most significant 32 bits of the 64-bit product * , where and are 32-bitx y x y\nintegers.",
+    "returns": "Returns the most significant 32 bits of the product * x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_nan",
+    "sig": {
+      "params": [
+        {
+          "name": "tagp",
+          "type": "*mut i8"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Return a representation of a quiet NaN. Argument selects one of the possible\ntagp\nrepresentations.",
+    "returns": "- __nv_nan(tagp) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_nanf",
+    "sig": {
+      "params": [
+        {
+          "name": "tagp",
+          "type": "*mut i8"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Return a representation of a quiet NaN. Argument selects one of the possible\ntagp\nrepresentations.",
+    "returns": "- __nv_nanf(tagp) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_nearbyint",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Round argument to an integer value in double precision floating-point formatx.",
+    "returns": "- __nv_nearbyint( ) returns .\n- __nv_nearbyint( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_nearbyintf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Round argument to an integer value in double precision floating-point formatx.",
+    "returns": "- __nv_nearbyintf( ) returns .\n- __nv_nearbyintf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_nextafter",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the next representable double-precision floating-point value following inx\nthe direction of . For example, if is greater than , nextafter() returns the smallesty y x\nrepresentable number greater than x",
+    "returns": "- __nv_nextafter( , y) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_nextafterf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the next representable double-precision floating-point value following inx\nthe direction of . For example, if is greater than , nextafter() returns the smallesty y x\nrepresentable number greater than x",
+    "returns": "- __nv_nextafterf( , y) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_normcdf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the cumulative distribution function of the standard normal distribution for\ninput argument , .y",
+    "returns": "- __nv_normcdf( ) returns 1\n- __nv_normcdf( ) returns +0\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_normcdff",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the cumulative distribution function of the standard normal distribution for\ninput argument , .y",
+    "returns": "- __nv_normcdff( ) returns 1\n- __nv_normcdff( ) returns +0\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_normcdfinv",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the inverse of the standard normal cumulative distribution function for input\nargument , . The function is defined for input values in the interval .y",
+    "returns": "- __nv_normcdfinv(0) returns .\n- __nv_normcdfinv(1) returns .\n- __nv_normcdfinv(x) returns NaN if x is not in the interval [0,1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_normcdfinvf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the inverse of the standard normal cumulative distribution function for input\nargument , . The function is defined for input values in the interval .y",
+    "returns": "- __nv_normcdfinvf(0) returns .\n- __nv_normcdfinvf(1) returns .\n- __nv_normcdfinvf(x) returns NaN if x is not in the interval [0,1].\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_popc",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Count the number of bits that are set to 1 in x.",
+    "returns": "Returns a value between 0 and 32 inclusive representing the number of set bits.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_popcll",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Count the number of bits that are set to 1 in x.",
+    "returns": "Returns a value between 0 and 64 inclusive representing the number of set bits.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_pow",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of to the power of x y",
+    "returns": "- __nv_pow( , y) returns for y an integer less than 0.\n- __nv_pow( , y) returns for y an odd integer greater than 0.\n- __nv_pow( , y) returns +0 for y > 0 and not and odd integer.\n- __nv_pow(-1, ) returns 1.\n- __nv_pow(+1, y) returns 1 for any y, even a NaN.\n- __nv_pow(x, ) returns 1 for any x, even a NaN.\n- __nv_pow(x, y) returns a NaN for finite x < 0 and finite non-integer y.\n- __nv_pow( , ) returns for x.\n- __nv_pow( , ) returns +0 for x.\n- __nv_pow( , ) returns +0 for x.\n- __nv_pow( , ) returns for x.\n- __nv_pow( , y) returns -0 for y an odd integer less than 0.\n- __nv_pow( , y) returns +0 for y < 0 and not an odd integer.\n- __nv_pow( , y) returns for y an odd integer greater than 0.\n- __nv_pow( , y) returns for y > 0 and not an odd integer.\n- __nv_pow( , y) returns +0 for y < 0.\n- __nv_pow( , y) returns for y > 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_powf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of to the power of x y",
+    "returns": "- __nv_powf( , y) returns for y an integer less than 0.\n- __nv_powf( , y) returns for y an odd integer greater than 0.\n- __nv_powf( , y) returns +0 for y > 0 and not and odd integer.\n- __nv_powf(-1, ) returns 1.\n- __nv_powf(+1, y) returns 1 for any y, even a NaN.\n- __nv_powf(x, ) returns 1 for any x, even a NaN.\n- __nv_powf(x, y) returns a NaN for finite x < 0 and finite non-integer y.\n- __nv_powf( , ) returns for x.\n- __nv_powf( , ) returns +0 for x.\n- __nv_powf( , ) returns +0 for x.\n- __nv_powf( , ) returns for x.\n- __nv_powf( , y) returns -0 for y an odd integer less than 0.\n- __nv_powf( , y) returns +0 for y < 0 and not an odd integer.\n- __nv_powf( , y) returns for y an odd integer greater than 0.\n- __nv_powf( , y) returns for y > 0 and not an odd integer.\n- __nv_powf( , y) returns +0 for y < 0.\n- __nv_powf( , y) returns for y > 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_powi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of to the power of x y",
+    "returns": "- __nv_powi( , y) returns for y an integer less than 0.\n- __nv_powi( , y) returns for y an odd integer greater than 0.\n- __nv_powi( , y) returns +0 for y > 0 and not and odd integer.\n- __nv_powi(-1, ) returns 1.\n- __nv_powi(+1, y) returns 1 for any y, even a NaN.\n- __nv_powi(x, ) returns 1 for any x, even a NaN.\n- __nv_powi(x, y) returns a NaN for finite x < 0 and finite non-integer y.\n- __nv_powi( , ) returns for x.\n- __nv_powi( , ) returns +0 for x.\n- __nv_powi( , ) returns +0 for x.\n- __nv_powi( , ) returns for x.\n- __nv_powi( , y) returns -0 for y an odd integer less than 0.\n- __nv_powi( , y) returns +0 for y < 0 and not an odd integer.\n- __nv_powi( , y) returns for y an odd integer greater than 0.\n- __nv_powi( , y) returns for y > 0 and not an odd integer.\n- __nv_powi( , y) returns +0 for y < 0.\n- __nv_powi( , y) returns for y > 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_powif",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of to the power of x. y",
+    "returns": "- __nv_powif( , y) returns for y an integer less than 0.\n- __nv_powif( , y) returns for y an odd integer greater than 0.\n- __nv_powif( , y) returns +0 for y > 0 and not and odd integer.\n- __nv_powif(-1, ) returns 1.\n- __nv_powif(+1, y) returns 1 for any y, even a NaN.\n- __nv_powif(x, ) returns 1 for any x, even a NaN.\n- __nv_powif(x, y) returns a NaN for finite x < 0 and finite non-integer y.\n- __nv_powif( , ) returns for x.\n- __nv_powif( , ) returns +0 for x.\n- __nv_powif( , ) returns +0 for x.\n- __nv_powif( , ) returns for x.\n- __nv_powif( , y) returns -0 for y an odd integer less than 0.\n- __nv_powif( , y) returns +0 for y < 0 and not an odd integer.\n- __nv_powif( , y) returns for y an odd integer greater than 0.\n- __nv_powif( , y) returns for y > 0 and not an odd integer.\n- __nv_powif( , y) returns +0 for y < 0.\n- __nv_powif( , y) returns for y > 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_rcbrt",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate reciprocal cube root function of x",
+    "returns": "- __nv_rcbrt( ) returns .\n- __nv_rcbrt( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_rcbrtf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate reciprocal cube root function of x",
+    "returns": "- __nv_rcbrtf( ) returns .\n- __nv_rcbrtf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_remainder",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute double-precision floating-point remainder of dividing by for nonzero .\nr x y y\nThus . The value is the integer value nearest . In the case when ,\nn\nthe even value is chosen.\nn",
+    "returns": "- __nv_remainder(x, 0) returns NaN.\n- __nv_remainder( , y) returns NaN.\n- __nv_remainder(x, ) returns x for finite x.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_remainderf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute double-precision floating-point remainder of dividing by for nonzero .\nr x y y\nThus . The value is the integer value nearest . In the case when ,\nn\nthe even value is chosen.\nn",
+    "returns": "- __nv_remainderf(x, 0) returns NaN.\n- __nv_remainderf( , y) returns NaN.\n- __nv_remainderf(x, ) returns x for finite x.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_remquo",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "f64"
+        },
+        {
+          "name": "c",
+          "type": "*mut i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Compute a double-precision floating-point remainder in the same way as the\nremainder() function. Argument returns part of quotient upon division of by .\nquo x y\nValue has the same sign as and may not be the exact quotient but agrees with the\nquo\nexact quotient in the low order 3 bits.",
+    "returns": "Returns the remainder.\n- __nv_remquo(x, 0, quo) returns NaN.\n- __nv_remquo( , y, quo) returns NaN.\n- __nv_remquo(x, , quo) returns x.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_remquof",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "f32"
+        },
+        {
+          "name": "quo",
+          "type": "*mut i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Compute a double-precision floating-point remainder in the same way as the\nremainder() function. Argument returns part of quotient upon division of by .\nquo x y\nValue has the same sign as and may not be the exact quotient but agrees with the\nquo\nexact quotient in the low order 3 bits.",
+    "returns": "Returns the remainder.\n- __nv_remquof(x, 0, quo) returns NaN.\n- __nv_remquof( , y, quo) returns NaN.\n- __nv_remquof(x, , quo) returns x.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_rhadd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Compute average of signed input arguments and as ( + + 1 ) >> 1, avoidingx y x y\noverflow in the intermediate sum.",
+    "returns": "Returns a signed integer value representing the signed rounded average value of the two\ninputs.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_rint",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Round to the nearest integer value in floating-point format, with halfway casesx\nrounded to the nearest even integer value.",
+    "returns": "Returns rounded integer value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_rintf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Round to the nearest integer value in floating-point format, with halfway casesx\nrounded to the nearest even integer value.",
+    "returns": "Returns rounded integer value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_round",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Round to the nearest integer value in floating-point format, with halfway casesx\nrounded away from zero.",
+    "returns": "Returns rounded integer value.\nThis function may be slower than alternate rounding methods. See rint().",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_roundf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Round to the nearest integer value in floating-point format, with halfway casesx\nrounded away from zero.",
+    "returns": "Returns rounded integer value.\nThis function may be slower than alternate rounding methods. See rint().",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_rsqrt",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the reciprocal of the nonnegative square root of , x.",
+    "returns": "Returns .\n- __nv_rsqrt( ) returns +0.\n- __nv_rsqrt( ) returns .\n- __nv_rsqrt(x) returns NaN if x is less than 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_rsqrtf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the reciprocal of the nonnegative square root of , x.",
+    "returns": "Returns .\n- __nv_rsqrtf( ) returns +0.\n- __nv_rsqrtf( ) returns .\n- __nv_rsqrtf(x) returns NaN if x is less than 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sad",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        },
+        {
+          "name": "z",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculate , the 32-bit sum of the third argument plus and the absolute value\nz\nof the difference between the first argument, , and second argument, x. y\nInputs and are signed 32-bit integers, input is a 32-bit unsigned integerx. y z",
+    "returns": "Returns .",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_saturatef",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Clamp the input argument to be within the interval [+0.0, 1.0]x.",
+    "returns": "- __nv_saturatef(x) returns 0 if x < 0.\n- __nv_saturatef(x) returns 1 if x > 1.\n- __nv_saturatef(x) returns x if .\n- __nv_saturatef(NaN) returns 0.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_scalbn",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Scale by by efficient manipulation of the floating-point exponentx.",
+    "returns": "Returns * x.\n- __nv_scalbn( , n) returns .\n- __nv_scalbn(x, 0) returns x.\n- __nv_scalbn( , n) returns .",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_scalbnf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Scale by by efficient manipulation of the floating-point exponentx.",
+    "returns": "Returns * x.\n- __nv_scalbnf( , n) returns .\n- __nv_scalbnf(x, 0) returns x.\n- __nv_scalbnf( , n) returns .",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_signbitd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is negativex.",
+    "returns": "Returns a nonzero value if and only if is negative. Reports the sign bit of all valuesx\nincluding infinities, zeros, and NaNs.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_signbitf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine whether the floating-point value is negativex.",
+    "returns": "Returns a nonzero value if and only if is negative. Reports the sign bit of all valuesx\nincluding infinities, zeros, and NaNs.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sin",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the sine of the input argument (measured in radians)x.",
+    "returns": "- __nv_sin( ) returns .\n- __nv_sin( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sincos",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "sptr",
+          "type": "*mut f64"
+        },
+        {
+          "name": "cptr",
+          "type": "*mut f64"
+        }
+      ],
+      "returns": "()"
+    },
+    "description": "Calculate the sine and cosine of the first input argument (measured in radians). Thex\nresults for sine and cosine are written into the second argument, , and, respectively,\nsptr\nthird argument, .\nzptr",
+    "returns": "- none\nSee __nv_sin() and __nv_cos().\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sincosf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "sptr",
+          "type": "*mut f32"
+        },
+        {
+          "name": "cptr",
+          "type": "*mut f32"
+        }
+      ],
+      "returns": "()"
+    },
+    "description": "Calculate the sine and cosine of the first input argument (measured in radians). Thex\nresults for sine and cosine are written into the second argument, , and, respectively,\nsptr\nthird argument, .\nzptr",
+    "returns": "- none\nSee __nv_sinf() and __nv_cosf().\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sincospi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        },
+        {
+          "name": "sptr",
+          "type": "*mut f64"
+        },
+        {
+          "name": "cptr",
+          "type": "*mut f64"
+        }
+      ],
+      "returns": "()"
+    },
+    "description": "Calculate the sine and cosine of the first input argument, (measured in radians),x\n. The results for sine and cosine are written into the second argument, , and,\nsptr\nrespectively, third argument, .\nzptr",
+    "returns": "- none\nSee __nv_sinpi() and __nv_cospi().\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sincospif",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        },
+        {
+          "name": "sptr",
+          "type": "*mut f32"
+        },
+        {
+          "name": "cptr",
+          "type": "*mut f32"
+        }
+      ],
+      "returns": "()"
+    },
+    "description": "Calculate the sine and cosine of the first input argument, (measured in radians),x\n. The results for sine and cosine are written into the second argument, , and,\nsptr\nrespectively, third argument, .\nzptr",
+    "returns": "- none\nSee __nv_sinpif() and __nv_cospif().\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sinf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the sine of the input argument (measured in radians)x.",
+    "returns": "- __nv_sinf( ) returns .\n- __nv_sinf( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sinh",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the hyperbolic sine of the input argument x.",
+    "returns": "- __nv_sinh( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sinhf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the hyperbolic sine of the input argument x.",
+    "returns": "- __nv_sinhf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sinpi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the sine of (measured in radians), where is the input argumentx. x",
+    "returns": "- __nv_sinpi( ) returns .\n- __nv_sinpi( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sinpif",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the sine of (measured in radians), where is the input argumentx. x",
+    "returns": "- __nv_sinpif( ) returns .\n- __nv_sinpif( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sqrt",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the nonnegative square root of , x.",
+    "returns": "Returns .\n- __nv_sqrt( ) returns .\n- __nv_sqrt( ) returns .\n- __nv_sqrt(x) returns NaN if x is less than 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_sqrtf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the nonnegative square root of , x.",
+    "returns": "Returns .\n- __nv_sqrtf( ) returns .\n- __nv_sqrtf( ) returns .\n- __nv_sqrtf(x) returns NaN if x is less than 0.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_tan",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the tangent of the input argument (measured in radians)x.",
+    "returns": "- __nv_tan( ) returns .\n- __nv_tan( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_tanf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the tangent of the input argument (measured in radians)x.",
+    "returns": "- __nv_tanf( ) returns .\n- __nv_tanf( ) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_tanh",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the hyperbolic tangent of the input argument x.",
+    "returns": "- __nv_tanh( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_tanhf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the hyperbolic tangent of the input argument x.",
+    "returns": "- __nv_tanhf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_tgamma",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the gamma function of the input argument , namely the value of x.",
+    "returns": "- __nv_tgamma( ) returns .\n- __nv_tgamma(2) returns +0.\n- __nv_tgamma(x) returns if the correctly calculated value is outside the double\nfloating point range.\n- __nv_tgamma(x) returns NaN if x < 0.\n- __nv_tgamma( ) returns NaN.\n- __nv_tgamma( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_tgammaf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the gamma function of the input argument , namely the value of x.",
+    "returns": "- __nv_tgammaf( ) returns .\n- __nv_tgammaf(2) returns +0.\n- __nv_tgammaf(x) returns if the correctly calculated value is outside the double\nfloating point range.\n- __nv_tgammaf(x) returns NaN if x < 0.\n- __nv_tgammaf( ) returns NaN.\n- __nv_tgammaf( ) returns .\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_trunc",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Round to the nearest integer value that does not exceed in magnitudex. x",
+    "returns": "Returns truncated integer value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_truncf",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Round to the nearest integer value that does not exceed in magnitudex. x",
+    "returns": "Returns truncated integer value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_uhadd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Compute average of unsigned input arguments and as ( + ) >> 1, avoidingx y x y\noverflow in the intermediate sum.",
+    "returns": "Returns an unsigned integer value representing the unsigned average value of the two\ninputs.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_uint2double_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "i",
+          "type": "i32"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the unsigned integer value to a double-precision floating point valuex.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_uint2float_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\ndown (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_uint2float_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\nto-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_uint2float_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\nup (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_uint2float_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "in",
+          "type": "i32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\ntowards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2double_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the unsigned 64-bit integer value to a double-precision floating point value inx\nround-down (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2double_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the unsigned 64-bit integer value to a double-precision floating point value inx\nround-to-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2double_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the unsigned 64-bit integer value to a double-precision floating point value inx\nround-up (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2double_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Convert the unsigned 64-bit integer value to a double-precision floating point value inx\nround-towards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2float_rd",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\ndown (to negative infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2float_rn",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\nto-nearest-even mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2float_ru",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\nup (to positive infinity) mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ull2float_rz",
+    "sig": {
+      "params": [
+        {
+          "name": "l",
+          "type": "i64"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Convert the unsigned integer value to a single-precision floating point value in round-x\ntowards-zero mode.",
+    "returns": "Returns converted value.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ullmax",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        },
+        {
+          "name": "y",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Determine the maximum value of the two 64-bit unsigned integers and x. y",
+    "returns": "Returns the maximum value of the two 64-bit unsigned integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ullmin",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        },
+        {
+          "name": "y",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Determine the minimum value of the two 64-bit unsigned integers and x. y",
+    "returns": "Returns the minimum value of the two 64-bit unsigned integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_umax",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine the maximum value of the two 32-bit unsigned integers and x. y",
+    "returns": "Returns the maximum value of the two 32-bit unsigned integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_umin",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Determine the minimum value of the two 32-bit unsigned integers and x. y",
+    "returns": "Returns the minimum value of the two 32-bit unsigned integers and x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_umul24",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculate the least significant 32 bits of the product of the least significant 24 bits of x\nand . The high order 8 bits of and are ignored.y x y",
+    "returns": "Returns the least significant 32 bits of the product * x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_umul64hi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i64"
+        },
+        {
+          "name": "y",
+          "type": "i64"
+        }
+      ],
+      "returns": "i64"
+    },
+    "description": "Calculate the most significant 64 bits of the 128-bit product * , where and are 64-x y x y\nbit unsigned integers.",
+    "returns": "Returns the most significant 64 bits of the product * x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_umulhi",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculate the most significant 32 bits of the 64-bit product * , where and are 32-bitx y x y\nunsigned integers.",
+    "returns": "Returns the most significant 32 bits of the product * x. y",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_urhadd",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Compute average of unsigned input arguments and as ( + + 1 ) >> 1, avoidingx y x y\noverflow in the intermediate sum.",
+    "returns": "Returns an unsigned integer value representing the unsigned rounded average value of\nthe two inputs.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_usad",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "i32"
+        },
+        {
+          "name": "y",
+          "type": "i32"
+        },
+        {
+          "name": "z",
+          "type": "i32"
+        }
+      ],
+      "returns": "i32"
+    },
+    "description": "Calculate , the 32-bit sum of the third argument plus and the absolute value\nz\nof the difference between the first argument, , and second argument, x. y\nInputs , , and are unsigned 32-bit integersx. y z",
+    "returns": "Returns .",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_y0",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of the Bessel function of the second kind of order 0 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the second kind of order 0.\n- __nv_y0(0) returns .\n- __nv_y0(x) returns NaN for x < 0.\n- __nv_y0( ) returns +0.\n- __nv_y0(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_y0f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of the Bessel function of the second kind of order 0 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the second kind of order 0.\n- __nv_y0f(0) returns .\n- __nv_y0f(x) returns NaN for x < 0.\n- __nv_y0f( ) returns +0.\n- __nv_y0f(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_y1",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of the Bessel function of the second kind of order 1 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the second kind of order 1.\n- __nv_y1(0) returns .\n- __nv_y1(x) returns NaN for x < 0.\n- __nv_y1( ) returns +0.\n- __nv_y1(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_y1f",
+    "sig": {
+      "params": [
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of the Bessel function of the second kind of order 1 for the input\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the second kind of order 1.\n- __nv_y1f(0) returns .\n- __nv_y1f(x) returns NaN for x < 0.\n- __nv_y1f( ) returns +0.\n- __nv_y1f(NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_yn",
+    "sig": {
+      "params": [
+        {
+          "name": "n",
+          "type": "i32"
+        },
+        {
+          "name": "x",
+          "type": "f64"
+        }
+      ],
+      "returns": "f64"
+    },
+    "description": "Calculate the value of the Bessel function of the second kind of order for the input\nn\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the second kind of order .\nn\n- __nv_yn(n, x) returns NaN for n < 0.\n- __nv_yn(n, 0) returns .\n- __nv_yn(n, x) returns NaN for x < 0.\n- __nv_yn(n, ) returns +0.\n- __nv_yn(n, NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 7.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  },
+  {
+    "name": "__nv_ynf",
+    "sig": {
+      "params": [
+        {
+          "name": "n",
+          "type": "i32"
+        },
+        {
+          "name": "x",
+          "type": "f32"
+        }
+      ],
+      "returns": "f32"
+    },
+    "description": "Calculate the value of the Bessel function of the second kind of order for the input\nn\nargument , x.",
+    "returns": "Returns the value of the Bessel function of the second kind of order .\nn\n- __nv_ynf(n, x) returns NaN for n < 0.\n- __nv_ynf(n, 0) returns .\n- __nv_ynf(n, x) returns NaN for x < 0.\n- __nv_ynf(n, ) returns +0.\n- __nv_ynf(n, NaN) returns NaN.\nFor accuracy information for this function see the CUDA C Programming Guide,\nAppendix D.1, Table 6.",
+    "availability": "Compute 2.0: Yes\nCompute 3.0: Yes\nCompute 3.5: Yes"
+  }
+]
