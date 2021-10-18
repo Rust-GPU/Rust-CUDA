@@ -1,85 +1,69 @@
 //! Tiny crate for common logic for finding and including CUDA.
 
 use glob::glob;
-use std::{env, path::PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 pub fn include_cuda() {
-    if cfg!(target_os = "windows") {
-        println!(
-            "cargo:rustc-link-search=native={}",
-            find_cuda_windows().display()
-        );
-    } else {
-        for path in find_cuda() {
-            println!("cargo:rustc-link-search=native={}", path.display());
-        }
-    };
+    let cuda_lib_dir = find_cuda_lib_dir().expect("Could not find a cuda installation");
+    println!("cargo:rustc-link-search=native={}", cuda_lib_dir.display());
 
     println!("cargo:rustc-link-lib=dylib=cuda");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=CUDA_LIBRARY_PATH");
+    println!("cargo:rerun-if-env-changed=CUDA_ROOT");
+    println!("cargo:rerun-if-env-changed=CUDA_PATH");
+    println!("cargo:rerun-if-env-changed=CUDA_TOOLKIT_ROOT_DIR");
 }
 
-pub fn read_env() -> Vec<PathBuf> {
-    if let Ok(path) = env::var("CUDA_LIBRARY_PATH") {
-        // The location of the libcuda, libcudart, and libcublas can be hardcoded with the
-        // CUDA_LIBRARY_PATH environment variable.
-        let split_char = if cfg!(target_os = "windows") {
-            ";"
-        } else {
-            ":"
-        };
-        path.split(split_char).map(|s| PathBuf::from(s)).collect()
-    } else {
-        vec![]
-    }
-}
-
-pub fn find_cuda() -> Vec<PathBuf> {
-    let mut candidates = read_env();
-    candidates.push(PathBuf::from("/opt/cuda"));
-    candidates.push(PathBuf::from("/usr/local/cuda"));
-    for e in glob("/usr/local/cuda-*").unwrap() {
-        if let Ok(path) = e {
-            candidates.push(path)
+/// Search through the environment variables `vars`, returning the value of the
+/// first one that is defined, or `default` if none of them are.
+fn find_env_var(vars: &[&str]) -> Option<String> {
+    for var in vars {
+        if let Ok(v) = std::env::var(var) {
+            return Some(v);
         }
     }
 
-    let mut valid_paths = vec![];
-    for base in &candidates {
-        let lib = PathBuf::from(base).join("lib64");
-        if lib.is_dir() {
-            valid_paths.push(lib.clone());
-            valid_paths.push(lib.join("stubs"));
-        }
-        let base = base.join("targets/x86_64-linux");
-        let header = base.join("include/cuda.h");
-        if header.is_file() {
-            valid_paths.push(base.join("lib"));
-            valid_paths.push(base.join("lib/stubs"));
-            continue;
-        }
-    }
-    eprintln!("Found CUDA paths: {:?}", valid_paths);
-    valid_paths
+    None
 }
 
-pub fn find_cuda_windows() -> PathBuf {
-    let paths = read_env();
-    if !paths.is_empty() {
-        return paths[0].clone();
+// Returns true if the given path is a valid cuda installation
+fn is_cuda_root_path<P: AsRef<Path>>(path: P) -> bool {
+    path.as_ref().join("include").join("cuda.h").is_file()
+}
+
+pub fn find_cuda_root() -> Option<PathBuf> {
+    // search through the common environment variables first
+    for path in ["CUDA_PATH", "CUDA_ROOT", "CUDA_TOOLKIT_ROOT_DIR"]
+        .iter()
+        .filter_map(|name| std::env::var(*name).ok())
+    {
+        if is_cuda_root_path(&path) {
+            return Some(path.into());
+        }
     }
 
-    if let Ok(path) = env::var("CUDA_PATH") {
-        // If CUDA_LIBRARY_PATH is not found, then CUDA_PATH will be used when building for
-        // Windows to locate the Cuda installation. Cuda installs the full Cuda SDK for 64-bit,
-        // but only a limited set of libraries for 32-bit. Namely, it does not include cublas in
-        // 32-bit, which cuda-sys requires.
+    // If it wasn't specified by env var, try the default installation paths
+    #[cfg(not(target_os = "windows"))]
+    let default_paths = ["/usr/local/cuda", "/opt/cuda"];
+    #[cfg(target_os = "windows")]
+    let default_paths = ["C:/CUDA"]; // TODO (AL): what's the actual path here?
 
-        // 'path' points to the base of the CUDA Installation. The lib directory is a
-        // sub-directory.
-        let path = PathBuf::from(path);
+    for path in default_paths {
+        if is_cuda_root_path(path) {
+            return Some(path.into());
+        }
+    }
 
+    None
+}
+
+#[cfg(target_os = "windows")]
+pub fn find_cuda_lib_dir() -> Option<PathBuf> {
+    if let Some(root_path) = find_cuda_root() {
         // To do this the right way, we check to see which target we're building for.
         let target = env::var("TARGET")
             .expect("cargo did not set the TARGET environment variable as required.");
@@ -117,10 +101,29 @@ pub fn find_cuda_windows() -> PathBuf {
             }
         };
 
-        // i.e. $CUDA_PATH/lib/x64
-        return path.join("lib").join(lib_path);
+        let lib_dir = root_path.join("lib").join(lib_path);
+
+        if lib_dir.is_dir() {
+            Some(lib_dir)
+        } else {
+            None
+        }
     }
 
-    // No idea where to look for CUDA
-    panic!("Cannot find CUDA library path");
+    None
+}
+
+pub fn find_cuda_lib_dir() -> Option<PathBuf> {
+    if let Some(root_path) = find_cuda_root() {
+        let lib_dir = root_path.join("lib64");
+        // TODO (AL): we probably want to check for an actual library under here
+        // too...
+        if lib_dir.is_dir() {
+            Some(lib_dir)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }

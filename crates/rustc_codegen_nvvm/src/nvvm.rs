@@ -108,35 +108,10 @@ pub fn codegen_bitcode_modules(
     Ok(res)
 }
 
-/// Find the libdevice bitcode library which contains math intrinsics and is linked
-/// when building the nvvm program.
+/// Find the libdevice bitcode library which contains math intrinsics and is
+/// linked when building the nvvm program.
 pub fn find_libdevice() -> Option<Vec<u8>> {
-    #[cfg(windows)]
-    {
-        let base_path = Path::new(&env::var("CUDA_PATH").ok()?).to_path_buf();
-
-        // we want libdevice.10.bc, however, i am not quite sure if the libdevice number can change,
-        // so for safety, search the dir for a .bc file.
-        let libdevice_file = fs::read_dir(base_path.join("nvvm").join("libdevice"))
-            .ok()?
-            .filter_map(Result::ok)
-            .filter(|f| f.path().extension() == Some(OsStr::new("bc")))
-            .next()?
-            .path();
-
-        fs::read(libdevice_file).ok()
-    }
-    #[cfg(not(windows))]
-    {
-        // There are several places CUDA might end up, and it may or may not
-        // be symlinked to /usr/local/cuda so we can't rely on any of them.
-        // Give the user a chance to tell us where their CUDA is and guess
-        // otherwise.
-        let base_path = find_env_var_or(
-            &["CUDA_ROOT", "CUDA_PATH", "CUDA_TOOLKIT_ROOT_DIR"],
-            "/usr/local/cuda",
-        );
-
+    if let Some(base_path) = find_cuda_root() {
         let libdevice_file = fs::read_dir(Path::new(&base_path).join("nvvm").join("libdevice"))
             .ok()?
             .filter_map(Result::ok)
@@ -145,17 +120,7 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
             .path();
 
         fs::read(libdevice_file).ok()
+    } else {
+        None
     }
-}
-
-/// Search through the environment variables `vars`, returning the value of the
-/// first one that is defined, or `default` if none of them are.
-fn find_env_var_or(vars: &[&str], default: &str) -> String {
-    for var in vars {
-        if let Ok(v) = std::env::var(var) {
-            return v;
-        }
-    }
-
-    default.into()
 }
