@@ -207,6 +207,10 @@ fn rustc_llvm_build() {
         println!("cargo:rustc-link-lib={}={}", kind, name);
     }
 
+    // Link in the system libraries that LLVM depends on
+    #[cfg(not(target_os = "windows"))]
+    link_llvm_system_libs(&llvm_config);
+
     // LLVM ldflags
     //
     // If we're a cross-compile of LLVM then unfortunately we can't trust these
@@ -290,5 +294,21 @@ fn rustc_llvm_build() {
     // since nothing else requires it.
     if target.contains("windows-gnu") {
         println!("cargo:rustc-link-lib=static-nobundle=pthread");
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn link_llvm_system_libs(llvm_config: &Path) {
+    let mut cmd = Command::new(&llvm_config);
+    cmd.arg("--system-libs");
+
+    for lib in output(&mut cmd).split_whitespace() {
+        let name = if let Some(stripped) = lib.strip_prefix("-l") {
+            stripped
+        } else {
+            continue;
+        };
+
+        println!("cargo:rustc-link-lib=dylib={}", name);
     }
 }
