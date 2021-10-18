@@ -2,6 +2,7 @@
 //!
 //! This module also includes a safe wrapper over the nvvm_sys module.
 
+use find_cuda_helper::find_cuda_root;
 use nvvm::*;
 use rustc_session::Session;
 use std::env;
