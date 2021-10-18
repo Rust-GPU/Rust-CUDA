@@ -13,9 +13,8 @@ use std::{
 #[non_exhaustive]
 pub enum CudaBuilderError {
     CratePathDoesntExist(PathBuf),
+    FailedToCopyPtxFile(std::io::Error),
     BuildFailed,
-    MetadataFileMissing(std::io::Error),
-    MetadataFileMalformed(serde_json::Error),
 }
 
 impl fmt::Display for CudaBuilderError {
@@ -25,11 +24,8 @@ impl fmt::Display for CudaBuilderError {
                 write!(f, "Crate path {} does not exist", path.display())
             }
             CudaBuilderError::BuildFailed => f.write_str("Build failed"),
-            CudaBuilderError::MetadataFileMissing(_) => {
-                f.write_str("Multi-module metadata file missing")
-            }
-            CudaBuilderError::MetadataFileMalformed(_) => {
-                f.write_str("Unable to parse multi-module metadata file")
+            CudaBuilderError::FailedToCopyPtxFile(err) => {
+                f.write_str(&format!("Failed to copy PTX file: {:?}", err))
             }
         }
     }
@@ -50,6 +46,8 @@ pub struct CudaBuilder {
     /// it may break in certain cases. You should always use 64 bit nvptx.
     /// `false` by default.
     pub nvptx_32: bool,
+    /// An optional path to copy the final ptx file to.
+    pub ptx_file_copy_path: Option<PathBuf>,
 
     /// Whether to generate debug line number info.
     /// This defaults to `true`, but nothing will be generated
@@ -105,6 +103,7 @@ impl CudaBuilder {
             path_to_crate: path_to_crate_root.as_ref().to_owned(),
             release: true,
             nvptx_32: false,
+            ptx_file_copy_path: None,
             generate_line_info: true,
             nvvm_opts: true,
             arch: NvvmArch::Compute61,
@@ -202,8 +201,23 @@ impl CudaBuilder {
         self
     }
 
+    /// Copy the final ptx file to this location once finished building.
+    pub fn copy_to(mut self, path: impl AsRef<Path>) -> Self {
+        self.ptx_file_copy_path = Some(path.as_ref().to_path_buf());
+        self
+    }
+
+    /// Runs rustc to build the codegen and codegens the gpu crate, returning the path of the final
+    /// ptx file. If [`ptx_file_copy_path`](Self::ptx_file_copy_path) is set, this returns the copied path.
     pub fn build(self) -> Result<PathBuf, CudaBuilderError> {
-        invoke_rustc(&self)
+        let path = invoke_rustc(&self)?;
+        if let Some(copy_path) = self.ptx_file_copy_path {
+            std::fs::copy(path, &copy_path)
+                .map_err(|x| CudaBuilderError::FailedToCopyPtxFile(x))?;
+            Ok(copy_path)
+        } else {
+            Ok(path)
+        }
     }
 }
 
@@ -259,10 +273,12 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     // on what this does
     let rustc_codegen_nvvm = find_rustc_codegen_nvvm();
 
-    let mut rustflags = vec![format!(
-        "-Zcodegen-backend={}",
-        rustc_codegen_nvvm.display()
-    )];
+    let mut rustflags = vec![
+        format!("-Zcodegen-backend={}", rustc_codegen_nvvm.display(),),
+        // FIXME(RDambrosio016): Lazy loading does not work with CGUs currently, we need to invoke the llvm
+        // module linker to link together CGUs before lazy loading them. So for now we circumvent this by forcing codegen-units=1
+        "-Ccodegen-units=1".to_string(),
+    ];
 
     if let Some(emit) = &builder.emit {
         let string = match emit {

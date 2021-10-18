@@ -156,15 +156,3 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
         fs::read(libdevice_file).ok()
     }
 }
-
-/// Search through the environment variables `vars`, returning the value of the
-/// first one that is defined, or `default` if none of them are.
-fn find_env_var_or(vars: &[&str], default: &str) -> String {
-    for var in vars {
-        if let Ok(v) = std::env::var(var) {
-            return v;
-        }
-    }
-
-    default.into()
-}
