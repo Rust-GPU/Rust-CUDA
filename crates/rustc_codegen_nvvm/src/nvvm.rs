@@ -128,15 +128,34 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
     }
     #[cfg(not(windows))]
     {
-        todo!();
-        // // on some distros it seems to be in /usr/local/
-        // let mut candidates = read_env();
-        // candidates.push(PathBuf::from("/opt/cuda"));
-        // candidates.push(PathBuf::from("/usr/local/cuda"));
-        // for e in glob("/usr/local/cuda-*").unwrap() {
-        //     if let Ok(path) = e {
-        //         candidates.push(path)
-        //     }
-        // }
+        // There are several places CUDA might end up, and it may or may not
+        // be symlinked to /usr/local/cuda so we can't rely on any of them.
+        // Give the user a chance to tell us where their CUDA is and guess
+        // otherwise.
+        let base_path = find_env_var_or(
+            &["CUDA_ROOT", "CUDA_PATH", "CUDA_TOOLKIT_ROOT_DIR"],
+            "/usr/local/cuda",
+        );
+
+        let libdevice_file = fs::read_dir(Path::new(&base_path).join("nvvm").join("libdevice"))
+            .ok()?
+            .filter_map(Result::ok)
+            .filter(|f| f.path().extension() == Some(OsStr::new("bc")))
+            .next()?
+            .path();
+
+        fs::read(libdevice_file).ok()
     }
+}
+
+/// Search through the environment variables `vars`, returning the value of the
+/// first one that is defined, or `default` if none of them are.
+fn find_env_var_or(vars: &[&str], default: &str) -> String {
+    for var in vars {
+        if let Ok(v) = std::env::var(var) {
+            return v;
+        }
+    }
+
+    default.into()
 }
