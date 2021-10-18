@@ -13,7 +13,7 @@ use rustc_index::vec::IndexVec;
 use rustc_middle::mir;
 use rustc_middle::ty::layout::HasTyCtxt;
 use rustc_middle::ty::subst::{GenericArgKind, SubstsRef};
-use rustc_middle::ty::{self, Instance, ParamEnv, Ty, TypeFoldable};
+use rustc_middle::ty::{self, Binder, ExistentialTraitRef, Instance, ParamEnv, Ty, TypeFoldable};
 use rustc_session::config::{self, DebugInfo};
 use rustc_span::symbol::Symbol;
 use rustc_span::{self, BytePos, Pos, SourceFile, SourceFileAndLine, Span};
@@ -461,7 +461,12 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         unsafe { llvm::LLVMRustDIBuilderCreateDebugLocation(line, col, scope, inlined_at) }
     }
 
-    fn create_vtable_metadata(&self, ty: Ty<'tcx>, vtable: Self::Value) {
+    fn create_vtable_metadata(
+        &self,
+        ty: Ty<'tcx>,
+        _: Option<Binder<'tcx, ExistentialTraitRef<'tcx>>>,
+        vtable: Self::Value,
+    ) {
         metadata::create_vtable_metadata(self, ty, vtable)
     }
 
