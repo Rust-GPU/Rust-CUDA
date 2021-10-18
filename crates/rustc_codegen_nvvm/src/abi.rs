@@ -197,9 +197,8 @@ impl ArgAttributesExt for ArgAttributes {
             if let Some(align) = self.pointee_align {
                 llvm::LLVMRustAddAlignmentAttr(llfn, idx.as_uint(), align.bytes() as u32);
             }
-            
             regular.for_each_kind(|attr| attr.apply_llfn(idx, llfn));
-            // TODO(RDambrosio016): check if noalias could be applied
+            // TODO(RDambrosio016): Apply mutable noalias once we upgrade to LLVM 13
             match self.arg_ext {
                 ArgExtension::None => {}
                 ArgExtension::Zext => {
