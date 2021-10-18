@@ -451,7 +451,8 @@ impl<'src> Lexer<'src> {
             }
         }
 
-        *self.values.last_mut() = Some(TokenValue::Ident(self.src[cur..self.cur].to_string()));
+        *self.values.last_mut().unwrap() =
+            Some(TokenValue::Ident(self.src[cur..self.cur].to_string()));
         Token {
             kind: TokenKind::Ident,
             range: cur..self.cur,
@@ -561,13 +562,4 @@ impl<'src> Lexer<'src> {
             ident
         ))
     }
-}
-
-#[test]
-fn foo() {
-    let string = r".func foo ( .param .b32 N, .param .b32 buffer[32] 0.36142 )
-{
-    ";
-    let ascii = AsciiStr::from_ascii(string).unwrap();
-    let tokens = Lexer::new(ascii).collect::<Result<Vec<_>, _>>().unwrap();
 }

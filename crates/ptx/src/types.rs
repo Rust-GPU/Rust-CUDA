@@ -27,14 +27,13 @@ pub enum Directive {
     MinNCtaPerSm(MinNCtaPerSmDirective),
     MaxNCtaPerSm(MaxNCtaPerSmDirective),
     Pragma(PragmaDirective),
-
     // debugging directives
     // not currently supported and unlikely to be in the future because its deprecated
     // and its syntax is not very well specified.
     // Dwarf(DwarfDirective)
-    Section(SectionDirective),
-    File(FileDirective),
-    Loc(LocDirective),
+    // Section(SectionDirective),
+    // File(FileDirective),
+    // Loc(LocDirective),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

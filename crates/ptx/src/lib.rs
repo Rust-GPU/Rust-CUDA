@@ -2,7 +2,7 @@ pub mod lexer;
 #[cfg(test)]
 mod lexer_tests;
 mod types;
-pub mod parser;
+// pub mod parser;
 
 pub use types::*;
 
