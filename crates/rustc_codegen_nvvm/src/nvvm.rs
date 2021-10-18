@@ -56,6 +56,15 @@ pub fn codegen_bitcode_modules(
         "Codegenning bitcode, main modules:\n{:?}, lazy loaded modules:\n{:?}",
         main, lazy
     );
+
+    // make sure the nvvm version is high enough so users don't get confusing compilation errors.
+    let (_, minor) = nvvm::ir_version();
+
+    assert!(
+        minor >= 6,
+        "rustc_codegen_nvvm requires at least libnvvm 1.6 (CUDA 11.2)"
+    );
+
     // first, create the nvvm program we will add modules to.
     let prog = NvvmProgram::new()?;
 
