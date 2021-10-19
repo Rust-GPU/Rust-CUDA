@@ -1,6 +1,5 @@
 //! Tiny crate for common logic for finding and including CUDA.
 
-use glob::glob;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -16,18 +15,6 @@ pub fn include_cuda() {
     println!("cargo:rerun-if-env-changed=CUDA_ROOT");
     println!("cargo:rerun-if-env-changed=CUDA_PATH");
     println!("cargo:rerun-if-env-changed=CUDA_TOOLKIT_ROOT_DIR");
-}
-
-/// Search through the environment variables `vars`, returning the value of the
-/// first one that is defined, or `default` if none of them are.
-fn find_env_var(vars: &[&str]) -> Option<String> {
-    for var in vars {
-        if let Ok(v) = std::env::var(var) {
-            return Some(v);
-        }
-    }
-
-    None
 }
 
 // Returns true if the given path is a valid cuda installation
@@ -103,16 +90,17 @@ pub fn find_cuda_lib_dir() -> Option<PathBuf> {
 
         let lib_dir = root_path.join("lib").join(lib_path);
 
-        if lib_dir.is_dir() {
+        return if lib_dir.is_dir() {
             Some(lib_dir)
         } else {
             None
-        }
+        };
     }
 
     None
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn find_cuda_lib_dir() -> Option<PathBuf> {
     if let Some(root_path) = find_cuda_root() {
         let lib_dir = root_path.join("lib64");
