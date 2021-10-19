@@ -49,67 +49,80 @@ extern "C" {
     fn __nvvm_system_fence();
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn thread_idx_x() -> usize {
     unsafe { __nvvm_thread_idx_x() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn thread_idx_y() -> usize {
     unsafe { __nvvm_thread_idx_y() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn thread_idx_z() -> usize {
     unsafe { __nvvm_thread_idx_z() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn block_idx_x() -> usize {
     unsafe { __nvvm_block_idx_x() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn block_idx_y() -> usize {
     unsafe { __nvvm_block_idx_y() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn block_idx_z() -> usize {
     unsafe { __nvvm_block_idx_z() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn block_dim_x() -> usize {
     unsafe { __nvvm_block_dim_x() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn block_dim_y() -> usize {
     unsafe { __nvvm_block_dim_y() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn block_dim_z() -> usize {
     unsafe { __nvvm_block_dim_z() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn grid_dim_x() -> usize {
     unsafe { __nvvm_grid_dim_x() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn grid_dim_y() -> usize {
     unsafe { __nvvm_grid_dim_y() as usize }
 }
 
+#[gpu_only]
 #[inline(always)]
 pub fn grid_dim_z() -> usize {
     unsafe { __nvvm_grid_dim_z() as usize }
 }
 
 /// Gets the 3d index of the thread currently executing the kernel.
+#[gpu_only]
 #[inline(always)]
 pub fn thread_idx() -> Vec3<usize> {
     unsafe {
@@ -122,6 +135,7 @@ pub fn thread_idx() -> Vec3<usize> {
 }
 
 /// Gets the 3d index of the block that the thread currently executing the kernel is located in.
+#[gpu_only]
 #[inline(always)]
 pub fn block_idx() -> Vec3<usize> {
     unsafe {
@@ -135,6 +149,7 @@ pub fn block_idx() -> Vec3<usize> {
 
 /// Gets the 3d layout of the thread blocks executing this kernel. In other words,
 /// how many threads exist in each thread block in every direction.
+#[gpu_only]
 #[inline(always)]
 pub fn block_dim() -> Vec3<usize> {
     unsafe {
@@ -148,6 +163,7 @@ pub fn block_dim() -> Vec3<usize> {
 
 /// Gets the 3d layout of the block grids executing this kernel. In other words,
 /// how many thread blocks exist in each grid in every direction.
+#[gpu_only]
 #[inline(always)]
 pub fn grid_dim() -> Vec3<usize> {
     unsafe {
@@ -165,6 +181,7 @@ pub fn grid_dim() -> Vec3<usize> {
 /// 
 /// For very simple kernels it may be faster to use a more simple index calculation, however,
 /// it will be unsound if the kernel launches in a 2d/3d configuration.
+#[gpu_only]
 #[rustfmt::skip]
 #[inline(always)]
 pub fn index() -> usize {
@@ -205,6 +222,7 @@ pub fn first() -> bool {
 }
 
 /// Gets the number of threads inside of a warp. Currently 32 threads on every GPU architecture.
+#[gpu_only]
 #[inline(always)]
 pub fn warp_size() -> usize {
     unsafe { __nvvm_warp_size() as usize }
@@ -216,6 +234,7 @@ pub fn warp_size() -> usize {
 /// Be careful when using sync_threads in conditional code. It will be perfectly fine if
 /// all threads evaluate to the same path, but if they dont, execution will halt
 /// or produce odd results (but should not produce undefined behavior).
+#[gpu_only]
 #[inline(always)]
 pub fn sync_threads() {
     unsafe { __nvvm_block_barrier() }
@@ -265,18 +284,21 @@ pub fn sync_threads_or(predicate: u32) -> u32 {
 ///
 /// Note that this is NOT an execution synchronization like [`sync_threads`]. It is not possible
 /// to sync threads at a grid level. It is simply a memory fence.
+#[gpu_only]
 #[inline(always)]
 pub fn grid_fence() {
     unsafe { __nvvm_grid_fence() }
 }
 
 /// Acts as a memory fence at the device level.
+#[gpu_only]
 #[inline(always)]
 pub fn device_fence() {
     unsafe { __nvvm_device_fence() }
 }
 
 /// Acts as a memory fence at the system level.
+#[gpu_only]
 #[inline(always)]
 pub fn system_fence() {
     unsafe { __nvvm_system_fence() }
