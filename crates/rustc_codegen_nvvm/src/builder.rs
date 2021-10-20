@@ -678,7 +678,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             }
             let v = [
                 self.cx.const_uint_big(llty, range.start),
-                self.cx.const_uint_big(llty, range.end),
+                self.cx.const_uint_big(llty, range.end.wrapping_add(1)),
             ];
 
             llvm::LLVMSetMetadata(
