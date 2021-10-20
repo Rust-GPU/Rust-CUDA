@@ -564,15 +564,13 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             load: &'ll Value,
             scalar: &abi::Scalar,
         ) {
-            let vr = scalar.valid_range.clone();
             match scalar.value {
                 abi::Int(..) => {
-                    let range = scalar.valid_range;
-                    if range.start != range.end {
-                        bx.range_metadata(load, range);
+                    if !scalar.is_always_valid(bx) {
+                        bx.range_metadata(load, scalar.valid_range);
                     }
                 }
-                abi::Pointer if vr.start < vr.end && !vr.contains(0) => {
+                abi::Pointer if !scalar.valid_range.contains(0) => {
                     bx.nonnull_metadata(load);
                 }
                 _ => {}
