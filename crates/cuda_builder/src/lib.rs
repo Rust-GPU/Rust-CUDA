@@ -210,6 +210,7 @@ impl CudaBuilder {
     /// Runs rustc to build the codegen and codegens the gpu crate, returning the path of the final
     /// ptx file. If [`ptx_file_copy_path`](Self::ptx_file_copy_path) is set, this returns the copied path.
     pub fn build(self) -> Result<PathBuf, CudaBuilderError> {
+        println!("cargo:rerun-if-changed={}", self.path_to_crate.display());
         let path = invoke_rustc(&self)?;
         if let Some(copy_path) = self.ptx_file_copy_path {
             std::fs::copy(path, &copy_path)
