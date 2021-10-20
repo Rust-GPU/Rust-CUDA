@@ -30,6 +30,7 @@
 
 extern crate alloc;
 
+pub mod float;
 #[allow(warnings)]
 pub mod intrinsics;
 pub mod io;
@@ -42,6 +43,7 @@ pub mod warp;
 mod float_ext;
 
 pub use cuda_std_macros::*;
+pub use float::GpuFloat;
 pub use float_ext::*;
 pub use half;
 pub use vek;
