@@ -325,6 +325,7 @@ impl<T: DeviceCopy + Hash> Hash for UnifiedBox<T> {
 ///
 /// See the [`module-level documentation`](../memory/index.html) for more details on unified memory.
 #[derive(Debug)]
+#[repr(C)]
 pub struct UnifiedBuffer<T: DeviceCopy> {
     buf: UnifiedPointer<T>,
     capacity: usize,
