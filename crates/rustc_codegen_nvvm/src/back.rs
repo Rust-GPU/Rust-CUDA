@@ -18,7 +18,7 @@ use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::{dep_graph, ty::TyCtxt};
 use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_session::Session;
-use rustc_span::Symbol;
+use rustc_span::{sym, Symbol};
 use rustc_target::spec::{CodeModel, RelocModel};
 use std::ffi::CString;
 use std::sync::Arc;
@@ -270,7 +270,13 @@ pub fn compile_codegen_unit<'tcx>(
                 mono_item.define::<Builder<'_, '_, '_>>(&cx);
                 if let MonoItem::Fn(inst) = mono_item {
                     let name = tcx.symbol_name(inst).name;
-                    if name == "rust_begin_unwind" || name.starts_with("__rg") || name == "rust_oom"
+                    let attrs = tcx.get_attrs(inst.def_id());
+                    let is_no_mangle = attrs.iter().any(|x| x.has_name(sym::no_mangle));
+
+                    if name == "rust_begin_unwind"
+                        || name.starts_with("__rg")
+                        || name == "rust_oom"
+                        || is_no_mangle
                     {
                         let func = cx.get_fn(inst);
                         let llval =
