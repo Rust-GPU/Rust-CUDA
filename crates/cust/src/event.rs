@@ -22,6 +22,7 @@ use crate::sys::{
 
 use std::mem;
 use std::ptr;
+use std::time::Duration;
 
 bitflags::bitflags! {
     /// Bit flags for configuring a CUDA Event.
@@ -279,6 +280,13 @@ impl Event {
             cuEventElapsedTime(&mut millis, start.0, self.0).to_result()?;
             Ok(millis)
         }
+    }
+
+    /// Same as [`elapsed_time_f32`] except returns the time as a [`Duration`].
+    pub fn elapsed(&self, start: &Self) -> CudaResult<Duration> {
+        let time_f32 = self.elapsed_time_f32(start)?;
+        // multiply to nanos to preserve as much precision as possible
+        Ok(Duration::from_nanos((time_f32 * 1e6) as u64))
     }
 
     // Get the inner `CUevent` from the `Event`.
