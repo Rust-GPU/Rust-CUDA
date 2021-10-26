@@ -282,7 +282,7 @@ impl Event {
         }
     }
 
-    /// Same as [`elapsed_time_f32`] except returns the time as a [`Duration`].
+    /// Same as [`elapsed_time_f32`](Self::elapsed_time_f32) except returns the time as a [`Duration`].
     pub fn elapsed(&self, start: &Self) -> CudaResult<Duration> {
         let time_f32 = self.elapsed_time_f32(start)?;
         // multiply to nanos to preserve as much precision as possible
