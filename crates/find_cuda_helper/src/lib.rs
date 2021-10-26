@@ -127,3 +127,11 @@ pub fn find_optix_root() -> Option<PathBuf> {
         .or_else(|| env::var("OPTIX_ROOT_DIR").ok())
         .map(PathBuf::from)
 }
+
+#[cfg(target_family = "unix")]
+pub fn find_optix_root() -> Option<PathBuf> {
+    env::var("OPTIX_ROOT")
+        .ok()
+        .or_else(|| env::var("OPTIX_ROOT_DIR").ok())
+        .map(PathBuf::from)
+}
