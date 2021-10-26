@@ -12,7 +12,7 @@ use std::mem::{transmute, MaybeUninit};
 /// Each component of a `GridSize` must be at least 1. The maximum size depends on your device's
 /// compute capability, but maximums of `x = (2^31)-1, y = 65535, z = 65535` are common. Launching
 /// a kernel with a grid size greater than these limits will cause an error.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GridSize {
     /// Width of grid in blocks
     pub x: u32,
@@ -92,7 +92,7 @@ impl From<vek::Vec3<usize>> for GridSize {
 /// limit on total number of threads in a block (`x * y * z`) is also defined by the compute
 /// capability, typically 1024. Launching a kernel with a block size greater than these limits will
 /// cause an error.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BlockSize {
     /// X dimension of each thread block
     pub x: u32,

@@ -39,14 +39,14 @@ impl<T: RngCore> GpuRand for T {
         let u1 = self.uniform_f32();
         let u2 = self.uniform_f32();
 
-        (-2.0 * u1.ln()).sqrt() * (f32::consts::PI * u2).cos()
+        (-2.0 * u1.ln()).sqrt() * ((f32::consts::PI * 2.0) * u2).cos()
     }
 
     fn normal_f64(&mut self) -> f64 {
         let u1 = self.uniform_f64();
         let u2 = self.uniform_f64();
 
-        (-2.0 * u1.ln()).sqrt() * (f64::consts::PI * u2).cos()
+        (-2.0 * u1.ln()).sqrt() * ((f64::consts::PI * 2.0) * u2).cos()
     }
 
     fn normal_f32_2(&mut self) -> [f32; 2] {
@@ -54,8 +54,8 @@ impl<T: RngCore> GpuRand for T {
         let u2 = self.uniform_f32();
 
         [
-            (-2.0 * u1.ln()).sqrt() * (f32::consts::PI * u2).cos(),
-            (-2.0 * u1.ln()).sqrt() * (f32::consts::PI * u2).sin(),
+            (-2.0 * u1.ln()).sqrt() * ((f32::consts::PI * 2.0) * u2).cos(),
+            (-2.0 * u1.ln()).sqrt() * ((f32::consts::PI * 2.0) * u2).sin(),
         ]
     }
 
@@ -64,8 +64,8 @@ impl<T: RngCore> GpuRand for T {
         let u2 = self.uniform_f64();
 
         [
-            (-2.0 * u1.ln()).sqrt() * (f64::consts::PI * u2).cos(),
-            (-2.0 * u1.ln()).sqrt() * (f64::consts::PI * u2).sin(),
+            (-2.0 * u1.ln()).sqrt() * ((f64::consts::PI * 2.0) * u2).cos(),
+            (-2.0 * u1.ln()).sqrt() * ((f64::consts::PI * 2.0) * u2).sin(),
         ]
     }
 }

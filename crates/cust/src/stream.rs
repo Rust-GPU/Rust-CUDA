@@ -289,11 +289,9 @@ impl Stream {
         .to_result()
     }
 
-    // Get the inner `CUstream` from the `Stream`.
-    //
-    // Necessary for certain CUDA functions outside of this
-    // module that expect a bare `CUstream`.
-    pub(crate) fn as_inner(&self) -> CUstream {
+    // Get the inner `CUstream` from the `Stream`. If you use this handle elsewhere,
+    // make sure not to use it after the stream has been dropped. Or ManuallyDrop the struct to be safe.
+    pub fn as_inner(&self) -> CUstream {
         self.inner
     }
 

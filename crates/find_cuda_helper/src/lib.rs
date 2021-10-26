@@ -115,3 +115,15 @@ pub fn find_cuda_lib_dir() -> Option<PathBuf> {
         None
     }
 }
+
+#[cfg(target_os = "windows")]
+pub fn find_optix_root() -> Option<PathBuf> {
+    // the optix SDK installer sets OPTIX_ROOT_DIR whenever it installs.
+    // We also check OPTIX_ROOT first in case someone wants to override it without overriding
+    // the SDK-set variable.
+
+    env::var("OPTIX_ROOT")
+        .ok()
+        .or_else(|| env::var("OPTIX_ROOT_DIR").ok())
+        .map(PathBuf::from)
+}

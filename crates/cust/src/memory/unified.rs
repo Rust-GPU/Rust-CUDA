@@ -19,7 +19,7 @@ use std::slice;
 /// seamlessly shared between host and device.
 #[derive(Debug)]
 pub struct UnifiedBox<T: DeviceCopy> {
-    ptr: UnifiedPointer<T>,
+    pub(crate) ptr: UnifiedPointer<T>,
 }
 impl<T: DeviceCopy> UnifiedBox<T> {
     /// Allocate unified memory and place val into it.

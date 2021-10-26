@@ -1,0 +1,8 @@
+[package]
+name = "optix"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+optix_sys = { version = "0.1", path = "../optix_sys" }
+cust = { version = "0.1", path = "../cust" }

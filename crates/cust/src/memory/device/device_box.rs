@@ -16,7 +16,7 @@ use std::os::raw::c_void;
 /// See the [`module-level documentation`](../memory/index.html) for more information on device memory.
 #[derive(Debug)]
 pub struct DBox<T> {
-    ptr: DevicePointer<T>,
+    pub(crate) ptr: DevicePointer<T>,
 }
 impl<T: DeviceCopy> DBox<T> {
     /// Allocate device memory and place val into it.
