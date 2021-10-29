@@ -1,10 +1,9 @@
 [workspace]
 members = [
   "crates/*",
-  "xtask"
+  "xtask",
+  "examples/optix/*"
 ]
 
-[profile.release]
-debug = 2
-lto = "fat"
-codegen-units = 1
+[profile.dev.package.rustc_codegen_nvvm]
+opt-level = 3

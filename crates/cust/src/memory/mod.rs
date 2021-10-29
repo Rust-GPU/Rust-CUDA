@@ -29,6 +29,15 @@
 //! paging behavior. Additionally, it can require careful use of prefetching to achieve optimum
 //! performance. Finally, unified memory is not supported on some older systems.
 //!
+//! ## Warning
+//!
+//! ⚠️ **On certain systems/OSes/GPUs, accessing Unified memory from the CPU while the GPU is currently
+//! using it (e.g. before stream synchronization) will cause a Page Error/Segfault. For this reason,
+//! we strongly suggest to treat unified memory as exclusive to the GPU while it is being used by a kernel** ⚠️
+//!
+//! This is not considered Undefined Behavior because the behavior is always "either works, or yields a page error/segfault",
+//! doing this will never corrupt memory or cause other undesireable behavior.
+//!
 //! # Page-locked Host Memory
 //!
 //! Page-locked memory is memory that the operating system has locked into physical RAM, and will

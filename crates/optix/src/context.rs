@@ -94,4 +94,8 @@ impl OptixContext {
             Ok(value)
         }
     }
+
+    pub fn as_raw(&self) -> sys::OptixDeviceContext {
+        self.raw
+    }
 }

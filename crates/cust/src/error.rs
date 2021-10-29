@@ -84,11 +84,13 @@ pub enum CudaError {
 
     // cust errors
     InvalidMemoryAllocation = 100_100,
+    OptixError = 100_101,
 }
 impl fmt::Display for CudaError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             CudaError::InvalidMemoryAllocation => write!(f, "Invalid memory allocation"),
+            CudaError::OptixError => write!(f, "OptiX error"),
             other if (other as u32) <= 999 => {
                 let value = other as u32;
                 let mut ptr: *const c_char = ptr::null();

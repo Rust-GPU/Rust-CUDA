@@ -489,10 +489,13 @@ pub enum ImageFormat {
     Float3,
     /// Four 32-bit float values, RGBA
     Float4,
-    /// Two 8-bit u8 values, RGB
-    Uchar3,
-    /// Four 8-bit u8 values, RGBA
-    Uchar4,
+    // uchar images seem to be unsupported by basically every method in OptiX currently,
+    // so instead of letting optix return an error, we just don't expose the types.
+
+    // /// Two 8-bit u8 values, RGB
+    // Uchar3,
+    // /// Four 8-bit u8 values, RGBA
+    // Uchar4,
 }
 
 impl ImageFormat {
@@ -503,22 +506,23 @@ impl ImageFormat {
             Half2 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF2,
             Half3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF3,
             Half4 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF4,
-            Float2 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF2,
-            Float3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF3,
+            Float2 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT2,
+            Float3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT3,
             Float4 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4,
-            Uchar3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR3,
-            Uchar4 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR4,
+            // Uchar3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR3,
+            // Uchar4 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR4,
         }
     }
 
     pub fn byte_size(self) -> u32 {
         match self {
-            Self::Half2 | Self::Uchar4 => 4,
+            Self::Half2 => 4,
             Self::Half3 => 6,
             Self::Half4 | Self::Float2 => 8,
             Self::Float3 => 12,
             Self::Float4 => 16,
-            Self::Uchar3 => 3,
+            // Self::Uchar3 => 3,
+            // Self::Uchar4 => 4,
         }
     }
 }

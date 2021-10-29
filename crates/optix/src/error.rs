@@ -108,6 +108,12 @@ impl From<CudaError> for OptixError {
     }
 }
 
+impl From<OptixError> for CudaError {
+    fn from(_: OptixError) -> Self {
+        CudaError::OptixError
+    }
+}
+
 impl Display for OptixError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
