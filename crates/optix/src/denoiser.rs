@@ -12,7 +12,8 @@ use cust::{
     prelude::Stream,
 };
 
-use crate::{context::OptixContext, error::OptixResult, optix_call, sys};
+use crate::{context::DeviceContext, error::Error, optix_call, sys};
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 // can't zero initialize, OptixPixelFormat is not zero-initializable.
 fn null_optix_image() -> sys::OptixImage2D {
@@ -129,10 +130,10 @@ impl Drop for Denoiser {
 impl Denoiser {
     /// Create a new [`Denoiser`] with a model kind and some options.
     pub fn new(
-        ctx: &OptixContext,
+        ctx: &DeviceContext,
         kind: DenoiserModelKind,
         options: DenoiserOptions,
-    ) -> OptixResult<Self> {
+    ) -> Result<Self> {
         let mut raw = MaybeUninit::uninit();
         unsafe {
             let ctx = ctx.raw;
@@ -157,7 +158,7 @@ impl Denoiser {
     ///
     /// If tiling is being used, `width` and `height` should not contain the overlap size. Tiling requires
     /// extra overlap areas which is why there is scratch memory with and without tiling requirements.
-    pub fn required_gpu_memory(&self, width: u32, height: u32) -> OptixResult<DenoiserSizes> {
+    pub fn required_gpu_memory(&self, width: u32, height: u32) -> Result<DenoiserSizes> {
         let mut sizes = MaybeUninit::uninit();
         unsafe {
             optix_call!(optixDenoiserComputeMemoryResources(
@@ -190,7 +191,7 @@ impl Denoiser {
         mut width: u32,
         mut height: u32,
         tiled: bool,
-    ) -> OptixResult<()> {
+    ) -> Result<()> {
         // first, find out how much memory we need to allocate
         let sizes = self.required_gpu_memory(width, height)?;
         let original_width = width;
@@ -262,7 +263,7 @@ impl Denoiser {
         input_image: Image,
         parameters: DenoiserParams,
         out_buffer: &mut impl GpuBuffer<T>,
-    ) -> OptixResult<()> {
+    ) -> Result<()> {
         let state_lock = self.state.lock().unwrap();
         let state = state_lock.as_ref().expect(
             "State was not initialized before invoking the denoiser, call Denoiser::setup_state first"

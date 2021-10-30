@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 use cust_raw::*;
 
 use std::mem::ManuallyDrop;
@@ -12,6 +14,7 @@ extern "C" {
 
 // The SBT record header is an opaque blob used by optix
 #[repr(C)]
+#[derive(Default, Clone, Copy)]
 pub struct SbtRecordHeader {
     header: [u8; OptixSbtRecordHeaderSize as usize],
 }
@@ -19,14 +22,6 @@ pub struct SbtRecordHeader {
 impl SbtRecordHeader {
     pub fn as_mut_ptr(&mut self) -> *mut std::os::raw::c_void {
         self.header.as_mut_ptr() as *mut std::os::raw::c_void
-    }
-}
-
-impl Default for SbtRecordHeader {
-    fn default() -> SbtRecordHeader {
-        SbtRecordHeader {
-            header: [0u8; OptixSbtRecordHeaderSize as usize],
-        }
     }
 }
 

@@ -16,6 +16,7 @@ static const size_t OptixTransformByteAlignment =
 static const size_t OptixVersion = OPTIX_VERSION;
 
 static const size_t OptixBuildInputSize = sizeof(OptixBuildInput);
+static const size_t OptixShaderBindingTableSize = sizeof(OptixShaderBindingTable);
 
 /**
  * <div rustbindgen replaces="OptixGeometryFlags"></div>
