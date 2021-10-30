@@ -34,7 +34,7 @@ pub enum OptixDeviceProperty {
 impl OptixDeviceProperty {
     // we could repr this the same as the sys version, but for better compatability
     // and safety in the future, we just match.
-    pub fn to_raw(self) -> sys::OptixDeviceProperty {
+    pub fn to_raw(self) -> sys::OptixDeviceProperty::Type {
         use OptixDeviceProperty::*;
         match self {
         MaxTraceDepth => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRACE_DEPTH,
