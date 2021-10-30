@@ -131,14 +131,14 @@ impl Display for OptixError {
 
 impl std::error::Error for OptixError {}
 
-pub type OptixResult<T> = Result<T, OptixError>;
+// pub type OptixResult<T> = Result<T, OptixError>;
 
 pub trait ToResult {
-    fn to_result(self) -> OptixResult<()>;
+    fn to_result(self) -> Result<(), OptixError>;
 }
 
 impl ToResult for sys::OptixResult {
-    fn to_result(self) -> OptixResult<()> {
+    fn to_result(self) -> Result<(), OptixError> {
         use OptixError::*;
 
         Err(match self {
@@ -183,6 +183,54 @@ impl ToResult for sys::OptixResult {
             sys::OptixResult::OPTIX_ERROR_CUDA_ERROR => CudaError,
             sys::OptixResult::OPTIX_ERROR_INTERNAL_ERROR => InternalError,
             sys::OptixResult::OPTIX_ERROR_UNKNOWN => Unknown,
+            value @ _ => panic!("Unhandled OptixResult value {:?}", value),
         })
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    Optix(OptixError),
+    Cuda(CudaError),
+    ModuleCreation { source: OptixError, log: String },
+    ProgramGroupCreation { source: OptixError, log: String },
+    PipelineCreation { source: OptixError, log: String },
+}
+
+impl From<OptixError> for Error {
+    fn from(o: OptixError) -> Self {
+        Self::Optix(o)
+    }
+}
+
+impl From<CudaError> for Error {
+    fn from(e: CudaError) -> Self {
+        Self::Cuda(e)
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Optix(e) => Some(e),
+            Self::Cuda(e) => Some(e),
+            Self::ModuleCreation { source, .. } => Some(source),
+            Self::ProgramGroupCreation { source, .. } => Some(source),
+            Self::PipelineCreation { source, .. } => Some(source),
+        }
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Optix(_) => write!(f, "OptiX error"),
+            Self::Cuda(_) => write!(f, "CUDA error"),
+            Self::ModuleCreation { log, .. } => write!(f, "Module creation error: {}", log),
+            Self::ProgramGroupCreation { log, .. } => {
+                write!(f, "Program group creation error: {}", log)
+            }
+            Self::PipelineCreation { log, .. } => write!(f, "Pipeline creation error: {}", log),
+        }
     }
 }

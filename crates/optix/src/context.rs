@@ -4,7 +4,8 @@ use std::{ffi::c_void, mem::MaybeUninit, ptr};
 
 use cust::context::ContextHandle;
 
-use crate::{error::OptixResult, optix_call, sys};
+use crate::{error::Error, optix_call, sys};
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A certain property belonging to an OptiX device.
 #[non_exhaustive]
@@ -51,11 +52,12 @@ impl OptixDeviceProperty {
 }
 
 #[derive(Debug)]
-pub struct OptixContext {
+#[repr(transparent)]
+pub struct DeviceContext {
     pub(crate) raw: sys::OptixDeviceContext,
 }
 
-impl Drop for OptixContext {
+impl Drop for DeviceContext {
     fn drop(&mut self) {
         unsafe {
             sys::optixDeviceContextDestroy(self.raw);
@@ -63,11 +65,11 @@ impl Drop for OptixContext {
     }
 }
 
-impl OptixContext {
+impl DeviceContext {
     // TODO(RDambrosio016): expose device context options
 
     /// Creates a new [`OptixContext`] from a cust CUDA context.
-    pub fn new(cuda_ctx: &impl ContextHandle) -> OptixResult<Self> {
+    pub fn new(cuda_ctx: &impl ContextHandle) -> Result<Self> {
         let mut raw = MaybeUninit::uninit();
         unsafe {
             optix_call!(optixDeviceContextCreate(
@@ -81,7 +83,7 @@ impl OptixContext {
         }
     }
 
-    pub fn get_property(&self, property: OptixDeviceProperty) -> OptixResult<u32> {
+    pub fn get_property(&self, property: OptixDeviceProperty) -> Result<u32> {
         let raw_prop = property.to_raw();
         unsafe {
             let mut value = 0u32;
