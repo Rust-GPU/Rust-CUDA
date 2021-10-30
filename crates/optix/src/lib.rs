@@ -1,10 +1,11 @@
 pub mod context;
 pub mod denoiser;
 pub mod error;
+pub mod module;
+pub mod sys;
 
 pub use cust;
 use error::{OptixResult, ToResult};
-pub use optix_sys as sys;
 
 /// Initializes the OptiX library. This must be called before using any OptiX function. It may
 /// be called before or after initializing CUDA.

@@ -44,7 +44,7 @@ pub enum DenoiserModelKind {
 
 impl DenoiserModelKind {
     /// Converts this model kind to its raw counterpart.
-    pub fn to_raw(self) -> sys::OptixDenoiserModelKind {
+    pub fn to_raw(self) -> sys::OptixDenoiserModelKind::Type {
         match self {
             Self::Ldr => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_LDR,
             Self::Hdr => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_HDR,
@@ -501,7 +501,7 @@ pub enum ImageFormat {
 }
 
 impl ImageFormat {
-    pub fn to_raw(self) -> sys::OptixPixelFormat {
+    pub fn to_raw(self) -> sys::OptixPixelFormat::Type {
         use ImageFormat::*;
 
         match self {

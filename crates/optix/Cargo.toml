@@ -4,5 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-optix_sys = { version = "0.1", path = "../optix_sys" }
 cust = { version = "0.1", path = "../cust" }
+cust_raw = { version = "0.11.2", path = "../cust_raw" }
+
+[build-dependencies]
+bindgen = "0.55"
+cc = "1.0.71"
+find_cuda_helper = { version = "0.1", path = "../find_cuda_helper" }
+
