@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use cust::context::{Context as CuContext, ContextFlags};
-use cust::device::{Device, DeviceAttribute};
+use cust::device::Device;
 use cust::memory::{CopyDestination, DBox, DBuffer, DeviceCopy, DevicePointer};
 use cust::stream::{Stream, StreamFlags};
 use cust::CudaFlags;
@@ -11,7 +11,7 @@ use optix::{
         PipelineCompileOptions, TraversableGraphFlags,
     },
     pipeline::{Pipeline, PipelineLinkOptions},
-    program_group::ProgramGroupDesc,
+    program_group::{ProgramGroup, ProgramGroupDesc},
     shader_binding_table::{SbtRecord, ShaderBindingTable},
 };
 
@@ -72,12 +72,12 @@ impl Renderer {
         // create raygen program
         let pgdesc_raygen = ProgramGroupDesc::raygen(&module, "__raygen__renderFrame");
 
-        let (pg_raygen, _log) = ctx.program_group_create(&[pgdesc_raygen])?;
+        let (pg_raygen, _log) = ProgramGroup::new(&mut ctx, &[pgdesc_raygen])?;
 
         // create miss program
         let pgdesc_miss = ProgramGroupDesc::miss(&module, "__miss__radiance");
 
-        let (pg_miss, _log) = ctx.program_group_create(&[pgdesc_miss])?;
+        let (pg_miss, _log) = ProgramGroup::new(&mut ctx, &[pgdesc_miss])?;
 
         let pgdesc_hitgroup = ProgramGroupDesc::hitgroup(
             Some((&module, "__closesthit__radiance")),
@@ -86,7 +86,7 @@ impl Renderer {
         );
 
         // create hitgroup programs
-        let (pg_hitgroup, _log) = ctx.program_group_create(&[pgdesc_hitgroup])?;
+        let (pg_hitgroup, _log) = ProgramGroup::new(&mut ctx, &[pgdesc_hitgroup])?;
 
         // create pipeline
         let mut program_groups = Vec::new();
