@@ -12,7 +12,7 @@ use std::ffi::CStr;
 
 #[repr(transparent)]
 pub struct Pipeline {
-    pub(crate) inner: sys::OptixPipeline,
+    pub(crate) raw: sys::OptixPipeline,
 }
 
 #[repr(C)]
@@ -32,9 +32,9 @@ impl From<PipelineLinkOptions> for sys::OptixPipelineLinkOptions {
 }
 
 /// # Creating and destroying `Pipeline`s
-impl DeviceContext {
-    pub fn pipeline_create(
-        &mut self,
+impl Pipeline {
+    pub fn new(
+        ctx: &mut DeviceContext,
         pipeline_compile_options: &PipelineCompileOptions,
         link_options: PipelineLinkOptions,
         program_groups: &[ProgramGroup],
@@ -46,18 +46,18 @@ impl DeviceContext {
         let mut log = [0u8; 4096];
         let mut log_len = log.len();
 
-        let mut inner: sys::OptixPipeline = std::ptr::null_mut();
+        let mut raw: sys::OptixPipeline = std::ptr::null_mut();
 
         let res = unsafe {
             optix_call!(optixPipelineCreate(
-                self.raw,
+                ctx.raw,
                 &popt,
                 &link_options,
                 program_groups.as_ptr() as *const _,
                 program_groups.len() as u32,
                 log.as_mut_ptr() as *mut i8,
                 &mut log_len,
-                &mut inner,
+                &mut raw,
             ))
         };
 
@@ -67,7 +67,7 @@ impl DeviceContext {
             .into_owned();
 
         match res {
-            Ok(()) => Ok((Pipeline { inner }, log)),
+            Ok(()) => Ok((Pipeline { raw }, log)),
             Err(source) => Err(Error::PipelineCreation { source, log }),
         }
     }
@@ -76,8 +76,8 @@ impl DeviceContext {
     /// # Safety
     /// Thread safety: A pipeline must not be destroyed while it is still in use
     /// by concurrent API calls in other threads.
-    pub fn pipeline_destroy(&mut self, pipeline: Pipeline) -> Result<()> {
-        unsafe { Ok(optix_call!(optixPipelineDestroy(pipeline.inner))?) }
+    pub fn destroy(&mut self) -> Result<()> {
+        unsafe { Ok(optix_call!(optixPipelineDestroy(self.raw))?) }
     }
 }
 
@@ -120,7 +120,7 @@ impl Pipeline {
     ) -> Result<()> {
         unsafe {
             Ok(optix_call!(optixPipelineSetStackSize(
-                self.inner,
+                self.raw,
                 direct_callable_stack_size_from_traversable,
                 direct_callable_stack_size_from_state,
                 continuation_stack_size,
