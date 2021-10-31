@@ -1,6 +1,7 @@
 use rustc_codegen_ssa::CodegenResults;
 use rustc_codegen_ssa::CompiledModule;
 use rustc_codegen_ssa::NativeLib;
+use rustc_codegen_ssa::traits::ThinBufferMethods;
 use rustc_data_structures::owning_ref::OwningRef;
 use rustc_data_structures::rustc_erase_owner;
 use rustc_data_structures::sync::MetadataRef;
@@ -15,6 +16,7 @@ use rustc_session::{
     Session,
 };
 use rustc_target::spec::Target;
+use std::ffi::CString;
 use std::{
     ffi::OsStr,
     fs::File,
@@ -24,7 +26,13 @@ use std::{
 use tar::{Archive, Builder, Header};
 use tracing::{debug, trace};
 
+use crate::LlvmMod;
 use crate::context::CodegenArgs;
+use crate::create_module;
+use crate::llvm::Context;
+use crate::llvm::LLVMLinkModules2;
+use crate::llvm::LLVMRustParseBitcodeForLTO;
+use crate::lto::ThinBuffer;
 
 pub(crate) struct NvvmMetadataLoader;
 
@@ -213,6 +221,10 @@ fn codegen_into_ptx_file(
         rlibs, 
         out_filename
     );
+
+    // we need to make a new llvm context because we need it for linking together modules,
+    // but we dont have our original one because rustc drops tyctxt and codegencx before linking.
+    let cx = LlvmMod::new("link_tmp");
     
     let deps = deps.unwrap_or_default();
     let mut main_modules = Vec::with_capacity(objects.len());
@@ -234,24 +246,27 @@ fn codegen_into_ptx_file(
     // rlibs are archives that we made previously, they are usually made for crates that are referenced
     // in this crate. We must unpack them and devour their bitcode to link in.
     for rlib in rlibs {
+        // every entry will be a CGU, we need to merge those CGUs into a single module so we can give it to libnvvm to load.
+        let mut cgus = Vec::with_capacity(16);
+        // just pick the first cgu name as the overall name for now.
+        let mut name = String::new();
         for entry in Archive::new(File::open(rlib)?).entries()? {
             let mut entry = entry?;
+            // metadata is where rustc puts rlib metadata, so its not a cgu we are interested in.
             if entry.path().unwrap() != Path::new(".metadata") {
+                if name == String::new() {
+                    name = entry.path().unwrap().file_name().unwrap().to_str().unwrap().to_string();
+                }
                 // std::fs::read adds 1 to the size, so do the same here - see comment:
                 // https://github.com/rust-lang/rust/blob/72868e017bdade60603a25889e253f556305f996/library/std/src/fs.rs#L200-L202
                 let mut bitcode = Vec::with_capacity(entry.size() as usize + 1);
                 entry.read_to_end(&mut bitcode).unwrap();
-                let name = entry
-                    .path()
-                    .unwrap()
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-                rlib_deps.push((bitcode, name));
+                cgus.push(bitcode);
             }
         }
+
+        let merged = merge_cgus(cgus, cx.llcx, name.clone());
+        rlib_deps.push((merged, name));
     }
 
     if let Some(alloc) = allocator {
@@ -287,6 +302,25 @@ fn codegen_into_ptx_file(
     };
 
     std::fs::write(out_filename, ptx_bytes)
+}
+
+/// Merges multiple codegen units into a single codegen unit. This is needed because
+/// we lazy-load modules in dependency order, not sub-crate order, so we need to lazy load
+/// entire modules, not just individual CGUs.
+fn merge_cgus(cgus: Vec<Vec<u8>>, llcx: &Context, crate_name: String) -> Vec<u8> {
+    let cstr = CString::new(crate_name.clone()).unwrap();
+    let module = unsafe {
+        create_module(llcx, &crate_name)
+    };
+    for cgu in cgus {
+        unsafe {
+            let tmp = LLVMRustParseBitcodeForLTO(llcx, cgu.as_ptr(), cgu.len(), cstr.as_ptr()).expect("Failed to parse CGU bitcode");
+            LLVMLinkModules2(module, tmp);
+        }
+    }
+
+    let thin = ThinBuffer::new(module);
+    thin.data().to_vec()
 }
 
 fn create_archive(sess: &Session, files: &[&Path], metadata: &[u8], out_filename: &Path) {

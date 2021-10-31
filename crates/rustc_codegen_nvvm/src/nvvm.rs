@@ -5,7 +5,6 @@
 use find_cuda_helper::find_cuda_root;
 use nvvm::*;
 use rustc_session::Session;
-use std::env;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs;
