@@ -15,8 +15,6 @@ use optix::{
     shader_binding_table::{SbtRecord, ShaderBindingTable},
 };
 
-use ustr::ustr;
-
 pub struct Renderer {
     ctx: DeviceContext,
     cuda_context: CuContext,
@@ -69,18 +67,18 @@ impl Renderer {
             .context("Create module")?;
 
         // create raygen program
-        let pgdesc_raygen = ProgramGroupDesc::raygen(&module, ustr("__raygen__renderFrame"));
+        let pgdesc_raygen = ProgramGroupDesc::raygen(&module, "__raygen__renderFrame");
 
         let (pg_raygen, _log) = ctx.program_group_create(&[pgdesc_raygen])?;
 
         // create miss program
-        let pgdesc_miss = ProgramGroupDesc::miss(&module, ustr("__miss__radiance"));
+        let pgdesc_miss = ProgramGroupDesc::miss(&module, "__miss__radiance");
 
         let (pg_miss, _log) = ctx.program_group_create(&[pgdesc_miss])?;
 
         let pgdesc_hitgroup = ProgramGroupDesc::hitgroup(
-            Some((&module, ustr("__closesthit__radiance"))),
-            Some((&module, ustr("__anyhit__radiance"))),
+            Some((&module, "__closesthit__radiance")),
+            Some((&module, "__anyhit__radiance")),
             None,
         );
 

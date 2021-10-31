@@ -9,7 +9,6 @@ edition = "2021"
 optix = {path = "../../"}
 cust = {path = "../../../cust"}
 anyhow = "1.0.44"
-ustr = "0.8.1"
 glfw = "0.42.0"
 gl = "0.14.0"
 num-traits = "0.2.14"

@@ -7,8 +7,6 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 use std::ffi::{CStr, CString};
 
-use ustr::Ustr;
-
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct Module {
@@ -123,19 +121,20 @@ pub struct PipelineCompileOptions {
     num_payload_values: i32,
     num_attribute_values: i32,
     exception_flags: ExceptionFlags,
-    pipeline_launch_params_variable_name: Ustr,
+    pipeline_launch_params_variable_name: CString,
     primitive_type_flags: PrimitiveTypeFlags,
 }
 
 impl PipelineCompileOptions {
-    pub fn new<S: Into<Ustr>>(launch_params_variable_name: S) -> PipelineCompileOptions {
+    pub fn new(launch_params_variable_name: &str) -> PipelineCompileOptions {
         PipelineCompileOptions {
             uses_motion_blur: false,
             traversable_graph_flags: TraversableGraphFlags::ALLOW_ANY,
             num_payload_values: 0,
             num_attribute_values: 0,
             exception_flags: ExceptionFlags::NONE,
-            pipeline_launch_params_variable_name: launch_params_variable_name.into(),
+            pipeline_launch_params_variable_name: CString::new(launch_params_variable_name)
+                .expect("Invalid string"),
             primitive_type_flags: PrimitiveTypeFlags::DEFAULT,
         }
     }
@@ -151,7 +150,7 @@ impl PipelineCompileOptions {
                     exceptionFlags: self.exception_flags.bits(),
                     pipelineLaunchParamsVariableName: self
                         .pipeline_launch_params_variable_name
-                        .as_char_ptr(),
+                        .as_ptr(),
                     usesPrimitiveTypeFlags: self.primitive_type_flags.bits() as u32,
                     reserved: 0,
                     reserved2: 0,
@@ -197,8 +196,8 @@ impl PipelineCompileOptions {
         self
     }
 
-    pub fn pipeline_launch_params_variable_name(mut self, name: ustr::Ustr) -> Self {
-        self.pipeline_launch_params_variable_name = name;
+    pub fn pipeline_launch_params_variable_name(mut self, name: &str) -> Self {
+        self.pipeline_launch_params_variable_name = CString::new(name).expect("Invalid string");
         self
     }
 }
