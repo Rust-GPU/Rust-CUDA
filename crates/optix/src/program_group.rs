@@ -127,11 +127,11 @@ impl PartialEq for ProgramGroup {
 }
 
 /// # Creating and destroying `ProgramGroup`s
-impl DeviceContext {
+impl ProgramGroup {
     /// Create a [ProgramGroup] for each of the [ProgramGroupDesc] objects in
     /// `desc`.
-    pub fn program_group_create(
-        &mut self,
+    pub fn new(
+        ctx: &mut DeviceContext,
         desc: &[ProgramGroupDesc],
     ) -> Result<(Vec<ProgramGroup>, String)> {
         cfg_if::cfg_if! {
@@ -151,7 +151,7 @@ impl DeviceContext {
 
         let res = unsafe {
             optix_call!(optixProgramGroupCreate(
-                self.raw,
+                ctx.raw,
                 pg_desc.as_ptr(),
                 pg_desc.len() as u32,
                 &pg_options,
@@ -176,8 +176,8 @@ impl DeviceContext {
     }
 
     /// Create a single [ProgramGroup] specified by `desc`.
-    pub fn program_group_create_single(
-        &mut self,
+    pub fn new_single(
+        ctx: &mut DeviceContext,
         desc: &ProgramGroupDesc,
     ) -> Result<(ProgramGroup, String)> {
         cfg_if::cfg_if! {
@@ -197,7 +197,7 @@ impl DeviceContext {
 
         let res = unsafe {
             optix_call!(optixProgramGroupCreate(
-                self.raw,
+                ctx.raw,
                 &pg_desc,
                 1,
                 &pg_options,
@@ -219,45 +219,45 @@ impl DeviceContext {
     }
 
     /// Create a raygen [ProgramGroup] from `entry_function_name` in `module`.
-    pub fn program_group_raygen(
-        &mut self,
+    pub fn raygen(
+        ctx: &mut DeviceContext,
         module: &Module,
         entry_function_name: &str,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::raygen(module, entry_function_name);
-        Ok(self.program_group_create_single(&desc)?.0)
+        Ok(ProgramGroup::new_single(ctx, &desc)?.0)
     }
 
     /// Create a miss [ProgramGroup] from `entry_function_name` in `module`.
-    pub fn program_group_miss(
-        &mut self,
+    pub fn miss(
+        ctx: &mut DeviceContext,
         module: &Module,
         entry_function_name: &str,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::miss(module, entry_function_name);
-        Ok(self.program_group_create_single(&desc)?.0)
+        Ok(ProgramGroup::new_single(ctx, &desc)?.0)
     }
 
     /// Create an exception [ProgramGroup] from `entry_function_name` in `module`.
-    pub fn program_group_exception(
-        &mut self,
+    pub fn exception(
+        ctx: &mut DeviceContext,
         module: &Module,
         entry_function_name: &str,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::exception(module, entry_function_name);
-        Ok(self.program_group_create_single(&desc)?.0)
+        Ok(ProgramGroup::new_single(ctx, &desc)?.0)
     }
 
     /// Create a hitgroup [ProgramGroup] from any combination of
     /// `(module, entry_function_name)` pairs.
-    pub fn program_group_hitgroup(
-        &mut self,
+    pub fn hitgroup(
+        ctx: &mut DeviceContext,
         closest_hit: Option<(&Module, &str)>,
         any_hit: Option<(&Module, &str)>,
         intersection: Option<(&Module, &str)>,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::hitgroup(closest_hit, any_hit, intersection);
-        Ok(self.program_group_create_single(&desc)?.0)
+        Ok(ProgramGroup::new_single(ctx, &desc)?.0)
     }
 
     /// Destroy `program_group`
@@ -265,120 +265,118 @@ impl DeviceContext {
     /// # Safety
     /// Thread safety: A program group must not be destroyed while it is still
     /// in use by concurrent API calls in other threads.
-    pub fn program_group_destroy(&mut self, program_group: ProgramGroup) -> Result<()> {
-        unsafe { Ok(optix_call!(optixProgramGroupDestroy(program_group.raw))?) }
+    pub fn destroy(&mut self) -> Result<()> {
+        unsafe { Ok(optix_call!(optixProgramGroupDestroy(self.raw))?) }
     }
 }
 
 impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
     fn from(desc: &ProgramGroupDesc<'m>) -> sys::OptixProgramGroupDesc {
-        unsafe {
-            match &desc {
-                ProgramGroupDesc::Raygen(ProgramGroupModule {
-                    module,
-                    entry_function_name,
-                }) => sys::OptixProgramGroupDesc {
-                    kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_RAYGEN,
+        match &desc {
+            ProgramGroupDesc::Raygen(ProgramGroupModule {
+                module,
+                entry_function_name,
+            }) => sys::OptixProgramGroupDesc {
+                kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_RAYGEN,
+                __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                    raygen: sys::OptixProgramGroupSingleModule {
+                        module: module.raw,
+                        entryFunctionName: entry_function_name.as_ptr(),
+                    },
+                },
+                flags: 0,
+            },
+            ProgramGroupDesc::Miss(ProgramGroupModule {
+                module,
+                entry_function_name,
+            }) => sys::OptixProgramGroupDesc {
+                kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_MISS,
+                __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                    miss: sys::OptixProgramGroupSingleModule {
+                        module: module.raw,
+                        entryFunctionName: entry_function_name.as_ptr(),
+                    },
+                },
+                flags: 0,
+            },
+            ProgramGroupDesc::Exception(ProgramGroupModule {
+                module,
+                entry_function_name,
+            }) => sys::OptixProgramGroupDesc {
+                kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_EXCEPTION,
+                __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                    miss: sys::OptixProgramGroupSingleModule {
+                        module: module.raw,
+                        entryFunctionName: entry_function_name.as_ptr(),
+                    },
+                },
+                flags: 0,
+            },
+            ProgramGroupDesc::Hitgroup { ch, ah, is } => {
+                let mut efn_ch_ptr = std::ptr::null();
+                let mut efn_ah_ptr = std::ptr::null();
+                let mut efn_is_ptr = std::ptr::null();
+
+                let module_ch = if let Some(pg_ch) = &ch {
+                    efn_ch_ptr = pg_ch.entry_function_name.as_ptr();
+                    pg_ch.module.raw
+                } else {
+                    std::ptr::null_mut()
+                };
+
+                let module_ah = if let Some(pg_ah) = &ah {
+                    efn_ah_ptr = pg_ah.entry_function_name.as_ptr();
+                    pg_ah.module.raw
+                } else {
+                    std::ptr::null_mut()
+                };
+
+                let module_is = if let Some(pg_is) = &is {
+                    efn_is_ptr = pg_is.entry_function_name.as_ptr();
+                    pg_is.module.raw
+                } else {
+                    std::ptr::null_mut()
+                };
+
+                sys::OptixProgramGroupDesc {
+                    kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_HITGROUP,
                     __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                        raygen: sys::OptixProgramGroupSingleModule {
-                            module: module.raw,
-                            entryFunctionName: entry_function_name.as_ptr(),
+                        hitgroup: sys::OptixProgramGroupHitgroup {
+                            moduleCH: module_ch,
+                            entryFunctionNameCH: efn_ch_ptr,
+                            moduleAH: module_ah,
+                            entryFunctionNameAH: efn_ah_ptr,
+                            moduleIS: module_is,
+                            entryFunctionNameIS: efn_is_ptr,
                         },
                     },
                     flags: 0,
-                },
-                ProgramGroupDesc::Miss(ProgramGroupModule {
-                    module,
-                    entry_function_name,
-                }) => sys::OptixProgramGroupDesc {
-                    kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_MISS,
-                    __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                        miss: sys::OptixProgramGroupSingleModule {
-                            module: module.raw,
-                            entryFunctionName: entry_function_name.as_ptr(),
-                        },
-                    },
-                    flags: 0,
-                },
-                ProgramGroupDesc::Exception(ProgramGroupModule {
-                    module,
-                    entry_function_name,
-                }) => sys::OptixProgramGroupDesc {
-                    kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_EXCEPTION,
-                    __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                        miss: sys::OptixProgramGroupSingleModule {
-                            module: module.raw,
-                            entryFunctionName: entry_function_name.as_ptr(),
-                        },
-                    },
-                    flags: 0,
-                },
-                ProgramGroupDesc::Hitgroup { ch, ah, is } => {
-                    let mut efn_ch_ptr = std::ptr::null();
-                    let mut efn_ah_ptr = std::ptr::null();
-                    let mut efn_is_ptr = std::ptr::null();
-
-                    let module_ch = if let Some(pg_ch) = &ch {
-                        efn_ch_ptr = pg_ch.entry_function_name.as_ptr();
-                        pg_ch.module.raw
-                    } else {
-                        std::ptr::null_mut()
-                    };
-
-                    let module_ah = if let Some(pg_ah) = &ah {
-                        efn_ah_ptr = pg_ah.entry_function_name.as_ptr();
-                        pg_ah.module.raw
-                    } else {
-                        std::ptr::null_mut()
-                    };
-
-                    let module_is = if let Some(pg_is) = &is {
-                        efn_is_ptr = pg_is.entry_function_name.as_ptr();
-                        pg_is.module.raw
-                    } else {
-                        std::ptr::null_mut()
-                    };
-
-                    sys::OptixProgramGroupDesc {
-                        kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_HITGROUP,
-                        __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                            hitgroup: sys::OptixProgramGroupHitgroup {
-                                moduleCH: module_ch,
-                                entryFunctionNameCH: efn_ch_ptr,
-                                moduleAH: module_ah,
-                                entryFunctionNameAH: efn_ah_ptr,
-                                moduleIS: module_is,
-                                entryFunctionNameIS: efn_is_ptr,
-                            },
-                        },
-                        flags: 0,
-                    }
                 }
-                ProgramGroupDesc::Callables { dc, cc } => {
-                    let (module_dc, efn_dc) = if let Some(pg_dc) = &dc {
-                        (pg_dc.module.raw, pg_dc.entry_function_name.as_ptr())
-                    } else {
-                        (std::ptr::null_mut(), std::ptr::null())
-                    };
+            }
+            ProgramGroupDesc::Callables { dc, cc } => {
+                let (module_dc, efn_dc) = if let Some(pg_dc) = &dc {
+                    (pg_dc.module.raw, pg_dc.entry_function_name.as_ptr())
+                } else {
+                    (std::ptr::null_mut(), std::ptr::null())
+                };
 
-                    let (module_cc, efn_cc) = if let Some(pg_cc) = &cc {
-                        (pg_cc.module.raw, pg_cc.entry_function_name.as_ptr())
-                    } else {
-                        (std::ptr::null_mut(), std::ptr::null())
-                    };
+                let (module_cc, efn_cc) = if let Some(pg_cc) = &cc {
+                    (pg_cc.module.raw, pg_cc.entry_function_name.as_ptr())
+                } else {
+                    (std::ptr::null_mut(), std::ptr::null())
+                };
 
-                    sys::OptixProgramGroupDesc {
-                        kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_CALLABLES,
-                        __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                            callables: sys::OptixProgramGroupCallables {
-                                moduleDC: module_dc,
-                                entryFunctionNameDC: efn_dc,
-                                moduleCC: module_cc,
-                                entryFunctionNameCC: efn_cc,
-                            },
+                sys::OptixProgramGroupDesc {
+                    kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_CALLABLES,
+                    __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                        callables: sys::OptixProgramGroupCallables {
+                            moduleDC: module_dc,
+                            entryFunctionNameDC: efn_dc,
+                            moduleCC: module_cc,
+                            entryFunctionNameCC: efn_cc,
                         },
-                        flags: 0,
-                    }
+                    },
+                    flags: 0,
                 }
             }
         }
