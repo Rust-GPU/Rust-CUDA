@@ -46,7 +46,6 @@ where
 
 unsafe impl<T: DeviceCopy> DeviceCopy for SbtRecord<T> {}
 
-#[repr(C)]
 pub struct ShaderBindingTable {
     raygen_record: CUdeviceptr,
     exception_record: CUdeviceptr,
@@ -80,7 +79,19 @@ impl ShaderBindingTable {
     }
 
     pub fn build(self) -> sys::OptixShaderBindingTable {
-        unsafe { std::mem::transmute::<ShaderBindingTable, sys::OptixShaderBindingTable>(self) }
+        sys::OptixShaderBindingTable {
+            raygenRecord: self.raygen_record,
+            exceptionRecord: self.exception_record,
+            missRecordBase: self.miss_record_base,
+            missRecordStrideInBytes: self.miss_record_stride_in_bytes,
+            missRecordCount: self.miss_record_count,
+            hitgroupRecordBase: self.hitgroup_record_base,
+            hitgroupRecordStrideInBytes: self.hitgroup_record_stride_in_bytes,
+            hitgroupRecordCount: self.hitgroup_record_count,
+            callablesRecordBase: self.callables_record_base,
+            callablesRecordStrideInBytes: self.callables_record_stride_in_bytes,
+            callablesRecordCount: self.callables_record_count,
+        }
     }
 
     pub fn exception<EX: DeviceCopy>(
