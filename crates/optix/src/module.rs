@@ -1,8 +1,4 @@
-use crate::{
-    context::DeviceContext,
-    error::{Error, ToResult},
-    optix_call, sys,
-};
+use crate::{context::DeviceContext, error::Error, optix_call, sys};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 use std::ffi::{CStr, CString};
@@ -203,9 +199,9 @@ impl PipelineCompileOptions {
 }
 
 /// # Creating and destroying `Module`s
-impl DeviceContext {
-    pub fn module_create_from_ptx(
-        &mut self,
+impl Module {
+    pub fn new(
+        ctx: &mut DeviceContext,
         module_compile_options: &ModuleCompileOptions,
         pipeline_compile_options: &PipelineCompileOptions,
         ptx: &str,
@@ -220,7 +216,7 @@ impl DeviceContext {
         let mut raw = std::ptr::null_mut();
         let res = unsafe {
             optix_call!(optixModuleCreateFromPTX(
-                self.raw,
+                ctx.raw,
                 &mopt as *const _,
                 &popt,
                 cptx.as_ptr(),
@@ -243,7 +239,7 @@ impl DeviceContext {
     }
 
     pub fn builtin_is_module_get(
-        &self,
+        ctx: &mut DeviceContext,
         module_compile_options: &ModuleCompileOptions,
         pipeline_compile_options: &PipelineCompileOptions,
         builtin_is_module_type: PrimitiveType,
@@ -258,7 +254,7 @@ impl DeviceContext {
 
         unsafe {
             optix_call!(optixBuiltinISModuleGet(
-                self.raw,
+                ctx.raw,
                 module_compile_options as *const _ as *const _,
                 pipeline_compile_options as *const _ as *const _,
                 &is_options as *const _,
@@ -275,7 +271,7 @@ impl DeviceContext {
     /// group.
     /// A Module must not be destroyed while it is
     /// still in use by concurrent API calls in other threads.
-    pub fn module_destroy(&mut self, module: Module) -> Result<()> {
-        unsafe { Ok(optix_call!(optixModuleDestroy(module.raw))?) }
+    pub fn module_destroy(&mut self) -> Result<()> {
+        unsafe { Ok(optix_call!(optixModuleDestroy(self.raw))?) }
     }
 }

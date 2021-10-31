@@ -75,7 +75,7 @@ pub unsafe fn launch<P: cust::memory::DeviceCopy>(
     depth: u32,
 ) -> Result<()> {
     Ok(optix_call!(optixLaunch(
-        pipeline.inner,
+        pipeline.raw,
         stream.as_inner(),
         buf_launch_params.as_device_ptr().as_raw() as u64,
         std::mem::size_of::<P>(),
