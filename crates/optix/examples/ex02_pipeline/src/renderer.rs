@@ -46,7 +46,7 @@ impl Renderer {
         let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
         let mut ctx = DeviceContext::new(&cuda_context)?;
-        // ctx.set_log_callback(|_level, tag, msg| println!("[{}]: {}", tag, msg), 4);
+        ctx.set_log_callback(|_level, tag, msg| println!("[{}]: {}", tag, msg), 4);
 
         // create module
         let module_compile_options = ModuleCompileOptions {
