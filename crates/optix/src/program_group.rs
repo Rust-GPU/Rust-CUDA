@@ -1,14 +1,12 @@
 use crate::{context::DeviceContext, error::Error, module::Module, optix_call, sys};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-use ustr::Ustr;
-
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 
 #[derive(Clone)]
 pub struct ProgramGroupModule<'m> {
     pub module: &'m Module,
-    pub entry_function_name: Ustr,
+    pub entry_function_name: CString,
 }
 
 pub enum ProgramGroupDesc<'m> {
@@ -27,44 +25,44 @@ pub enum ProgramGroupDesc<'m> {
 }
 
 impl<'m> ProgramGroupDesc<'m> {
-    pub fn raygen(module: &'m Module, entry_function_name: Ustr) -> ProgramGroupDesc<'m> {
+    pub fn raygen(module: &'m Module, entry_function_name: &str) -> ProgramGroupDesc<'m> {
         ProgramGroupDesc::Raygen(ProgramGroupModule {
             module,
-            entry_function_name,
+            entry_function_name: CString::new(entry_function_name).expect("Invalid string"),
         })
     }
 
-    pub fn miss(module: &'m Module, entry_function_name: Ustr) -> ProgramGroupDesc<'m> {
+    pub fn miss(module: &'m Module, entry_function_name: &str) -> ProgramGroupDesc<'m> {
         ProgramGroupDesc::Miss(ProgramGroupModule {
             module,
-            entry_function_name,
+            entry_function_name: CString::new(entry_function_name).expect("Invalid string"),
         })
     }
 
-    pub fn exception(module: &'m Module, entry_function_name: Ustr) -> ProgramGroupDesc<'m> {
+    pub fn exception(module: &'m Module, entry_function_name: &str) -> ProgramGroupDesc<'m> {
         ProgramGroupDesc::Exception(ProgramGroupModule {
             module,
-            entry_function_name,
+            entry_function_name: CString::new(entry_function_name).expect("Invalid string"),
         })
     }
 
     pub fn hitgroup(
-        ch: Option<(&'m Module, Ustr)>,
-        ah: Option<(&'m Module, Ustr)>,
-        is: Option<(&'m Module, Ustr)>,
+        ch: Option<(&'m Module, &str)>,
+        ah: Option<(&'m Module, &str)>,
+        is: Option<(&'m Module, &str)>,
     ) -> ProgramGroupDesc<'m> {
         ProgramGroupDesc::Hitgroup {
             ch: ch.map(|(module, entry_function_name)| ProgramGroupModule {
                 module,
-                entry_function_name,
+                entry_function_name: CString::new(entry_function_name).expect("Invalid string"),
             }),
             ah: ah.map(|(module, entry_function_name)| ProgramGroupModule {
                 module,
-                entry_function_name,
+                entry_function_name: CString::new(entry_function_name).expect("Invalid string"),
             }),
             is: is.map(|(module, entry_function_name)| ProgramGroupModule {
                 module,
-                entry_function_name,
+                entry_function_name: CString::new(entry_function_name).expect("Invalid string"),
             }),
         }
     }
@@ -224,7 +222,7 @@ impl DeviceContext {
     pub fn program_group_raygen(
         &mut self,
         module: &Module,
-        entry_function_name: Ustr,
+        entry_function_name: &str,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::raygen(module, entry_function_name);
         Ok(self.program_group_create_single(&desc)?.0)
@@ -234,7 +232,7 @@ impl DeviceContext {
     pub fn program_group_miss(
         &mut self,
         module: &Module,
-        entry_function_name: Ustr,
+        entry_function_name: &str,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::miss(module, entry_function_name);
         Ok(self.program_group_create_single(&desc)?.0)
@@ -244,7 +242,7 @@ impl DeviceContext {
     pub fn program_group_exception(
         &mut self,
         module: &Module,
-        entry_function_name: Ustr,
+        entry_function_name: &str,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::exception(module, entry_function_name);
         Ok(self.program_group_create_single(&desc)?.0)
@@ -254,9 +252,9 @@ impl DeviceContext {
     /// `(module, entry_function_name)` pairs.
     pub fn program_group_hitgroup(
         &mut self,
-        closest_hit: Option<(&Module, Ustr)>,
-        any_hit: Option<(&Module, Ustr)>,
-        intersection: Option<(&Module, Ustr)>,
+        closest_hit: Option<(&Module, &str)>,
+        any_hit: Option<(&Module, &str)>,
+        intersection: Option<(&Module, &str)>,
     ) -> Result<ProgramGroup> {
         let desc = ProgramGroupDesc::hitgroup(closest_hit, any_hit, intersection);
         Ok(self.program_group_create_single(&desc)?.0)
@@ -284,7 +282,7 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
                     __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
                         raygen: sys::OptixProgramGroupSingleModule {
                             module: module.raw,
-                            entryFunctionName: entry_function_name.as_char_ptr(),
+                            entryFunctionName: entry_function_name.as_ptr(),
                         },
                     },
                     flags: 0,
@@ -297,7 +295,7 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
                     __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
                         miss: sys::OptixProgramGroupSingleModule {
                             module: module.raw,
-                            entryFunctionName: entry_function_name.as_char_ptr(),
+                            entryFunctionName: entry_function_name.as_ptr(),
                         },
                     },
                     flags: 0,
@@ -310,7 +308,7 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
                     __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
                         miss: sys::OptixProgramGroupSingleModule {
                             module: module.raw,
-                            entryFunctionName: entry_function_name.as_char_ptr(),
+                            entryFunctionName: entry_function_name.as_ptr(),
                         },
                     },
                     flags: 0,
@@ -321,21 +319,21 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
                     let mut efn_is_ptr = std::ptr::null();
 
                     let module_ch = if let Some(pg_ch) = &ch {
-                        efn_ch_ptr = pg_ch.entry_function_name.as_char_ptr();
+                        efn_ch_ptr = pg_ch.entry_function_name.as_ptr();
                         pg_ch.module.raw
                     } else {
                         std::ptr::null_mut()
                     };
 
                     let module_ah = if let Some(pg_ah) = &ah {
-                        efn_ah_ptr = pg_ah.entry_function_name.as_char_ptr();
+                        efn_ah_ptr = pg_ah.entry_function_name.as_ptr();
                         pg_ah.module.raw
                     } else {
                         std::ptr::null_mut()
                     };
 
                     let module_is = if let Some(pg_is) = &is {
-                        efn_is_ptr = pg_is.entry_function_name.as_char_ptr();
+                        efn_is_ptr = pg_is.entry_function_name.as_ptr();
                         pg_is.module.raw
                     } else {
                         std::ptr::null_mut()
@@ -358,13 +356,13 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
                 }
                 ProgramGroupDesc::Callables { dc, cc } => {
                     let (module_dc, efn_dc) = if let Some(pg_dc) = &dc {
-                        (pg_dc.module.raw, pg_dc.entry_function_name.as_char_ptr())
+                        (pg_dc.module.raw, pg_dc.entry_function_name.as_ptr())
                     } else {
                         (std::ptr::null_mut(), std::ptr::null())
                     };
 
                     let (module_cc, efn_cc) = if let Some(pg_cc) = &cc {
-                        (pg_cc.module.raw, pg_cc.entry_function_name.as_char_ptr())
+                        (pg_cc.module.raw, pg_cc.entry_function_name.as_ptr())
                     } else {
                         (std::ptr::null_mut(), std::ptr::null())
                     };
