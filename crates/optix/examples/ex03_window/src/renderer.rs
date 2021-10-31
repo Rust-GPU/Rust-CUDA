@@ -39,16 +39,13 @@ impl Renderer {
 
         // create CUDA and OptiX contexts
         let device = Device::get_device(0)?;
-        let tex_align = device.get_attribute(DeviceAttribute::TextureAlignment)?;
-        let srf_align = device.get_attribute(DeviceAttribute::SurfaceAlignment)?;
-        println!("tex align: {}\nsrf align: {}", tex_align, srf_align);
 
         let cuda_context =
             CuContext::create_and_push(ContextFlags::SCHED_AUTO | ContextFlags::MAP_HOST, device)?;
         let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
         let mut ctx = DeviceContext::new(&cuda_context)?;
-        // ctx.set_log_callback(|_level, tag, msg| println!("[{}]: {}", tag, msg), 4);
+        ctx.set_log_callback(|_level, tag, msg| println!("[{}]: {}", tag, msg), 4);
 
         // create module
         let module_compile_options = ModuleCompileOptions {
