@@ -264,14 +264,10 @@ impl Module {
             .map_err(|e| Error::from(e))
         }
     }
+}
 
-    /// Destroy a module created with [DeviceContext::module_create_from_ptx()]
-    /// # Safety
-    /// Modules must not be destroyed while they are still used by any program
-    /// group.
-    /// A Module must not be destroyed while it is
-    /// still in use by concurrent API calls in other threads.
-    pub fn module_destroy(&mut self) -> Result<()> {
-        unsafe { Ok(optix_call!(optixModuleDestroy(self.raw))?) }
+impl Drop for Module {
+    fn drop(&mut self) {
+        unsafe { optix_call!(optixModuleDestroy(self.raw)).expect("optixModuleDestroy failed") }
     }
 }

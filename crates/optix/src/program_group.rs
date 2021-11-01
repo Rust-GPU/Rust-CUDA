@@ -68,8 +68,6 @@ impl<'m> ProgramGroupDesc<'m> {
     }
 }
 
-#[repr(transparent)]
-#[derive(Clone)]
 /// Modules can contain more than one program. The program in the module is
 /// designated by its entry function name as part of the [ProgramGroupDesc]
 /// struct passed to [DeviceContext::program_group_create()] and
@@ -98,6 +96,8 @@ impl<'m> ProgramGroupDesc<'m> {
 /// # Safety
 /// The lifetime of a module must extend to the lifetime of any
 /// OptixProgramGroup that references that module.
+#[repr(transparent)]
+#[derive(Clone)]
 pub struct ProgramGroup {
     pub(crate) raw: sys::OptixProgramGroup,
 }
@@ -259,14 +259,14 @@ impl ProgramGroup {
         let desc = ProgramGroupDesc::hitgroup(closest_hit, any_hit, intersection);
         Ok(ProgramGroup::new_single(ctx, &desc)?.0)
     }
+}
 
-    /// Destroy `program_group`
-    ///
-    /// # Safety
-    /// Thread safety: A program group must not be destroyed while it is still
-    /// in use by concurrent API calls in other threads.
-    pub fn destroy(&mut self) -> Result<()> {
-        unsafe { Ok(optix_call!(optixProgramGroupDestroy(self.raw))?) }
+impl Drop for ProgramGroup {
+    fn drop(&mut self) {
+        unsafe {
+            optix_call!(optixProgramGroupDestroy(self.raw))
+                .expect("optixProgramGroupDestroy failed")
+        }
     }
 }
 
