@@ -93,7 +93,7 @@ impl ShaderBindingTable {
         buf_exception_record: &mut DSlice<SbtRecord<EX>>,
     ) -> Self {
         if buf_exception_record.len() != 1 {
-            panic!("SBT not psased single exception record",);
+            panic!("SBT not passed single exception record",);
         }
         self.exception_record = buf_exception_record.as_device_ptr().as_raw() as u64;
         self
