@@ -3,7 +3,6 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 use std::ffi::{CStr, CString};
 
-#[derive(Clone)]
 #[repr(transparent)]
 pub struct Module {
     pub(crate) raw: sys::OptixModule,

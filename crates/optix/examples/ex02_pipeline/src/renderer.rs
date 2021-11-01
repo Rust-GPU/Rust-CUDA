@@ -91,26 +91,6 @@ impl Renderer {
         // create hitgroup programs
         let (pg_hitgroup, _log) = ProgramGroup::new(&mut ctx, &[pgdesc_hitgroup])?;
 
-        // create pipeline
-        let mut program_groups = Vec::new();
-        program_groups.extend(pg_raygen.iter().cloned());
-        program_groups.extend(pg_miss.iter().cloned());
-        program_groups.extend(pg_hitgroup.iter().cloned());
-
-        let pipeline_link_options = PipelineLinkOptions {
-            max_trace_depth: 2,
-            debug_level: CompileDebugLevel::LineInfo,
-        };
-
-        let (pipeline, _log) = Pipeline::new(
-            &mut ctx,
-            &pipeline_compile_options,
-            pipeline_link_options,
-            &program_groups,
-        )?;
-
-        pipeline.set_stack_size(2 * 1024, 2 * 1024, 2 * 1024, 1)?;
-
         // create SBT
         let rec_raygen: Vec<_> = pg_raygen
             .iter()
@@ -143,6 +123,26 @@ impl Renderer {
             .miss(&mut buf_miss)
             .hitgroup(&mut buf_hitgroup)
             .build();
+
+        // create pipeline
+        let mut program_groups = Vec::new();
+        program_groups.extend(pg_raygen.into_iter());
+        program_groups.extend(pg_miss.into_iter());
+        program_groups.extend(pg_hitgroup.into_iter());
+
+        let pipeline_link_options = PipelineLinkOptions {
+            max_trace_depth: 2,
+            debug_level: CompileDebugLevel::LineInfo,
+        };
+
+        let (pipeline, _log) = Pipeline::new(
+            &mut ctx,
+            &pipeline_compile_options,
+            pipeline_link_options,
+            &program_groups,
+        )?;
+
+        pipeline.set_stack_size(2 * 1024, 2 * 1024, 2 * 1024, 1)?;
 
         let mut color_buffer = unsafe { DBuffer::uninitialized(width * height)? };
 
