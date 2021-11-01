@@ -120,23 +120,18 @@ impl DeviceContext {
     /// the user or may perform slower than expected.
     /// * 4 - print: Status or progress messages.
     /// Higher levels might occur.
-    ///
-    /// # Safety
-    /// Note that the callback must live longer than the DeviceContext which
-    /// it's set for. This is because OptiX will fire messages when the
-    /// underlying OptixDeviceContext is destroyed. In order to do ensure
-    /// this we leak the closure `cb`. So don't go setting a new closure
-    /// every frame.
-    pub fn set_log_callback<F>(&mut self, cb: F, level: u32)
+    pub fn set_log_callback<F>(&mut self, cb: F, level: u32) -> Result<()>
     where
         F: FnMut(u32, &str, &str) + 'static,
     {
         let (closure, trampoline) = unsafe { unpack_closure(cb) };
-        let res = unsafe {
-            sys::optixDeviceContextSetLogCallback(self.raw, Some(trampoline), closure, level)
-        };
-        if res != sys::OptixResult::OPTIX_SUCCESS {
-            panic!("Failed to set log callback");
+        unsafe {
+            Ok(optix_call!(optixDeviceContextSetLogCallback(
+                self.raw,
+                Some(trampoline),
+                closure,
+                level
+            ))?)
         }
     }
 }
@@ -153,10 +148,6 @@ type LogCallback = extern "C" fn(c_uint, *const c_char, *const c_char, *mut c_vo
 ///
 /// Calling the trampoline function with anything except the `void*` pointer
 /// will result in *Undefined Behaviour*.
-///
-/// The closure should guarantee that it never panics, seeing as panicking
-/// across the FFI barrier is *Undefined Behaviour*. You may find
-/// `std::panic::catch_unwind()` useful.
 unsafe fn unpack_closure<F>(closure: F) -> (*mut c_void, LogCallback)
 where
     F: FnMut(u32, &str, &str),
@@ -169,10 +160,15 @@ where
     ) where
         F: FnMut(u32, &str, &str),
     {
-        let tag = unsafe { CStr::from_ptr(tag).to_string_lossy().into_owned() };
-        let msg = unsafe { CStr::from_ptr(msg).to_string_lossy().into_owned() };
-        let closure: &mut F = unsafe { &mut *(data as *mut F) };
-        (*closure)(level, &tag, &msg);
+        if let Err(e) = std::panic::catch_unwind(|| {
+            let tag = unsafe { CStr::from_ptr(tag).to_string_lossy().into_owned() };
+            let msg = unsafe { CStr::from_ptr(msg).to_string_lossy().into_owned() };
+            let closure: &mut F = unsafe { &mut *(data as *mut F) };
+
+            (*closure)(level, &tag, &msg);
+        }) {
+            eprintln!("Caught a panic calling log closure: {:?}", e);
+        }
     }
 
     let cb = Box::new(closure);
