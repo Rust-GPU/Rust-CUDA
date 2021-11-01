@@ -71,13 +71,11 @@ impl Pipeline {
             Err(source) => Err(Error::PipelineCreation { source, log }),
         }
     }
+}
 
-    /// Destroys the pipeline
-    /// # Safety
-    /// Thread safety: A pipeline must not be destroyed while it is still in use
-    /// by concurrent API calls in other threads.
-    pub fn destroy(&mut self) -> Result<()> {
-        unsafe { Ok(optix_call!(optixPipelineDestroy(self.raw))?) }
+impl Drop for Pipeline {
+    fn drop(&mut self) {
+        unsafe { optix_call!(optixPipelineDestroy(self.raw)).expect("optixPipelineDestroy failed") }
     }
 }
 
