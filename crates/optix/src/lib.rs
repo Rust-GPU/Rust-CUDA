@@ -60,7 +60,7 @@ macro_rules! optix_call {
 ///
 /// # Safety
 /// You must ensure that:
-/// - Any [ProgramGroup]s reference by the [Pipeline] are still alive
+/// - Any [ProgramGroup]s referenced by the [Pipeline] are still alive
 /// - Any [DevicePtr]s contained in `buf_launch_params` point to valid,
 ///   correctly aligned memory
 /// - Any [SbtRecord]s and associated data referenced by the
