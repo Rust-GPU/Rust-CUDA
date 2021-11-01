@@ -130,7 +130,7 @@ impl PipelineCompileOptions {
             num_attribute_values: 0,
             exception_flags: ExceptionFlags::NONE,
             pipeline_launch_params_variable_name: CString::new(launch_params_variable_name)
-                .expect("Invalid string"),
+                .expect("launch_params_variable_name contains a nul byte"),
             primitive_type_flags: PrimitiveTypeFlags::DEFAULT,
         }
     }
