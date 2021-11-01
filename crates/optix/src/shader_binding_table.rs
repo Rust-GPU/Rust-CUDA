@@ -1,10 +1,4 @@
-use crate::{
-    context::DeviceContext,
-    error::{Error, ToResult},
-    optix_call,
-    program_group::ProgramGroup,
-    sys,
-};
+use crate::{error::Error, optix_call, program_group::ProgramGroup, sys};
 
 use cust::memory::{DSlice, DeviceCopy};
 use cust_raw::CUdeviceptr;
