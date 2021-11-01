@@ -97,7 +97,6 @@ impl<'m> ProgramGroupDesc<'m> {
 /// The lifetime of a module must extend to the lifetime of any
 /// OptixProgramGroup that references that module.
 #[repr(transparent)]
-#[derive(Clone)]
 pub struct ProgramGroup {
     pub(crate) raw: sys::OptixProgramGroup,
 }
