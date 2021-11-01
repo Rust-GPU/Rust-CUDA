@@ -117,20 +117,19 @@ pub struct PipelineCompileOptions {
     num_payload_values: i32,
     num_attribute_values: i32,
     exception_flags: ExceptionFlags,
-    pipeline_launch_params_variable_name: CString,
+    pipeline_launch_params_variable_name: Option<CString>,
     primitive_type_flags: PrimitiveTypeFlags,
 }
 
 impl PipelineCompileOptions {
-    pub fn new(launch_params_variable_name: &str) -> PipelineCompileOptions {
+    pub fn new() -> PipelineCompileOptions {
         PipelineCompileOptions {
             uses_motion_blur: false,
             traversable_graph_flags: TraversableGraphFlags::ALLOW_ANY,
             num_payload_values: 0,
             num_attribute_values: 0,
             exception_flags: ExceptionFlags::NONE,
-            pipeline_launch_params_variable_name: CString::new(launch_params_variable_name)
-                .expect("launch_params_variable_name contains a nul byte"),
+            pipeline_launch_params_variable_name: None,
             primitive_type_flags: PrimitiveTypeFlags::DEFAULT,
         }
     }
@@ -144,9 +143,12 @@ impl PipelineCompileOptions {
                     numPayloadValues: self.num_payload_values,
                     numAttributeValues: self.num_attribute_values,
                     exceptionFlags: self.exception_flags.bits(),
-                    pipelineLaunchParamsVariableName: self
-                        .pipeline_launch_params_variable_name
-                        .as_ptr(),
+                    pipelineLaunchParamsVariableName: if let Some(ref name) = self
+                        .pipeline_launch_params_variable_name {
+                            name.as_ptr()
+                        } else {
+                            std::ptr::null()
+                        },
                     usesPrimitiveTypeFlags: self.primitive_type_flags.bits() as u32,
                     reserved: 0,
                     reserved2: 0,
@@ -158,9 +160,12 @@ impl PipelineCompileOptions {
                     numPayloadValues: self.num_payload_values,
                     numAttributeValues: self.num_attribute_values,
                     exceptionFlags: self.exception_flags.bits(),
-                    pipelineLaunchParamsVariableName: self
-                        .pipeline_launch_params_variable_name
-                        .as_char_ptr(),
+                    pipelineLaunchParamsVariableName: if let Some(ref name) = self
+                        .pipeline_launch_params_variable_name {
+                            name.as_ptr()
+                        } else {
+                            std::ptr::null()
+                        },
                     usesPrimitiveTypeFlags: self.primitive_type_flags.bits() as u32,
                 }
             }
@@ -193,7 +198,9 @@ impl PipelineCompileOptions {
     }
 
     pub fn pipeline_launch_params_variable_name(mut self, name: &str) -> Self {
-        self.pipeline_launch_params_variable_name = CString::new(name).expect("Invalid string");
+        self.pipeline_launch_params_variable_name = Some(
+            CString::new(name).expect("pipeline launch params variable name contains nul bytes"),
+        );
         self
     }
 }

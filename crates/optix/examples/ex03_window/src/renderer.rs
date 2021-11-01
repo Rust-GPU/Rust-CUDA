@@ -52,7 +52,8 @@ impl Renderer {
             debug_level: CompileDebugLevel::None,
         };
 
-        let pipeline_compile_options = PipelineCompileOptions::new("PARAMS")
+        let pipeline_compile_options = PipelineCompileOptions::new()
+            .pipeline_launch_params_variable_name("PARAMS")
             .uses_motion_blur(false)
             .num_attribute_values(2)
             .num_payload_values(2)
