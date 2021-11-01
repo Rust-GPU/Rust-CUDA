@@ -4,6 +4,7 @@ use cust::device::{Device, DeviceAttribute};
 use cust::memory::{CopyDestination, DBox, DBuffer, DeviceCopy, DevicePointer};
 use cust::stream::{Stream, StreamFlags};
 use cust::CudaFlags;
+use cust::DeviceCopy;
 use optix::{
     context::DeviceContext,
     module::{
@@ -205,30 +206,27 @@ impl Renderer {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, DeviceCopy)]
 struct Point2i {
     pub x: i32,
     pub y: i32,
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, DeviceCopy)]
 struct LaunchParams {
     pub frame_id: i32,
     pub color_buffer: DevicePointer<u32>,
     pub fb_size: Point2i,
 }
 
-unsafe impl DeviceCopy for LaunchParams {}
-
 type RaygenRecord = SbtRecord<i32>;
 type MissRecord = SbtRecord<i32>;
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, DeviceCopy)]
 struct HitgroupSbtData {
     object_id: u32,
 }
-unsafe impl DeviceCopy for HitgroupSbtData {}
 type HitgroupRecord = SbtRecord<HitgroupSbtData>;
 
 fn init_optix() -> Result<(), Box<dyn std::error::Error>> {
