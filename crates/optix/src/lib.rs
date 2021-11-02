@@ -1,11 +1,14 @@
+pub mod acceleration;
 pub mod context;
 pub mod denoiser;
 pub mod error;
+pub mod instance_array;
 pub mod module;
 pub mod pipeline;
 pub mod program_group;
 pub mod shader_binding_table;
 pub mod sys;
+pub mod triangle_array;
 
 pub use cust;
 use error::{Error, ToResult};
