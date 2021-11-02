@@ -75,7 +75,9 @@ impl Pipeline {
 
 impl Drop for Pipeline {
     fn drop(&mut self) {
-        unsafe { optix_call!(optixPipelineDestroy(self.raw)).expect("optixPipelineDestroy failed") }
+        unsafe {
+            sys::optixPipelineDestroy(self.raw);
+        }
     }
 }
 

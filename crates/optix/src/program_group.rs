@@ -263,8 +263,7 @@ impl ProgramGroup {
 impl Drop for ProgramGroup {
     fn drop(&mut self) {
         unsafe {
-            optix_call!(optixProgramGroupDestroy(self.raw))
-                .expect("optixProgramGroupDestroy failed")
+            sys::optixProgramGroupDestroy(self.raw);
         }
     }
 }
