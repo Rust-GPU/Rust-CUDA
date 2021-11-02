@@ -297,6 +297,14 @@ macro_rules! impl_device_copy_vek {
     }
 }
 
+macro_rules! impl_device_copy_glam {
+    ($($strukt:ty),* $(,)?) => {
+        $(
+            unsafe impl DeviceCopy for $strukt {}
+        )*
+    }
+}
+
 #[cfg(feature = "vek")]
 use vek::*;
 
@@ -306,4 +314,9 @@ impl_device_copy_vek! {
     Mat2, Mat3, Mat4,
     CubicBezier2, CubicBezier3,
     Quaternion,
+}
+
+#[cfg(feature = "glam")]
+impl_device_copy_glam! {
+    glam::Vec2, glam::Vec3, glam::Vec4, glam::IVec2, glam::IVec3, glam::IVec4,
 }
