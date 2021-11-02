@@ -274,6 +274,8 @@ impl Module {
 
 impl Drop for Module {
     fn drop(&mut self) {
-        unsafe { optix_call!(optixModuleDestroy(self.raw)).expect("optixModuleDestroy failed") }
+        unsafe {
+            sys::optixModuleDestroy(self.raw);
+        }
     }
 }
