@@ -8,7 +8,9 @@ use std::{
 
 use cust::{
     error::CudaResult,
-    memory::{DBox, DBuffer, DeviceCopy, DevicePointer, GpuBox, GpuBuffer, UnifiedBuffer},
+    memory::{
+        DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, GpuBox, GpuBuffer, UnifiedBuffer,
+    },
     prelude::Stream,
 };
 
@@ -98,13 +100,13 @@ impl DenoiserSizes {
 // we keep track of state we allocated to safety-check invocations of the denoiser.
 #[derive(Debug)]
 struct InternalDenoiserState {
-    state: DBuffer<u8>,
+    state: DeviceBuffer<u8>,
     width: u32,
     height: u32,
     _tiled: bool,
     // we handle scratch memory internally currently, so its fine
     // to drop it when we are done.
-    scratch: DBuffer<u8>,
+    scratch: DeviceBuffer<u8>,
 }
 
 /// High level wrapper for OptiX's GPU-accelerated AI image denoiser.
@@ -208,12 +210,12 @@ impl Denoiser {
         };
 
         // SAFETY: OptiX will write to this and we never read it or expose the buffer.
-        let scratch = unsafe { DBuffer::<u8>::uninitialized(scratch_size) }?;
+        let scratch = unsafe { DeviceBuffer::<u8>::uninitialized(scratch_size) }?;
 
         let state_size = sizes.state_size_in_bytes;
 
         // SAFETY: OptiX will write into this, its just temporary alloc.
-        let state = unsafe { DBuffer::<u8>::uninitialized(state_size) }?;
+        let state = unsafe { DeviceBuffer::<u8>::uninitialized(state_size) }?;
 
         unsafe {
             optix_call!(optixDenoiserSetup(
@@ -372,7 +374,7 @@ impl Denoiser {
         let raw_params = parameters.to_raw();
 
         let mut out = input_image.to_raw();
-        out.data = out_buffer.as_device_ptr_mut().as_raw_mut() as u64;
+        out.data = out_buffer.as_device_ptr_mut().as_raw() as u64;
 
         let layer = sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
@@ -387,14 +389,14 @@ impl Denoiser {
                 self.raw,
                 stream.as_inner(),
                 &raw_params as *const _,
-                state.state.as_device_ptr().as_raw_mut() as u64,
+                state.state.as_device_ptr().as_raw() as u64,
                 state.state.len(),
                 &cloned as *const _,
                 &layer as *const _,
                 1, // num-layers
                 0, // offsetX
                 0, // offsetY
-                state.scratch.as_device_ptr().as_raw_mut() as u64,
+                state.scratch.as_device_ptr().as_raw() as u64,
                 state.scratch.len()
             ))?;
         }
@@ -410,13 +412,13 @@ pub struct DenoiserParams<'a> {
     pub denoise_alpha: bool,
     /// Average log intensity of the input image. If `None`, then denoised results will not be
     /// optimal for very dark or bright input images.
-    pub hdr_intensity: Option<&'a DBox<f32>>,
+    pub hdr_intensity: Option<&'a DeviceBox<f32>>,
     /// How much of the denoised image to blend into the final image. If set to `1.0`, then the output
     /// image will be composed of 100% the noisy output. If set to `0.0`, the output will be 100% of the denoised input.
     /// Linearly interpolates for other values.
     pub blend_factor: f32,
     /// Used for AOV models, the average log color of the input image, separate for RGB channels.
-    pub hdr_average_color: Option<&'a DBox<[f32; 3]>>,
+    pub hdr_average_color: Option<&'a DeviceBox<[f32; 3]>>,
 }
 
 impl DenoiserParams<'_> {
@@ -561,7 +563,7 @@ impl<'a> Image<'a> {
             buffer: unsafe {
                 // SAFETY: this buffer is never written to for the duration of this image being alive.
                 // And we know the buffer is large enough to be reinterpreted as a buffer of bytes.
-                DevicePointer::wrap(buffer.as_device_ptr().as_raw_mut() as *mut u8)
+                DevicePointer::from_raw(buffer.as_device_ptr().as_raw())
             },
             buffer_size: buffer.len() * std::mem::size_of::<T>(),
             format,

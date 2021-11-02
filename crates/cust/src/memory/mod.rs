@@ -101,13 +101,13 @@ pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
     fn len(&self) -> usize;
 }
 
-impl<T: DeviceCopy> GpuBuffer<T> for DBuffer<T> {
+impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
     unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap((**self).as_ptr() as *mut _)
+        self.as_ptr()
     }
 
     fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        (**self).as_device_ptr()
+        self.as_mut_ptr()
     }
 
     fn len(&self) -> usize {
@@ -117,12 +117,12 @@ impl<T: DeviceCopy> GpuBuffer<T> for DBuffer<T> {
 
 impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
     unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap(self.as_ptr() as *mut _)
+        DevicePointer::from_raw(self.as_ptr() as u64)
     }
 
     fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
         // SAFETY: unified pointers can be dereferenced from the gpu.
-        unsafe { DevicePointer::wrap(self.as_ptr() as *mut _) }
+        DevicePointer::from_raw(self.as_ptr() as u64)
     }
 
     fn len(&self) -> usize {
@@ -139,35 +139,35 @@ pub trait GpuBox<T: DeviceCopy>: private::Sealed {
     fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
 }
 
-impl<T: DeviceCopy> GpuBox<T> for DBox<T> {
+impl<T: DeviceCopy> GpuBox<T> for DeviceBox<T> {
     unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
     }
 
     fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        DBox::as_device_ptr(self)
+        DeviceBox::as_device_ptr(self)
     }
 }
 
 impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
     unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap(self.ptr.as_raw() as *mut _)
+        DevicePointer::from_raw(self.ptr.as_raw() as u64)
     }
 
     fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
         // SAFETY: unified pointers can be dereferenced from the gpu.
-        unsafe { DevicePointer::wrap(self.ptr.as_raw() as *mut _) }
+        DevicePointer::from_raw(self.ptr.as_raw() as u64)
     }
 }
 
 mod private {
-    use super::{DBox, DBuffer, DeviceCopy, UnifiedBox, UnifiedBuffer};
+    use super::{DeviceBox, DeviceBuffer, DeviceCopy, UnifiedBox, UnifiedBuffer};
 
     pub trait Sealed {}
     impl<T: DeviceCopy> Sealed for UnifiedBuffer<T> {}
-    impl<T: DeviceCopy> Sealed for DBuffer<T> {}
+    impl<T: DeviceCopy> Sealed for DeviceBuffer<T> {}
     impl<T: DeviceCopy> Sealed for UnifiedBox<T> {}
-    impl<T: DeviceCopy> Sealed for DBox<T> {}
+    impl<T: DeviceCopy> Sealed for DeviceBox<T> {}
 }
 
 /// Marker trait for types which can safely be copied to or from a CUDA device.

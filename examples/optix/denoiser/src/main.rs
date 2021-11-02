@@ -1,4 +1,4 @@
-use cust::memory::DBuffer;
+use cust::memory::DeviceBuffer;
 use cust::prelude::{Stream, StreamFlags};
 use cust::util::SliceExt;
 use cust::vek::{Clamp, Vec3};
@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Currently zeroed is unsafe, but in the future we will probably expose a safe way to do it
     // using bytemuck
-    let mut out_buf = unsafe { DBuffer::<Vec3<f32>>::zeroed((width * height) as usize)? };
+    let mut out_buf = unsafe { DeviceBuffer::<Vec3<f32>>::zeroed((width * height) as usize)? };
 
     // make an image to tell OptiX about how our image buffer is represented
     let input_image = Image::new(&in_buf, ImageFormat::Float3, width, height);
