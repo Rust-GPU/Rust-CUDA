@@ -604,6 +604,7 @@ pub enum CodeModel {
 }
 
 extern "C" {
+    pub(crate) fn LLVMLinkModules2(Dest: &Module, Src: &Module) -> Bool;
     pub(crate) fn LLVMParseIRInContext<'ll, 'a, 'b>(
         ContextRef: &'ll Context,
         MemBuf: &'a MemoryBuffer,

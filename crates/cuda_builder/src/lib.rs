@@ -274,12 +274,10 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     // on what this does
     let rustc_codegen_nvvm = find_rustc_codegen_nvvm();
 
-    let mut rustflags = vec![
-        format!("-Zcodegen-backend={}", rustc_codegen_nvvm.display(),),
-        // FIXME(RDambrosio016): Lazy loading does not work with CGUs currently, we need to invoke the llvm
-        // module linker to link together CGUs before lazy loading them. So for now we circumvent this by forcing codegen-units=1
-        "-Ccodegen-units=1".to_string(),
-    ];
+    let mut rustflags = vec![format!(
+        "-Zcodegen-backend={}",
+        rustc_codegen_nvvm.display(),
+    )];
 
     if let Some(emit) = &builder.emit {
         let string = match emit {
