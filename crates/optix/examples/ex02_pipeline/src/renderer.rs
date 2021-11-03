@@ -17,17 +17,17 @@ use optix::{
 };
 
 pub struct Renderer {
-    ctx: DeviceContext,
-    cuda_context: CuContext,
-    stream: Stream,
     launch_params: LaunchParams,
     buf_launch_params: DeviceBox<LaunchParams>,
+    sbt: optix::sys::OptixShaderBindingTable,
+    pipeline: Pipeline,
     buf_raygen: DeviceBuffer<RaygenRecord>,
     buf_hitgroup: DeviceBuffer<HitgroupRecord>,
     buf_miss: DeviceBuffer<MissRecord>,
-    sbt: optix::sys::OptixShaderBindingTable,
-    pipeline: Pipeline,
     color_buffer: DeviceBuffer<u32>,
+    ctx: DeviceContext,
+    stream: Stream,
+    cuda_context: CuContext,
 }
 
 impl Renderer {
