@@ -1,6 +1,6 @@
 use crate::{error::Error, optix_call, program_group::ProgramGroup, sys};
 
-use cust::memory::{DSlice, DeviceCopy};
+use cust::memory::{DeviceCopy, DeviceSlice};
 use cust_raw::CUdeviceptr;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -55,8 +55,8 @@ pub struct ShaderBindingTable {
 }
 
 impl ShaderBindingTable {
-    pub fn new<RG: DeviceCopy>(buf_raygen_record: &mut DSlice<SbtRecord<RG>>) -> Self {
-        let raygen_record = buf_raygen_record.as_device_ptr().as_raw() as u64;
+    pub fn new<RG: DeviceCopy>(buf_raygen_record: &DeviceSlice<SbtRecord<RG>>) -> Self {
+        let raygen_record = buf_raygen_record.as_device_ptr();
         ShaderBindingTable {
             raygen_record,
             exception_record: 0,
@@ -90,20 +90,20 @@ impl ShaderBindingTable {
 
     pub fn exception<EX: DeviceCopy>(
         mut self,
-        buf_exception_record: &mut DSlice<SbtRecord<EX>>,
+        buf_exception_record: &DeviceSlice<SbtRecord<EX>>,
     ) -> Self {
         if buf_exception_record.len() != 1 {
             panic!("SBT not passed single exception record",);
         }
-        self.exception_record = buf_exception_record.as_device_ptr().as_raw() as u64;
+        self.exception_record = buf_exception_record.as_device_ptr();
         self
     }
 
-    pub fn miss<MS: DeviceCopy>(mut self, buf_miss_records: &mut DSlice<SbtRecord<MS>>) -> Self {
+    pub fn miss<MS: DeviceCopy>(mut self, buf_miss_records: &DeviceSlice<SbtRecord<MS>>) -> Self {
         if buf_miss_records.len() == 0 {
             panic!("SBT passed empty miss records");
         }
-        self.miss_record_base = buf_miss_records.as_device_ptr().as_raw() as u64;
+        self.miss_record_base = buf_miss_records.as_device_ptr();
         self.miss_record_stride_in_bytes = std::mem::size_of::<SbtRecord<MS>>() as u32;
         self.miss_record_count = buf_miss_records.len() as u32;
         self
@@ -111,12 +111,12 @@ impl ShaderBindingTable {
 
     pub fn hitgroup<HG: DeviceCopy>(
         mut self,
-        buf_hitgroup_records: &mut DSlice<SbtRecord<HG>>,
+        buf_hitgroup_records: &DeviceSlice<SbtRecord<HG>>,
     ) -> Self {
         if buf_hitgroup_records.len() == 0 {
             panic!("SBT passed empty hitgroup records");
         }
-        self.hitgroup_record_base = buf_hitgroup_records.as_device_ptr().as_raw() as u64;
+        self.hitgroup_record_base = buf_hitgroup_records.as_device_ptr();
         self.hitgroup_record_stride_in_bytes = std::mem::size_of::<SbtRecord<HG>>() as u32;
         self.hitgroup_record_count = buf_hitgroup_records.len() as u32;
         self
@@ -124,12 +124,12 @@ impl ShaderBindingTable {
 
     pub fn callables<CL: DeviceCopy>(
         mut self,
-        buf_callables_records: &mut DSlice<SbtRecord<CL>>,
+        buf_callables_records: &DeviceSlice<SbtRecord<CL>>,
     ) -> Self {
         if buf_callables_records.len() == 0 {
             panic!("SBT passed empty callables records");
         }
-        self.callables_record_base = buf_callables_records.as_device_ptr().as_raw() as u64;
+        self.callables_record_base = buf_callables_records.as_device_ptr();
         self.callables_record_stride_in_bytes = std::mem::size_of::<SbtRecord<CL>>() as u32;
         self.callables_record_count = buf_callables_records.len() as u32;
         self

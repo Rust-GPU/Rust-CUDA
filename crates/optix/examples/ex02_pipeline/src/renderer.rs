@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use cust::context::{Context as CuContext, ContextFlags};
 use cust::device::{Device, DeviceAttribute};
-use cust::memory::{CopyDestination, DBox, DBuffer, DeviceCopy, DevicePointer};
+use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer};
 use cust::stream::{Stream, StreamFlags};
 use cust::CudaFlags;
 use cust::DeviceCopy;
@@ -21,13 +21,13 @@ pub struct Renderer {
     cuda_context: CuContext,
     stream: Stream,
     launch_params: LaunchParams,
-    buf_launch_params: DBox<LaunchParams>,
-    buf_raygen: DBuffer<RaygenRecord>,
-    buf_hitgroup: DBuffer<HitgroupRecord>,
-    buf_miss: DBuffer<MissRecord>,
+    buf_launch_params: DeviceBox<LaunchParams>,
+    buf_raygen: DeviceBuffer<RaygenRecord>,
+    buf_hitgroup: DeviceBuffer<HitgroupRecord>,
+    buf_miss: DeviceBuffer<MissRecord>,
     sbt: optix::sys::OptixShaderBindingTable,
     pipeline: Pipeline,
-    color_buffer: DBuffer<u32>,
+    color_buffer: DeviceBuffer<u32>,
 }
 
 impl Renderer {
@@ -115,9 +115,9 @@ impl Renderer {
             })
             .collect();
 
-        let mut buf_raygen = DBuffer::from_slice(&rec_raygen)?;
-        let mut buf_miss = DBuffer::from_slice(&rec_miss)?;
-        let mut buf_hitgroup = DBuffer::from_slice(&rec_hitgroup)?;
+        let mut buf_raygen = DeviceBuffer::from_slice(&rec_raygen)?;
+        let mut buf_miss = DeviceBuffer::from_slice(&rec_miss)?;
+        let mut buf_hitgroup = DeviceBuffer::from_slice(&rec_hitgroup)?;
 
         let sbt = ShaderBindingTable::new(&mut buf_raygen)
             .miss(&mut buf_miss)
@@ -144,18 +144,18 @@ impl Renderer {
 
         pipeline.set_stack_size(2 * 1024, 2 * 1024, 2 * 1024, 1)?;
 
-        let mut color_buffer = unsafe { DBuffer::uninitialized(width * height)? };
+        let mut color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
 
         let launch_params = LaunchParams {
             frame_id: 0,
-            color_buffer: color_buffer.as_device_ptr(),
+            color_buffer: color_buffer.as_ptr(),
             fb_size: Point2i {
                 x: width as i32,
                 y: height as i32,
             },
         };
 
-        let buf_launch_params = DBox::new(&launch_params)?;
+        let buf_launch_params = DeviceBox::new(&launch_params)?;
 
         Ok(Renderer {
             ctx,
@@ -177,10 +177,10 @@ impl Renderer {
         width: usize,
         height: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        self.color_buffer = unsafe { DBuffer::uninitialized(width * height)? };
+        self.color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
         self.launch_params.fb_size.x = width as i32;
         self.launch_params.fb_size.y = height as i32;
-        self.launch_params.color_buffer = self.color_buffer.as_device_ptr();
+        self.launch_params.color_buffer = self.color_buffer.as_ptr();
         Ok(())
     }
 

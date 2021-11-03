@@ -3,7 +3,7 @@ use crate::{
     optix_call, sys, triangle_array::BuildInputTriangleArray,
 };
 use cust::{
-    memory::{DBox, DBuffer, DSlice},
+    memory::{DevicePointer, DeviceSlice},
     DeviceCopy,
 };
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -69,8 +69,8 @@ impl DeviceContext {
         stream: &cust::stream::Stream,
         accel_options: &[AccelBuildOptions],
         build_inputs: &[BuildInput<T, I>],
-        temp_buffer: &mut DSlice<u8>,
-        output_buffer: &mut DSlice<u8>,
+        temp_buffer: &mut DeviceSlice<u8>,
+        output_buffer: &mut DeviceSlice<u8>,
         emitted_properties: &mut [AccelEmitDesc],
     ) -> Result<TraversableHandle> {
         let mut traversable_handle = TraversableHandle { inner: 0 };
@@ -103,9 +103,9 @@ impl DeviceContext {
                 accel_options.as_ptr() as *const _,
                 build_sys.as_ptr(),
                 build_sys.len() as u32,
-                temp_buffer.as_device_ptr().as_raw_mut() as u64,
+                temp_buffer.as_device_ptr(),
                 temp_buffer.len(),
-                output_buffer.as_device_ptr().as_raw_mut() as u64,
+                output_buffer.as_device_ptr(),
                 output_buffer.len(),
                 &mut traversable_handle as *mut _ as *mut _,
                 properties.as_ptr() as *const _,
@@ -122,7 +122,7 @@ impl DeviceContext {
         &self,
         stream: &cust::stream::Stream,
         input_handle: TraversableHandle,
-        output_buffer: &mut DSlice<u8>,
+        output_buffer: &mut DeviceSlice<u8>,
     ) -> Result<TraversableHandle> {
         let mut traversable_handle = TraversableHandle { inner: 0 };
         unsafe {
@@ -130,7 +130,7 @@ impl DeviceContext {
                 self.raw,
                 stream.as_inner(),
                 input_handle.inner,
-                output_buffer.as_device_ptr().as_raw_mut() as u64,
+                output_buffer.as_device_ptr(),
                 output_buffer.len(),
                 &mut traversable_handle as *mut _ as *mut _,
             ))
@@ -245,8 +245,8 @@ pub enum BuildInput<
 }
 
 pub enum AccelEmitDesc {
-    CompactedSize(DBox<u64>),
-    Aabbs(DBuffer<Aabb>), //< FIXME: need to handle OptixAabbBufferByteAlignment here
+    CompactedSize(DevicePointer<usize>),
+    Aabbs(DevicePointer<Aabb>), //< FIXME: need to handle OptixAabbBufferByteAlignment here
 }
 
 #[repr(C)]
@@ -264,11 +264,11 @@ impl From<&mut AccelEmitDesc> for sys::OptixAccelEmitDesc {
     fn from(aed: &mut AccelEmitDesc) -> Self {
         match aed {
             AccelEmitDesc::CompactedSize(p) => Self {
-                result: p.as_device_ptr().as_raw() as u64,
+                result: p.as_raw(),
                 type_: sys::OptixAccelPropertyType_OPTIX_PROPERTY_TYPE_COMPACTED_SIZE,
             },
             AccelEmitDesc::Aabbs(p) => Self {
-                result: p.as_device_ptr().as_raw() as u64,
+                result: p.as_raw(),
                 type_: sys::OptixAccelPropertyType_OPTIX_PROPERTY_TYPE_AABBS,
             },
         }

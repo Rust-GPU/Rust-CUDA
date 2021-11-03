@@ -2,7 +2,7 @@ use crate::{
     acceleration::{GeometryFlags, TraversableHandle}, context::DeviceContext, error::Error, module::Module, optix_call,
     sys,
 };
-use cust::{memory::DSlice, DeviceCopy};
+use cust::{memory::DeviceSlice, DeviceCopy};
 use std::ffi::c_void;
 
 #[repr(C, align(16))]
@@ -74,11 +74,11 @@ impl Instance {
 }
 
 pub struct InstanceArray<'i> {
-    instances: &'i DSlice<Instance>,
+    instances: &'i DeviceSlice<Instance>,
 }
 
 impl<'i> InstanceArray<'i> {
-    pub fn new(instances: &'i DSlice<Instance>) -> InstanceArray {
+    pub fn new(instances: &'i DeviceSlice<Instance>) -> InstanceArray {
         InstanceArray {
             instances
         }
@@ -100,12 +100,12 @@ impl<'i> BuildInputInstanceArray for InstanceArray<'i> {
         cfg_if::cfg_if! {
             if #[cfg(any(feature="optix72", feature="optix73"))] {
                 sys::OptixBuildInputInstanceArray {
-                    instances: self.instances.as_device_ptr().as_raw() as u64,
+                    instances: self.instances.as_device_ptr(),
                     numInstances: self.instances.len() as u32,
                 }
             } else {
                 sys::OptixBuildInputInstanceArray {
-                    instances: self.instances.as_device_ptr().as_raw() as u64,
+                    instances: self.instances.as_device_ptr(),
                     numInstances: self.instances.len() as u32,
                     aabbs: 0,
                     numAabbs: 0,

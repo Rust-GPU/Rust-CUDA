@@ -1,10 +1,14 @@
 use anyhow::{Context, Result};
 use cust::context::{Context as CuContext, ContextFlags};
 use cust::device::Device;
-use cust::memory::{CopyDestination, DBox, DBuffer, DeviceCopy, DevicePointer};
+use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer};
 use cust::stream::{Stream, StreamFlags};
 use cust::{CudaFlags, DeviceCopy};
 use optix::{
+    acceleration::{
+        AccelBuildOptions, AccelEmitDesc, BuildFlags, BuildInput, BuildOperation, GeometryFlags,
+        TraversableHandle,
+    },
     context::DeviceContext,
     module::{
         CompileDebugLevel, CompileOptimizationLevel, ExceptionFlags, Module, ModuleCompileOptions,
@@ -13,21 +17,22 @@ use optix::{
     pipeline::{Pipeline, PipelineLinkOptions},
     program_group::{ProgramGroup, ProgramGroupDesc},
     shader_binding_table::{SbtRecord, ShaderBindingTable},
+    triangle_array::TriangleArray,
 };
 
-use glam::{vec3, IVec3, Vec3};
-
-use crate::vector::V4f32;
+use glam::{ivec2, vec3, IVec2, IVec3, Vec3, Vec4};
 
 pub struct Renderer {
     launch_params: LaunchParams,
-    buf_launch_params: DBox<LaunchParams>,
+    buf_launch_params: DeviceBox<LaunchParams>,
     sbt: optix::sys::OptixShaderBindingTable,
-    buf_raygen: DBuffer<RaygenRecord>,
-    buf_hitgroup: DBuffer<HitgroupRecord>,
-    buf_miss: DBuffer<MissRecord>,
+    as_handle: TraversableHandle,
+    as_buffer: DeviceBuffer<u8>,
+    buf_raygen: DeviceBuffer<RaygenRecord>,
+    buf_hitgroup: DeviceBuffer<HitgroupRecord>,
+    buf_miss: DeviceBuffer<MissRecord>,
     pipeline: Pipeline,
-    color_buffer: DBuffer<V4f32>,
+    color_buffer: DeviceBuffer<Vec4>,
     ctx: DeviceContext,
     stream: Stream,
     cuda_context: CuContext,
@@ -107,70 +112,56 @@ impl Renderer {
             &mut indices,
         );
 
-        let buf_vertex = DBuffer::from_slice(&vertices)?;
-        let buf_indices = DBuffer::from_slice(&indices)?;
+        let buf_vertex = DeviceBuffer::from_slice(&vertices)?;
+        let buf_indices = DeviceBuffer::from_slice(&indices)?;
 
-        let geometry_flags = optix::GeometryFlags::None;
-        let triangle_input = optix::BuildInput::<_, ()>::TriangleArray(
-            optix::TriangleArray::new(
-                smallvec![buf_vertex.as_slice()],
-                std::slice::from_ref(&geometry_flags),
-            )
-            .index_buffer(buf_indices.as_slice()),
+        let geometry_flags = GeometryFlags::None;
+        let triangle_input = BuildInput::<_, ()>::TriangleArray(
+            TriangleArray::new(&[&buf_vertex], std::slice::from_ref(&geometry_flags))
+                .index_buffer(&buf_indices),
         );
 
         // blas setup
-        let accel_options = optix::AccelBuildOptions::new(
-            optix::BuildFlags::ALLOW_COMPACTION,
-            optix::BuildOperation::Build,
-        );
+        let accel_options =
+            AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
 
         let build_inputs = vec![triangle_input];
 
         let blas_buffer_sizes = ctx.accel_compute_memory_usage(&[accel_options], &build_inputs)?;
 
         // prepare compaction
-        let temp_buffer = optix::Buffer::uninitialized_with_align_in(
-            blas_buffer_sizes.temp_size_in_bytes,
-            optix::ACCEL_BUFFER_BYTE_ALIGNMENT,
-            FrameAlloc,
-        )?;
+        let mut temp_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(blas_buffer_sizes.temp_size_in_bytes)? };
 
-        let output_buffer = optix::Buffer::uninitialized_with_align_in(
-            blas_buffer_sizes.output_size_in_bytes,
-            optix::ACCEL_BUFFER_BYTE_ALIGNMENT,
-            FrameAlloc,
-        )?;
+        let mut output_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(blas_buffer_sizes.output_size_in_bytes)? };
 
-        let compacted_size_buffer =
-            optix::TypedBuffer::<usize, _>::uninitialized_in(1, FrameAlloc)?;
+        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
 
-        let mut properties = vec![optix::AccelEmitDesc::CompactedSize(
-            compacted_size_buffer.device_ptr(),
+        let mut properties = vec![AccelEmitDesc::CompactedSize(
+            compacted_size_buffer.as_device_ptr(),
         )];
 
         let as_handle = ctx.accel_build(
             &stream,
             &[accel_options],
             &build_inputs,
-            &temp_buffer,
-            &output_buffer,
+            &mut temp_buffer,
+            &mut output_buffer,
             &mut properties,
         )?;
 
-        cu::Context::synchronize()?;
+        stream.synchronize()?;
 
         let mut compacted_size = 0usize;
-        compacted_size_buffer.download(std::slice::from_mut(&mut compacted_size))?;
 
-        let as_buffer = optix::Buffer::uninitialized_with_align_in(
-            compacted_size,
-            optix::ACCEL_BUFFER_BYTE_ALIGNMENT,
-            FrameAlloc,
-        )?;
+        compacted_size_buffer.copy_to(&mut compacted_size)?;
 
-        let as_handle = ctx.accel_compact(&stream, as_handle, &as_buffer)?;
-        cu::Context::synchronize()?;
+        let mut as_buffer = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
+
+        let as_handle = ctx.accel_compact(&stream, as_handle, &mut as_buffer)?;
+
+        stream.synchronize()?;
 
         // create SBT
         let rec_raygen: Vec<_> = pg_raygen
@@ -196,9 +187,9 @@ impl Renderer {
             })
             .collect();
 
-        let mut buf_raygen = DBuffer::from_slice(&rec_raygen)?;
-        let mut buf_miss = DBuffer::from_slice(&rec_miss)?;
-        let mut buf_hitgroup = DBuffer::from_slice(&rec_hitgroup)?;
+        let mut buf_raygen = DeviceBuffer::from_slice(&rec_raygen)?;
+        let mut buf_miss = DeviceBuffer::from_slice(&rec_miss)?;
+        let mut buf_hitgroup = DeviceBuffer::from_slice(&rec_hitgroup)?;
 
         let sbt = ShaderBindingTable::new(&mut buf_raygen)
             .miss(&mut buf_miss)
@@ -225,24 +216,42 @@ impl Renderer {
 
         pipeline.set_stack_size(2 * 1024, 2 * 1024, 2 * 1024, 1)?;
 
-        let mut color_buffer = unsafe { DBuffer::uninitialized(width as usize * height as usize)? };
+        let color_buffer =
+            unsafe { DeviceBuffer::uninitialized(width as usize * height as usize)? };
+
+        let from = vec3(-10.0, 2.0, -12.0);
+        let at = vec3(0.0, 0.0, 0.0);
+        let up = vec3(0.0, 1.0, 0.0);
+
+        let cosfovy = 0.66f32;
+        let aspect = width as f32 / height as f32;
+        let direction = (at - from).normalize();
+        let horizontal = cosfovy * aspect * direction.cross(up).normalize();
+        let vertical = cosfovy * horizontal.cross(direction).normalize();
 
         let launch_params = LaunchParams {
-            frame_id: 0,
-            color_buffer: color_buffer.as_device_ptr(),
-            fb_size: Point2i {
-                x: width as i32,
-                y: height as i32,
+            frame: Frame {
+                color_buffer: color_buffer.as_ptr(),
+                size: ivec2(width as i32, height as i32),
             },
+            camera: RenderCamera {
+                position: from,
+                direction,
+                horizontal,
+                vertical,
+            },
+            traversable: as_handle,
         };
 
-        let buf_launch_params = DBox::new(&launch_params)?;
+        let buf_launch_params = DeviceBox::new(&launch_params)?;
 
         Ok(Renderer {
             ctx,
             cuda_context,
             stream,
             launch_params,
+            as_handle,
+            as_buffer,
             buf_launch_params,
             buf_raygen,
             buf_hitgroup,
@@ -254,16 +263,15 @@ impl Renderer {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
-        self.color_buffer = unsafe { DBuffer::uninitialized((width * height) as usize)? };
-        self.launch_params.fb_size.x = width as i32;
-        self.launch_params.fb_size.y = height as i32;
-        self.launch_params.color_buffer = self.color_buffer.as_device_ptr();
+        self.color_buffer = unsafe { DeviceBuffer::uninitialized((width * height) as usize)? };
+        self.launch_params.frame.size.x = width as i32;
+        self.launch_params.frame.size.y = height as i32;
+        self.launch_params.frame.color_buffer = self.color_buffer.as_ptr();
         Ok(())
     }
 
     pub fn render(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.buf_launch_params.copy_from(&self.launch_params)?;
-        self.launch_params.frame_id += 1;
 
         unsafe {
             optix::launch(
@@ -271,8 +279,8 @@ impl Renderer {
                 &self.stream,
                 &mut self.buf_launch_params,
                 &self.sbt,
-                self.launch_params.fb_size.x as u32,
-                self.launch_params.fb_size.y as u32,
+                self.launch_params.frame.size.x as u32,
+                self.launch_params.frame.size.y as u32,
                 1,
             )?;
         }
@@ -282,7 +290,7 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn download_pixels(&self, slice: &mut [V4f32]) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn download_pixels(&self, slice: &mut [Vec4]) -> Result<(), Box<dyn std::error::Error>> {
         self.color_buffer.copy_to(slice)?;
         Ok(())
     }
@@ -290,17 +298,26 @@ impl Renderer {
 
 #[repr(C)]
 #[derive(Copy, Clone, DeviceCopy)]
-struct Point2i {
-    pub x: i32,
-    pub y: i32,
+pub struct Frame {
+    color_buffer: DevicePointer<Vec4>,
+    size: IVec2,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, DeviceCopy)]
-struct LaunchParams {
-    pub color_buffer: DevicePointer<V4f32>,
-    pub fb_size: Point2i,
-    pub frame_id: i32,
+pub struct RenderCamera {
+    position: Vec3,
+    direction: Vec3,
+    horizontal: Vec3,
+    vertical: Vec3,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, DeviceCopy)]
+pub struct LaunchParams {
+    pub frame: Frame,
+    pub camera: RenderCamera,
+    pub traversable: TraversableHandle,
 }
 
 type RaygenRecord = SbtRecord<i32>;

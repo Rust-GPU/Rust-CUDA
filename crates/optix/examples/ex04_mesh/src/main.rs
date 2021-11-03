@@ -1,8 +1,8 @@
 mod renderer;
 use renderer::Renderer;
 
-mod vector;
-pub use vector::*;
+use glam::{vec4, Vec4};
+
 mod gl_util;
 use gl_util::FullscreenQuad;
 use glfw::{Action, Context, Key};
@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .create_window(
             width,
             height,
-            "Example 03: in window",
+            "Example 04: mesh",
             glfw::WindowMode::Windowed,
         )
         .expect("failed to create glfw window");
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut fsq = FullscreenQuad::new(width, height).unwrap();
 
-    let mut image_data = vec![v4f32(0.0, 0.0, 0.0, 0.0); (width * height) as usize];
+    let mut image_data = vec![vec4(0.0, 0.0, 0.0, 0.0); (width * height) as usize];
 
     unsafe {
         gl::Viewport(0, 0, fb_width, fb_height);
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             renderer.resize(w, h)?;
             width = w;
             height = h;
-            image_data.resize((width * height) as usize, v4f32(0.0, 0.0, 0.0, 0.0));
+            image_data.resize((width * height) as usize, vec4(0.0, 0.0, 0.0, 0.0));
         }
 
         renderer.render()?;

@@ -71,7 +71,7 @@ macro_rules! optix_call {
 pub unsafe fn launch<P: cust::memory::DeviceCopy>(
     pipeline: &crate::pipeline::Pipeline,
     stream: &cust::stream::Stream,
-    buf_launch_params: &mut cust::memory::DBox<P>,
+    buf_launch_params: &mut cust::memory::DeviceBox<P>,
     sbt: &sys::OptixShaderBindingTable,
     width: u32,
     height: u32,
@@ -88,3 +88,6 @@ pub unsafe fn launch<P: cust::memory::DeviceCopy>(
         depth,
     ))?)
 }
+
+#[cfg(feature = "glam")]
+mod impl_glam;
