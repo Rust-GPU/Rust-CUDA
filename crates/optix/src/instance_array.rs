@@ -52,6 +52,23 @@ impl<'a> Instance<'a> {
         }
     }
 
+    pub unsafe fn from_handle(traversable_handle: TraversableHandle) -> Instance<'static> {
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Instance {
+            transform: [
+                1.0, 0.0, 0.0, 0.0, 
+                0.0, 1.0, 0.0, 0.0, 
+                0.0, 0.0, 1.0, 0.0].into(),
+            instance_id: 0,
+            sbt_offset: 0,
+            visibility_mask: 255,
+            flags: InstanceFlags::NONE,
+            traversable_handle,
+            pad: [0; 2],
+            accel: PhantomData,
+        }
+    }
+
     pub fn transform<T: Into<RowMatrix3x4<f32>>>(mut self, transform: T) -> Instance<'a> {
         self.transform = transform.into();
         self
