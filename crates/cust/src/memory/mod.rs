@@ -249,7 +249,7 @@ unsafe impl<T: DeviceCopy> DeviceCopy for Option<T> {}
 unsafe impl<L: DeviceCopy, R: DeviceCopy> DeviceCopy for Result<L, R> {}
 unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for PhantomData<T> {}
 // Allow DeviceCopy for lifetime constraint markers
-unsafe impl DeviceCopy for PhantomData<&i32> {}
+unsafe impl DeviceCopy for PhantomData<&()> {}
 unsafe impl<T: DeviceCopy> DeviceCopy for Wrapping<T> {}
 unsafe impl<T: DeviceCopy, const N: usize> DeviceCopy for [T; N] {}
 unsafe impl DeviceCopy for () {}

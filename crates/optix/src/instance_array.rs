@@ -15,7 +15,7 @@ pub struct Instance<'a> {
     flags: InstanceFlags,
     traversable_handle: TraversableHandle,
     pad: [u32; 2],
-    accel: PhantomData<&'a i32>,
+    accel: PhantomData<&'a ()>,
 }
 
 const_assert_eq!(std::mem::align_of::<Instance>(), sys::OptixInstanceByteAlignment);
