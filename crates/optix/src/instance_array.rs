@@ -1,14 +1,12 @@
-use crate::{
-    acceleration::{GeometryFlags, TraversableHandle}, context::DeviceContext, error::Error, module::Module, optix_call,
-    sys,
-};
+use crate::{acceleration::{BuildInput, TraversableHandle}, const_assert, const_assert_eq, sys};
 use cust::{memory::DeviceSlice, DeviceCopy};
-use std::ffi::c_void;
+use cust_raw::CUdeviceptr;
+use mint::RowMatrix3x4;
 
 #[repr(C, align(16))]
-#[derive(Debug, DeviceCopy, Copy, Clone)]
+#[derive(Debug, Copy, Clone, DeviceCopy)]
 pub struct Instance {
-    transform: [f32; 12],
+    transform: RowMatrix3x4<f32>,
     instance_id: u32,
     sbt_offset: u32,
     visibility_mask: u32,
@@ -16,6 +14,9 @@ pub struct Instance {
     traversable_handle: TraversableHandle,
     pad: [u32; 2],
 }
+
+const_assert_eq!(std::mem::align_of::<Instance>(), sys::OptixInstanceByteAlignment);
+const_assert_eq!(std::mem::size_of::<Instance>(), std::mem::size_of::<sys::OptixInstance>());
 
 
 bitflags::bitflags! {
@@ -37,7 +38,7 @@ impl Instance {
             transform: [
                 1.0, 0.0, 0.0, 0.0, 
                 0.0, 1.0, 0.0, 0.0, 
-                0.0, 0.0, 1.0, 0.0],
+                0.0, 0.0, 1.0, 0.0].into(),
             instance_id: 0,
             sbt_offset: 0,
             visibility_mask: 255,
@@ -47,8 +48,8 @@ impl Instance {
         }
     }
 
-    pub fn transform(mut self, transform: [f32; 12]) -> Instance {
-        self.transform = transform;
+    pub fn transform<T: Into<RowMatrix3x4<f32>>>(mut self, transform: T) -> Instance {
+        self.transform = transform.into();
         self
     }
 
@@ -79,36 +80,74 @@ pub struct InstanceArray<'i> {
 
 impl<'i> InstanceArray<'i> {
     pub fn new(instances: &'i DeviceSlice<Instance>) -> InstanceArray {
-        InstanceArray {
-            instances
+        InstanceArray { instances }
+    }
+}
+
+impl<'i> BuildInput for InstanceArray<'i> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
+        cfg_if::cfg_if! {
+            if #[cfg(any(feature="optix72", feature="optix73"))] {
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                        })
+                    }
+                }
+            } else {
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                            aabbs: 0,
+                            numAabbs: 0,
+                        })
+                    }
+                }
+            }
         }
     }
 }
 
-pub trait BuildInputInstanceArray {
-    fn to_sys(&self) -> sys::OptixBuildInputInstanceArray;
+pub struct InstancePointerArray<'i> {
+    instances: &'i DeviceSlice<CUdeviceptr>,
 }
 
-impl BuildInputInstanceArray for () {
-    fn to_sys(&self) -> sys::OptixBuildInputInstanceArray {
-        unreachable!()
+impl<'i> InstancePointerArray<'i> {
+    pub fn new(instances: &'i DeviceSlice<CUdeviceptr>) -> InstancePointerArray {
+        InstancePointerArray { instances }
     }
 }
 
-impl<'i> BuildInputInstanceArray for InstanceArray<'i> {
-    fn to_sys(&self) -> sys::OptixBuildInputInstanceArray {
+impl<'i> BuildInput for InstancePointerArray<'i> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
         cfg_if::cfg_if! {
             if #[cfg(any(feature="optix72", feature="optix73"))] {
-                sys::OptixBuildInputInstanceArray {
-                    instances: self.instances.as_device_ptr(),
-                    numInstances: self.instances.len() as u32,
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                        })
+                    }
                 }
             } else {
-                sys::OptixBuildInputInstanceArray {
-                    instances: self.instances.as_device_ptr(),
-                    numInstances: self.instances.len() as u32,
-                    aabbs: 0,
-                    numAabbs: 0,
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                            aabbs: 0,
+                            numAabbs: 0,
+                        })
+                    }
                 }
             }
         }

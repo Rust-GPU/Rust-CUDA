@@ -6,8 +6,7 @@ use cust::stream::{Stream, StreamFlags};
 use cust::{CudaFlags, DeviceCopy};
 use optix::{
     acceleration::{
-        AccelBuildOptions, AccelEmitDesc, BuildFlags, BuildInput, BuildOperation, GeometryFlags,
-        TraversableHandle,
+        Accel, AccelBuildOptions, BuildFlags, BuildOperation, GeometryFlags, TraversableHandle,
     },
     context::DeviceContext,
     module::{
@@ -17,7 +16,7 @@ use optix::{
     pipeline::{Pipeline, PipelineLinkOptions},
     program_group::{ProgramGroup, ProgramGroupDesc},
     shader_binding_table::{SbtRecord, ShaderBindingTable},
-    triangle_array::TriangleArray,
+    triangle_array::IndexedTriangleArray,
 };
 
 use glam::{ivec2, vec3, IVec2, IVec3, Vec3, Vec4};
@@ -26,8 +25,7 @@ pub struct Renderer {
     launch_params: LaunchParams,
     buf_launch_params: DeviceBox<LaunchParams>,
     sbt: optix::sys::OptixShaderBindingTable,
-    as_handle: TraversableHandle,
-    as_buffer: DeviceBuffer<u8>,
+    gas: Accel,
     buf_raygen: DeviceBuffer<RaygenRecord>,
     buf_hitgroup: DeviceBuffer<HitgroupRecord>,
     buf_miss: DeviceBuffer<MissRecord>,
@@ -116,50 +114,18 @@ impl Renderer {
         let buf_indices = DeviceBuffer::from_slice(&indices)?;
 
         let geometry_flags = GeometryFlags::None;
-        let triangle_input = BuildInput::<_, ()>::TriangleArray(
-            TriangleArray::new(&[&buf_vertex], std::slice::from_ref(&geometry_flags))
-                .index_buffer(&buf_indices),
+        let triangle_input = IndexedTriangleArray::new(
+            &[&buf_vertex],
+            &buf_indices,
+            std::slice::from_ref(&geometry_flags),
         );
 
-        // blas setup
         let accel_options =
             AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
 
         let build_inputs = vec![triangle_input];
 
-        let blas_buffer_sizes = ctx.accel_compute_memory_usage(&[accel_options], &build_inputs)?;
-
-        // prepare compaction
-        let mut temp_buffer =
-            unsafe { DeviceBuffer::<u8>::uninitialized(blas_buffer_sizes.temp_size_in_bytes)? };
-
-        let mut output_buffer =
-            unsafe { DeviceBuffer::<u8>::uninitialized(blas_buffer_sizes.output_size_in_bytes)? };
-
-        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
-
-        let mut properties = vec![AccelEmitDesc::CompactedSize(
-            compacted_size_buffer.as_device_ptr(),
-        )];
-
-        let as_handle = ctx.accel_build(
-            &stream,
-            &[accel_options],
-            &build_inputs,
-            &mut temp_buffer,
-            &mut output_buffer,
-            &mut properties,
-        )?;
-
-        stream.synchronize()?;
-
-        let mut compacted_size = 0usize;
-
-        compacted_size_buffer.copy_to(&mut compacted_size)?;
-
-        let mut as_buffer = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
-
-        let as_handle = ctx.accel_compact(&stream, as_handle, &mut as_buffer)?;
+        let gas = Accel::build(&ctx, &stream, &[accel_options], &build_inputs, true)?;
 
         stream.synchronize()?;
 
@@ -240,7 +206,7 @@ impl Renderer {
                 horizontal,
                 vertical,
             },
-            traversable: as_handle,
+            traversable: gas.handle(),
         };
 
         let buf_launch_params = DeviceBox::new(&launch_params)?;
@@ -250,8 +216,7 @@ impl Renderer {
             cuda_context,
             stream,
             launch_params,
-            as_handle,
-            as_buffer,
+            gas,
             buf_launch_params,
             buf_raygen,
             buf_hitgroup,

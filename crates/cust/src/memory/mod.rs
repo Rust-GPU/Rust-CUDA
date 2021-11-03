@@ -320,3 +320,12 @@ impl_device_copy_vek! {
 impl_device_copy_glam! {
     glam::Vec2, glam::Vec3, glam::Vec4, glam::IVec2, glam::IVec3, glam::IVec4,
 }
+
+#[cfg(feature = "mint")]
+impl_device_copy_glam! {
+    mint::Vector2<i16>, mint::Vector2<i32>, mint::Vector2<f32>,
+    mint::Vector3<u16>, mint::Vector3<u32>, mint::Vector3<i16>, mint::Vector3<i32>, mint::Vector3<f32>,
+    mint::Vector4<i16>, mint::Vector4<i32>, mint::Vector4<f32>,
+    mint::ColumnMatrix2<f32>, mint::ColumnMatrix3<f32>, mint::ColumnMatrix4<f32>, mint::ColumnMatrix3x4<f32>,
+    mint::RowMatrix2<f32>, mint::RowMatrix3<f32>, mint::RowMatrix4<f32>, mint::RowMatrix3x4<f32>,
+}

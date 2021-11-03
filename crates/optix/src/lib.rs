@@ -1,5 +1,7 @@
 pub mod acceleration;
 pub mod context;
+pub mod curve_array;
+pub mod custom_primitive_array;
 pub mod denoiser;
 pub mod error;
 pub mod instance_array;
@@ -91,3 +93,21 @@ pub unsafe fn launch<P: cust::memory::DeviceCopy>(
 
 #[cfg(feature = "glam")]
 mod impl_glam;
+
+macro_rules! const_assert {
+    ($x:expr $(,)?) => {
+        #[allow(unknown_lints, clippy::eq_op)]
+        const _: [(); 0 - !{
+            const ASSERT: bool = $x;
+            ASSERT
+        } as usize] = [];
+    };
+}
+pub(crate) use const_assert;
+
+macro_rules! const_assert_eq {
+    ($x:expr, $y:expr $(,)?) => {
+        const_assert!($x == $y);
+    };
+}
+pub(crate) use const_assert_eq;

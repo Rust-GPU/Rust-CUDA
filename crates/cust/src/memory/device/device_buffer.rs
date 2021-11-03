@@ -227,6 +227,7 @@ impl<T: DeviceCopy> DeviceBuffer<T> {
         Ok(uninit)
     }
 }
+
 impl<T: DeviceCopy> Deref for DeviceBuffer<T> {
     type Target = DeviceSlice<T>;
 

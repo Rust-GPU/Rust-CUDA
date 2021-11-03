@@ -1,14 +1,84 @@
-use crate::{
-    context::DeviceContext, error::Error, instance_array::BuildInputInstanceArray, module::Module,
-    optix_call, sys, triangle_array::BuildInputTriangleArray,
-};
+use crate::{context::DeviceContext, error::Error, optix_call, sys};
 use cust::{
-    memory::{DevicePointer, DeviceSlice},
+    memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer, DeviceSlice},
     DeviceCopy,
 };
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+pub trait BuildInput {
+    fn to_sys(&self) -> sys::OptixBuildInput;
+}
+
+pub struct Accel {
+    buf: DeviceBuffer<u8>,
+    hnd: TraversableHandle,
+}
+
+impl Accel {
+    pub fn handle(&self) -> TraversableHandle {
+        self.hnd
+    }
+
+    /// Build and compact the acceleration structure for the given inputs.
+    pub fn build<I: BuildInput>(
+        ctx: &DeviceContext,
+        stream: &cust::stream::Stream,
+        accel_options: &[AccelBuildOptions],
+        build_inputs: &[I],
+        compact: bool,
+    ) -> Result<Accel> {
+        let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
+        let mut output_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
+
+        let mut temp_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
+
+        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+
+        let mut properties = vec![AccelEmitDesc::CompactedSize(
+            compacted_size_buffer.as_device_ptr(),
+        )];
+
+        let hnd = unsafe {
+            accel_build(
+                ctx,
+                stream,
+                accel_options,
+                build_inputs,
+                &mut temp_buffer,
+                &mut output_buffer,
+                &mut properties,
+            )?
+        };
+
+        if compact {
+            // FIXME (AL): async this
+            stream.synchronize()?;
+
+            let mut compacted_size = 0usize;
+            compacted_size_buffer.copy_to(&mut compacted_size)?;
+
+            let mut buf = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
+
+            let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
+
+            Ok(Accel { buf, hnd })
+        } else {
+            Ok(Accel {
+                buf: output_buffer,
+                hnd,
+            })
+        }
+    }
+
+    pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Accel {
+        Accel { buf, hnd }
+    }
+}
+
 /// Opaque handle to a traversable acceleration structure.
+///
 /// # Safety
 /// You should consider this handle to be a raw pointer, thus you can copy it
 /// and it provides no tracking of lifetime or ownership. You are responsible
@@ -20,123 +90,83 @@ pub struct TraversableHandle {
     pub(crate) inner: u64,
 }
 
-impl DeviceContext {
-    /// Computes the device memory required for temporary and output buffers
-    /// when building the acceleration structure. Use the returned sizes to
-    /// allocate enough memory to pass to `accel_build()`
-    pub fn accel_compute_memory_usage<T: BuildInputTriangleArray, I: BuildInputInstanceArray>(
-        &self,
-        accel_options: &[AccelBuildOptions],
-        build_inputs: &[BuildInput<T, I>],
-    ) -> Result<AccelBufferSizes> {
-        let mut buffer_sizes = AccelBufferSizes::default();
-        let build_sys: Vec<_> = build_inputs
-            .iter()
-            .map(|b| match b {
-                BuildInput::TriangleArray(bita) => sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
-                    input: sys::OptixBuildInputUnion {
-                        triangle_array: std::mem::ManuallyDrop::new(bita.to_sys()),
-                    },
-                },
-                BuildInput::InstanceArray(biia) => sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
-                    input: sys::OptixBuildInputUnion {
-                        instance_array: std::mem::ManuallyDrop::new(biia.to_sys()),
-                    },
-                },
-                _ => unimplemented!(),
-            })
-            .collect();
+/// Computes the device memory required for temporary and output buffers
+/// when building the acceleration structure. Use the returned sizes to
+/// allocate enough memory to pass to `accel_build()`
+pub fn accel_compute_memory_usage<I: BuildInput>(
+    ctx: &DeviceContext,
+    accel_options: &[AccelBuildOptions],
+    build_inputs: &[I],
+) -> Result<AccelBufferSizes> {
+    let mut buffer_sizes = AccelBufferSizes::default();
+    let build_sys: Vec<_> = build_inputs.iter().map(|b| b.to_sys()).collect();
 
-        unsafe {
-            Ok(optix_call!(optixAccelComputeMemoryUsage(
-                self.raw,
-                accel_options.as_ptr() as *const _,
-                build_sys.as_ptr(),
-                build_sys.len() as u32,
-                &mut buffer_sizes as *mut _ as *mut _,
-            ))
-            .map(|_| buffer_sizes)?)
-        }
+    unsafe {
+        Ok(optix_call!(optixAccelComputeMemoryUsage(
+            ctx.raw,
+            accel_options.as_ptr() as *const _,
+            build_sys.as_ptr(),
+            build_sys.len() as u32,
+            &mut buffer_sizes as *mut _ as *mut _,
+        ))
+        .map(|_| buffer_sizes)?)
     }
+}
 
-    /// Builds the acceleration structure.
-    /// `temp_buffer` and `output_buffer` must be at least as large as the sizes
-    /// returned by `accel_compute_memory_usage()`
-    pub fn accel_build<T: BuildInputTriangleArray, I: BuildInputInstanceArray>(
-        &self,
-        stream: &cust::stream::Stream,
-        accel_options: &[AccelBuildOptions],
-        build_inputs: &[BuildInput<T, I>],
-        temp_buffer: &mut DeviceSlice<u8>,
-        output_buffer: &mut DeviceSlice<u8>,
-        emitted_properties: &mut [AccelEmitDesc],
-    ) -> Result<TraversableHandle> {
-        let mut traversable_handle = TraversableHandle { inner: 0 };
-        let properties: Vec<sys::OptixAccelEmitDesc> =
-            emitted_properties.iter_mut().map(|p| p.into()).collect();
+/// Builds the acceleration structure.
+/// `temp_buffer` and `output_buffer` must be at least as large as the sizes
+/// returned by `accel_compute_memory_usage()`
+pub unsafe fn accel_build<I: BuildInput>(
+    ctx: &DeviceContext,
+    stream: &cust::stream::Stream,
+    accel_options: &[AccelBuildOptions],
+    build_inputs: &[I],
+    temp_buffer: &mut DeviceSlice<u8>,
+    output_buffer: &mut DeviceSlice<u8>,
+    emitted_properties: &mut [AccelEmitDesc],
+) -> Result<TraversableHandle> {
+    let mut traversable_handle = TraversableHandle { inner: 0 };
+    let properties: Vec<sys::OptixAccelEmitDesc> =
+        emitted_properties.iter_mut().map(|p| p.into()).collect();
 
-        let build_sys: Vec<_> = build_inputs
-            .iter()
-            .map(|b| match b {
-                BuildInput::TriangleArray(bita) => sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
-                    input: sys::OptixBuildInputUnion {
-                        triangle_array: std::mem::ManuallyDrop::new(bita.to_sys()),
-                    },
-                },
-                BuildInput::InstanceArray(biia) => sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
-                    input: sys::OptixBuildInputUnion {
-                        instance_array: std::mem::ManuallyDrop::new(biia.to_sys()),
-                    },
-                },
-                _ => unimplemented!(),
-            })
-            .collect();
+    let build_sys: Vec<_> = build_inputs.iter().map(|b| b.to_sys()).collect();
 
-        unsafe {
-            Ok(optix_call!(optixAccelBuild(
-                self.raw,
-                stream.as_inner(),
-                accel_options.as_ptr() as *const _,
-                build_sys.as_ptr(),
-                build_sys.len() as u32,
-                temp_buffer.as_device_ptr(),
-                temp_buffer.len(),
-                output_buffer.as_device_ptr(),
-                output_buffer.len(),
-                &mut traversable_handle as *mut _ as *mut _,
-                properties.as_ptr() as *const _,
-                properties.len() as u32,
-            ))
-            .map(|_| traversable_handle)?)
-        }
-    }
+    Ok(optix_call!(optixAccelBuild(
+        ctx.raw,
+        stream.as_inner(),
+        accel_options.as_ptr() as *const _,
+        build_sys.as_ptr(),
+        build_sys.len() as u32,
+        temp_buffer.as_device_ptr(),
+        temp_buffer.len(),
+        output_buffer.as_device_ptr(),
+        output_buffer.len(),
+        &mut traversable_handle as *mut _ as *mut _,
+        properties.as_ptr() as *const _,
+        properties.len() as u32,
+    ))
+    .map(|_| traversable_handle)?)
+}
 
-    /// Compacts the acceleration structure referenced by `input_handle`,
-    /// storing the result in `output_buffer` and returning a handle to the
-    /// newly compacted structure
-    pub fn accel_compact(
-        &self,
-        stream: &cust::stream::Stream,
-        input_handle: TraversableHandle,
-        output_buffer: &mut DeviceSlice<u8>,
-    ) -> Result<TraversableHandle> {
-        let mut traversable_handle = TraversableHandle { inner: 0 };
-        unsafe {
-            Ok(optix_call!(optixAccelCompact(
-                self.raw,
-                stream.as_inner(),
-                input_handle.inner,
-                output_buffer.as_device_ptr(),
-                output_buffer.len(),
-                &mut traversable_handle as *mut _ as *mut _,
-            ))
-            .map(|_| traversable_handle)?)
-        }
-    }
+/// Compacts the acceleration structure referenced by `input_handle`,
+/// storing the result in `output_buffer` and returning a handle to the
+/// newly compacted structure
+pub unsafe fn accel_compact(
+    ctx: &DeviceContext,
+    stream: &cust::stream::Stream,
+    input_handle: TraversableHandle,
+    output_buffer: &mut DeviceSlice<u8>,
+) -> Result<TraversableHandle> {
+    let mut traversable_handle = TraversableHandle { inner: 0 };
+    Ok(optix_call!(optixAccelCompact(
+        ctx.raw,
+        stream.as_inner(),
+        input_handle.inner,
+        output_buffer.as_device_ptr(),
+        output_buffer.len(),
+        &mut traversable_handle as *mut _ as *mut _,
+    ))
+    .map(|_| traversable_handle)?)
 }
 
 bitflags::bitflags! {
@@ -221,32 +251,9 @@ pub struct AccelBufferSizes {
     pub temp_update_size_in_bytes: usize,
 }
 
-pub struct TriangleArrayDefault;
-impl BuildInputTriangleArray for TriangleArrayDefault {
-    fn to_sys(&self) -> sys::OptixBuildInputTriangleArray {
-        unreachable!()
-    }
-}
-pub struct InstanceArrayDefault;
-impl BuildInputInstanceArray for InstanceArrayDefault {
-    fn to_sys(&self) -> sys::OptixBuildInputInstanceArray {
-        unreachable!()
-    }
-}
-
-pub enum BuildInput<
-    T: BuildInputTriangleArray = TriangleArrayDefault,
-    I: BuildInputInstanceArray = InstanceArrayDefault,
-> {
-    TriangleArray(T),
-    CurveArray,
-    CustomPrimitiveArray,
-    InstanceArray(I),
-}
-
 pub enum AccelEmitDesc {
     CompactedSize(DevicePointer<usize>),
-    Aabbs(DevicePointer<Aabb>), //< FIXME: need to handle OptixAabbBufferByteAlignment here
+    Aabbs(DevicePointer<Aabb>),
 }
 
 #[repr(C)]
@@ -281,4 +288,28 @@ pub enum GeometryFlags {
     None = sys::OptixGeometryFlags::None as u32,
     DisableAnyHit = sys::OptixGeometryFlags::DisableAnyHit as u32,
     RequireSingleAnyHitCall = sys::OptixGeometryFlags::RequireSingleAnyHitCall as u32,
+}
+
+impl From<GeometryFlags> for sys::OptixGeometryFlags {
+    fn from(f: GeometryFlags) -> Self {
+        match f {
+            GeometryFlags::None => sys::OptixGeometryFlags::None,
+            GeometryFlags::DisableAnyHit => sys::OptixGeometryFlags::DisableAnyHit,
+            GeometryFlags::RequireSingleAnyHitCall => {
+                sys::OptixGeometryFlags::RequireSingleAnyHitCall
+            }
+        }
+    }
+}
+
+impl From<GeometryFlags> for u32 {
+    fn from(f: GeometryFlags) -> Self {
+        match f {
+            GeometryFlags::None => sys::OptixGeometryFlags::None as u32,
+            GeometryFlags::DisableAnyHit => sys::OptixGeometryFlags::DisableAnyHit as u32,
+            GeometryFlags::RequireSingleAnyHitCall => {
+                sys::OptixGeometryFlags::RequireSingleAnyHitCall as u32
+            }
+        }
+    }
 }
