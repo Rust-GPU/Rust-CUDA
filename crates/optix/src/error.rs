@@ -195,6 +195,7 @@ pub enum Error {
     ModuleCreation { source: OptixError, log: String },
     ProgramGroupCreation { source: OptixError, log: String },
     PipelineCreation { source: OptixError, log: String },
+    AccelUpdateMismatch,
 }
 
 impl From<OptixError> for Error {
@@ -217,6 +218,7 @@ impl std::error::Error for Error {
             Self::ModuleCreation { source, .. } => Some(source),
             Self::ProgramGroupCreation { source, .. } => Some(source),
             Self::PipelineCreation { source, .. } => Some(source),
+            Self::AccelUpdateMismatch => None,
         }
     }
 }
@@ -231,6 +233,7 @@ impl Display for Error {
                 write!(f, "Program group creation error: {}", log)
             }
             Self::PipelineCreation { log, .. } => write!(f, "Pipeline creation error: {}", log),
+            Self::AccelUpdateMismatch => write!(f, "Build inputs passed to DynamicAccel::update do not match the structure of those used to build the accel"),
         }
     }
 }

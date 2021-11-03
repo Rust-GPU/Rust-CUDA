@@ -6,8 +6,12 @@ use cust::{
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 use std::ops::Deref;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
-pub trait BuildInput {
+pub trait BuildInput: std::hash::Hash {
     fn to_sys(&self) -> sys::OptixBuildInput;
 }
 
@@ -89,6 +93,7 @@ impl Accel {
 /// input data.
 pub struct DynamicAccel {
     accel: Accel,
+    hash: u64,
 }
 
 impl Deref for DynamicAccel {
@@ -110,7 +115,7 @@ impl DynamicAccel {
         accel_options: &mut [AccelBuildOptions],
         build_inputs: &[I],
         compact: bool,
-    ) -> Result<Accel> {
+    ) -> Result<DynamicAccel> {
         // Force ALLOW_UPDATE
         for opt in accel_options.iter_mut() {
             opt.build_flags |= BuildFlags::ALLOW_UPDATE;
@@ -142,6 +147,10 @@ impl DynamicAccel {
             )?
         };
 
+        let mut hasher = DefaultHasher::new();
+        build_inputs.hash(&mut hasher);
+        let hash = hasher.finish();
+
         if compact {
             stream.synchronize()?;
 
@@ -152,73 +161,76 @@ impl DynamicAccel {
 
             let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
 
-            Ok(Accel { buf, hnd })
+            Ok(DynamicAccel {
+                accel: Accel { buf, hnd },
+                hash,
+            })
         } else {
-            Ok(Accel {
-                buf: output_buffer,
-                hnd,
+            Ok(DynamicAccel {
+                accel: Accel {
+                    buf: output_buffer,
+                    hnd,
+                },
+                hash,
             })
         }
     }
 
     /// Update the acceleration structure
     ///
-    /// # Safety
     /// Note that the `build_inputs` here must match the topology of those that
-    /// were supplied to [`build`](DynamicAccel::build) or the behaviour is
-    /// undefined.
+    /// were supplied to [`build`](DynamicAccel::build)
     ///
     /// This forces the build operation to Update.
-    pub unsafe fn update<I: BuildInput>(
+    pub fn update<I: BuildInput>(
+        &mut self,
         ctx: &DeviceContext,
         stream: &cust::stream::Stream,
         accel_options: &mut [AccelBuildOptions],
         build_inputs: &[I],
-        compact: bool,
-    ) -> Result<Accel> {
+    ) -> Result<()> {
         for opt in accel_options.iter_mut() {
             opt.build_flags |= BuildFlags::ALLOW_UPDATE;
             opt.operation = BuildOperation::Update;
         }
 
+        let mut hasher = DefaultHasher::new();
+        build_inputs.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        if hash != self.hash {}
+
         let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
-        let mut output_buffer = DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)?;
+        let mut output_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
 
-        let mut temp_buffer = DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)?;
+        let mut temp_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
 
-        let mut compacted_size_buffer = DeviceBox::<usize>::uninitialized()?;
+        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
 
         let mut properties = vec![AccelEmitDesc::CompactedSize(
             compacted_size_buffer.as_device_ptr(),
         )];
 
-        let hnd = accel_build(
-            ctx,
-            stream,
-            accel_options,
-            build_inputs,
-            &mut temp_buffer,
-            &mut output_buffer,
-            &mut properties,
-        )?;
+        let hnd = unsafe {
+            accel_build(
+                ctx,
+                stream,
+                accel_options,
+                build_inputs,
+                &mut temp_buffer,
+                &mut output_buffer,
+                &mut properties,
+            )?
+        };
 
-        if compact {
-            stream.synchronize()?;
+        self.accel = Accel {
+            buf: output_buffer,
+            hnd,
+        };
 
-            let mut compacted_size = 0usize;
-            compacted_size_buffer.copy_to(&mut compacted_size)?;
-
-            let mut buf = DeviceBuffer::<u8>::uninitialized(compacted_size)?;
-
-            let hnd = accel_compact(ctx, stream, hnd, &mut buf)?;
-
-            Ok(Accel { buf, hnd })
-        } else {
-            Ok(Accel {
-                buf: output_buffer,
-                hnd,
-            })
-        }
+        Ok(())
     }
 
     pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Accel {
@@ -432,7 +444,7 @@ impl From<&mut AccelEmitDesc> for sys::OptixAccelEmitDesc {
 }
 
 #[repr(u32)]
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Hash)]
 pub enum GeometryFlags {
     None = sys::OptixGeometryFlags::None as u32,
     DisableAnyHit = sys::OptixGeometryFlags::DisableAnyHit as u32,

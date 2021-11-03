@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::hash::Hash;
 
 use crate::{acceleration::{Accel, BuildInput, TraversableHandle}, const_assert, const_assert_eq, sys};
 use cust::{memory::DeviceSlice, DeviceCopy};
@@ -105,6 +106,12 @@ impl<'i, 'a> InstanceArray<'i, 'a> {
     }
 }
 
+impl<'i, 'a> Hash for InstanceArray<'i, 'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.instances.len());
+    }
+}
+
 impl<'i, 'a> BuildInput for InstanceArray<'i, 'a> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         cfg_if::cfg_if! {
@@ -144,6 +151,13 @@ impl<'i> InstancePointerArray<'i> {
         InstancePointerArray { instances }
     }
 }
+
+impl<'i> Hash for InstancePointerArray<'i> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.instances.len());
+    }
+}
+
 
 impl<'i> BuildInput for InstancePointerArray<'i> {
     fn to_sys(&self) -> sys::OptixBuildInput {

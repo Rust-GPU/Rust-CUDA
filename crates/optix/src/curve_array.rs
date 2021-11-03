@@ -7,6 +7,7 @@ use cust::memory::DeviceSlice;
 use cust_raw::CUdeviceptr;
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 pub struct CurveArray<'v, 'w, 'i> {
@@ -24,6 +25,23 @@ pub struct CurveArray<'v, 'w, 'i> {
     index_stride_in_bytes: u32,
     flags: GeometryFlags,
     primitive_index_offset: u32,
+}
+
+impl<'v, 'w, 'i> Hash for CurveArray<'v, 'w, 'i> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.curve_type.hash(state);
+        state.write_u32(self.num_primitives);
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_vertex_buffers.len());
+        state.write_u32(self.vertex_stride_in_bytes);
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_width_buffers.len());
+        state.write_u32(self.width_stride_in_bytes);
+        state.write_usize(self.index_buffer.len());
+        state.write_u32(self.index_stride_in_bytes);
+        self.flags.hash(state);
+        state.write_u32(self.primitive_index_offset);
+    }
 }
 
 impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
@@ -110,7 +128,7 @@ impl<'v, 'w, 'i> BuildInput for CurveArray<'v, 'w, 'i> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub enum CurveType {
     RoundLinear,
     RoundQuadraticBSpline,

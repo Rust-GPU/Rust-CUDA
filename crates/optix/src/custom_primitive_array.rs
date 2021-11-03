@@ -7,6 +7,7 @@ use cust::memory::{DeviceSlice, GpuBox};
 use cust_raw::CUdeviceptr;
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 pub struct CustomPrimitiveArray<'a, 'g, 's> {
@@ -19,6 +20,23 @@ pub struct CustomPrimitiveArray<'a, 'g, 's> {
     sbt_index_offset_buffer: Option<&'s DeviceSlice<u32>>,
     sbt_index_offset_stride_in_bytes: u32,
     primitive_index_offset: u32,
+}
+
+impl<'a, 'g, 's> Hash for CustomPrimitiveArray<'a, 'g, 's> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.aabb_buffers.len());
+        state.write_u32(self.num_primitives);
+        state.write_u32(self.stride_in_bytes);
+        self.flags.hash(state);
+        state.write_u32(self.num_sbt_records);
+        if let Some(b) = self.sbt_index_offset_buffer {
+            state.write_usize(b.len());
+        } else {
+            state.write_usize(0);
+        }
+        state.write_u32(self.sbt_index_offset_stride_in_bytes);
+        state.write_u32(self.primitive_index_offset);
+    }
 }
 
 impl<'a, 'g, 's> CustomPrimitiveArray<'a, 'g, 's> {

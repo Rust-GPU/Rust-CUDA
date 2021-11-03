@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 use crate::{
@@ -136,6 +137,14 @@ impl<'v, 'g, V: Vertex> TriangleArray<'v, 'g, V> {
     }
 }
 
+impl<'v, 'g, V: Vertex> Hash for TriangleArray<'v, 'g, V> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_vertex_buffers.len());
+        self.geometry_flags.hash(state);
+    }
+}
+
 impl<'v, 'g, V: Vertex> BuildInput for TriangleArray<'v, 'g, V> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         sys::OptixBuildInput {
@@ -190,6 +199,15 @@ impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'g, 'i, V, 
             geometry_flags,
             index_buffer,
         }
+    }
+}
+
+impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'v, 'g, 'i, V, I> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_vertex_buffers.len());
+        self.geometry_flags.hash(state);
+        state.write_usize(self.index_buffer.len());
     }
 }
 
