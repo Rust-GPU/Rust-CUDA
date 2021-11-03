@@ -1,11 +1,13 @@
-use crate::{acceleration::{BuildInput, TraversableHandle}, const_assert, const_assert_eq, sys};
+use std::marker::PhantomData;
+
+use crate::{acceleration::{Accel, BuildInput, TraversableHandle}, const_assert, const_assert_eq, sys};
 use cust::{memory::DeviceSlice, DeviceCopy};
 use cust_raw::CUdeviceptr;
 use mint::RowMatrix3x4;
 
 #[repr(C, align(16))]
 #[derive(Debug, Copy, Clone, DeviceCopy)]
-pub struct Instance {
+pub struct Instance<'a> {
     transform: RowMatrix3x4<f32>,
     instance_id: u32,
     sbt_offset: u32,
@@ -13,6 +15,7 @@ pub struct Instance {
     flags: InstanceFlags,
     traversable_handle: TraversableHandle,
     pad: [u32; 2],
+    accel: PhantomData<&'a i32>,
 }
 
 const_assert_eq!(std::mem::align_of::<Instance>(), sys::OptixInstanceByteAlignment);
@@ -31,8 +34,8 @@ bitflags::bitflags! {
     }
 }
 
-impl Instance {
-    pub fn new(traversable_handle: TraversableHandle) -> Instance {
+impl<'a> Instance<'a> {
+    pub fn new(accel: &'a Accel) -> Instance<'a> {
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Instance {
             transform: [
@@ -43,48 +46,49 @@ impl Instance {
             sbt_offset: 0,
             visibility_mask: 255,
             flags: InstanceFlags::NONE,
-            traversable_handle,
+            traversable_handle: accel.handle(),
             pad: [0; 2],
+            accel: PhantomData,
         }
     }
 
-    pub fn transform<T: Into<RowMatrix3x4<f32>>>(mut self, transform: T) -> Instance {
+    pub fn transform<T: Into<RowMatrix3x4<f32>>>(mut self, transform: T) -> Instance<'a> {
         self.transform = transform.into();
         self
     }
 
-    pub fn instance_id(mut self, instance_id: u32) -> Instance {
+    pub fn instance_id(mut self, instance_id: u32) -> Instance<'a> {
         self.instance_id = instance_id;
         self
     }
 
-    pub fn sbt_offset(mut self, sbt_offset: u32) -> Instance {
+    pub fn sbt_offset(mut self, sbt_offset: u32) -> Instance<'a> {
         self.sbt_offset = sbt_offset;
         self
     }
 
-    pub fn visibility_mask(mut self, visibility_mask: u8) -> Instance {
+    pub fn visibility_mask(mut self, visibility_mask: u8) -> Instance<'a> {
         self.visibility_mask = visibility_mask as u32;
         self
     }
 
-    pub fn flags(mut self, flags: InstanceFlags) -> Instance {
+    pub fn flags(mut self, flags: InstanceFlags) -> Instance<'a> {
         self.flags = flags;
         self
     }
 }
 
-pub struct InstanceArray<'i> {
-    instances: &'i DeviceSlice<Instance>,
+pub struct InstanceArray<'i, 'a> {
+    instances: &'i DeviceSlice<Instance<'a>>,
 }
 
-impl<'i> InstanceArray<'i> {
-    pub fn new(instances: &'i DeviceSlice<Instance>) -> InstanceArray {
+impl<'i, 'a> InstanceArray<'i, 'a> {
+    pub fn new(instances: &'i DeviceSlice<Instance<'a>>) -> InstanceArray<'i, 'a> {
         InstanceArray { instances }
     }
 }
 
-impl<'i> BuildInput for InstanceArray<'i> {
+impl<'i, 'a> BuildInput for InstanceArray<'i, 'a> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         cfg_if::cfg_if! {
             if #[cfg(any(feature="optix72", feature="optix73"))] {
