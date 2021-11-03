@@ -5,6 +5,8 @@ use cust::{
 };
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+use std::ops::Deref;
+
 pub trait BuildInput {
     fn to_sys(&self) -> sys::OptixBuildInput;
 }
@@ -53,7 +55,6 @@ impl Accel {
         };
 
         if compact {
-            // FIXME (AL): async this
             stream.synchronize()?;
 
             let mut compacted_size = 0usize;
@@ -62,6 +63,154 @@ impl Accel {
             let mut buf = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
 
             let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
+
+            Ok(Accel { buf, hnd })
+        } else {
+            Ok(Accel {
+                buf: output_buffer,
+                hnd,
+            })
+        }
+    }
+
+    pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Accel {
+        Accel { buf, hnd }
+    }
+}
+
+/// Building an acceleration structure can be computationally costly. Applications
+/// may choose to update an existing acceleration structure using modified vertex
+/// data or bounding boxes. Updating an existing acceleration structure is generally
+/// much faster than rebuilding. However, the quality of the acceleration structure
+/// may degrade if the data changes too much with an update, for example, through
+/// explosions or other chaotic transitions—even if for only parts of the mesh.
+/// The degraded acceleration structure may result in slower traversal performance
+/// as compared to an acceleration structure built from scratch from the modified
+/// input data.
+pub struct DynamicAccel {
+    accel: Accel,
+}
+
+impl Deref for DynamicAccel {
+    type Target = Accel;
+
+    fn deref(&self) -> &Self::Target {
+        &self.accel
+    }
+}
+
+impl DynamicAccel {
+    /// Build and compact the acceleration structure for the given inputs.
+    ///
+    /// This forces the ALLOW_UPDATE flag for the build flags to make sure the
+    /// resulting accel can be updated
+    pub fn build<I: BuildInput>(
+        ctx: &DeviceContext,
+        stream: &cust::stream::Stream,
+        accel_options: &mut [AccelBuildOptions],
+        build_inputs: &[I],
+        compact: bool,
+    ) -> Result<Accel> {
+        // Force ALLOW_UPDATE
+        for opt in accel_options.iter_mut() {
+            opt.build_flags |= BuildFlags::ALLOW_UPDATE;
+            opt.operation = BuildOperation::Build;
+        }
+
+        let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
+        let mut output_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
+
+        let mut temp_buffer =
+            unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
+
+        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+
+        let mut properties = vec![AccelEmitDesc::CompactedSize(
+            compacted_size_buffer.as_device_ptr(),
+        )];
+
+        let hnd = unsafe {
+            accel_build(
+                ctx,
+                stream,
+                accel_options,
+                build_inputs,
+                &mut temp_buffer,
+                &mut output_buffer,
+                &mut properties,
+            )?
+        };
+
+        if compact {
+            stream.synchronize()?;
+
+            let mut compacted_size = 0usize;
+            compacted_size_buffer.copy_to(&mut compacted_size)?;
+
+            let mut buf = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
+
+            let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
+
+            Ok(Accel { buf, hnd })
+        } else {
+            Ok(Accel {
+                buf: output_buffer,
+                hnd,
+            })
+        }
+    }
+
+    /// Update the acceleration structure
+    ///
+    /// # Safety
+    /// Note that the `build_inputs` here must match the topology of those that
+    /// were supplied to [`build`](DynamicAccel::build) or the behaviour is
+    /// undefined.
+    ///
+    /// This forces the build operation to Update.
+    pub unsafe fn update<I: BuildInput>(
+        ctx: &DeviceContext,
+        stream: &cust::stream::Stream,
+        accel_options: &mut [AccelBuildOptions],
+        build_inputs: &[I],
+        compact: bool,
+    ) -> Result<Accel> {
+        for opt in accel_options.iter_mut() {
+            opt.build_flags |= BuildFlags::ALLOW_UPDATE;
+            opt.operation = BuildOperation::Update;
+        }
+
+        let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
+        let mut output_buffer = DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)?;
+
+        let mut temp_buffer = DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)?;
+
+        let mut compacted_size_buffer = DeviceBox::<usize>::uninitialized()?;
+
+        let mut properties = vec![AccelEmitDesc::CompactedSize(
+            compacted_size_buffer.as_device_ptr(),
+        )];
+
+        let hnd = accel_build(
+            ctx,
+            stream,
+            accel_options,
+            build_inputs,
+            &mut temp_buffer,
+            &mut output_buffer,
+            &mut properties,
+        )?;
+
+        if compact {
+            stream.synchronize()?;
+
+            let mut compacted_size = 0usize;
+            compacted_size_buffer.copy_to(&mut compacted_size)?;
+
+            let mut buf = DeviceBuffer::<u8>::uninitialized(compacted_size)?;
+
+            let hnd = accel_compact(ctx, stream, hnd, &mut buf)?;
 
             Ok(Accel { buf, hnd })
         } else {
