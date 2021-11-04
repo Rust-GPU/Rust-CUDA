@@ -7,6 +7,7 @@ pub mod error;
 pub mod instance_array;
 pub mod module;
 pub mod pipeline;
+pub mod prelude;
 pub mod program_group;
 pub mod shader_binding_table;
 pub mod sys;
