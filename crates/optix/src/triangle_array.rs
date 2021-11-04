@@ -5,7 +5,7 @@ use crate::{
     acceleration::{BuildInput, GeometryFlags},
     sys,
 };
-use cust::memory::DeviceSlice;
+use cust::memory::{DevicePointer, DeviceSlice};
 use cust_raw::CUdeviceptr;
 
 #[repr(u32)]
@@ -121,6 +121,7 @@ pub struct TriangleArray<'v, 'g, V: Vertex> {
     d_vertex_buffers: Vec<CUdeviceptr>,
     // per-sbt-record geometry flags
     geometry_flags: &'g [GeometryFlags],
+    pre_transform: Option<DevicePointer<[f32; 12]>>,
 }
 
 impl<'v, 'g, V: Vertex> TriangleArray<'v, 'g, V> {
@@ -133,7 +134,13 @@ impl<'v, 'g, V: Vertex> TriangleArray<'v, 'g, V> {
             num_vertices,
             d_vertex_buffers,
             geometry_flags,
+            pre_transform: None,
         }
+    }
+
+    pub fn pre_transform(mut self, pre_transform: DevicePointer<[f32; 12]>) -> Self {
+        self.pre_transform = Some(pre_transform);
+        self
     }
 }
 
@@ -159,21 +166,29 @@ impl<'v, 'g, V: Vertex> BuildInput for TriangleArray<'v, 'g, V> {
                     numIndexTriplets: 0,
                     indexFormat: 0,
                     indexStrideInBytes: 0,
-                    preTransform: 0,
                     flags: self.geometry_flags.as_ptr() as *const _,
                     numSbtRecords: 1,
                     sbtIndexOffsetBuffer: 0,
                     sbtIndexOffsetSizeInBytes: 0,
                     sbtIndexOffsetStrideInBytes: 0,
                     primitiveIndexOffset: 0,
-                    transformFormat: sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE,
+                    preTransform: if let Some(t) = self.pre_transform {
+                        t.as_raw()
+                    } else {
+                        0
+                    },
+                    transformFormat: if self.pre_transform.is_some() {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
+                    } else {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE
+                    },
                 }),
             },
         }
     }
 }
 
-pub struct IndexedTriangleArray<'v, 'g, 'i, V: Vertex, I: IndexTriple> {
+pub struct IndexedTriangleArray<'v, 'i, V: Vertex, I: IndexTriple> {
     // We hold slices here to make sure the referenced device memory remains
     // valid for the lifetime of the build input
     vertex_buffers: PhantomData<&'v V>,
@@ -181,14 +196,15 @@ pub struct IndexedTriangleArray<'v, 'g, 'i, V: Vertex, I: IndexTriple> {
     d_vertex_buffers: Vec<CUdeviceptr>,
     index_buffer: &'i DeviceSlice<I>,
     // per-object geometry flags
-    geometry_flags: &'g [GeometryFlags],
+    geometry_flags: Vec<GeometryFlags>,
+    pre_transform: Option<DevicePointer<[f32; 12]>>,
 }
 
-impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'g, 'i, V, I> {
+impl<'v, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'i, V, I> {
     pub fn new(
         vertex_buffers: &[&'v DeviceSlice<V>],
         index_buffer: &'i DeviceSlice<I>,
-        geometry_flags: &'g [GeometryFlags],
+        geometry_flags: &[GeometryFlags],
     ) -> Self {
         let num_vertices = vertex_buffers[0].len() as u32;
         let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr()).collect();
@@ -196,13 +212,19 @@ impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'g, 'i, V, 
             vertex_buffers: PhantomData,
             num_vertices,
             d_vertex_buffers,
-            geometry_flags,
+            geometry_flags: geometry_flags.to_vec(),
             index_buffer,
+            pre_transform: None,
         }
+    }
+
+    pub fn pre_transform(mut self, pre_transform: DevicePointer<[f32; 12]>) -> Self {
+        self.pre_transform = Some(pre_transform);
+        self
     }
 }
 
-impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'v, 'g, 'i, V, I> {
+impl<'v, 'i, V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'v, 'i, V, I> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u32(self.num_vertices);
         state.write_usize(self.d_vertex_buffers.len());
@@ -211,7 +233,7 @@ impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'v, 'g
     }
 }
 
-impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'v, 'g, 'i, V, I> {
+impl<'v, 'i, V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'v, 'i, V, I> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         sys::OptixBuildInput {
             type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
@@ -225,14 +247,22 @@ impl<'v, 'g, 'i, V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<
                     numIndexTriplets: self.index_buffer.len() as u32,
                     indexFormat: I::FORMAT as u32,
                     indexStrideInBytes: I::STRIDE,
-                    preTransform: 0,
                     flags: self.geometry_flags.as_ptr() as *const _,
                     numSbtRecords: 1,
                     sbtIndexOffsetBuffer: 0,
                     sbtIndexOffsetSizeInBytes: 0,
                     sbtIndexOffsetStrideInBytes: 0,
                     primitiveIndexOffset: 0,
-                    transformFormat: sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE,
+                    preTransform: if let Some(t) = self.pre_transform {
+                        t.as_raw()
+                    } else {
+                        0
+                    },
+                    transformFormat: if self.pre_transform.is_some() {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
+                    } else {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE
+                    },
                 }),
             },
         }
