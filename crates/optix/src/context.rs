@@ -2,7 +2,7 @@
 
 use std::os::raw::{c_char, c_uint};
 use std::{
-    ffi::{c_void, CStr},
+    ffi::{c_void, CStr, CString},
     mem::MaybeUninit,
     ptr,
 };
@@ -15,7 +15,7 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 /// A certain property belonging to an OptiX device.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum OptixDeviceProperty {
+pub enum DeviceProperty {
     /// The maximum value that can be given to the OptiX pipeline's max trace depth.
     MaxTraceDepth,
     /// The maximum value that can be given to the OptiX pipeline's stack size method's max traversable
@@ -37,11 +37,11 @@ pub enum OptixDeviceProperty {
     MaxSbtOffset,
 }
 
-impl OptixDeviceProperty {
+impl DeviceProperty {
     // we could repr this the same as the sys version, but for better compatability
     // and safety in the future, we just match.
     pub fn to_raw(self) -> sys::OptixDeviceProperty::Type {
-        use OptixDeviceProperty::*;
+        use DeviceProperty::*;
         match self {
         MaxTraceDepth => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRACE_DEPTH,
         MaxTraversableGraphDepth => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRAVERSABLE_GRAPH_DEPTH,
@@ -73,7 +73,7 @@ impl Drop for DeviceContext {
 impl DeviceContext {
     // TODO(RDambrosio016): expose device context options
 
-    /// Creates a new [`OptixContext`] from a cust CUDA context.
+    /// Creates a new [`DeviceContext`] from a cust CUDA context.
     pub fn new(cuda_ctx: &impl ContextHandle) -> Result<Self> {
         let mut raw = MaybeUninit::uninit();
         unsafe {
@@ -88,7 +88,47 @@ impl DeviceContext {
         }
     }
 
-    pub fn get_property(&self, property: OptixDeviceProperty) -> Result<u32> {
+    /// Returns the low and high water marks, respectively, for disk cache garbage collection.
+    /// If the cache has been disabled by setting the environment variable
+    /// OPTIX_CACHE_MAXSIZE=0, this function will return 0 for the low and high water marks.
+    pub fn get_cache_database_sizes(&self) -> Result<(usize, usize)> {
+        let mut low = 0;
+        let mut high = 0;
+        unsafe {
+            Ok(optix_call!(optixDeviceContextGetCacheDatabaseSizes(
+                self.raw, &mut low, &mut high,
+            ))
+            .map(|_| (low as usize, high as usize))?)
+        }
+    }
+
+    /// Indicated whether the disk cache is enabled
+    pub fn get_cache_enabled(&self) -> Result<bool> {
+        let result = 0;
+        unsafe {
+            Ok(
+                optix_call!(optixDeviceContextGetCacheEnabled(self.raw, &mut result,))
+                    .map(|_| result != 0)?,
+            )
+        }
+    }
+
+    /// Returns the location of the disk cache. If the cache has been disabled
+    /// by setting the environment variable OPTIX_CACHE_MAXSIZE=0, this function will return an empy string.
+    pub fn get_cache_location(&self) -> Result<String> {
+        let mut buf = [0i8; 1024];
+        unsafe {
+            Ok(optix_call!(optixDeviceContextGetCacheLocation(
+                self.raw,
+                buf.as_ptr(),
+                buf.len() as u64
+            ))
+            .map(|_| CStr::from_ptr(buf.as_ptr()).to_string_lossy().to_string())?)
+        }
+    }
+
+    /// Query properties of this context.
+    pub fn get_property(&self, property: DeviceProperty) -> Result<u32> {
         let raw_prop = property.to_raw();
         unsafe {
             let mut value = 0u32;
@@ -102,8 +142,83 @@ impl DeviceContext {
         }
     }
 
-    pub fn as_raw(&self) -> sys::OptixDeviceContext {
-        self.raw
+    /// Sets the low and high water marks for disk cache garbage collection.
+    ///
+    /// Garbage collection is triggered when a new entry is written to the cache
+    /// and the current cache data size plus the size of the cache entry that is
+    /// about to be inserted exceeds the high water mark. Garbage collection proceeds
+    /// until the size reaches the low water mark. Garbage collection will always
+    /// free enough space to insert the new entry without exceeding the low water
+    /// mark. Setting either limit to zero will disable garbage collection. An
+    /// error will be returned if both limits are non-zero and the high water mark
+    /// is smaller than the low water mark.
+    ///
+    /// Note that garbage collection is performed only on writes to the disk cache.
+    /// No garbage collection is triggered on disk cache initialization or immediately
+    /// when calling this function, but on subsequent inserting of data into the
+    /// database.
+    ///
+    /// If the size of a compiled module exceeds the value configured for the high
+    /// water mark and garbage collection is enabled, the module will not be added
+    /// to the cache and a warning will be added to the log.
+    ///
+    /// The high water mark can be overridden with the environment variable
+    /// OPTIX_CACHE_MAXSIZE. The environment variable takes precedence over the
+    /// function parameters. The low water mark will be set to half the value of
+    /// OPTIX_CACHE_MAXSIZE. Setting OPTIX_CACHE_MAXSIZE to 0 will disable the
+    /// disk cache, but will not alter the contents of the cache. Negative and
+    /// non-integer values will be ignored.    
+    pub fn set_cache_database_sizes(&mut self, low: usize, high: usize) -> Result<()> {
+        unsafe {
+            Ok(optix_call!(optixDeviceContextSetCacheDatabaseSizes(
+                self.raw, low, high,
+            ))?)
+        }
+    }
+
+    /// Enables or disables the disk cache.
+    ///
+    /// If caching was previously disabled, enabling it will attempt to initialize
+    /// the disk cache database using the currently configured cache location.
+    /// An error will be returned if initialization fails.
+    ///
+    /// Note that no in-memory cache is used, so no caching behavior will be observed
+    /// if the disk cache is disabled.
+    ///
+    /// The cache can be disabled by setting the environment variable
+    /// OPTIX_CACHE_MAXSIZE=0. The environment variable takes precedence over this
+    /// setting. See optixDeviceContextSetCacheDatabaseSizes for additional information.
+    ///
+    /// Note that the disk cache can be disabled by the environment variable, but
+    /// it cannot be enabled via the environment if it is disabled via the API.    
+    pub fn set_cache_enabled(&mut self, enable: bool) -> Result<()> {
+        unsafe {
+            Ok(optix_call!(optixDeviceContextSetCacheEnabled(
+                self.raw, enable
+            ))?)
+        }
+    }
+
+    /// Sets the location of the disk cache.
+    ///
+    /// The location is specified by a directory. This directory should not be used for other purposes and will be created if it does not exist. An error will be returned if is not possible to create the disk cache at the specified location for any reason (e.g., the path is invalid or the directory is not writable). Caching will be disabled if the disk cache cannot be initialized in the new location. If caching is disabled, no error will be returned until caching is enabled. If the disk cache is located on a network file share, behavior is undefined.
+    ///
+    /// The location of the disk cache can be overridden with the environment variable OPTIX_CACHE_PATH. The environment variable takes precedence over this setting.
+    ///
+    /// The default location depends on the operating system:
+    ///
+    /// * Windows: `LOCALAPPDATA%\NVIDIA\OptixCache`
+    /// * Linux: `/var/tmp/OptixCache_<username>` (or `/tmp/OptixCache_<username>`
+    ///     if the first choice is not usable), the underscore and username suffix are omitted if the username cannot be obtained
+    /// * MacOS X:  `/Library/Application Support/NVIDIA/OptixCache`
+    pub fn set_cache_location(&mut self, location: &str) -> Result<()> {
+        let location = CString::new(location)?;
+        unsafe {
+            Ok(optix_call!(optixDeviceContextSetCacheLocation(
+                self.raw,
+                location.as_ptr()
+            ))?)
+        }
     }
 
     /// Sets the current log callback method.
@@ -133,6 +248,11 @@ impl DeviceContext {
                 level
             ))?)
         }
+    }
+
+    /// Get the FFI context representation
+    pub fn as_raw(&self) -> sys::OptixDeviceContext {
+        self.raw
     }
 }
 
