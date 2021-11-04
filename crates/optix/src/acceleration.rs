@@ -152,6 +152,67 @@
 //! continue to refer to other instance-AS and geometry-AS instances and transform
 //! nodes.
 //!
+//! ```no_run
+//! use cust::prelude as cu;
+//! use optix::prelude as ox;
+//! # fn doit() -> Result<(), Box<dyn std::error::Error>> {
+//! # cust::init(cu::CudaFlags::empty())?;
+//! # ox::init()?;
+//! # let device = cu::Device::get_device(0)?;
+//! # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+//! # cu::ContextFlags::MAP_HOST, device)?;
+//! # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+//! # let vertices: Vec<[f32; 3]> = Vec::new();
+//! # let indices: Vec<[u32; 3]> = Vec::new();
+//! # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+//!
+//! let buf_vertex = cu::DeviceBuffer::from_slice(&vertices)?;
+//! let buf_indices = cu::DeviceBuffer::from_slice(&indices)?;
+//!
+//! let geometry_flags = ox::GeometryFlags::None;
+//!
+//! let build_inputs =
+//!     [ox::IndexedTriangleArray::new(
+//!         &[&buf_vertex],
+//!         &buf_indices,
+//!         &[geometry_flags]
+//!     )];
+//!
+//! let accel_options =
+//!     ox::AccelBuildOptions::new(
+//!         ox::BuildFlags::ALLOW_COMPACTION,
+//!         ox::BuildOperation::Build
+//!     );
+//!
+//! // Get the storage requirements for temporary and output buffers
+//! let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
+//!
+//! // Allocate temporary and output buffers
+//! let mut output_buffer =
+//!     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
+//! let mut temp_buffer =
+//!     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
+//!
+//! // Build the accel
+//! let hnd = unsafe {
+//!     accel_build(
+//!         ctx,
+//!         stream,
+//!         accel_options,
+//!         build_inputs,
+//!         &mut temp_buffer,
+//!         &mut output_buffer,
+//!         &mut properties,
+//!     )?
+//! };
+//!
+//! // The accel build is asynchronous
+//! stream.synchronize()?;
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! ## Primitive Build Inputs
 //! The [`accel_build`] function accepts multiple build inputs per call, but they
 //! must be all triangle inputs, all curve inputs, or all AABB inputs. Mixing build
@@ -266,7 +327,9 @@
 //! * In these cases, it is more efficient to re-build the geometry-AS and/or the
 //! instance-AS, or to use the respective masking and flags.
 //!
-//! Updating an acceleration structure requires that any other acceleration structure that is using this acceleration structure as a child directly or indirectly also needs to be updated or rebuild.
+//! Updating an acceleration structure requires that any other acceleration structure
+//! that is using this acceleration structure as a child directly or indirectly
+//! also needs to be updated or rebuild.
 
 use crate::{context::DeviceContext, error::Error, optix_call, sys};
 use cust::{
@@ -285,6 +348,58 @@ pub trait BuildInput: std::hash::Hash {
     fn to_sys(&self) -> sys::OptixBuildInput;
 }
 
+/// Wrapper struct containing the storage and handle for a static acceleration
+/// structure.
+///
+/// An Accel can be built by providing a slice of [`BuildInput`]s over which to
+/// build the acceleration structure, together with a matching slice of
+/// [`AccelBuildOptions`].
+///
+/// ```no_run
+/// use cust::prelude as cu;
+/// use optix::prelude as ox;
+/// # fn doit() -> Result<(), Box<dyn std::error::Error>> {
+/// # cust::init(cu::CudaFlags::empty())?;
+/// # ox::init()?;
+/// # let device = cu::Device::get_device(0)?;
+/// # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+/// # cu::ContextFlags::MAP_HOST, device)?;
+/// # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+/// # let vertices: Vec<[f32; 3]> = Vec::new();
+/// # let indices: Vec<[u32; 3]> = Vec::new();
+/// # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+///
+/// let buf_vertex = cu::DeviceBuffer::from_slice(&vertices)?;
+/// let buf_indices = cu::DeviceBuffer::from_slice(&indices)?;
+///
+/// let geometry_flags = ox::GeometryFlags::None;
+/// let triangle_input =
+///     ox::IndexedTriangleArray::new(
+///         &[&buf_vertex],
+///         &buf_indices,
+///         &[geometry_flags]
+///     );
+///
+/// let accel_options =
+///     ox::AccelBuildOptions::new(
+///         ox::BuildFlags::ALLOW_COMPACTION,
+///         ox::BuildOperation::Build
+///     );
+///
+/// let build_inputs = vec![triangle_input];
+///
+/// let gas = ox::Accel::build(
+///     &ctx,
+///     &stream,
+///     &[accel_options],
+///     &build_inputs,
+///     true
+/// )?;
+///
+/// stream.synchronize()?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct Accel {
     buf: DeviceBuffer<u8>,
     hnd: TraversableHandle,
@@ -298,6 +413,58 @@ impl Accel {
 
     /// Build and (optionally) compact the acceleration structure for the given
     /// `build_inputs`.
+    ///
+    /// This will handle all necessary memory allocation internally, synchronizing
+    /// all internal steps, but NOT the final build or compaction.
+    ///
+    /// If you want to re-use buffers between builds and line up multiple builds
+    /// at once for more performance/efficiency, you should use the unsafe api.
+    ///
+    /// ```no_run
+    /// use cust::prelude as cu;
+    /// use optix::prelude as ox;
+    /// # fn doit() -> Result<(), Box<dyn std::error::Error>> {
+    /// # cust::init(cu::CudaFlags::empty())?;
+    /// # ox::init()?;
+    /// # let device = cu::Device::get_device(0)?;
+    /// # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+    /// # cu::ContextFlags::MAP_HOST, device)?;
+    /// # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+    /// # let vertices: Vec<[f32; 3]> = Vec::new();
+    /// # let indices: Vec<[u32; 3]> = Vec::new();
+    /// # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+    ///
+    /// let buf_vertex = cu::DeviceBuffer::from_slice(&vertices)?;
+    /// let buf_indices = cu::DeviceBuffer::from_slice(&indices)?;
+    ///
+    /// let geometry_flags = ox::GeometryFlags::None;
+    /// let triangle_input =
+    ///     ox::IndexedTriangleArray::new(
+    ///         &[&buf_vertex],
+    ///         &buf_indices,
+    ///         &[geometry_flags]
+    ///     );
+    ///
+    /// let accel_options =
+    ///     ox::AccelBuildOptions::new(
+    ///         ox::BuildFlags::ALLOW_COMPACTION,
+    ///         ox::BuildOperation::Build
+    ///     );
+    ///
+    /// let build_inputs = vec![triangle_input];
+    ///
+    /// let gas = ox::Accel::build(
+    ///     &ctx,
+    ///     &stream,
+    ///     &[accel_options],
+    ///     &build_inputs,
+    ///     true
+    /// )?;
+    ///
+    /// stream.synchronize()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn build<I: BuildInput>(
         ctx: &DeviceContext,
         stream: &cust::stream::Stream,
@@ -349,6 +516,7 @@ impl Accel {
         }
     }
 
+    /// Construct a new Accel from a handle and buffer.
     pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Accel {
         Accel { buf, hnd }
     }
@@ -378,6 +546,8 @@ impl Accel {
     }
 }
 
+/// Acceleration structure supporting dynamic updates.
+///
 /// Building an acceleration structure can be computationally costly. Applications
 /// may choose to update an existing acceleration structure using modified vertex
 /// data or bounding boxes. Updating an existing acceleration structure is generally
@@ -404,7 +574,7 @@ impl DynamicAccel {
     /// Build and compact the acceleration structure for the given inputs.
     ///
     /// This forces the ALLOW_UPDATE flag for the build flags to make sure the
-    /// resulting accel can be updated
+    /// resulting accel can be updated.
     pub fn build<I: BuildInput>(
         ctx: &DeviceContext,
         stream: &cust::stream::Stream,
@@ -531,10 +701,6 @@ impl DynamicAccel {
 
         Ok(())
     }
-
-    pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Accel {
-        Accel { buf, hnd }
-    }
 }
 
 /// Opaque handle to a traversable acceleration structure.
@@ -552,7 +718,62 @@ pub struct TraversableHandle {
 
 /// Computes the device memory required for temporary and output buffers
 /// when building the acceleration structure. Use the returned sizes to
-/// allocate enough memory to pass to `accel_build()`
+/// allocate enough memory to pass to [`accel_build()`].
+///
+/// # Examples
+/// ```no_run
+/// use cust::prelude as cu;
+/// use optix::prelude as ox;
+/// # fn doit() -> Result<(), Box<dyn std::error::Error>> {
+/// # cust::init(cu::CudaFlags::empty())?;
+/// # ox::init()?;
+/// # let device = cu::Device::get_device(0)?;
+/// # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+/// # cu::ContextFlags::MAP_HOST, device)?;
+/// # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+/// # let vertices: Vec<[f32; 3]> = Vec::new();
+/// # let indices: Vec<[u32; 3]> = Vec::new();
+/// # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+/// let buf_vertex = DeviceBuffer::from_slice(&vertices)?;
+/// let buf_indices = DeviceBuffer::from_slice(&indices)?;
+///
+/// let geometry_flags = GeometryFlags::None;
+/// let build_inputs = [IndexedTriangleArray::new(
+///     &[&buf_vertex],
+///     &buf_indices,
+///     &[geometry_flags],
+/// )];
+/// let accel_options =
+///     AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
+///
+/// let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
+/// let mut output_buffer =
+///     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
+///
+/// let mut temp_buffer =
+///     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
+///
+/// let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+///
+/// let mut properties = vec![AccelEmitDesc::CompactedSize(
+///     compacted_size_buffer.as_device_ptr(),
+/// )];
+///
+/// let hnd = unsafe {
+///     accel_build(
+///         ctx,
+///         stream,
+///         accel_options,
+///         build_inputs,
+///         &mut temp_buffer,
+///         &mut output_buffer,
+///         &mut properties,
+///     )?
+/// };
+///
+/// # Ok(())
+/// # }
+/// ```
 pub fn accel_compute_memory_usage<I: BuildInput>(
     ctx: &DeviceContext,
     accel_options: &[AccelBuildOptions],
@@ -576,6 +797,61 @@ pub fn accel_compute_memory_usage<I: BuildInput>(
 /// Builds the acceleration structure.
 /// `temp_buffer` and `output_buffer` must be at least as large as the sizes
 /// returned by `accel_compute_memory_usage()`
+///
+/// # Examples
+/// ```no_run
+/// use cust::prelude as cu;
+/// use optix::prelude as ox;
+/// # fn doit() -> Result<(), Box<dyn std::error::Error>> {
+/// # cust::init(cu::CudaFlags::empty())?;
+/// # ox::init()?;
+/// # let device = cu::Device::get_device(0)?;
+/// # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+/// # cu::ContextFlags::MAP_HOST, device)?;
+/// # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+/// # let vertices: Vec<[f32; 3]> = Vec::new();
+/// # let indices: Vec<[u32; 3]> = Vec::new();
+/// # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+/// let buf_vertex = DeviceBuffer::from_slice(&vertices)?;
+/// let buf_indices = DeviceBuffer::from_slice(&indices)?;
+///
+/// let geometry_flags = GeometryFlags::None;
+/// let build_inputs = [IndexedTriangleArray::new(
+///     &[&buf_vertex],
+///     &buf_indices,
+///     &[geometry_flags],
+/// )];
+/// let accel_options =
+///     AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
+///
+/// let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
+/// let mut output_buffer =
+///     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
+///
+/// let mut temp_buffer =
+///     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
+///
+/// let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+///
+/// let mut properties = vec![AccelEmitDesc::CompactedSize(
+///     compacted_size_buffer.as_device_ptr(),
+/// )];
+///
+/// let hnd = unsafe {
+///     accel_build(
+///         ctx,
+///         stream,
+///         accel_options,
+///         build_inputs,
+///         &mut temp_buffer,
+///         &mut output_buffer,
+///         &mut properties,
+///     )?
+/// };
+///
+/// # Ok(())
+/// # }
+/// ```
 pub unsafe fn accel_build<I: BuildInput>(
     ctx: &DeviceContext,
     stream: &cust::stream::Stream,
@@ -611,6 +887,77 @@ pub unsafe fn accel_build<I: BuildInput>(
 /// Compacts the acceleration structure referenced by `input_handle`,
 /// storing the result in `output_buffer` and returning a handle to the
 /// newly compacted structure
+///
+/// # Examples
+/// ```no_run
+/// use cust::prelude as cu;
+/// use optix::prelude as ox;
+/// # fn doit() -> Result<(), Box<dyn std::error::Error>> {
+/// # cust::init(cu::CudaFlags::empty())?;
+/// # ox::init()?;
+/// # let device = cu::Device::get_device(0)?;
+/// # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+/// # cu::ContextFlags::MAP_HOST, device)?;
+/// # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+/// # let vertices: Vec<[f32; 3]> = Vec::new();
+/// # let indices: Vec<[u32; 3]> = Vec::new();
+/// # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+/// let buf_vertex = DeviceBuffer::from_slice(&vertices)?;
+/// let buf_indices = DeviceBuffer::from_slice(&indices)?;
+///
+/// let geometry_flags = GeometryFlags::None;
+/// let build_inputs = [IndexedTriangleArray::new(
+///     &[&buf_vertex],
+///     &buf_indices,
+///     &[geometry_flags],
+/// )];
+/// let accel_options =
+///     AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
+///
+/// let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
+/// let mut output_buffer =
+///     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
+///
+/// let mut temp_buffer =
+///     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
+///
+/// // Storage for the size of the compacted buffer
+/// let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+///
+/// // Tell OptiX that we want to know how big the compacted buffer needs to be
+/// let mut properties = vec![AccelEmitDesc::CompactedSize(
+///     compacted_size_buffer.as_device_ptr(),
+/// )];
+///
+/// let hnd = unsafe {
+///     accel_build(
+///         ctx,
+///         stream,
+///         accel_options,
+///         build_inputs,
+///         &mut temp_buffer,
+///         &mut output_buffer,
+///         &mut properties,
+///     )?
+/// };
+///
+/// // The build is asynchronous, so we need to block on the stream before
+/// // reading back the emitted compacted size
+/// stream.synchronize()?;
+///
+/// // Copy the returned size needed for the compacted buffer and allocate
+/// // storage
+/// let mut compacted_size = 0usize;
+/// compacted_size_buffer.copy_to(&mut compacted_size)?;
+///
+/// let mut buf = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
+///
+/// // Compact the accel structure.
+/// let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
+///
+/// # Ok(())
+/// # }
+/// ```
 pub unsafe fn accel_compact(
     ctx: &DeviceContext,
     stream: &cust::stream::Stream,
@@ -630,6 +977,16 @@ pub unsafe fn accel_compact(
 }
 
 bitflags::bitflags! {
+    /// Flags providing configuration options to acceleration structure build.
+    ///
+    /// * `ALLOW_UPDATE` - Must be provided if the accel is to support dynamic updates.
+    /// * `ALLOW_COMPACTION` - Must be provided to enable memory compaction for the accel.
+    /// * `PREFER_FAST_TRACE` - Accel build is slower, but tracing against it will be faster.
+    /// * `PREFER_FAST_BUILD` - Accel build is faster, but tracing against it will be slower.
+    /// * `ALLOW_RANDOM_VERTEX_ACCESS` - Must be provided to be able to get at vertex data from CH
+    /// an AH programs on the device. May affect the performance of the accel (seems to be larger).
+    ///
+    /// Note that `PREFER_FAST_TRACE` and `PREFER_FAST_BUILD` are mutually exclusive.
     pub struct BuildFlags: u32 {
         const NONE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_NONE;
         const ALLOW_UPDATE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_UPDATE;
@@ -640,6 +997,7 @@ bitflags::bitflags! {
     }
 }
 
+/// Select which operation to perform with [`accel_build()`].
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BuildOperation {
@@ -648,6 +1006,15 @@ pub enum BuildOperation {
 }
 
 bitflags::bitflags! {
+    /// Configure how to handle ray times that are outside of the provided motion keys.
+    ///
+    /// By default, the object will appear static (clamped) to the nearest motion
+    /// key for rays outside of the range of key times.
+    ///
+    /// * `START_VANISH` - The object will be invisible to rays with a time less
+    /// than the first provided motion key
+    /// * `END_VANISH` - The object will be invisible to rays with a time less
+    /// than the first provided motion key
     pub struct MotionFlags: u16 {
         const NONE = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_NONE as u16;
         const START_VANISH = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_START_VANISH as u16;
@@ -655,6 +1022,20 @@ bitflags::bitflags! {
     }
 }
 
+/// Provide an accel build with motion keys for motion blur.
+///
+/// The motion options are always specified per traversable (acceleration structure
+/// or motion transform). There is no dependency between the motion options of
+/// traversables; given an instance referencing a geometry acceleration structure
+/// with motion, it is not required to build an instance acceleration structure
+/// with motion. The same goes for motion transforms. Even if an instance references
+/// a motion transform as child traversable, the instance acceleration structure
+/// itself may or may not have motion.
+///
+/// Motion transforms must specify at least two motion keys. Acceleration structures,
+/// however, also accept [`BuildOptions`] with field `motion_options` set
+/// to zero. This effectively disables motion for the acceleration structure and
+/// ignores the motion beginning and ending times, along with the motion flags.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct MotionOptions {
@@ -664,6 +1045,7 @@ pub struct MotionOptions {
     pub time_end: f32,
 }
 
+/// Options to configure the [`accel_build()`]
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct AccelBuildOptions {
@@ -673,6 +1055,8 @@ pub struct AccelBuildOptions {
 }
 
 impl AccelBuildOptions {
+    /// Create a new AccelBuildOptions with the given flags and operation and
+    /// no motion blur.
     pub fn new(build_flags: BuildFlags, operation: BuildOperation) -> Self {
         AccelBuildOptions {
             build_flags,
@@ -686,17 +1070,22 @@ impl AccelBuildOptions {
         }
     }
 
+    /// Set the number of motion keys.
+    ///
+    /// This must either be 0 for no motion blur, or >= 2.
     pub fn num_keys(mut self, num_keys: u16) -> Self {
         self.motion_options.num_keys = num_keys;
         self
     }
 
+    /// Set the start and end time that the first and last motion keys represent.
     pub fn time_interval(mut self, time_begin: f32, time_end: f32) -> Self {
         self.motion_options.time_begin = time_begin;
         self.motion_options.time_end = time_end;
         self
     }
 
+    /// Set the flags describing how to handle out-of-range time samples.
     pub fn motion_flags(mut self, flags: MotionFlags) -> Self {
         self.motion_options.flags = flags;
         self
@@ -720,6 +1109,8 @@ pub struct AccelRelocationInfo {
     inner: sys::OptixAccelRelocationInfo,
 }
 
+/// Struct used for OptiX to communicate the necessary buffer sizes for accel
+/// temp and final outputs.
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct AccelBufferSizes {
@@ -728,11 +1119,26 @@ pub struct AccelBufferSizes {
     pub temp_update_size_in_bytes: usize,
 }
 
+/// Struct used for Optix to communicate the compacted size or list of bounding
+/// boxes back from an accel build.
+///
+/// # Examples
+/// // Copy the returned size needed for the compacted buffer and allocate
+/// // storage
+/// let mut compacted_size = 0usize;
+/// compacted_size_buffer.copy_to(&mut compacted_size)?;
+///
+/// let mut buf = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
+///
+/// // Compact the accel structure.
+/// let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
+
 pub enum AccelEmitDesc {
     CompactedSize(DevicePointer<usize>),
     Aabbs(DevicePointer<Aabb>),
 }
 
+/// Struct representing a bounding box.
 #[repr(C)]
 #[derive(DeviceCopy, Copy, Clone)]
 pub struct Aabb {
@@ -759,6 +1165,23 @@ impl From<&mut AccelEmitDesc> for sys::OptixAccelEmitDesc {
     }
 }
 
+/// Per-geometry tracing requirements used to allow potential optimizations.
+///
+/// * `GeometryFlags::None` - Applies the default behavior when calling the
+///     any-hit program, possibly multiple times, allowing the acceleration-structure
+///     builder to apply all optimizations.
+/// * `GeometryFlags::DisableAnyHit` - Disables some optimizations specific to
+///     acceleration-structure builders. By default, traversal may call the any-hit
+///     program more than once for each intersected primitive. Setting the flag
+///     ensures that the any-hit program is called only once for a hit with a primitive.
+///     However, setting this flag may change traversal performance. The usage of
+///     this flag may be required for correctness of some rendering algorithms;
+///     for example, in cases where opacity or transparency information is accumulated
+///     in an any-hit program.
+/// * `GeometryFlags::RequireSingleAnyHitCall` - Indicates that traversal should
+///     not call the any-hit program for this primitive even if the corresponding SBT
+///     record contains an any-hit program. Setting this flag usually improves
+///     performance even if no any-hit program is present in the SBT.
 #[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Hash)]
 pub enum GeometryFlags {
