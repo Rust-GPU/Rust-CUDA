@@ -244,6 +244,10 @@ impl Module {
         }
     }
 
+    /// Returns a module containing the intersection program for the built-in
+    /// primitive type specified by the builtinISOptions. This module must be used
+    /// as the moduleIS for the OptixProgramGroupHitgroup in any SBT record for
+    /// that primitive type.
     pub fn builtin_is_module_get(
         ctx: &mut DeviceContext,
         module_compile_options: &ModuleCompileOptions,
