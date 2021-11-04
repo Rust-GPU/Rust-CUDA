@@ -196,6 +196,7 @@ pub enum Error {
     ProgramGroupCreation { source: OptixError, log: String },
     PipelineCreation { source: OptixError, log: String },
     AccelUpdateMismatch,
+    NulBytesInString,
 }
 
 impl From<OptixError> for Error {
@@ -219,6 +220,7 @@ impl std::error::Error for Error {
             Self::ProgramGroupCreation { source, .. } => Some(source),
             Self::PipelineCreation { source, .. } => Some(source),
             Self::AccelUpdateMismatch => None,
+            Self::NulBytesInString => None,
         }
     }
 }
@@ -234,6 +236,7 @@ impl Display for Error {
             }
             Self::PipelineCreation { log, .. } => write!(f, "Pipeline creation error: {}", log),
             Self::AccelUpdateMismatch => write!(f, "Build inputs passed to DynamicAccel::update do not match the structure of those used to build the accel"),
+            Self::NulBytesInString => write!(f, "The provided string contained nul bytes"),
         }
     }
 }
