@@ -21,11 +21,13 @@ pub struct Accel {
 }
 
 impl Accel {
+    /// Get the [`TraversableHandle`] that represents this accel.
     pub fn handle(&self) -> TraversableHandle {
         self.hnd
     }
 
-    /// Build and compact the acceleration structure for the given inputs.
+    /// Build and (optionally) compact the acceleration structure for the given
+    /// `build_inputs`.
     pub fn build<I: BuildInput>(
         ctx: &DeviceContext,
         stream: &cust::stream::Stream,
@@ -79,6 +81,30 @@ impl Accel {
 
     pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Accel {
         Accel { buf, hnd }
+    }
+
+    /// Obtain opaque relocation information for this accel in the given [`DeviceContext`].
+    ///
+    /// The location information may be passed to
+    /// [`check_relocation_compatibility()`](Accel::check_relocation_compatibility) to
+    /// determine if this acceleration structure can be relocated to a different device's
+    /// memory space.
+    ///
+    /// When used with [`relocate`](Accel::relocate) it provides the data necessary
+    /// for doing the relocation.
+    ///
+    /// If this acceleration structure is copied multiple times, the same
+    /// [`AccelRelocationInfo`] can also be used on all copies.
+    pub fn get_relocation_info(&self, ctx: &DeviceContext) -> Result<AccelRelocationInfo> {
+        let mut inner = sys::OptixAccelRelocationInfo::default();
+        unsafe {
+            Ok(optix_call!(optixAccelGetRelocationInfo(
+                ctx.raw,
+                self.hnd.inner,
+                &mut inner
+            ))
+            .map(|_| AccelRelocationInfo { inner })?)
+        }
     }
 }
 
@@ -178,10 +204,11 @@ impl DynamicAccel {
 
     /// Update the acceleration structure
     ///
-    /// Note that the `build_inputs` here must match the topology of those that
-    /// were supplied to [`build`](DynamicAccel::build)
-    ///
     /// This forces the build operation to Update.
+    ///
+    /// # Errors
+    /// * [`Error::AccelUpdateMismatch`] - if the provided `build_inputs` do
+    /// not match the structure of those provided to [`build()`](DynamicAccel::build)
     pub fn update<I: BuildInput>(
         &mut self,
         ctx: &DeviceContext,
@@ -198,7 +225,9 @@ impl DynamicAccel {
         build_inputs.hash(&mut hasher);
         let hash = hasher.finish();
 
-        if hash != self.hash {}
+        if hash != self.hash {
+            return Err(Error::AccelUpdateMismatch);
+        }
 
         let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
         let mut output_buffer =
@@ -402,6 +431,23 @@ impl AccelBuildOptions {
         self.motion_options.flags = flags;
         self
     }
+}
+
+/// Opaque relocation information for an [`Accel`] in a given [`DeviceContext`].
+///
+/// The location information may be passed to
+/// [`check_relocation_compatibility()`](Accel::check_relocation_compatibility) to
+/// determine if the associated acceleration structure can be relocated to a different device's
+/// memory space.
+///
+/// When used with [`relocate`](Accel::relocate) it provides the data necessary
+/// for doing the relocation.
+///
+/// If the acceleration structure is copied multiple times, the same
+/// [`AccelRelocationInfo`] can also be used on all copies.
+#[repr(transparent)]
+pub struct AccelRelocationInfo {
+    inner: sys::OptixAccelRelocationInfo,
 }
 
 #[repr(C)]
