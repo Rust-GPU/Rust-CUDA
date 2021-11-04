@@ -10,19 +10,19 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
-pub struct CustomPrimitiveArray<'a, 'g, 's> {
+pub struct CustomPrimitiveArray<'a, 's> {
     aabb_buffers: Vec<CUdeviceptr>,
     aabb_buffers_marker: PhantomData<&'a Aabb>,
     num_primitives: u32,
     stride_in_bytes: u32,
-    flags: &'g [GeometryFlags],
+    flags: Vec<GeometryFlags>,
     num_sbt_records: u32,
     sbt_index_offset_buffer: Option<&'s DeviceSlice<u32>>,
     sbt_index_offset_stride_in_bytes: u32,
     primitive_index_offset: u32,
 }
 
-impl<'a, 'g, 's> Hash for CustomPrimitiveArray<'a, 'g, 's> {
+impl<'a, 'g, 's> Hash for CustomPrimitiveArray<'a, 's> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(self.aabb_buffers.len());
         state.write_u32(self.num_primitives);
@@ -39,11 +39,11 @@ impl<'a, 'g, 's> Hash for CustomPrimitiveArray<'a, 'g, 's> {
     }
 }
 
-impl<'a, 'g, 's> CustomPrimitiveArray<'a, 'g, 's> {
+impl<'a, 's> CustomPrimitiveArray<'a, 's> {
     pub fn new(
         aabb_buffers: &[&'a DeviceSlice<Aabb>],
-        flags: &'g [GeometryFlags],
-    ) -> Result<CustomPrimitiveArray<'a, 'g, 's>> {
+        flags: &[GeometryFlags],
+    ) -> Result<CustomPrimitiveArray<'a, 's>> {
         let num_primitives = aabb_buffers.len() as u32;
         let aabb_buffers: Vec<_> = aabb_buffers.iter().map(|b| b.as_device_ptr()).collect();
 
@@ -52,7 +52,7 @@ impl<'a, 'g, 's> CustomPrimitiveArray<'a, 'g, 's> {
             aabb_buffers_marker: PhantomData,
             num_primitives,
             stride_in_bytes: 0,
-            flags,
+            flags: flags.to_vec(),
             num_sbt_records: 1,
             sbt_index_offset_buffer: None,
             sbt_index_offset_stride_in_bytes: 0,
@@ -89,7 +89,7 @@ impl<'a, 'g, 's> CustomPrimitiveArray<'a, 'g, 's> {
     }
 }
 
-impl<'a, 'g, 's> BuildInput for CustomPrimitiveArray<'a, 'g, 's> {
+impl<'a, 's> BuildInput for CustomPrimitiveArray<'a, 's> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         sys::OptixBuildInput {
             type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
