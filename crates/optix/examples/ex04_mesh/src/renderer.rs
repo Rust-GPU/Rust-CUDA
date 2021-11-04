@@ -47,7 +47,7 @@ impl Renderer {
             CuContext::create_and_push(ContextFlags::SCHED_AUTO | ContextFlags::MAP_HOST, device)?;
         let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
-        let mut ctx = DeviceContext::new(&cuda_context)?;
+        let mut ctx = DeviceContext::new(&cuda_context, true)?;
         ctx.set_log_callback(|_level, tag, msg| println!("[{}]: {}", tag, msg), 4)?;
 
         // create module
@@ -114,11 +114,8 @@ impl Renderer {
         let buf_indices = DeviceBuffer::from_slice(&indices)?;
 
         let geometry_flags = GeometryFlags::None;
-        let triangle_input = IndexedTriangleArray::new(
-            &[&buf_vertex],
-            &buf_indices,
-            std::slice::from_ref(&geometry_flags),
-        );
+        let triangle_input =
+            IndexedTriangleArray::new(&[&buf_vertex], &buf_indices, &[geometry_flags]);
 
         let accel_options =
             AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
