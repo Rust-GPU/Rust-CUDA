@@ -61,15 +61,15 @@ macro_rules! optix_call {
     }};
 }
 
-/// Launch the given [Pipeline] on the given [Stream](cu::Stream).
+/// Launch the given [`Pipeline`](pipeline::Pipeline) on the given [`Stream`](cust::stream::Stream).
 ///
 /// # Safety
 /// You must ensure that:
-/// - Any [ProgramGroup]s referenced by the [Pipeline] are still alive
-/// - Any [DevicePtr]s contained in `buf_launch_params` point to valid,
+/// - Any [`ProgramGroup`](program_group::ProgramGroup)s referenced by the [`Pipeline`](pipeline::Pipeline) are still alive
+/// - Any device memory referenced in `buf_launch_params` point to valid,
 ///   correctly aligned memory
-/// - Any [SbtRecord]s and associated data referenced by the
-///   [OptixShaderBindingTable] are alive and valid
+/// - Any [`SbtRecord`](shader_binding_table::SbtRecord)s and associated data referenced by the
+///   [`ShaderBindingTable`](shader_binding_table::ShaderBindingTable) are alive and valid
 pub unsafe fn launch<P: cust::memory::DeviceCopy>(
     pipeline: &crate::pipeline::Pipeline,
     stream: &cust::stream::Stream,
