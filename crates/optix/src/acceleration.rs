@@ -1,3 +1,273 @@
+//! # Acceleration Structures
+//!
+//! NVIDIA OptiX 7 provides acceleration structures to optimize the search for the
+//! intersection of rays with the geometric data in the scene. Acceleration structures
+//! can contain two types of data: geometric primitives (a geometry-AS) or instances
+//! (an instance-AS). Acceleration structures are created on the device using a set
+//! of functions. These functions enable overlapping and pipelining of acceleration
+//! structure creation, called a build. The functions use one or more [`BuildInput`]
+//! structs to specify the geometry plus a set of parameters to control the build.
+//!
+//! Acceleration structures have size limits, listed in “Limits”. For an instance
+//! acceleration structure, the number of instances has an upper limit. For a geometry
+//! acceleration structure, the number of geometric primitives is limited,
+//! specifically the total number of primitives in its build inputs, multiplied by the
+//! number of motion keys.
+//!  
+//! The following acceleration structure types are supported:
+//!
+//! #### Instance acceleration structures
+//! - [`InstanceArray`](crate::instance_array::InstanceArray)
+//! - [`InstancePointerArray`](crate::instance_array::InstancePointerArray)
+//!
+//! #### Geometry acceleration structure containing built-in triangles
+//! - [`TriangleArray`](crate::triangle_array::TriangleArray)
+//! - [`IndexedTriangleArray`](crate::triangle_array::IndexedTriangleArray)
+//!
+//! #### Geometry acceleration structure containing built-in curves
+//! - [`CurveArray`](crate::curve_array::CurveArray)
+//!
+//! #### Geometry acceleration structure containing custom primitives
+//! - [`CustomPrimitiveArray`](crate::custom_primitive_array::CustomPrimitiveArray)
+//!
+//! ## Building
+//!
+//! For geometry-AS builds, each build input can specify a set of triangles, a set
+//! of curves, or a set of user-defined primitives bounded by specified axis-aligned
+//! bounding boxes. Multiple build inputs can be passed as an array to [`accel_build`]
+//! to combine different meshes into a single acceleration structure. All build
+//! inputs for a single build must agree on the build input type.
+//!
+//! Instance acceleration structures have a single build input and specify an array
+//! of instances. Each [`Instance`](crate::instance_array::Instance) includes a ray transformation and an
+//! [`TraversableHandle`] that refers to a geometry-AS, a transform node, or another
+//! instance acceleration structure.
+//!
+//! ### Safe API
+//!
+//! The easiest way to build an acceleration structure is using [`Accel::build`]
+//! to which you just pass a slice of [`BuildInput`]s and the function handles
+//! memory allocation and synchronization for you.
+//!
+//! This is handy for getting something working with the minimum of fuss, but
+//! means reallocating temporary storage each time. It also means synchronizing
+//! after each build rather than potentially processing many builds on a stream
+//! and synchronizing at the end.
+//!
+//! ```no_run
+//! use cust::prelude as cu;
+//! use optix::prelude as ox;
+//! # fn doit() -> Result<(), Box<dyn std::error::Error>> {
+//! # cust::init(cu::CudaFlags::empty())?;
+//! # ox::init()?;
+//! # let device = cu::Device::get_device(0)?;
+//! # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+//! # cu::ContextFlags::MAP_HOST, device)?;
+//! # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+//! # let vertices: Vec<[f32; 3]> = Vec::new();
+//! # let indices: Vec<[u32; 3]> = Vec::new();
+//! # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+//!
+//! let buf_vertex = cu::DeviceBuffer::from_slice(&vertices)?;
+//! let buf_indices = cu::DeviceBuffer::from_slice(&indices)?;
+//!
+//! let geometry_flags = ox::GeometryFlags::None;
+//! let triangle_input =
+//!     ox::IndexedTriangleArray::new(
+//!         &[&buf_vertex],
+//!         &buf_indices,
+//!         &[geometry_flags]
+//!     );
+//!
+//! let accel_options =
+//!     ox::AccelBuildOptions::new(
+//!         ox::BuildFlags::ALLOW_COMPACTION,
+//!         ox::BuildOperation::Build
+//!     );
+//!
+//! let build_inputs = vec![triangle_input];
+//!
+//! let gas = ox::Accel::build(
+//!     &ctx,
+//!     &stream,
+//!     &[accel_options],
+//!     &build_inputs,
+//!     true
+//! )?;
+//!
+//! stream.synchronize()?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Unsafe API
+//!
+//! As an alternative, you can also use the unsafe functions [`accel_build`],
+//! [`accel_compact`], and [`Accel::from_raw_parts`] to handle the memory
+//! allocation yourself, meaning you can reuse buffers between accel builds.
+//!
+//! To prepare for a build, the required memory sizes are queried by passing an
+//! initial set of build inputs and parameters to [`accel_compute_memory_usage`].
+//! It returns three different sizes:
+//!
+//! * `output_size_in_bytes` - Size of the memory region where the resulting
+//! acceleration structure is placed. This size is an upper bound and may be
+//! substantially larger than the final acceleration structure. (See “Compacting acceleration structures”.)
+//! * `temp_size_in_bytes` - Size of the memory region that is temporarily used during
+//! the build.
+//! * `temp_update_size_in_bytes` - Size of the memory region that is temporarily
+//! required to update the acceleration structure.
+//!
+//! Using these sizes, the application allocates memory for the output and temporary
+//! memory buffers on the device. The pointers to these buffers must be aligned to
+//! a 128-byte boundary. These buffers are actively used for the duration of the
+//! build. For this reason, they cannot be shared with other currently active build
+//! requests.
+//!
+//! Note that [`accel_compute_memory_usage`] does not initiate any activity on the
+//! device; pointers to device memory or contents of input buffers are not required to point to allocated memory.
+//!
+//! The function [`accel_build`] takes the same array of [`BuildInput`] structs as
+//! [`accel_compute_memory_usage`] and builds a single acceleration structure from
+//! these inputs. This acceleration structure can contain either geometry or
+//! instances, depending on the inputs to the build.
+//!
+//! The build operation is executed on the device in the specified CUDA stream and
+//! runs asynchronously on the device, similar to CUDA kernel launches. The
+//! application may choose to block the host-side thread or synchronize with other
+//! CUDA streams by using available CUDA synchronization functionality such as
+//! [`Stream::synchronize()`](cust::stream::Stream::synchronize) or CUDA events.
+//! The traversable handle returned is computed on the host and is returned from
+//! the function immediately, without waiting for the build to finish. By producing
+//! handles at acceleration time, custom handles can also be generated based on
+//! input to the builder.
+//!
+//! The acceleration structure constructed by [`accel_build`] does not reference
+//! any of the device buffers referenced in the build inputs. All relevant data
+//! is copied from these buffers into the acceleration output buffer, possibly in
+//! a different format.
+//!
+//! The application is free to release this memory after the build without
+//! invalidating the acceleration structure. However, instance-AS builds will
+//! continue to refer to other instance-AS and geometry-AS instances and transform
+//! nodes.
+//!
+//! ## Primitive Build Inputs
+//! The [`accel_build`] function accepts multiple build inputs per call, but they
+//! must be all triangle inputs, all curve inputs, or all AABB inputs. Mixing build
+//! input types in a single geometry-AS is not allowed.
+//!
+//! Each build input maps to one or more consecutive records in the shader binding
+//! table (SBT), which controls program dispatch. (See “Shader binding table”.) If
+//! multiple records in the SBT are required, the application needs to provide a
+//! device buffer with per-primitive SBT record indices for that build input. If
+//! only a single SBT record is requested, all primitives reference this same unique
+//! SBT record. Note that there is a limit to the number of referenced SBT records
+//! per geometry-AS. (Limits are discussed in “Limits”.)
+//!
+//! Each build input also specifies an array of OptixGeometryFlags, one for each SBT
+//! record. The flags for one record apply to all primitives mapped to this SBT record.
+//!
+//! The following flags are supported:
+//!
+//! * [`GeometryFlags::None`] - Applies the default behavior when calling the any-hit
+//! program, possibly multiple times, allowing the acceleration-structure builder
+//! to apply all optimizations.
+//! * [`GeometryFlags::RequireSingleAnyHitCall`] - Disables some optimizations
+//! specific to acceleration-structure builders. By default, traversal may call
+//! the any-hit program more than once for each intersected primitive. Setting
+//! the flag ensures that the any-hit program is called only once for a hit with a
+//! primitive. However, setting this flag may change traversal performance. The
+//! usage of this flag may be required for correctness of some rendering algorithms;
+//! for example, in cases where opacity or transparency information is accumulated
+//! in an any-hit program.
+//! * [`GeometryFlags::DisableAnyHit`] - Indicates that traversal should not call
+//! the any-hit program for this primitive even if the corresponding SBT record
+//! contains an any-hit program. Setting this flag usually improves performance
+//! even if no any-hit program is present in the SBT.
+//!
+//! Primitives inside a build input are indexed starting from zero. This primitive
+//! index is accessible inside the intersection, any-hit, and closest-hit programs.
+//! If the application chooses to offset this index for all primitives in a build
+//! input, there is no overhead at runtime. This can be particularly useful when
+//! data for consecutive build inputs is stored consecutively in device memory.
+//! The `primitive_index_offset` value is only used when reporting the intersection
+//! primitive.
+//!
+//! ## Build Flags
+//!
+//! An acceleration structure build can be controlled using the values of the
+//! [`BuildFlags`] enum. To enable random vertex access on an acceleration structure,
+//! use [`BuildFlags::ALLOW_RANDOM_VERTEX_ACCESS`]. (See “Vertex random access”.)
+//! To steer trade-offs between build performance, runtime traversal performance
+//! and acceleration structure memory usage, use [`BuildFlags::PREFER_FAST_TRACE`]
+//! and [`BuildFlags::PREFER_FAST_BUILD`]. For curve primitives in particular,
+//! these flags control splitting; see “Splitting curve segments”.
+//!
+//! The flags [`BuildFlags::PREFER_FAST_TRACE`] and [`BuildFlags::PREFER_FAST_BUILD`]
+//! are mutually exclusive. To combine multiple flags that are not mutually exclusive,
+//! use the logical “or” operator.
+//!
+//! ## Dynamic Updates
+//!
+//! Building an acceleration structure can be computationally costly. Applications
+//! may choose to update an existing acceleration structure using modified vertex
+//! data or bounding boxes. Updating an existing acceleration structure is generally
+//! much faster than rebuilding. However, the quality of the acceleration structure
+//! may degrade if the data changes too much with an update, for example, through
+//! explosions or other chaotic transitions—even if for only parts of the mesh.
+//! The degraded acceleration structure may result in slower traversal performance
+//! as compared to an acceleration structure built from scratch from the modified
+//! input data.
+//!
+//! ### Safe API
+//!
+//! The simplest way to use dynamic updates is with the [`DynamicAccel`] structure.
+//! Simply call [`DynamicAccel::new()`] as you would with [`Accel`], and then
+//! call [`DynamicAccel::update()`] with the updated build inputs when you want
+//! to update the acceleration structure.
+//!
+//! Note that the inputs to [`DynamicAccel::update`] must have the same structure,
+//! i.e. the number of motion keys, aabbs, triangle topology etc must be the same,
+//! although the underlying data (including the data pointers) can be different.
+//! If the data have a different structure, then behaviour is undefined.
+//! [`DynamicAccel`] checks this by hashing the inputs and returns an error if
+//! the data do not match.
+//!
+//! ### Unsafe API
+//!
+//! To allow for future updates of an acceleration structure, set
+//! [`BuildFlags::ALLOW_UPDATE`] in the build flags when building the acceleration
+//! structure initially.
+//!
+//! To update the previously built acceleration structure, set the operation to
+//! [`BuildOperation::Update`] and then call [`accel_build()`] on the same output
+//! data. All other options are required to be identical to the original build.
+//! The update is done in-place on the output data.
+//!
+//! Updating an acceleration structure usually requires a different amount of temporary memory than the original build.
+//!
+//! When updating an existing acceleration structure, only the device pointers and/or
+//! their buffer content may be changed. You cannot change the number of build inputs,
+//! the build input types, build flags, traversable handles for instances (for an
+//! instance-AS), or the number of vertices, indices, AABBs, instances, SBT records
+//! or motion keys. Changes to any of these things may result in undefined behavior,
+//! including GPU faults.
+//!
+//! Note the following:
+//!
+//! * When using indices, changing the connectivity or, in general, using shuffled
+//! vertex positions will work, but the quality of the acceleration structure will
+//! likely degrade substantially.
+//! * During an animation operation, geometry that should be invisible to the camera
+//! should not be “removed” from the scene, either by moving it very far away or
+//! by converting it into a degenerate form. Such changes to the geometry will also
+//! degrade the acceleration structure.
+//! * In these cases, it is more efficient to re-build the geometry-AS and/or the
+//! instance-AS, or to use the respective masking and flags.
+//!
+//! Updating an acceleration structure requires that any other acceleration structure that is using this acceleration structure as a child directly or indirectly also needs to be updated or rebuild.
+
 use crate::{context::DeviceContext, error::Error, optix_call, sys};
 use cust::{
     memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer, DeviceSlice},
