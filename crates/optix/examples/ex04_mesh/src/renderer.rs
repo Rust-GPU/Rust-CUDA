@@ -5,18 +5,18 @@ use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer};
 use cust::stream::{Stream, StreamFlags};
 use cust::{CudaFlags, DeviceCopy};
 use optix::{
+    acceleration::IndexedTriangleArray,
     acceleration::{
-        Accel, AccelBuildOptions, BuildFlags, BuildOperation, GeometryFlags, TraversableHandle,
+        Accel, AccelBuildOptions, BuildFlags, BuildOperation, GeometryFlags, Traversable,
+        TraversableHandle,
     },
     context::DeviceContext,
-    module::{
+    pipeline::{
         CompileDebugLevel, CompileOptimizationLevel, ExceptionFlags, Module, ModuleCompileOptions,
-        PipelineCompileOptions, TraversableGraphFlags,
+        Pipeline, PipelineCompileOptions, PipelineLinkOptions, ProgramGroup, ProgramGroupDesc,
+        TraversableGraphFlags,
     },
-    pipeline::{Pipeline, PipelineLinkOptions},
-    program_group::{ProgramGroup, ProgramGroupDesc},
     shader_binding_table::{SbtRecord, ShaderBindingTable},
-    triangle_array::IndexedTriangleArray,
 };
 
 use glam::{ivec2, vec3, IVec2, IVec3, Vec3, Vec4};
@@ -114,14 +114,15 @@ impl Renderer {
         let buf_indices = DeviceBuffer::from_slice(&indices)?;
 
         let geometry_flags = GeometryFlags::None;
-        let triangle_input =
-            IndexedTriangleArray::new(&[&buf_vertex], &buf_indices, &[geometry_flags]);
-
+        let build_inputs = [IndexedTriangleArray::new(
+            &[&buf_vertex],
+            &buf_indices,
+            &[geometry_flags],
+        )];
         let accel_options =
             AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
 
-        let build_inputs = vec![triangle_input];
-
+        // build and compact the GAS
         let gas = Accel::build(&ctx, &stream, &[accel_options], &build_inputs, true)?;
 
         stream.synchronize()?;
@@ -239,7 +240,7 @@ impl Renderer {
             optix::launch(
                 &self.pipeline,
                 &self.stream,
-                &mut self.buf_launch_params,
+                self.buf_launch_params.as_device_ptr(),
                 &self.sbt,
                 self.launch_params.frame.size.x as u32,
                 self.launch_params.frame.size.y as u32,

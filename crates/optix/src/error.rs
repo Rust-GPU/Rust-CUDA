@@ -197,6 +197,7 @@ pub enum Error {
     PipelineCreation { source: OptixError, log: String },
     AccelUpdateMismatch,
     NulBytesInString,
+    TooFewMotionKeys(usize),
 }
 
 impl From<OptixError> for Error {
@@ -221,6 +222,7 @@ impl std::error::Error for Error {
             Self::PipelineCreation { source, .. } => Some(source),
             Self::AccelUpdateMismatch => None,
             Self::NulBytesInString => None,
+            Self::TooFewMotionKeys(_) => None,
         }
     }
 }
@@ -237,6 +239,7 @@ impl Display for Error {
             Self::PipelineCreation { log, .. } => write!(f, "Pipeline creation error: {}", log),
             Self::AccelUpdateMismatch => write!(f, "Build inputs passed to DynamicAccel::update do not match the structure of those used to build the accel"),
             Self::NulBytesInString => write!(f, "The provided string contained nul bytes"),
+            Self::TooFewMotionKeys(num) => write!(f, "Provided too few motion keys ({}) for transform. Must provide at least 2", num),
         }
     }
 }

@@ -1,19 +1,55 @@
+//! # OptiX
+//!
+//! <div style = "background-color: #fff7e1; padding: 0; margin-bottom: 1em">
+//! <span style="float:left; font-size: 4em; padding-left: 0.25em; padding-right: 0.25em;">!</span>
+//! <p style = "padding: 1em">
+//! You must call <code>optix::init()</code> before calling any of the functions
+//! in this crate in order to load the necessary symbols from the driver.
+//! </p>
+//! </div>
+//!
+//! Rust bindings for NVIDIA's OptiX GPU raytracing library.
+//!
+//! For introductory documentation to the high-level concepts please see the
+//! [introduction](crate::introduction) module documentation. Additional
+//! high-level documentation is available in the individual modules:
+//!
+//! * [1. Introduction](introduction)
+//! * [2. Context](context)
+//! * [3. Acceleration Structures](acceleration)
+//! * [4. Program Pipeline Creation](pipeline)
+//! * [5. Shader Binding Table](shader_binding_table)
+//! * [6. Ray Generation Launches](launch)
+
+#[doc = ::embed_doc_image::embed_image!("optix_programs", "images/optix_programs.jpg")]
+#[doc = ::embed_doc_image::embed_image!("traversables_graph", "images/traversables_graph.jpg")]
+#[doc = include_str!("introduction.md")]
+pub mod introduction {}
+
+#[doc = include_str!("acceleration.md")]
 pub mod acceleration;
+
+#[doc = include_str!("context.md")]
 pub mod context;
-pub mod curve_array;
-pub mod custom_primitive_array;
+
+#[doc = include_str!("denoiser.md")]
 pub mod denoiser;
+
+/// Error handling
 pub mod error;
-pub mod instance_array;
-pub mod module;
+
+#[doc = include_str!("pipeline.md")]
 pub mod pipeline;
 pub mod prelude;
-pub mod program_group;
+
+#[doc = ::embed_doc_image::embed_image!("example_sbt", "images/example_sbt.png")]
+#[doc = ::embed_doc_image::embed_image!("scene_graph", "images/scene_graph.png")]
+#[doc = include_str!("shader_binding_table.md")]
 pub mod shader_binding_table;
 pub mod sys;
-pub mod triangle_array;
 
 pub use cust;
+use cust::memory::DevicePointer;
 use error::{Error, ToResult};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -64,17 +100,31 @@ macro_rules! optix_call {
 
 /// Launch the given [`Pipeline`](pipeline::Pipeline) on the given [`Stream`](cust::stream::Stream).
 ///
+/// A ray generation launch is the primary workhorse of the NVIDIA OptiX API. A launch invokes a 1D, 2D or 3D array of threads on the device and invokes ray generation programs for each thread. When the ray generation program invokes optixTrace, other programs are invoked to execute traversal, intersection, any-hit, closest-hit, miss and exception programs until the invocations are complete.
+///
+/// A pipeline requires device-side memory for each launch. This space is allocated and managed by the API. Because launch resources may be shared between pipelines, they are only guaranteed to be freed when the [`DeviceContext`] is destroyed.
+///
+/// All launches are asynchronous, using [`CUDA stream`]s. When it is necessary to implement synchronization, use the mechanisms provided by CUDA streams and events.
+///
+/// In addition to the pipeline object, the CUDA stream, and the launch state, it is necessary to provide information about the SBT layout using the [`ShaderBindingTable`](crate::shader_binding_table::ShaderBindingTable) struct (see [Shader Binding Table](crate::shader_binding_table)).
+///
+/// The value of the pipeline launch parameter is specified by the `pipeline_launch_params_variable_name` field of the [`PipelineCompileOptions`](crate::pipeline::PipelineCompileOptions) struct. It is determined at launch with a [`DevicePointer`](cust::memory::DevicePointer) parameter, named `pipeline_params`]. This must be the same size as that passed to the module compilation or an error will occur.
+///
+/// The kernel creates a copy of `pipeline_params` before the launch, so the kernel is allowed to modify `pipeline_params` values during the launch. This means that subsequent launches can run with modified pipeline parameter values. Users cannot synchronize with this copy between the invocation of `launch()` and the start of the kernel.
+///
 /// # Safety
 /// You must ensure that:
-/// - Any [`ProgramGroup`](program_group::ProgramGroup)s referenced by the [`Pipeline`](pipeline::Pipeline) are still alive
 /// - Any device memory referenced in `buf_launch_params` point to valid,
 ///   correctly aligned memory
 /// - Any [`SbtRecord`](shader_binding_table::SbtRecord)s and associated data referenced by the
 ///   [`ShaderBindingTable`](shader_binding_table::ShaderBindingTable) are alive and valid
+///
+/// [`CUDA stream`]: cust::stream::Stream
+/// [`DeviceContext`]: crate::context::DeviceContext
 pub unsafe fn launch<P: cust::memory::DeviceCopy>(
     pipeline: &crate::pipeline::Pipeline,
     stream: &cust::stream::Stream,
-    buf_launch_params: &mut cust::memory::DeviceBox<P>,
+    pipeline_params: DevicePointer<P>,
     sbt: &sys::OptixShaderBindingTable,
     width: u32,
     height: u32,
@@ -83,7 +133,7 @@ pub unsafe fn launch<P: cust::memory::DeviceCopy>(
     Ok(optix_call!(optixLaunch(
         pipeline.raw,
         stream.as_inner(),
-        buf_launch_params.as_device_ptr().as_raw() as u64,
+        pipeline_params.as_raw() as u64,
         std::mem::size_of::<P>(),
         sbt,
         width,

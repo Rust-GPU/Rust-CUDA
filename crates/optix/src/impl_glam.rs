@@ -1,4 +1,4 @@
-use crate::triangle_array::{IndexTriple, IndicesFormat, Vertex, VertexFormat};
+use crate::acceleration::{IndexTriple, IndicesFormat, Vertex, VertexFormat};
 
 impl Vertex for glam::Vec3 {
     const FORMAT: VertexFormat = VertexFormat::Float3;

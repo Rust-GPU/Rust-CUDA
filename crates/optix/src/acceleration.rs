@@ -1,339 +1,6 @@
-//! # Acceleration Structures
-//!
-//! NVIDIA OptiX 7 provides acceleration structures to optimize the search for the
-//! intersection of rays with the geometric data in the scene. Acceleration structures
-//! can contain two types of data: geometric primitives (a geometry-AS) or instances
-//! (an instance-AS). Acceleration structures are created on the device using a set
-//! of functions. These functions enable overlapping and pipelining of acceleration
-//! structure creation, called a build. The functions use one or more [`BuildInput`]
-//! structs to specify the geometry plus a set of parameters to control the build.
-//!
-//! Acceleration structures have size limits, listed in “Limits”. For an instance
-//! acceleration structure, the number of instances has an upper limit. For a geometry
-//! acceleration structure, the number of geometric primitives is limited,
-//! specifically the total number of primitives in its build inputs, multiplied by the
-//! number of motion keys.
-//!  
-//! The following acceleration structure types are supported:
-//!
-//! #### Instance acceleration structures
-//! - [`InstanceArray`](crate::instance_array::InstanceArray)
-//! - [`InstancePointerArray`](crate::instance_array::InstancePointerArray)
-//!
-//! #### Geometry acceleration structure containing built-in triangles
-//! - [`TriangleArray`](crate::triangle_array::TriangleArray)
-//! - [`IndexedTriangleArray`](crate::triangle_array::IndexedTriangleArray)
-//!
-//! #### Geometry acceleration structure containing built-in curves
-//! - [`CurveArray`](crate::curve_array::CurveArray)
-//!
-//! #### Geometry acceleration structure containing custom primitives
-//! - [`CustomPrimitiveArray`](crate::custom_primitive_array::CustomPrimitiveArray)
-//!
-//! ## Building
-//!
-//! For geometry-AS builds, each build input can specify a set of triangles, a set
-//! of curves, or a set of user-defined primitives bounded by specified axis-aligned
-//! bounding boxes. Multiple build inputs can be passed as an array to [`accel_build`]
-//! to combine different meshes into a single acceleration structure. All build
-//! inputs for a single build must agree on the build input type.
-//!
-//! Instance acceleration structures have a single build input and specify an array
-//! of instances. Each [`Instance`](crate::instance_array::Instance) includes a ray transformation and an
-//! [`TraversableHandle`] that refers to a geometry-AS, a transform node, or another
-//! instance acceleration structure.
-//!
-//! ### Safe API
-//!
-//! The easiest way to build an acceleration structure is using [`Accel::build`]
-//! to which you just pass a slice of [`BuildInput`]s and the function handles
-//! memory allocation and synchronization for you.
-//!
-//! This is handy for getting something working with the minimum of fuss, but
-//! means reallocating temporary storage each time. It also means synchronizing
-//! after each build rather than potentially processing many builds on a stream
-//! and synchronizing at the end.
-//!
-//! ```no_run
-//! use cust::prelude as cu;
-//! use optix::prelude as ox;
-//! # fn doit() -> Result<(), Box<dyn std::error::Error>> {
-//! # cust::init(cu::CudaFlags::empty())?;
-//! # ox::init()?;
-//! # let device = cu::Device::get_device(0)?;
-//! # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
-//! # cu::ContextFlags::MAP_HOST, device)?;
-//! # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
-//! # let vertices: Vec<[f32; 3]> = Vec::new();
-//! # let indices: Vec<[u32; 3]> = Vec::new();
-//! # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
-//!
-//! let buf_vertex = cu::DeviceBuffer::from_slice(&vertices)?;
-//! let buf_indices = cu::DeviceBuffer::from_slice(&indices)?;
-//!
-//! let geometry_flags = ox::GeometryFlags::None;
-//! let triangle_input =
-//!     ox::IndexedTriangleArray::new(
-//!         &[&buf_vertex],
-//!         &buf_indices,
-//!         &[geometry_flags]
-//!     );
-//!
-//! let accel_options =
-//!     ox::AccelBuildOptions::new(
-//!         ox::BuildFlags::ALLOW_COMPACTION,
-//!         ox::BuildOperation::Build
-//!     );
-//!
-//! let build_inputs = vec![triangle_input];
-//!
-//! let gas = ox::Accel::build(
-//!     &ctx,
-//!     &stream,
-//!     &[accel_options],
-//!     &build_inputs,
-//!     true
-//! )?;
-//!
-//! stream.synchronize()?;
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ### Unsafe API
-//!
-//! As an alternative, you can also use the unsafe functions [`accel_build`],
-//! [`accel_compact`], and [`Accel::from_raw_parts`] to handle the memory
-//! allocation yourself, meaning you can reuse buffers between accel builds.
-//!
-//! To prepare for a build, the required memory sizes are queried by passing an
-//! initial set of build inputs and parameters to [`accel_compute_memory_usage`].
-//! It returns three different sizes:
-//!
-//! * `output_size_in_bytes` - Size of the memory region where the resulting
-//! acceleration structure is placed. This size is an upper bound and may be
-//! substantially larger than the final acceleration structure. (See “Compacting acceleration structures”.)
-//! * `temp_size_in_bytes` - Size of the memory region that is temporarily used during
-//! the build.
-//! * `temp_update_size_in_bytes` - Size of the memory region that is temporarily
-//! required to update the acceleration structure.
-//!
-//! Using these sizes, the application allocates memory for the output and temporary
-//! memory buffers on the device. The pointers to these buffers must be aligned to
-//! a 128-byte boundary. These buffers are actively used for the duration of the
-//! build. For this reason, they cannot be shared with other currently active build
-//! requests.
-//!
-//! Note that [`accel_compute_memory_usage`] does not initiate any activity on the
-//! device; pointers to device memory or contents of input buffers are not required to point to allocated memory.
-//!
-//! The function [`accel_build`] takes the same array of [`BuildInput`] structs as
-//! [`accel_compute_memory_usage`] and builds a single acceleration structure from
-//! these inputs. This acceleration structure can contain either geometry or
-//! instances, depending on the inputs to the build.
-//!
-//! The build operation is executed on the device in the specified CUDA stream and
-//! runs asynchronously on the device, similar to CUDA kernel launches. The
-//! application may choose to block the host-side thread or synchronize with other
-//! CUDA streams by using available CUDA synchronization functionality such as
-//! [`Stream::synchronize()`](cust::stream::Stream::synchronize) or CUDA events.
-//! The traversable handle returned is computed on the host and is returned from
-//! the function immediately, without waiting for the build to finish. By producing
-//! handles at acceleration time, custom handles can also be generated based on
-//! input to the builder.
-//!
-//! The acceleration structure constructed by [`accel_build`] does not reference
-//! any of the device buffers referenced in the build inputs. All relevant data
-//! is copied from these buffers into the acceleration output buffer, possibly in
-//! a different format.
-//!
-//! The application is free to release this memory after the build without
-//! invalidating the acceleration structure. However, instance-AS builds will
-//! continue to refer to other instance-AS and geometry-AS instances and transform
-//! nodes.
-//!
-//! ```no_run
-//! use cust::prelude as cu;
-//! use optix::prelude as ox;
-//! # fn doit() -> Result<(), Box<dyn std::error::Error>> {
-//! # cust::init(cu::CudaFlags::empty())?;
-//! # ox::init()?;
-//! # let device = cu::Device::get_device(0)?;
-//! # let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
-//! # cu::ContextFlags::MAP_HOST, device)?;
-//! # let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
-//! # let vertices: Vec<[f32; 3]> = Vec::new();
-//! # let indices: Vec<[u32; 3]> = Vec::new();
-//! # let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
-//!
-//! let buf_vertex = cu::DeviceBuffer::from_slice(&vertices)?;
-//! let buf_indices = cu::DeviceBuffer::from_slice(&indices)?;
-//!
-//! let geometry_flags = ox::GeometryFlags::None;
-//!
-//! let build_inputs =
-//!     [ox::IndexedTriangleArray::new(
-//!         &[&buf_vertex],
-//!         &buf_indices,
-//!         &[geometry_flags]
-//!     )];
-//!
-//! let accel_options =
-//!     ox::AccelBuildOptions::new(
-//!         ox::BuildFlags::ALLOW_COMPACTION,
-//!         ox::BuildOperation::Build
-//!     );
-//!
-//! // Get the storage requirements for temporary and output buffers
-//! let sizes = accel_compute_memory_usage(ctx, accel_options, build_inputs)?;
-//!
-//! // Allocate temporary and output buffers
-//! let mut output_buffer =
-//!     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.output_size_in_bytes)? };
-//! let mut temp_buffer =
-//!     unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
-//!
-//! // Build the accel
-//! let hnd = unsafe {
-//!     accel_build(
-//!         ctx,
-//!         stream,
-//!         accel_options,
-//!         build_inputs,
-//!         &mut temp_buffer,
-//!         &mut output_buffer,
-//!         &mut properties,
-//!     )?
-//! };
-//!
-//! // The accel build is asynchronous
-//! stream.synchronize()?;
-//!
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ## Primitive Build Inputs
-//! The [`accel_build`] function accepts multiple build inputs per call, but they
-//! must be all triangle inputs, all curve inputs, or all AABB inputs. Mixing build
-//! input types in a single geometry-AS is not allowed.
-//!
-//! Each build input maps to one or more consecutive records in the shader binding
-//! table (SBT), which controls program dispatch. (See “Shader binding table”.) If
-//! multiple records in the SBT are required, the application needs to provide a
-//! device buffer with per-primitive SBT record indices for that build input. If
-//! only a single SBT record is requested, all primitives reference this same unique
-//! SBT record. Note that there is a limit to the number of referenced SBT records
-//! per geometry-AS. (Limits are discussed in “Limits”.)
-//!
-//! Each build input also specifies an array of OptixGeometryFlags, one for each SBT
-//! record. The flags for one record apply to all primitives mapped to this SBT record.
-//!
-//! The following flags are supported:
-//!
-//! * [`GeometryFlags::None`] - Applies the default behavior when calling the any-hit
-//! program, possibly multiple times, allowing the acceleration-structure builder
-//! to apply all optimizations.
-//! * [`GeometryFlags::RequireSingleAnyHitCall`] - Disables some optimizations
-//! specific to acceleration-structure builders. By default, traversal may call
-//! the any-hit program more than once for each intersected primitive. Setting
-//! the flag ensures that the any-hit program is called only once for a hit with a
-//! primitive. However, setting this flag may change traversal performance. The
-//! usage of this flag may be required for correctness of some rendering algorithms;
-//! for example, in cases where opacity or transparency information is accumulated
-//! in an any-hit program.
-//! * [`GeometryFlags::DisableAnyHit`] - Indicates that traversal should not call
-//! the any-hit program for this primitive even if the corresponding SBT record
-//! contains an any-hit program. Setting this flag usually improves performance
-//! even if no any-hit program is present in the SBT.
-//!
-//! Primitives inside a build input are indexed starting from zero. This primitive
-//! index is accessible inside the intersection, any-hit, and closest-hit programs.
-//! If the application chooses to offset this index for all primitives in a build
-//! input, there is no overhead at runtime. This can be particularly useful when
-//! data for consecutive build inputs is stored consecutively in device memory.
-//! The `primitive_index_offset` value is only used when reporting the intersection
-//! primitive.
-//!
-//! ## Build Flags
-//!
-//! An acceleration structure build can be controlled using the values of the
-//! [`BuildFlags`] enum. To enable random vertex access on an acceleration structure,
-//! use [`BuildFlags::ALLOW_RANDOM_VERTEX_ACCESS`]. (See “Vertex random access”.)
-//! To steer trade-offs between build performance, runtime traversal performance
-//! and acceleration structure memory usage, use [`BuildFlags::PREFER_FAST_TRACE`]
-//! and [`BuildFlags::PREFER_FAST_BUILD`]. For curve primitives in particular,
-//! these flags control splitting; see “Splitting curve segments”.
-//!
-//! The flags [`BuildFlags::PREFER_FAST_TRACE`] and [`BuildFlags::PREFER_FAST_BUILD`]
-//! are mutually exclusive. To combine multiple flags that are not mutually exclusive,
-//! use the logical “or” operator.
-//!
-//! ## Dynamic Updates
-//!
-//! Building an acceleration structure can be computationally costly. Applications
-//! may choose to update an existing acceleration structure using modified vertex
-//! data or bounding boxes. Updating an existing acceleration structure is generally
-//! much faster than rebuilding. However, the quality of the acceleration structure
-//! may degrade if the data changes too much with an update, for example, through
-//! explosions or other chaotic transitions—even if for only parts of the mesh.
-//! The degraded acceleration structure may result in slower traversal performance
-//! as compared to an acceleration structure built from scratch from the modified
-//! input data.
-//!
-//! ### Safe API
-//!
-//! The simplest way to use dynamic updates is with the [`DynamicAccel`] structure.
-//! Simply call [`DynamicAccel::new()`] as you would with [`Accel`], and then
-//! call [`DynamicAccel::update()`] with the updated build inputs when you want
-//! to update the acceleration structure.
-//!
-//! Note that the inputs to [`DynamicAccel::update`] must have the same structure,
-//! i.e. the number of motion keys, aabbs, triangle topology etc must be the same,
-//! although the underlying data (including the data pointers) can be different.
-//! If the data have a different structure, then behaviour is undefined.
-//! [`DynamicAccel`] checks this by hashing the inputs and returns an error if
-//! the data do not match.
-//!
-//! ### Unsafe API
-//!
-//! To allow for future updates of an acceleration structure, set
-//! [`BuildFlags::ALLOW_UPDATE`] in the build flags when building the acceleration
-//! structure initially.
-//!
-//! To update the previously built acceleration structure, set the operation to
-//! [`BuildOperation::Update`] and then call [`accel_build()`] on the same output
-//! data. All other options are required to be identical to the original build.
-//! The update is done in-place on the output data.
-//!
-//! Updating an acceleration structure usually requires a different amount of temporary memory than the original build.
-//!
-//! When updating an existing acceleration structure, only the device pointers and/or
-//! their buffer content may be changed. You cannot change the number of build inputs,
-//! the build input types, build flags, traversable handles for instances (for an
-//! instance-AS), or the number of vertices, indices, AABBs, instances, SBT records
-//! or motion keys. Changes to any of these things may result in undefined behavior,
-//! including GPU faults.
-//!
-//! Note the following:
-//!
-//! * When using indices, changing the connectivity or, in general, using shuffled
-//! vertex positions will work, but the quality of the acceleration structure will
-//! likely degrade substantially.
-//! * During an animation operation, geometry that should be invisible to the camera
-//! should not be “removed” from the scene, either by moving it very far away or
-//! by converting it into a degenerate form. Such changes to the geometry will also
-//! degrade the acceleration structure.
-//! * In these cases, it is more efficient to re-build the geometry-AS and/or the
-//! instance-AS, or to use the respective masking and flags.
-//!
-//! Updating an acceleration structure requires that any other acceleration structure
-//! that is using this acceleration structure as a child directly or indirectly
-//! also needs to be updated or rebuild.
-
-use crate::{context::DeviceContext, error::Error, optix_call, sys};
+use crate::{const_assert, const_assert_eq, context::DeviceContext, error::Error, optix_call, sys};
 use cust::{
-    memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer, DeviceSlice},
+    memory::{CopyDestination, DeviceCopy, DeviceBox, DeviceBuffer, DevicePointer, DeviceSlice},
     DeviceCopy,
 };
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -342,10 +9,22 @@ use std::ops::Deref;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    marker::PhantomData,
 };
+use memoffset::offset_of;
+use std::ffi::c_void;
+use std::mem::size_of;
+
+use cust_raw::CUdeviceptr;
+use mint::{RowMatrix3x4, Vector3};
+
 
 pub trait BuildInput: std::hash::Hash {
     fn to_sys(&self) -> sys::OptixBuildInput;
+}
+
+pub trait Traversable {
+    fn handle(&self) -> TraversableHandle;
 }
 
 /// Wrapper struct containing the storage and handle for a static acceleration
@@ -405,12 +84,14 @@ pub struct Accel {
     hnd: TraversableHandle,
 }
 
-impl Accel {
+impl Traversable for Accel {
     /// Get the [`TraversableHandle`] that represents this accel.
-    pub fn handle(&self) -> TraversableHandle {
+    fn handle(&self) -> TraversableHandle {
         self.hnd
     }
+}
 
+impl Accel {
     /// Build and (optionally) compact the acceleration structure for the given
     /// `build_inputs`.
     ///
@@ -503,11 +184,16 @@ impl Accel {
             let mut compacted_size = 0usize;
             compacted_size_buffer.copy_to(&mut compacted_size)?;
 
-            let mut buf = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
-
-            let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
-
-            Ok(Accel { buf, hnd })
+            if compacted_size < sizes.output_size_in_bytes {
+                let mut buf = unsafe { DeviceBuffer::<u8>::uninitialized(compacted_size)? };
+                let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
+                Ok(Accel { buf, hnd })
+            } else {
+                Ok(Accel {
+                    buf: output_buffer,
+                    hnd,
+                })
+            }
         } else {
             Ok(Accel {
                 buf: output_buffer,
@@ -560,6 +246,13 @@ impl Accel {
 pub struct DynamicAccel {
     accel: Accel,
     hash: u64,
+}
+
+impl Traversable for DynamicAccel {
+    /// Get the [`TraversableHandle`] that represents this accel.
+    fn handle(&self) -> TraversableHandle {
+        self.accel.hnd
+    }
 }
 
 impl Deref for DynamicAccel {
@@ -711,7 +404,7 @@ impl DynamicAccel {
 /// for ensuring that the device memory containing the acceleration structures
 /// this handle references are alive if you try to use this handle
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialEq, DeviceCopy)]
+#[derive(Copy, Clone, Debug, PartialEq, DeviceCopy, Default)]
 pub struct TraversableHandle {
     pub(crate) inner: u64,
 }
@@ -1015,6 +708,7 @@ bitflags::bitflags! {
     /// than the first provided motion key
     /// * `END_VANISH` - The object will be invisible to rays with a time less
     /// than the first provided motion key
+    #[derive(DeviceCopy)]
     pub struct MotionFlags: u16 {
         const NONE = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_NONE as u16;
         const START_VANISH = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_START_VANISH as u16;
@@ -1037,13 +731,29 @@ bitflags::bitflags! {
 /// to zero. This effectively disables motion for the acceleration structure and
 /// ignores the motion beginning and ending times, along with the motion flags.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, DeviceCopy)]
 pub struct MotionOptions {
     pub num_keys: u16,
     pub flags: MotionFlags,
     pub time_begin: f32,
     pub time_end: f32,
 }
+
+impl Default for MotionOptions {
+    fn default() -> Self {
+        MotionOptions {
+            num_keys: 0,
+            flags: MotionFlags::NONE,
+            time_begin: 0.0,
+            time_end: 0.0,
+        }
+    }
+}
+
+const_assert_eq!(
+    std::mem::size_of::<MotionOptions>(),
+    std::mem::size_of::<sys::OptixMotionOptions>(),
+);
 
 /// Options to configure the [`accel_build()`]
 #[repr(C)]
@@ -1132,22 +842,29 @@ pub struct AccelBufferSizes {
 ///
 /// // Compact the accel structure.
 /// let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
-
 pub enum AccelEmitDesc {
     CompactedSize(DevicePointer<usize>),
     Aabbs(DevicePointer<Aabb>),
 }
 
-/// Struct representing a bounding box.
+/// An axis-aligned bounding box.
+///
+/// Used to communicate bounds info to and from OptiX for bounding custom primitives
+/// and instances
 #[repr(C)]
 #[derive(DeviceCopy, Copy, Clone)]
 pub struct Aabb {
-    min_x: f32,
-    min_y: f32,
-    min_z: f32,
-    max_x: f32,
-    max_y: f32,
-    max_z: f32,
+    min: Vector3<f32>,
+    max: Vector3<f32>,
+}
+
+impl Aabb {
+    /// Create a new Aabb by supplying the min and max points
+    pub fn new<V: Into<Vector3<f32>>>(min: V, max: V) -> Self {
+        let min = min.into();
+        let max = max.into();
+        Self { min, max }
+    }
 }
 
 impl From<&mut AccelEmitDesc> for sys::OptixAccelEmitDesc {
@@ -1212,4 +929,1102 @@ impl From<GeometryFlags> for u32 {
             }
         }
     }
+}
+
+/// Specify acceleration structure build input data for a curves geometry
+///
+/// A curve is a swept surface defined by a 3D spline curve and a varying width (radius). A curve (or "strand") of degree d (3=cubic, 2=quadratic, 1=linear) is represented by N > d vertices and N width values, and comprises N - d segments. Each segment is defined by d+1 consecutive vertices. Each curve may have a different number of vertices.
+/// 
+/// OptiX describes the curve array as a list of curve segments. The primitive id is the segment number. It is the user's responsibility to maintain a mapping between curves and curve segments. Each index buffer entry i = indexBuffer[primid] specifies the start of a curve segment, represented by d+1 consecutive vertices in the vertex buffer, and d+1 consecutive widths in the width buffer. Width is interpolated the same way vertices are interpolated, that is, using the curve basis.
+/// 
+/// Each curves build input has only one SBT record. To create curves with different materials in the same BVH, use multiple build inputs.
+pub struct CurveArray<'v, 'w, 'i> {
+    curve_type: CurveType,
+    num_primitives: u32,
+    vertex_buffers: PhantomData<&'v f32>,
+    num_vertices: u32,
+    d_vertex_buffers: Vec<CUdeviceptr>,
+    vertex_stride_in_bytes: u32,
+    width_buffers: PhantomData<&'w f32>,
+    num_width_buffers: u32,
+    d_width_buffers: Vec<CUdeviceptr>,
+    width_stride_in_bytes: u32,
+    index_buffer: &'i DeviceSlice<u32>,
+    index_stride_in_bytes: u32,
+    flags: GeometryFlags,
+    primitive_index_offset: u32,
+}
+
+impl<'v, 'w, 'i> Hash for CurveArray<'v, 'w, 'i> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.curve_type.hash(state);
+        state.write_u32(self.num_primitives);
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_vertex_buffers.len());
+        state.write_u32(self.vertex_stride_in_bytes);
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_width_buffers.len());
+        state.write_u32(self.width_stride_in_bytes);
+        state.write_usize(self.index_buffer.len());
+        state.write_u32(self.index_stride_in_bytes);
+        self.flags.hash(state);
+        state.write_u32(self.primitive_index_offset);
+    }
+}
+
+impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
+    /// Constructor
+    ///
+    /// # Parameters
+    /// * `curve_type` - Curve degree and basis
+    /// * `vertex_buffers` - A slice of device buffers, one per motion step. 
+    ///     The length of this slice must match the number of motion keys specified
+    ///     in [`AccelBuildOptions::motion_options`]
+    /// * `width_buffers` - Parallel to `vertex_buffers` with matching lengths and 
+    ///     number of motion steps. One value per vertex specifying the width of 
+    ///     the curve
+    /// * `index_buffer` - An array of u32, one per curve segment. Each index is
+    ///     the start of `degree+1` consecutive vertices in `vertex_buffers`, and
+    ///     corresponding widths in `width_buffers`. These define a single segment.
+    ///     The length of this array is therefore the number of curve segments
+    pub fn new(
+        curve_type: CurveType,
+        vertex_buffers: &[&'v DeviceSlice<f32>],
+        width_buffers: &[&'w DeviceSlice<f32>],
+        index_buffer: &'i DeviceSlice<u32>,
+    ) -> Result<CurveArray<'v, 'w, 'i>> {
+        // TODO (AL): Do some sanity checking on the values here
+        let num_vertices = vertex_buffers[0].len() as u32;
+        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr()).collect();
+
+        let num_width_buffers = width_buffers.len() as u32;
+        let d_width_buffers: Vec<_> = width_buffers.iter().map(|b| b.as_device_ptr()).collect();
+
+        Ok(CurveArray {
+            curve_type,
+            num_primitives: index_buffer.len() as u32,
+            vertex_buffers: PhantomData,
+            num_vertices,
+            d_vertex_buffers,
+            vertex_stride_in_bytes: 0,
+            width_buffers: PhantomData,
+            num_width_buffers,
+            d_width_buffers,
+            width_stride_in_bytes: 0,
+            index_buffer,
+            index_stride_in_bytes: 0,
+            flags: GeometryFlags::None,
+            primitive_index_offset: 0,
+        })
+    }
+
+    /// Stride between vertices. If not specified, vertices are assumed to be
+    /// tightly packed.
+    pub fn vertex_stride(mut self, stride_in_bytes: u32) -> Self {
+        self.vertex_stride_in_bytes = stride_in_bytes;
+        self
+    }
+
+    /// Stride between width values. If not specified, values are assumed to be
+    /// tightly packed.
+    pub fn width_stride(mut self, stride_in_bytes: u32) -> Self {
+        self.vertex_stride_in_bytes = stride_in_bytes;
+        self
+    }
+
+    /// Stride between indices. If not specified, indices are assumed to be
+    /// tightly packed.
+    pub fn index_stride(mut self, stride_in_bytes: u32) -> Self {
+        self.vertex_stride_in_bytes = stride_in_bytes;
+        self
+    }
+
+    /// Combination of [`GeometryFlags`] specifying the primitive behaviour
+    pub fn flags(mut self, flags: GeometryFlags) -> Self {
+        self.flags = flags;
+        self
+    }
+
+    /// Primitive index bias, applied on the device in `optixGetPrimitiveIndex()`. 
+    ///
+    /// Sum of primitiveIndexOffset and number of primitives must not overflow 32bits.
+    pub fn primitive_index_offset(mut self, offset: u32) -> Self {
+        self.primitive_index_offset = offset;
+        self
+    }
+}
+
+impl<'v, 'w, 'i> BuildInput for CurveArray<'v, 'w, 'i> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
+        sys::OptixBuildInput {
+            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CURVES,
+            input: sys::OptixBuildInputUnion {
+                curve_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputCurveArray {
+                    curveType: self.curve_type.into(),
+                    numPrimitives: self.num_primitives,
+                    vertexBuffers: self.d_vertex_buffers.as_ptr() as *const CUdeviceptr,
+                    numVertices: self.num_vertices,
+                    vertexStrideInBytes: self.vertex_stride_in_bytes,
+                    widthBuffers: self.d_width_buffers.as_ptr() as *const CUdeviceptr,
+                    widthStrideInBytes: self.width_stride_in_bytes,
+                    normalBuffers: std::ptr::null(),
+                    normalStrideInBytes: 0,
+                    indexBuffer: self.index_buffer.as_device_ptr(),
+                    indexStrideInBytes: self.index_stride_in_bytes,
+                    flag: self.flags as u32,
+                    primitiveIndexOffset: self.primitive_index_offset,
+                }),
+            },
+        }
+    }
+}
+
+/// Specifies the type of curves, either linear, quadratic or cubic b-splines.
+#[derive(Debug, Copy, Clone, PartialEq, Hash)]
+pub enum CurveType {
+    RoundLinear,
+    RoundQuadraticBSpline,
+    RoundCubicBSpline,
+}
+
+impl From<CurveType> for sys::OptixPrimitiveType {
+    fn from(c: CurveType) -> Self {
+        match c {
+            CurveType::RoundLinear => sys::OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR,
+            CurveType::RoundQuadraticBSpline => {
+                sys::OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE
+            }
+            CurveType::RoundCubicBSpline => {
+                sys::OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE
+            }
+        }
+    }
+}
+
+/// Specifies the type of vertex data
+#[repr(u32)]
+#[derive(Copy, Clone, PartialEq)]
+pub enum VertexFormat {
+    None = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_NONE as u32,
+    Float3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT3 as u32,
+    Float2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT2 as u32,
+    Half3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF3 as u32,
+    Half2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF2 as u32,
+    SNorm16 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_3 as u32,
+    SNorm32 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_2 as u32,
+}
+
+/// Specifies the type of index data
+#[repr(u32)]
+#[derive(Copy, Clone, PartialEq)]
+pub enum IndicesFormat {
+    None = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_NONE as u32,
+    Short3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3 as u32,
+    Int3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_INT3 as u32,
+}
+
+/// Specifies the format of transform data
+#[repr(u32)]
+#[derive(Copy, Clone, PartialEq)]
+pub enum TransformFormat {
+    None = sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE,
+    MatrixFloat12 = sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12,
+}
+
+/// Trait allowing the triangle builds to be generic over the input vertex data.
+///
+/// For instance, if you had a custom vertex type:
+/// ```
+/// struct MyVertex {
+///      x: i16,
+///      y: i16,
+///      z: i16,
+///      nx: f32,
+///      ny: f32,
+///      nz: f32,
+/// }
+///
+/// impl Vertex for MyVertex {
+///     const FORMAT: VertexFormat = VertexFormat::SNorm16;
+///     const STRIDE: u32 = 18;
+/// }
+/// ```
+pub trait Vertex: cust::memory::DeviceCopy {
+    const FORMAT: VertexFormat;
+    const STRIDE: u32 = 0;
+}
+
+#[cfg(feature = "half")]
+impl Vertex for [half::f16; 2] {
+    const FORMAT: VertexFormat = VertexFormat::Half2;
+}
+
+#[cfg(feature = "half")]
+impl Vertex for [half::f16; 3] {
+    const FORMAT: VertexFormat = VertexFormat::Half3;
+}
+
+#[cfg(feature = "half")]
+impl Vertex for mint::Vector2<f16> {
+    const FORMAT: VertexFormat = VertexFormat::Half2;
+}
+
+#[cfg(feature = "half")]
+impl Vertex for mint::Vector3<f16> {
+    const FORMAT: VertexFormat = VertexFormat::Half3;
+}
+
+impl Vertex for [f32; 2] {
+    const FORMAT: VertexFormat = VertexFormat::Float2;
+}
+
+impl Vertex for [f32; 3] {
+    const FORMAT: VertexFormat = VertexFormat::Float3;
+}
+
+impl Vertex for [i16; 3] {
+    const FORMAT: VertexFormat = VertexFormat::SNorm16;
+}
+
+impl Vertex for [i32; 3] {
+    const FORMAT: VertexFormat = VertexFormat::SNorm32;
+}
+
+impl Vertex for mint::Vector2<f32> {
+    const FORMAT: VertexFormat = VertexFormat::Float2;
+}
+
+impl Vertex for mint::Vector3<f32> {
+    const FORMAT: VertexFormat = VertexFormat::Float3;
+}
+
+impl Vertex for mint::Vector3<i16> {
+    const FORMAT: VertexFormat = VertexFormat::SNorm16;
+}
+
+impl Vertex for mint::Vector3<i32> {
+    const FORMAT: VertexFormat = VertexFormat::SNorm32;
+}
+
+/// Trait allowing build inputs to be generic over the index type
+pub trait IndexTriple: cust::memory::DeviceCopy {
+    const FORMAT: IndicesFormat;
+    const STRIDE: u32 = 0;
+}
+
+impl IndexTriple for [u16; 3] {
+    const FORMAT: IndicesFormat = IndicesFormat::Short3;
+}
+
+impl IndexTriple for [u32; 3] {
+    const FORMAT: IndicesFormat = IndicesFormat::Int3;
+}
+
+impl IndexTriple for mint::Vector3<u16> {
+    const FORMAT: IndicesFormat = IndicesFormat::Short3;
+}
+
+impl IndexTriple for mint::Vector3<u32> {
+    const FORMAT: IndicesFormat = IndicesFormat::Int3;
+}
+
+/// Build input for specifying a (non-indexed) triangle geometry
+pub struct TriangleArray<'v, 'g, V: Vertex> {
+    // We hold slices here to make sure the referenced device memory remains
+    // valid for the lifetime of the build input
+    vertex_buffers: PhantomData<&'v V>,
+    num_vertices: u32,
+    d_vertex_buffers: Vec<CUdeviceptr>,
+    // per-sbt-record geometry flags
+    geometry_flags: &'g [GeometryFlags],
+    pre_transform: Option<DevicePointer<[f32; 12]>>,
+}
+
+impl<'v, 'g, V: Vertex> TriangleArray<'v, 'g, V> {
+    pub fn new(vertex_buffers: &[&'v DeviceSlice<V>], geometry_flags: &'g [GeometryFlags]) -> Self {
+        // TODO (AL): do some sanity checking on the slice lengths here
+        let num_vertices = vertex_buffers[0].len() as u32;
+        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr()).collect();
+        TriangleArray {
+            vertex_buffers: PhantomData,
+            num_vertices,
+            d_vertex_buffers,
+            geometry_flags,
+            pre_transform: None,
+        }
+    }
+
+    pub fn pre_transform(mut self, pre_transform: DevicePointer<[f32; 12]>) -> Self {
+        self.pre_transform = Some(pre_transform);
+        self
+    }
+}
+
+impl<'v, 'g, V: Vertex> Hash for TriangleArray<'v, 'g, V> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_vertex_buffers.len());
+        self.geometry_flags.hash(state);
+    }
+}
+
+impl<'v, 'g, V: Vertex> BuildInput for TriangleArray<'v, 'g, V> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
+        sys::OptixBuildInput {
+            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
+            input: sys::OptixBuildInputUnion {
+                triangle_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputTriangleArray {
+                    vertexBuffers: self.d_vertex_buffers.as_ptr() as *const u64,
+                    numVertices: self.num_vertices,
+                    vertexFormat: V::FORMAT as u32,
+                    vertexStrideInBytes: V::STRIDE,
+                    indexBuffer: 0,
+                    numIndexTriplets: 0,
+                    indexFormat: 0,
+                    indexStrideInBytes: 0,
+                    flags: self.geometry_flags.as_ptr() as *const _,
+                    numSbtRecords: 1,
+                    sbtIndexOffsetBuffer: 0,
+                    sbtIndexOffsetSizeInBytes: 0,
+                    sbtIndexOffsetStrideInBytes: 0,
+                    primitiveIndexOffset: 0,
+                    preTransform: if let Some(t) = self.pre_transform {
+                        t.as_raw()
+                    } else {
+                        0
+                    },
+                    transformFormat: if self.pre_transform.is_some() {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
+                    } else {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE
+                    },
+                }),
+            },
+        }
+    }
+}
+
+pub struct IndexedTriangleArray<'v, 'i, V: Vertex, I: IndexTriple> {
+    // We hold slices here to make sure the referenced device memory remains
+    // valid for the lifetime of the build input
+    vertex_buffers: PhantomData<&'v V>,
+    num_vertices: u32,
+    d_vertex_buffers: Vec<CUdeviceptr>,
+    index_buffer: &'i DeviceSlice<I>,
+    // per-object geometry flags
+    geometry_flags: Vec<GeometryFlags>,
+    pre_transform: Option<DevicePointer<[f32; 12]>>,
+}
+
+impl<'v, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'i, V, I> {
+    pub fn new(
+        vertex_buffers: &[&'v DeviceSlice<V>],
+        index_buffer: &'i DeviceSlice<I>,
+        geometry_flags: &[GeometryFlags],
+    ) -> Self {
+        let num_vertices = vertex_buffers[0].len() as u32;
+        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr()).collect();
+        IndexedTriangleArray {
+            vertex_buffers: PhantomData,
+            num_vertices,
+            d_vertex_buffers,
+            geometry_flags: geometry_flags.to_vec(),
+            index_buffer,
+            pre_transform: None,
+        }
+    }
+
+    pub fn pre_transform(mut self, pre_transform: DevicePointer<[f32; 12]>) -> Self {
+        self.pre_transform = Some(pre_transform);
+        self
+    }
+}
+
+impl<'v, 'i, V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'v, 'i, V, I> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u32(self.num_vertices);
+        state.write_usize(self.d_vertex_buffers.len());
+        self.geometry_flags.hash(state);
+        state.write_usize(self.index_buffer.len());
+    }
+}
+
+impl<'v, 'i, V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'v, 'i, V, I> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
+        sys::OptixBuildInput {
+            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
+            input: sys::OptixBuildInputUnion {
+                triangle_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputTriangleArray {
+                    vertexBuffers: self.d_vertex_buffers.as_ptr() as *const u64,
+                    numVertices: self.num_vertices,
+                    vertexFormat: V::FORMAT as u32,
+                    vertexStrideInBytes: V::STRIDE,
+                    indexBuffer: self.index_buffer.as_device_ptr(),
+                    numIndexTriplets: self.index_buffer.len() as u32,
+                    indexFormat: I::FORMAT as u32,
+                    indexStrideInBytes: I::STRIDE,
+                    flags: self.geometry_flags.as_ptr() as *const _,
+                    numSbtRecords: 1,
+                    sbtIndexOffsetBuffer: 0,
+                    sbtIndexOffsetSizeInBytes: 0,
+                    sbtIndexOffsetStrideInBytes: 0,
+                    primitiveIndexOffset: 0,
+                    preTransform: if let Some(t) = self.pre_transform {
+                        t.as_raw()
+                    } else {
+                        0
+                    },
+                    transformFormat: if self.pre_transform.is_some() {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
+                    } else {
+                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE
+                    },
+                }),
+            },
+        }
+    }
+}
+
+pub struct CustomPrimitiveArray<'a, 's> {
+    aabb_buffers: Vec<CUdeviceptr>,
+    aabb_buffers_marker: PhantomData<&'a Aabb>,
+    num_primitives: u32,
+    stride_in_bytes: u32,
+    flags: Vec<GeometryFlags>,
+    num_sbt_records: u32,
+    sbt_index_offset_buffer: Option<&'s DeviceSlice<u32>>,
+    sbt_index_offset_stride_in_bytes: u32,
+    primitive_index_offset: u32,
+}
+
+impl<'a, 'g, 's> Hash for CustomPrimitiveArray<'a, 's> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.aabb_buffers.len());
+        state.write_u32(self.num_primitives);
+        state.write_u32(self.stride_in_bytes);
+        self.flags.hash(state);
+        state.write_u32(self.num_sbt_records);
+        if let Some(b) = self.sbt_index_offset_buffer {
+            state.write_usize(b.len());
+        } else {
+            state.write_usize(0);
+        }
+        state.write_u32(self.sbt_index_offset_stride_in_bytes);
+        state.write_u32(self.primitive_index_offset);
+    }
+}
+
+impl<'a, 's> CustomPrimitiveArray<'a, 's> {
+    pub fn new(
+        aabb_buffers: &[&'a DeviceSlice<Aabb>],
+        flags: &[GeometryFlags],
+    ) -> Result<CustomPrimitiveArray<'a, 's>> {
+        let num_primitives = aabb_buffers.len() as u32;
+        let aabb_buffers: Vec<_> = aabb_buffers.iter().map(|b| b.as_device_ptr()).collect();
+
+        Ok(CustomPrimitiveArray {
+            aabb_buffers,
+            aabb_buffers_marker: PhantomData,
+            num_primitives,
+            stride_in_bytes: 0,
+            flags: flags.to_vec(),
+            num_sbt_records: 1,
+            sbt_index_offset_buffer: None,
+            sbt_index_offset_stride_in_bytes: 0,
+            primitive_index_offset: 0,
+        })
+    }
+
+    pub fn stride(mut self, stride_in_bytes: u32) -> Self {
+        self.stride_in_bytes = stride_in_bytes;
+        self
+    }
+
+    pub fn primitive_index_offset(mut self, offset: u32) -> Self {
+        self.primitive_index_offset = offset;
+        self
+    }
+
+    pub fn num_sbt_records(mut self, num_sbt_records: u32) -> Self {
+        self.num_sbt_records = num_sbt_records;
+        self
+    }
+
+    pub fn sbt_index_offset_buffer(
+        mut self,
+        sbt_index_offset_buffer: &'s DeviceSlice<u32>,
+    ) -> Self {
+        self.sbt_index_offset_buffer = Some(sbt_index_offset_buffer);
+        self
+    }
+
+    pub fn sbt_index_offset_buffer_stride(mut self, stride_in_bytes: u32) -> Self {
+        self.sbt_index_offset_stride_in_bytes = stride_in_bytes;
+        self
+    }
+}
+
+impl<'a, 's> BuildInput for CustomPrimitiveArray<'a, 's> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
+        sys::OptixBuildInput {
+            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
+            input: sys::OptixBuildInputUnion {
+                custom_primitive_array: std::mem::ManuallyDrop::new(
+                    sys::OptixBuildInputCustomPrimitiveArray {
+                        aabbBuffers: self.aabb_buffers.as_ptr(),
+                        numPrimitives: self.num_primitives,
+                        strideInBytes: self.stride_in_bytes,
+                        flags: self.flags.as_ptr() as *const u32,
+                        numSbtRecords: self.num_sbt_records,
+                        sbtIndexOffsetBuffer: if let Some(sbt_index_offset_buffer) =
+                            self.sbt_index_offset_buffer
+                        {
+                            sbt_index_offset_buffer.as_device_ptr()
+                        } else {
+                            0
+                        },
+                        sbtIndexOffsetSizeInBytes: 4,
+                        sbtIndexOffsetStrideInBytes: self.sbt_index_offset_stride_in_bytes,
+                        primitiveIndexOffset: self.primitive_index_offset,
+                    },
+                ),
+            },
+        }
+    }
+}
+
+#[repr(C, align(16))]
+#[derive(Debug, Copy, Clone, DeviceCopy)]
+pub struct Instance<'a> {
+    transform: RowMatrix3x4<f32>,
+    instance_id: u32,
+    sbt_offset: u32,
+    visibility_mask: u32,
+    flags: InstanceFlags,
+    traversable_handle: TraversableHandle,
+    pad: [u32; 2],
+    accel: PhantomData<&'a ()>,
+}
+
+const_assert_eq!(std::mem::align_of::<Instance>(), sys::OptixInstanceByteAlignment);
+const_assert_eq!(std::mem::size_of::<Instance>(), std::mem::size_of::<sys::OptixInstance>());
+
+
+bitflags::bitflags! {
+    #[derive(DeviceCopy)]
+    pub struct InstanceFlags: u32 {
+        const NONE = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_NONE;
+        const DISABLE_TRIANGLE_FACE_CULLING = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_TRIANGLE_FACE_CULLING;
+        const FLIP_TRIANGLE_FACING = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_FLIP_TRIANGLE_FACING;
+        const DISABLE_ANYHIT = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT;
+        const ENFORCE_ANYHIT = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_ENFORCE_ANYHIT;
+        const DISABLE_TRANSFORM = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_TRANSFORM;
+    }
+}
+
+impl<'a> Instance<'a> {
+    pub fn new<T: Traversable>(accel: &'a T) -> Instance<'a> {
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Instance {
+            transform: [
+                1.0, 0.0, 0.0, 0.0, 
+                0.0, 1.0, 0.0, 0.0, 
+                0.0, 0.0, 1.0, 0.0].into(),
+            instance_id: 0,
+            sbt_offset: 0,
+            visibility_mask: 255,
+            flags: InstanceFlags::NONE,
+            traversable_handle: accel.handle(),
+            pad: [0; 2],
+            accel: PhantomData,
+        }
+    }
+
+    pub unsafe fn from_handle(traversable_handle: TraversableHandle) -> Instance<'static> {
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        Instance {
+            transform: [
+                1.0, 0.0, 0.0, 0.0, 
+                0.0, 1.0, 0.0, 0.0, 
+                0.0, 0.0, 1.0, 0.0].into(),
+            instance_id: 0,
+            sbt_offset: 0,
+            visibility_mask: 255,
+            flags: InstanceFlags::NONE,
+            traversable_handle,
+            pad: [0; 2],
+            accel: PhantomData,
+        }
+    }
+
+    pub fn transform<T: Into<RowMatrix3x4<f32>>>(mut self, transform: T) -> Instance<'a> {
+        self.transform = transform.into();
+        self
+    }
+
+    pub fn instance_id(mut self, instance_id: u32) -> Instance<'a> {
+        self.instance_id = instance_id;
+        self
+    }
+
+    pub fn sbt_offset(mut self, sbt_offset: u32) -> Instance<'a> {
+        self.sbt_offset = sbt_offset;
+        self
+    }
+
+    pub fn visibility_mask(mut self, visibility_mask: u8) -> Instance<'a> {
+        self.visibility_mask = visibility_mask as u32;
+        self
+    }
+
+    pub fn flags(mut self, flags: InstanceFlags) -> Instance<'a> {
+        self.flags = flags;
+        self
+    }
+}
+
+pub struct InstanceArray<'i, 'a> {
+    instances: &'i DeviceSlice<Instance<'a>>,
+}
+
+impl<'i, 'a> InstanceArray<'i, 'a> {
+    pub fn new(instances: &'i DeviceSlice<Instance<'a>>) -> InstanceArray<'i, 'a> {
+        InstanceArray { instances }
+    }
+}
+
+impl<'i, 'a> Hash for InstanceArray<'i, 'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.instances.len());
+    }
+}
+
+impl<'i, 'a> BuildInput for InstanceArray<'i, 'a> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
+        cfg_if::cfg_if! {
+            if #[cfg(any(feature="optix72", feature="optix73"))] {
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                        })
+                    }
+                }
+            } else {
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                            aabbs: 0,
+                            numAabbs: 0,
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub struct InstancePointerArray<'i> {
+    instances: &'i DeviceSlice<CUdeviceptr>,
+}
+
+impl<'i> InstancePointerArray<'i> {
+    pub fn new(instances: &'i DeviceSlice<CUdeviceptr>) -> InstancePointerArray {
+        InstancePointerArray { instances }
+    }
+}
+
+impl<'i> Hash for InstancePointerArray<'i> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.instances.len());
+    }
+}
+
+
+impl<'i> BuildInput for InstancePointerArray<'i> {
+    fn to_sys(&self) -> sys::OptixBuildInput {
+        cfg_if::cfg_if! {
+            if #[cfg(any(feature="optix72", feature="optix73"))] {
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                        })
+                    }
+                }
+            } else {
+                sys::OptixBuildInput {
+                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
+                    input: sys::OptixBuildInputUnion {
+                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
+                            instances: self.instances.as_device_ptr(),
+                            numInstances: self.instances.len() as u32,
+                            aabbs: 0,
+                            numAabbs: 0,
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// A scene graph node holding a child node with a transform to be applied during
+/// ray traversal.
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct StaticTransformWrapper(sys::OptixStaticTransform);
+
+unsafe impl DeviceCopy for StaticTransformWrapper {}
+
+const_assert_eq!(
+    std::mem::size_of::<StaticTransformWrapper>(),
+    std::mem::size_of::<sys::OptixStaticTransform>(),
+);
+
+/// Stores the device memory and the [`TraversableHandle`] for a [`StaticTransform`]
+pub struct DeviceStaticTransform {
+    buf: DeviceBox<StaticTransformWrapper>,
+    hnd: TraversableHandle,
+}
+
+impl DeviceStaticTransform {
+    /// Create a new DeviceStaticTransform by copying the given [`StaticTransform`]
+    /// to the device and converting the resulting pointer to an OptiX [`Traversable`];
+    pub fn new<T: Traversable, M: Into<RowMatrix3x4<f32>> + Clone>(
+        ctx: &DeviceContext,
+        child: &T,
+        transform: &M,
+        inv_transform: &M,
+    ) -> Result<DeviceStaticTransform> {
+        let transform = (*transform).clone().into();
+        let inv_transform = (*inv_transform).clone().into();
+        let buf = DeviceBox::new(&StaticTransformWrapper(sys::OptixStaticTransform {
+            child: child.handle().inner,
+            transform: transform.into(),
+            invTransform: inv_transform.into(),
+            ..Default::default()
+        }))?;
+        let hnd = unsafe {
+            convert_pointer_to_traversable_handle(
+                ctx,
+                buf.as_device_ptr().as_raw(),
+                TraversableType::StaticTransform,
+            )?
+        };
+
+        Ok(DeviceStaticTransform { buf, hnd })
+    }
+
+    /// Create a new DeviceStaticTransform from device memory and pre-converted
+    /// handle
+    pub unsafe fn from_raw_parts(
+        buf: DeviceBox<StaticTransformWrapper>,
+        hnd: TraversableHandle,
+    ) -> Self {
+        Self { buf, hnd }
+    }
+}
+
+impl Traversable for DeviceStaticTransform {
+    fn handle(&self) -> TraversableHandle {
+        self.hnd
+    }
+}
+
+/// A scene graph node holding a child node with a motion transform to be applied
+/// during ray traversal, represented as SRT Data.
+///
+/// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixMatrixMotionTransform`]
+/// and an arbitrary number of motion keys
+pub struct DeviceMatrixMotionTransform {
+    buf: DeviceBuffer<u8>,
+    hnd: TraversableHandle,
+}
+
+impl DeviceMatrixMotionTransform {
+    /// Create a new MatrixMotionTransform with the given time range, flags and
+    /// motion keys.
+    ///
+    /// This method handles all memory allocation and copying the data to the
+    /// device.
+    ///
+    /// # Errors
+    /// * [`Error::TooFewMotionKeys`] - If `transforms.len() < 2`
+    /// * [`Error::OptixError`] - Any internal OptiX error
+    /// * [`Error::CudaError`] - Any internal OptiX error
+    pub fn new<T: Traversable>(
+        ctx: &DeviceContext,
+        child: &T,
+        time_begin: f32,
+        time_end: f32,
+        flags: MotionFlags,
+        transforms: &[RowMatrix3x4<f32>],
+    ) -> Result<DeviceMatrixMotionTransform> {
+        let num_keys = transforms.len();
+        if num_keys < 2 {
+            return Err(Error::TooFewMotionKeys(num_keys));
+        }
+
+        let mmt = sys::OptixMatrixMotionTransform {
+            child: child.handle().inner,
+            motionOptions: sys::OptixMotionOptions {
+                numKeys: num_keys as u16,
+                timeBegin: time_begin,
+                timeEnd: time_end,
+                flags: flags.bits(),
+            },
+            ..Default::default()
+        };
+
+        let size =
+            size_of::<sys::OptixMatrixMotionTransform>() + size_of::<f32>() * 12 * (num_keys - 2);
+
+        // copy the transform data
+        unsafe {
+            // allocate memory for the transform struct and all the matrices
+            let buf = DeviceBuffer::<u8>::uninitialized(size)?;
+
+            // get the offset of the matrix data from the base of the struct
+            let transform_ptr = buf
+                .as_ptr()
+                .add(offset_of!(sys::OptixMatrixMotionTransform, transform));
+
+            // copy the transform data.
+            // Note we're writing 24 bytes of data for the transform field that
+            // we'll just overwrite on the next line, but it's probably more
+            // efficient to do that than to write each field individually
+            cust::memory::memcpy_htod(
+                buf.as_device_ptr(),
+                &mmt as *const _ as *const c_void,
+                size_of::<sys::OptixMatrixMotionTransform>(),
+            )?;
+
+            // copy the matrix data
+            cust::memory::memcpy_htod(
+                transform_ptr.as_raw(),
+                transforms.as_ptr() as *const c_void,
+                std::mem::size_of::<RowMatrix3x4<f32>>() * num_keys,
+            )?;
+
+            let hnd = convert_pointer_to_traversable_handle(
+                ctx,
+                buf.as_device_ptr(),
+                TraversableType::MatrixMotionTransform,
+            )?;
+
+            Ok(Self { buf, hnd })
+        }
+    }
+
+    /// Create a new MatrixMotionTransform from device memory and pre-converted
+    /// handle
+    pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Self {
+        Self { buf, hnd }
+    }
+}
+
+impl Traversable for DeviceMatrixMotionTransform {
+    fn handle(&self) -> TraversableHandle {
+        self.hnd
+    }
+}
+
+/// Represents an SRT transformation.
+///
+/// An SRT transformation can represent a smooth rotation with fewer motion keys
+/// than a matrix transformation. Each motion key is constructed from elements
+/// taken from a matrix $S$, a quaternion $R$, and a translation $T$.
+///
+/// The scaling matrix,
+/// $$
+/// S=\begin{bmatrix}
+/// sx & a & b & pvx \cr 0 & sy & c & pvy \cr 0 & 0 & sz & pvz
+/// \end{bmatrix}
+/// $$
+///
+/// defines an affine transformation that can include scale, shear, and a translation.
+/// The translation allows to define the pivot point for the subsequent rotation.
+///
+/// The rotation quaternion $R = [qx, qy, qz, qw]$ describes a rotation with angular
+/// component $qw = \cos(\theta / 2)$ and other components
+/// $[qx, qy, qz] = \sin(\theta / 2) \cdot [ax, ay, az]$ where the axis $[ax, ay, az]$
+/// is normalized.
+///
+/// The translation matrix,
+/// $$
+/// T = \begin{bmatrix} 1 & 0 & 0 & tx \cr 0 & 1 & 0 & ty \cr 0 & 0 & 1 & tz \end{bmatrix}
+/// $$
+/// defines another translation that is applied after the rotation. Typically, this
+/// translation includes the inverse translation from the matrix $S$ to reverse the
+/// translation for the pivot point for $R$.
+///
+/// To obtain the effective transformation at time $t$, the elements of the components
+/// of $S$, $R$, and $T$ will be interpolated linearly. The components are then
+/// multiplied to obtain the combined transformation $C = T \cdot R \cdot S$. The
+/// transformation $C$ is the effective object-to-world transformations at time $t$,
+/// and $C^{-1}$ is the effective world-to-object transformation at time $t$.
+///
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug)]
+pub struct SrtData(sys::OptixSRTData);
+
+unsafe impl DeviceCopy for SrtData {}
+
+impl Deref for SrtData {
+    type Target = sys::OptixSRTData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// A scene graph node holding a child node with a motion transform to be applied
+/// during ray traversal, represented as SRT Data.
+///
+/// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixSRTMotionTransform`]
+/// and an arbitrary number of motion keys
+///
+/// FIXME (AL): need to see about checking the limits on the number of keys
+pub struct DeviceSrtMotionTransform {
+    buf: DeviceBuffer<u8>,
+    hnd: TraversableHandle,
+}
+
+impl DeviceSrtMotionTransform {
+    /// Create a new SrtMotionTransform from the given child [`TraversableHandle`],
+    /// time range, flags and [`SrtData`]
+    ///
+    /// This method handles all memory allocation and copying the data to the
+    /// device.
+    ///
+    /// # Errors
+    /// * [`Error::TooFewMotionKeys`] - If `srt_data.len() < 2`
+    /// * [`Error::OptixError`] - Any internal OptiX error
+    /// * [`Error::CudaError`] - Any internal OptiX error
+    pub fn new<T: Traversable>(
+        ctx: &DeviceContext,
+        child: &T,
+        time_begin: f32,
+        time_end: f32,
+        flags: MotionFlags,
+        srt_data: &[SrtData],
+    ) -> Result<DeviceSrtMotionTransform> {
+        let num_keys = srt_data.len();
+        if num_keys < 2 {
+            return Err(Error::TooFewMotionKeys(num_keys));
+        }
+
+        let mmt = sys::OptixSRTMotionTransform {
+            child: child.handle().inner,
+            motionOptions: sys::OptixMotionOptions {
+                numKeys: num_keys as u16,
+                timeBegin: time_begin,
+                timeEnd: time_end,
+                flags: flags.bits(),
+            },
+            ..Default::default()
+        };
+
+        let size = size_of::<sys::OptixSRTMotionTransform>()
+            + size_of::<f32>() * size_of::<SrtData>() * (num_keys - 2);
+
+        // copy the transform data
+        unsafe {
+            // allocate memory for the transform struct and all the matrices
+            let buf = DeviceBuffer::<u8>::uninitialized(size)?;
+
+            // get the offset of the matrix data from the base of the struct
+            let transform_ptr = buf
+                .as_ptr()
+                .add(offset_of!(sys::OptixSRTMotionTransform, srtData));
+
+            // copy the transform data.
+            // Note we're writing 24 bytes of data for the transform field that
+            // we'll just overwrite on the next line, but it's probably more
+            // efficient to do that than to write each field individually
+            cust::memory::memcpy_htod(
+                buf.as_device_ptr(),
+                &mmt as *const _ as *const c_void,
+                size_of::<sys::OptixSRTMotionTransform>(),
+            )?;
+
+            // copy the matrix data
+            cust::memory::memcpy_htod(
+                transform_ptr.as_raw(),
+                srt_data.as_ptr() as *const c_void,
+                std::mem::size_of::<SrtData>() * num_keys,
+            )?;
+
+            let hnd = convert_pointer_to_traversable_handle(
+                ctx,
+                buf.as_device_ptr(),
+                TraversableType::SrtMotionTransform,
+            )?;
+
+            Ok(Self { buf, hnd })
+        }
+    }
+
+    /// Create a new SrtMotionTransform from device memory and pre-converted
+    /// handle
+    pub unsafe fn from_raw_parts(buf: DeviceBuffer<u8>, hnd: TraversableHandle) -> Self {
+        Self { buf, hnd }
+    }
+}
+
+impl Traversable for DeviceSrtMotionTransform {
+    fn handle(&self) -> TraversableHandle {
+        self.hnd
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TraversableType {
+    StaticTransform,
+    MatrixMotionTransform,
+    SrtMotionTransform,
+}
+
+impl From<TraversableType> for sys::OptixTraversableType {
+    fn from(t: TraversableType) -> Self {
+        match t {
+            TraversableType::StaticTransform => {
+                sys::OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_STATIC_TRANSFORM
+            }
+            TraversableType::MatrixMotionTransform => {
+                sys::OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_MATRIX_MOTION_TRANSFORM
+            }
+            TraversableType::SrtMotionTransform => {
+                sys::OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_SRT_MOTION_TRANSFORM
+            }
+        }
+    }
+}
+
+/// Convert a device pointer into a [`TraversableHandle`].
+///
+/// OptiX transform traversables are managed by the application. Once you have
+/// created your transform and copied it to the device, use this to get a
+/// [`TraversableHandle`] from it.
+pub unsafe fn convert_pointer_to_traversable_handle(
+    ctx: &DeviceContext,
+    ptr: CUdeviceptr,
+    pointer_type: TraversableType,
+) -> Result<TraversableHandle> {
+    let mut inner = 0;
+    Ok(optix_call!(optixConvertPointerToTraversableHandle(
+        ctx.raw,
+        ptr,
+        pointer_type.into(),
+        &mut inner
+    ))
+    .map(|_| TraversableHandle { inner })?)
 }

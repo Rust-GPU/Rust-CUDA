@@ -1,18 +1,17 @@
 use anyhow::{Context, Result};
 use cust::context::{Context as CuContext, ContextFlags};
 use cust::device::{Device, DeviceAttribute};
-use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer};
+use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer};
 use cust::stream::{Stream, StreamFlags};
 use cust::CudaFlags;
 use cust::DeviceCopy;
 use optix::{
     context::DeviceContext,
-    module::{
+    pipeline::{
         CompileDebugLevel, CompileOptimizationLevel, ExceptionFlags, Module, ModuleCompileOptions,
-        PipelineCompileOptions, TraversableGraphFlags,
+        Pipeline, PipelineCompileOptions, PipelineLinkOptions, ProgramGroup, ProgramGroupDesc,
+        TraversableGraphFlags,
     },
-    pipeline::{Pipeline, PipelineLinkOptions},
-    program_group::{ProgramGroup, ProgramGroupDesc},
     shader_binding_table::{SbtRecord, ShaderBindingTable},
 };
 
@@ -44,7 +43,7 @@ impl Renderer {
             CuContext::create_and_push(ContextFlags::SCHED_AUTO | ContextFlags::MAP_HOST, device)?;
         let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
-        let mut ctx = DeviceContext::new(&cuda_context)?;
+        let mut ctx = DeviceContext::new(&cuda_context, false)?;
         ctx.set_log_callback(|_level, tag, msg| println!("[{}]: {}", tag, msg), 4)?;
 
         // create module
@@ -144,7 +143,7 @@ impl Renderer {
 
         pipeline.set_stack_size(2 * 1024, 2 * 1024, 2 * 1024, 1)?;
 
-        let mut color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
+        let color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
 
         let launch_params = LaunchParams {
             frame_id: 0,
@@ -192,7 +191,7 @@ impl Renderer {
             optix::launch(
                 &self.pipeline,
                 &self.stream,
-                &mut self.buf_launch_params,
+                self.buf_launch_params.as_device_ptr(),
                 &self.sbt,
                 self.launch_params.fb_size.x as u32,
                 self.launch_params.fb_size.y as u32,

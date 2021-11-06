@@ -1,4 +1,4 @@
-use crate::{error::Error, optix_call, program_group::ProgramGroup, sys};
+use crate::{error::Error, optix_call, pipeline::ProgramGroup, sys};
 
 use cust::memory::{DeviceCopy, DeviceSlice};
 use cust_raw::CUdeviceptr;
