@@ -88,8 +88,11 @@ pub use self::malloc::*;
 pub use self::pointer::*;
 pub use self::unified::*;
 
+use crate::error::*;
+
 use core::marker::PhantomData;
 use core::num::*;
+use std::ffi::c_void;
 
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
 /// or a regular [`DBuffer`].
@@ -330,4 +333,14 @@ impl_device_copy_glam! {
     mint::Vector4<i16>, mint::Vector4<i32>, mint::Vector4<f32>,
     mint::ColumnMatrix2<f32>, mint::ColumnMatrix3<f32>, mint::ColumnMatrix4<f32>, mint::ColumnMatrix3x4<f32>,
     mint::RowMatrix2<f32>, mint::RowMatrix3<f32>, mint::RowMatrix4<f32>, mint::RowMatrix3x4<f32>,
+}
+
+/// Simple wrapper over cuMemcpyHtoD_v2
+pub unsafe fn memcpy_htod(
+    d_ptr: cust_raw::CUdeviceptr,
+    src_ptr: *const c_void,
+    size: usize,
+) -> CudaResult<()> {
+    crate::sys::cuMemcpyHtoD_v2(d_ptr, src_ptr, size).to_result()?;
+    Ok(())
 }
