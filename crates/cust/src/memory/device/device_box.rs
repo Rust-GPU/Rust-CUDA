@@ -203,7 +203,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// let ptr = x.as_device_ptr();
     /// println!("{:p}", ptr);
     /// ```
-    pub fn as_device_ptr(&mut self) -> DevicePointer<T> {
+    pub fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
     }
 
