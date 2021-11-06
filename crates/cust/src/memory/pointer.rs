@@ -8,6 +8,7 @@ use core::{
 };
 use std::ffi::c_void;
 use std::marker::PhantomData;
+use std::mem::size_of;
 
 /// A pointer to device memory.
 ///
@@ -79,7 +80,6 @@ impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
         }
     }
 
-    /* TODO (AL): see if we need to reimplement these
     /// Calculates the offset from a device pointer.
     ///
     /// `count` is in units of T; eg. a `count` of 3 represents a pointer offset of
@@ -117,7 +117,11 @@ impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
     where
         T: Sized,
     {
-        Self::wrap(self.0.offset(count))
+        let ptr = self.ptr + (count as usize * size_of::<T>()) as u64;
+        Self {
+            ptr,
+            marker: PhantomData,
+        }
     }
 
     /// Calculates the offset from a device pointer using wrapping arithmetic.
@@ -154,7 +158,13 @@ impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
     where
         T: Sized,
     {
-        unsafe { Self::wrap(self.0.wrapping_offset(count)) }
+        let ptr = self
+            .ptr
+            .wrapping_add((count as usize * size_of::<T>()) as u64);
+        Self {
+            ptr,
+            marker: PhantomData,
+        }
     }
 
     /// Calculates the offset from a pointer (convenience for `.offset(count as isize)`).
@@ -302,7 +312,6 @@ impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
     {
         self.wrapping_offset((count as isize).wrapping_neg())
     }
-    */
 }
 
 /// A pointer to unified memory.
