@@ -1,6 +1,6 @@
 //! Utility crate for easily building CUDA crates using rustc_codegen_nvvm. Derived from rust-gpu's spirv_builder.
 
-use nvvm::NvvmArch;
+pub use nvvm::NvvmArch;
 use serde::Deserialize;
 use std::{
     borrow::Borrow,

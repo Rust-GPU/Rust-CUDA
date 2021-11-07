@@ -12,3 +12,4 @@ anyhow = "1.0.44"
 
 [build-dependencies]
 find_cuda_helper = { version = "0.1", path = "../../../find_cuda_helper" }
+cuda_builder = { version = "0.1", path = "../../../cuda_builder" }
