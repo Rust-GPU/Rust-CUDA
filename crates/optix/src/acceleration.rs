@@ -1690,12 +1690,12 @@ const_assert_eq!(
 );
 
 /// Stores the device memory and the [`TraversableHandle`] for a [`StaticTransform`]
-pub struct DeviceStaticTransform {
+pub struct StaticTransform {
     buf: DeviceBox<StaticTransformWrapper>,
     hnd: TraversableHandle,
 }
 
-impl DeviceStaticTransform {
+impl StaticTransform {
     /// Create a new DeviceStaticTransform by copying the given [`StaticTransform`]
     /// to the device and converting the resulting pointer to an OptiX [`Traversable`];
     pub fn new<T: Traversable, M: Into<RowMatrix3x4<f32>> + Clone>(
@@ -1703,7 +1703,7 @@ impl DeviceStaticTransform {
         child: &T,
         transform: &M,
         inv_transform: &M,
-    ) -> Result<DeviceStaticTransform> {
+    ) -> Result<StaticTransform> {
         let transform = (*transform).clone().into();
         let inv_transform = (*inv_transform).clone().into();
         let buf = DeviceBox::new(&StaticTransformWrapper(sys::OptixStaticTransform {
@@ -1720,7 +1720,7 @@ impl DeviceStaticTransform {
             )?
         };
 
-        Ok(DeviceStaticTransform { buf, hnd })
+        Ok(StaticTransform { buf, hnd })
     }
 
     /// Create a new DeviceStaticTransform from device memory and pre-converted
@@ -1733,7 +1733,7 @@ impl DeviceStaticTransform {
     }
 }
 
-impl Traversable for DeviceStaticTransform {
+impl Traversable for StaticTransform {
     fn handle(&self) -> TraversableHandle {
         self.hnd
     }
@@ -1744,12 +1744,12 @@ impl Traversable for DeviceStaticTransform {
 ///
 /// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixMatrixMotionTransform`]
 /// and an arbitrary number of motion keys
-pub struct DeviceMatrixMotionTransform {
+pub struct MatrixMotionTransform {
     buf: DeviceBuffer<u8>,
     hnd: TraversableHandle,
 }
 
-impl DeviceMatrixMotionTransform {
+impl MatrixMotionTransform {
     /// Create a new MatrixMotionTransform with the given time range, flags and
     /// motion keys.
     ///
@@ -1767,7 +1767,7 @@ impl DeviceMatrixMotionTransform {
         time_end: f32,
         flags: MotionFlags,
         transforms: &[RowMatrix3x4<f32>],
-    ) -> Result<DeviceMatrixMotionTransform> {
+    ) -> Result<MatrixMotionTransform> {
         let num_keys = transforms.len();
         if num_keys < 2 {
             return Err(Error::TooFewMotionKeys(num_keys));
@@ -1831,7 +1831,7 @@ impl DeviceMatrixMotionTransform {
     }
 }
 
-impl Traversable for DeviceMatrixMotionTransform {
+impl Traversable for MatrixMotionTransform {
     fn handle(&self) -> TraversableHandle {
         self.hnd
     }
@@ -1891,14 +1891,12 @@ impl Deref for SrtData {
 ///
 /// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixSRTMotionTransform`]
 /// and an arbitrary number of motion keys
-///
-/// FIXME (AL): need to see about checking the limits on the number of keys
-pub struct DeviceSrtMotionTransform {
+pub struct SrtMotionTransform {
     buf: DeviceBuffer<u8>,
     hnd: TraversableHandle,
 }
 
-impl DeviceSrtMotionTransform {
+impl SrtMotionTransform {
     /// Create a new SrtMotionTransform from the given child [`TraversableHandle`],
     /// time range, flags and [`SrtData`]
     ///
@@ -1916,7 +1914,7 @@ impl DeviceSrtMotionTransform {
         time_end: f32,
         flags: MotionFlags,
         srt_data: &[SrtData],
-    ) -> Result<DeviceSrtMotionTransform> {
+    ) -> Result<SrtMotionTransform> {
         let num_keys = srt_data.len();
         if num_keys < 2 {
             return Err(Error::TooFewMotionKeys(num_keys));
@@ -1980,7 +1978,7 @@ impl DeviceSrtMotionTransform {
     }
 }
 
-impl Traversable for DeviceSrtMotionTransform {
+impl Traversable for SrtMotionTransform {
     fn handle(&self) -> TraversableHandle {
         self.hnd
     }
