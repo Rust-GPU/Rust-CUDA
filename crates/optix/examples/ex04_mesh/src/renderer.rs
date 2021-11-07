@@ -4,6 +4,7 @@ use cust::device::Device;
 use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer};
 use cust::stream::{Stream, StreamFlags};
 use cust::{CudaFlags, DeviceCopy};
+use optix::acceleration::accel_compact;
 use optix::{
     acceleration::IndexedTriangleArray,
     acceleration::{
@@ -114,16 +115,16 @@ impl Renderer {
         let buf_indices = DeviceBuffer::from_slice(&indices)?;
 
         let geometry_flags = GeometryFlags::None;
-        let build_inputs = [IndexedTriangleArray::new(
-            &[&buf_vertex],
-            &buf_indices,
-            &[geometry_flags],
-        )];
-        let accel_options =
-            AccelBuildOptions::new(BuildFlags::ALLOW_COMPACTION, BuildOperation::Build);
-
+        let build_inputs =
+            IndexedTriangleArray::new(&[&buf_vertex], &buf_indices, &[geometry_flags]);
         // build and compact the GAS
-        let gas = Accel::build(&ctx, &stream, &[accel_options], &build_inputs, true)?;
+        let gas = Accel::build(
+            &ctx,
+            &stream,
+            &[AccelBuildOptions::new(BuildFlags::PREFER_FAST_TRACE)],
+            &[build_inputs],
+            true,
+        )?;
 
         stream.synchronize()?;
 
