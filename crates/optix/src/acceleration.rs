@@ -680,6 +680,7 @@ bitflags::bitflags! {
     /// an AH programs on the device. May affect the performance of the accel (seems to be larger).
     ///
     /// Note that `PREFER_FAST_TRACE` and `PREFER_FAST_BUILD` are mutually exclusive.
+    #[derive(Default)]
     pub struct BuildFlags: u32 {
         const NONE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_NONE;
         const ALLOW_UPDATE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_UPDATE;
@@ -696,6 +697,12 @@ bitflags::bitflags! {
 pub enum BuildOperation {
     Build = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_BUILD,
     Update = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_UPDATE,
+}
+
+impl Default for BuildOperation {
+    fn default() -> Self {
+        BuildOperation::Build
+    }
 }
 
 bitflags::bitflags! {
@@ -757,7 +764,7 @@ const_assert_eq!(
 
 /// Options to configure the [`accel_build()`]
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct AccelBuildOptions {
     build_flags: BuildFlags,
     operation: BuildOperation,
@@ -767,10 +774,10 @@ pub struct AccelBuildOptions {
 impl AccelBuildOptions {
     /// Create a new AccelBuildOptions with the given flags and operation and
     /// no motion blur.
-    pub fn new(build_flags: BuildFlags, operation: BuildOperation) -> Self {
+    pub fn new(build_flags: BuildFlags) -> Self {
         AccelBuildOptions {
             build_flags,
-            operation,
+            operation: BuildOperation::Build,
             motion_options: MotionOptions {
                 num_keys: 1,
                 flags: MotionFlags::NONE,
@@ -778,6 +785,12 @@ impl AccelBuildOptions {
                 time_end: 1.0f32,
             },
         }
+    }
+
+    /// Set the build operation to either build or update
+    pub fn build_operation(mut self, op: BuildOperation) -> Self {
+        self.operation = op;
+        self
     }
 
     /// Set the number of motion keys.
@@ -833,6 +846,7 @@ pub struct AccelBufferSizes {
 /// boxes back from an accel build.
 ///
 /// # Examples
+/// ```
 /// // Copy the returned size needed for the compacted buffer and allocate
 /// // storage
 /// let mut compacted_size = 0usize;
@@ -842,6 +856,7 @@ pub struct AccelBufferSizes {
 ///
 /// // Compact the accel structure.
 /// let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
+/// ```
 pub enum AccelEmitDesc {
     CompactedSize(DevicePointer<usize>),
     Aabbs(DevicePointer<Aabb>),
