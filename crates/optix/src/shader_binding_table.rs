@@ -3,6 +3,8 @@ use crate::{error::Error, optix_call, pipeline::ProgramGroup, sys};
 use cust::memory::{DeviceCopy, DeviceSlice};
 use cust_raw::CUdeviceptr;
 
+use crate::{const_assert, const_assert_eq};
+
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[repr(C)]
@@ -40,52 +42,25 @@ where
 
 unsafe impl<T: DeviceCopy> DeviceCopy for SbtRecord<T> {}
 
-pub struct ShaderBindingTable {
-    raygen_record: CUdeviceptr,
-    exception_record: CUdeviceptr,
-    miss_record_base: CUdeviceptr,
-    miss_record_stride_in_bytes: u32,
-    miss_record_count: u32,
-    hitgroup_record_base: CUdeviceptr,
-    hitgroup_record_stride_in_bytes: u32,
-    hitgroup_record_count: u32,
-    callables_record_base: CUdeviceptr,
-    callables_record_stride_in_bytes: u32,
-    callables_record_count: u32,
-}
+#[repr(transparent)]
+pub struct ShaderBindingTable(pub(crate) sys::OptixShaderBindingTable);
 
 impl ShaderBindingTable {
     pub fn new<RG: DeviceCopy>(buf_raygen_record: &DeviceSlice<SbtRecord<RG>>) -> Self {
         let raygen_record = buf_raygen_record.as_device_ptr();
-        ShaderBindingTable {
-            raygen_record,
-            exception_record: 0,
-            miss_record_base: 0,
-            miss_record_stride_in_bytes: 0,
-            miss_record_count: 0,
-            hitgroup_record_base: 0,
-            hitgroup_record_stride_in_bytes: 0,
-            hitgroup_record_count: 0,
-            callables_record_base: 0,
-            callables_record_stride_in_bytes: 0,
-            callables_record_count: 0,
-        }
-    }
-
-    pub fn build(self) -> sys::OptixShaderBindingTable {
-        sys::OptixShaderBindingTable {
-            raygenRecord: self.raygen_record,
-            exceptionRecord: self.exception_record,
-            missRecordBase: self.miss_record_base,
-            missRecordStrideInBytes: self.miss_record_stride_in_bytes,
-            missRecordCount: self.miss_record_count,
-            hitgroupRecordBase: self.hitgroup_record_base,
-            hitgroupRecordStrideInBytes: self.hitgroup_record_stride_in_bytes,
-            hitgroupRecordCount: self.hitgroup_record_count,
-            callablesRecordBase: self.callables_record_base,
-            callablesRecordStrideInBytes: self.callables_record_stride_in_bytes,
-            callablesRecordCount: self.callables_record_count,
-        }
+        ShaderBindingTable(sys::OptixShaderBindingTable {
+            raygenRecord: raygen_record,
+            exceptionRecord: 0,
+            missRecordBase: 0,
+            missRecordStrideInBytes: 0,
+            missRecordCount: 0,
+            hitgroupRecordBase: 0,
+            hitgroupRecordStrideInBytes: 0,
+            hitgroupRecordCount: 0,
+            callablesRecordBase: 0,
+            callablesRecordStrideInBytes: 0,
+            callablesRecordCount: 0,
+        })
     }
 
     pub fn exception<EX: DeviceCopy>(
@@ -95,7 +70,7 @@ impl ShaderBindingTable {
         if buf_exception_record.len() != 1 {
             panic!("SBT not passed single exception record",);
         }
-        self.exception_record = buf_exception_record.as_device_ptr();
+        self.0.exceptionRecord = buf_exception_record.as_device_ptr();
         self
     }
 
@@ -103,9 +78,9 @@ impl ShaderBindingTable {
         if buf_miss_records.len() == 0 {
             panic!("SBT passed empty miss records");
         }
-        self.miss_record_base = buf_miss_records.as_device_ptr();
-        self.miss_record_stride_in_bytes = std::mem::size_of::<SbtRecord<MS>>() as u32;
-        self.miss_record_count = buf_miss_records.len() as u32;
+        self.0.missRecordBase = buf_miss_records.as_device_ptr();
+        self.0.missRecordStrideInBytes = std::mem::size_of::<SbtRecord<MS>>() as u32;
+        self.0.missRecordCount = buf_miss_records.len() as u32;
         self
     }
 
@@ -116,9 +91,9 @@ impl ShaderBindingTable {
         if buf_hitgroup_records.len() == 0 {
             panic!("SBT passed empty hitgroup records");
         }
-        self.hitgroup_record_base = buf_hitgroup_records.as_device_ptr();
-        self.hitgroup_record_stride_in_bytes = std::mem::size_of::<SbtRecord<HG>>() as u32;
-        self.hitgroup_record_count = buf_hitgroup_records.len() as u32;
+        self.0.hitgroupRecordBase = buf_hitgroup_records.as_device_ptr();
+        self.0.hitgroupRecordStrideInBytes = std::mem::size_of::<SbtRecord<HG>>() as u32;
+        self.0.hitgroupRecordCount = buf_hitgroup_records.len() as u32;
         self
     }
 
@@ -129,17 +104,18 @@ impl ShaderBindingTable {
         if buf_callables_records.len() == 0 {
             panic!("SBT passed empty callables records");
         }
-        self.callables_record_base = buf_callables_records.as_device_ptr();
-        self.callables_record_stride_in_bytes = std::mem::size_of::<SbtRecord<CL>>() as u32;
-        self.callables_record_count = buf_callables_records.len() as u32;
+        self.0.callablesRecordBase = buf_callables_records.as_device_ptr();
+        self.0.callablesRecordStrideInBytes = std::mem::size_of::<SbtRecord<CL>>() as u32;
+        self.0.callablesRecordCount = buf_callables_records.len() as u32;
         self
     }
 }
 
-// Sanity check that the size of this union we're defining matches the one in
-// optix header so we don't get any nasty surprises
-fn _size_check() {
-    unsafe {
-        std::mem::transmute::<ShaderBindingTable, [u8; sys::OptixShaderBindingTableSize]>(panic!());
-    }
-}
+const_assert_eq!(
+    std::mem::align_of::<ShaderBindingTable>(),
+    std::mem::align_of::<sys::OptixShaderBindingTable>(),
+);
+const_assert_eq!(
+    std::mem::size_of::<ShaderBindingTable>(),
+    std::mem::size_of::<sys::OptixShaderBindingTable>()
+);

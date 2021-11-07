@@ -19,7 +19,7 @@ use crate::vector::V4f32;
 pub struct Renderer {
     launch_params: LaunchParams,
     buf_launch_params: DeviceBox<LaunchParams>,
-    sbt: optix::sys::OptixShaderBindingTable,
+    sbt: ShaderBindingTable,
     buf_raygen: DeviceBuffer<RaygenRecord>,
     buf_hitgroup: DeviceBuffer<HitgroupRecord>,
     buf_miss: DeviceBuffer<MissRecord>,
@@ -118,8 +118,7 @@ impl Renderer {
 
         let sbt = ShaderBindingTable::new(&mut buf_raygen)
             .miss(&mut buf_miss)
-            .hitgroup(&mut buf_hitgroup)
-            .build();
+            .hitgroup(&mut buf_hitgroup);
 
         // create pipeline
         let mut program_groups = Vec::new();

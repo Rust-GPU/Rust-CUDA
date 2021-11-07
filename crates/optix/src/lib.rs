@@ -46,6 +46,8 @@ pub mod prelude;
 #[doc = ::embed_doc_image::embed_image!("scene_graph", "images/scene_graph.png")]
 #[doc = include_str!("shader_binding_table.md")]
 pub mod shader_binding_table;
+use shader_binding_table::ShaderBindingTable;
+
 pub mod sys;
 
 pub use cust;
@@ -125,7 +127,7 @@ pub unsafe fn launch<P: cust::memory::DeviceCopy>(
     pipeline: &crate::pipeline::Pipeline,
     stream: &cust::stream::Stream,
     pipeline_params: DevicePointer<P>,
-    sbt: &sys::OptixShaderBindingTable,
+    sbt: &ShaderBindingTable,
     width: u32,
     height: u32,
     depth: u32,
@@ -135,7 +137,7 @@ pub unsafe fn launch<P: cust::memory::DeviceCopy>(
         stream.as_inner(),
         pipeline_params.as_raw() as u64,
         std::mem::size_of::<P>(),
-        sbt,
+        &sbt.0,
         width,
         height,
         depth,

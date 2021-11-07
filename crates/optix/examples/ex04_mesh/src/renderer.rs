@@ -24,7 +24,7 @@ use glam::{ivec2, vec3, IVec2, IVec3, Vec3, Vec4};
 pub struct Renderer {
     launch_params: LaunchParams,
     buf_launch_params: DeviceBox<LaunchParams>,
-    sbt: optix::sys::OptixShaderBindingTable,
+    sbt: ShaderBindingTable,
     gas: Accel,
     buf_raygen: DeviceBuffer<RaygenRecord>,
     buf_hitgroup: DeviceBuffer<HitgroupRecord>,
@@ -157,8 +157,7 @@ impl Renderer {
 
         let sbt = ShaderBindingTable::new(&mut buf_raygen)
             .miss(&mut buf_miss)
-            .hitgroup(&mut buf_hitgroup)
-            .build();
+            .hitgroup(&mut buf_hitgroup);
 
         // create pipeline
         let mut program_groups = Vec::new();
