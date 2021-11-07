@@ -1,5 +1,53 @@
 # Acceleration Structures
 
+```no_run
+use cust::prelude as cu;
+use optix::prelude as ox;
+# fn doit() -> Result<(), Box<dyn std::error::Error>> {
+# cust::init(cu::CudaFlags::empty())?;
+# ox::init()?;
+# let device = cu::Device::get_device(0)?;
+# let cu_ctx = cu::Context::create_and_push(cu::ContextFlags::SCHED_AUTO |
+# cu::ContextFlags::MAP_HOST, device)?;
+# let ctx = ox::DeviceContext::new(&cu_ctx, false)?;
+# let vertices: Vec<[f32; 3]> = Vec::new();
+# let indices: Vec<[u32; 3]> = Vec::new();
+# let stream = cu::Stream::new(cu::StreamFlags::DEFAULT, None)?;
+
+// Allocate buffers and copy vertex and index data to device
+let buf_vertex = cu::DeviceBuffer::from_slice(&vertices)?;
+let buf_indices = cu::DeviceBuffer::from_slice(&indices)?;
+
+// Tell OptiX the structure of our triangle mesh
+let geometry_flags = ox::GeometryFlags::None;
+let triangle_input =
+    ox::IndexedTriangleArray::new(
+        &[&buf_vertex],
+        &buf_indices,
+        &[geometry_flags]
+    );
+
+// Tell OptiX we'd prefer a faster traversal over a faster bvh build.
+let accel_options = AccelBuildOptions::new(ox::BuildFlags::PREFER_FAST_TRACE);
+
+// Build the accel asynchronously
+let gas = ox::Accel::build(
+    &ctx,
+    &stream,
+    &[accel_options],
+    &[triangle_input],
+    true
+)?;
+# Ok(())
+# }
+```
+
+# Programming Guide...
+<details>
+<summary>Click here to expand programming guide</summary>
+
+## Contents
+
 - [Building](#building)
     - [Building Safe API](#building-safe-api)
     - [Buliding Unsafe API](#building-unsafe-api)
@@ -57,18 +105,18 @@ The following acceleration structure types are supported:
 
 For geometry-AS builds, each build input can specify a set of triangles, a set
 of curves, or a set of user-defined primitives bounded by specified axis-aligned
-bounding boxes. Multiple build inputs can be passed as an array to [`accel_build`]
+bounding boxes. Multiple build inputs can be passed as an array to [`Accel::build()`]
 to combine different meshes into a single acceleration structure. All build
 inputs for a single build must agree on the build input type.
 
 Instance acceleration structures have a single build input and specify an array
-of instances. Each [`Instance`](crate::instance_array::Instance) includes a ray transformation and an
+of instances. Each [`Instance`] includes a ray transformation and a
 [`TraversableHandle`] that refers to a geometry-AS, a transform node, or another
 instance acceleration structure.
 
 ### Building Safe API
 
-The easiest way to build an acceleration structure is using [`Accel::build`]
+The easiest way to build an acceleration structure is using [`Accel::build()`]
 to which you just pass a slice of [`BuildInput`]s and the function handles
 memory allocation and synchronization for you.
 
@@ -125,12 +173,12 @@ stream.synchronize()?;
 
 ### Building Unsafe API
 
-As an alternative, you can also use the unsafe functions [`accel_build`],
-[`accel_compact`], and [`Accel::from_raw_parts`] to handle the memory
+As an alternative, you can also use the unsafe functions [`accel_build()`],
+[`accel_compact()`], and [`Accel::from_raw_parts()`] to handle the memory
 allocation yourself, meaning you can reuse buffers between accel builds.
 
 To prepare for a build, the required memory sizes are queried by passing an
-initial set of build inputs and parameters to [`accel_compute_memory_usage`].
+initial set of build inputs and parameters to [`accel_compute_memory_usage()`].
 It returns three different sizes:
 
 * `output_size_in_bytes` - Size of the memory region where the resulting
@@ -147,11 +195,11 @@ a 128-byte boundary. These buffers are actively used for the duration of the
 build. For this reason, they cannot be shared with other currently active build
 requests.
 
-Note that [`accel_compute_memory_usage`] does not initiate any activity on the
+Note that [`accel_compute_memory_usage()`] does not initiate any activity on the
 device; pointers to device memory or contents of input buffers are not required to point to allocated memory.
 
-The function [`accel_build`] takes the same array of [`BuildInput`] structs as
-[`accel_compute_memory_usage`] and builds a single acceleration structure from
+The function [`accel_build()`] takes the same array of [`BuildInput`] structs as
+[`accel_compute_memory_usage()`] and builds a single acceleration structure from
 these inputs. This acceleration structure can contain either geometry or
 instances, depending on the inputs to the build.
 
@@ -165,7 +213,7 @@ the function immediately, without waiting for the build to finish. By producing
 handles at acceleration time, custom handles can also be generated based on
 input to the builder.
 
-The acceleration structure constructed by [`accel_build`] does not reference
+The acceleration structure constructed by [`accel_build()`] does not reference
 any of the device buffers referenced in the build inputs. All relevant data
 is copied from these buffers into the acceleration output buffer, possibly in
 a different format.
@@ -242,22 +290,22 @@ must be all triangle inputs, all curve inputs, or all AABB inputs. Mixing build
 input types in a single geometry-AS is not allowed.
 
 Each build input maps to one or more consecutive records in the shader binding
-table (SBT), which controls program dispatch. (See “Shader binding table”.) If
+table (SBT), which controls program dispatch. (See [Shader binding table](crate::shader_binding_table).) If
 multiple records in the SBT are required, the application needs to provide a
 device buffer with per-primitive SBT record indices for that build input. If
 only a single SBT record is requested, all primitives reference this same unique
 SBT record. Note that there is a limit to the number of referenced SBT records
 per geometry-AS. (Limits are discussed in “Limits”.)
 
-Each build input also specifies an array of OptixGeometryFlags, one for each SBT
+Each build input also specifies an array of [`GeometryFlags`], one for each SBT
 record. The flags for one record apply to all primitives mapped to this SBT record.
 
 The following flags are supported:
 
-* [`GeometryFlags::None`] - Applies the default behavior when calling the any-hit
+* [`GeometryFlags::None`](crate::acceleration::GeometryFlags) - Applies the default behavior when calling the any-hit
 program, possibly multiple times, allowing the acceleration-structure builder
 to apply all optimizations.
-* [`GeometryFlags::RequireSingleAnyHitCall`] - Disables some optimizations
+* [`GeometryFlags::RequireSingleAnyHitCall`](crate::acceleration::GeometryFlags) - Disables some optimizations
 specific to acceleration-structure builders. By default, traversal may call
 the any-hit program more than once for each intersected primitive. Setting
 the flag ensures that the any-hit program is called only once for a hit with a
@@ -265,7 +313,7 @@ primitive. However, setting this flag may change traversal performance. The
 usage of this flag may be required for correctness of some rendering algorithms;
 for example, in cases where opacity or transparency information is accumulated
 in an any-hit program.
-* [`GeometryFlags::DisableAnyHit`] - Indicates that traversal should not call
+* [`GeometryFlags::DisableAnyHit`](crate::acceleration::GeometryFlags) - Indicates that traversal should not call
 the any-hit program for this primitive even if the corresponding SBT record
 contains an any-hit program. Setting this flag usually improves performance
 even if no any-hit program is present in the SBT.
@@ -282,13 +330,13 @@ primitive.
 
 An acceleration structure build can be controlled using the values of the
 [`BuildFlags`] enum. To enable random vertex access on an acceleration structure,
-use [`BuildFlags::ALLOW_RANDOM_VERTEX_ACCESS`]. (See “Vertex random access”.)
+use [`BuildFlags::ALLOW_RANDOM_VERTEX_ACCESS`](crate::acceleration::BuildFlags). 
 To steer trade-offs between build performance, runtime traversal performance
-and acceleration structure memory usage, use [`BuildFlags::PREFER_FAST_TRACE`]
-and [`BuildFlags::PREFER_FAST_BUILD`]. For curve primitives in particular,
+and acceleration structure memory usage, use [`BuildFlags::PREFER_FAST_TRACE`](crate::acceleration::BuildFlags)
+and [`BuildFlags::PREFER_FAST_BUILD`](crate::acceleration::BuildFlags). For curve primitives in particular,
 these flags control splitting; see “Splitting curve segments”.
 
-The flags [`BuildFlags::PREFER_FAST_TRACE`] and [`BuildFlags::PREFER_FAST_BUILD`]
+The flags [`BuildFlags::PREFER_FAST_TRACE`](crate::acceleration::BuildFlags) and [`BuildFlags::PREFER_FAST_BUILD`](crate::acceleration::BuildFlags)
 are mutually exclusive. To combine multiple flags that are not mutually exclusive,
 use the logical “or” operator.
 
@@ -306,12 +354,13 @@ input data.
 
 ### Dynamic Updates Safe API
 
-The simplest way to use dynamic updates is with the [`DynamicAccel`] structure.
-Simply call [`DynamicAccel::new()`] as you would with [`Accel`], and then
+The simplest way to use dynamic updates is with the [`DynamicAccel`] structure, which wraps an [`Accel`] and adds extra checks and functionality to support dyanmic updates to the acceleration structure.
+
+Simply call [`DynamicAccel::build()`] as you would with [`Accel`], and then
 call [`DynamicAccel::update()`] with the updated build inputs when you want
 to update the acceleration structure.
 
-Note that the inputs to [`DynamicAccel::update`] must have the same structure,
+Note that the inputs to [`DynamicAccel::update()`] must have the same structure,
 i.e. the number of motion keys, aabbs, triangle topology etc must be the same,
 although the underlying data (including the data pointers) can be different.
 If the data have a different structure, then behaviour is undefined.
@@ -321,11 +370,11 @@ the data do not match.
 ### Dynamic Updates Unsafe API
 
 To allow for future updates of an acceleration structure, set
-[`BuildFlags::ALLOW_UPDATE`] in the build flags when building the acceleration
+[`BuildFlags::ALLOW_UPDATE`](crate::acceleration::BuildFlags) in the build flags when building the acceleration
 structure initially.
 
 To update the previously built acceleration structure, set the operation to
-[`BuildOperation::Update`] and then call [`accel_build()`] on the same output
+[`BuildOperation::Update`](crate::acceleration::BuildOperation) and then call [`accel_build()`] on the same output
 data. All other options are required to be identical to the original build.
 The update is done in-place on the output data.
 
@@ -364,15 +413,17 @@ architecture.
 
 ### Compaction Safe API
 To compact an [`Accel`] or [`DynamicAccel`] when building, simply pass `true`
-for the `compact` parameter.
+for the `compact` parameter. This handles all buffer allocation and management 
+internally, providing safely and simplicity at the cost of not being able to re-use
+temporary buffers.
 
 ### Compaction Unsafe API
 
 To compact the acceleration structure as a post-process, do the following:
 
-* Build flag [`BuildFlags::ALLOW_COMPACTION`] must be set in the
+* Build flag [`BuildFlags::ALLOW_COMPACTION`](crate::acceleration::BuildFlags) must be set in the
     [`AccelBuildOptions`] passed to optixAccelBuild.
-* The emit property [`AccelEmitDesc::CompactedSize`] must be passed to
+* The emit property [`AccelEmitDesc::CompactedSize`](crate::acceleration::AccelEmitDesc) must be passed to
     [`accel_build()`]. This property is generated on the device and it must be
     copied back to the host if it is required for allocating the new output
     buffer. The application may then choose to compact the acceleration structure
@@ -537,8 +588,8 @@ types and how to map scene options best to avoid potential performance pitfalls.
 
 ### Basics
 Motion is supported by
-[`MatrixMotionTransform`](crate::transform::MatrixMotionTransform),
-[`SrtMotionTransform`](crate::transform::SrtMotionTransform) and
+[`MatrixMotionTransform`],
+[`SrtMotionTransform`] and
 acceleration structure traversables. The general motion characteristics are
 specified per traversable as motion options: the number of motion keys, flags,
 and the beginning and ending motion times corresponding to the first and last
@@ -557,14 +608,14 @@ itself may or may not have motion.
 
 Motion transforms must specify at least two motion keys. Acceleration structures,
 however, also accept [`AccelBuildOptions`] with field [`MotionOptions`] set to
-[`default()`]. This effectively disables motion for the acceleration structure and
+`default()`. This effectively disables motion for the acceleration structure and
 ignores the motion beginning and ending times, along with the motion flags.
 
 OptiX also supports static transform traversables in addition to the static
 transform of an instance. Static transforms are intended for the case of motion
 transforms in the scene. Without any motion transforms
-([`MatrixMotionTransform`](crate::transform::MatrixMotionTransform) or
-[`SrtMotionTransform](crate::transform::SrtMotionTransform)) in the traversable
+([`MatrixMotionTransform`] or
+[`SrtMotionTransform`]) in the traversable
 graph, any static transformation should be baked into the instance transform.
 However, if there is a motion transform, it may be required to apply a static
 transformation on a traversable (for example, on a geometry-AS) first before
@@ -579,8 +630,8 @@ as transformation.
 Motion boundary conditions are specified by using flags. By default, the
 behavior for any time outside the time range, is as if time was clamped to the
 range, meaning it appears static and visible. Alternatively, to remove the
-traversable before the beginning time, set [`MotionFlags::START_VANISH`]; to
-remove it after the ending time, set [`MotionFlags::END_VANISH`].
+traversable before the beginning time, set [`MotionFlags::START_VANISH`](crate::acceleration::MotionFlags); to
+remove it after the ending time, set [`MotionFlags::END_VANISH`](crate::acceleration::MotionFlags).
 
 For example:
 ```
@@ -674,7 +725,7 @@ Finally, the quality of the instance acceleration structure is also affected by 
 The motion matrix transform traversable ([`MatrixMotionTransform`]) transforms the ray during traversal using a motion matrix. The traversable provides a 3x4 row-major object-to-world transformation matrix for each motion key. The final motion matrix is constructed during traversal by interpolating the elements of the matrices at the nearest motion keys.
 
 The [`MatrixMotionTransform`] can be created with an arbitrary number of keys
-using its [`new()`](crate::transform::MatrixMotionTransform::new) constructor.
+using its [`new()`](crate::acceleration::MatrixMotionTransform::new) constructor.
 
 ### Motion Scale Rotate Translate Transform
 
@@ -780,9 +831,27 @@ A practical example for this is a motion matrix transform that performs a rotati
 Duplicate motion transforms should not be used as a workaround for irregular keys, where each key has varying motion beginning and ending times and vanish motion flags set. This duplication creates traversal overhead as all copies need to be intersected and their motion times compared to the ray's time.
 
 
+</details>
+
+[`Accel::build()`]: crate::acceleration::Accel::build
+[`Accel::from_raw_parts()`]: crate::acceleration::Accel::from_raw_parts
+[`Accel]: crate::acceleration::Accel
+[`Instance`]: crate::instance_array::Instance
 [`TriangleArray`]: crate::triangle_array::TriangleArray
 [`CurveArray`]: crate::curve_array::CurveArray
 [`InstanceArray`]: crate::instance_array::InstanceArray
 [`MatrixMotionTransform`]: crate::transform::MatrixMotionTransform
 [`SrtMotionTransform`]: crate::transform::SrtMotionTransform
-
+[`BuildInput`]: crate::acceleration::BuildInput
+[`TraversableHandle`]: crate::acceleration::TraversableHandle
+[`accel_build()`]: crate::acceleration::accel_build
+[`accel_compute_memory_usage()`]: crate::acceleration::accel_compute_memory_usage
+[`accel_compact()`]: crate::acceleration::accel_compact
+[`GeometryFlags`]: crate::acceleration::GeometryFlags
+[`BuildFlags`]: crate::acceleration::BuildFlags
+[`DynamicAccel`]: crate::acceleration::DynamicAccel
+[`DynamicAccel::build()`]: crate::acceleration::DynamicAccel::build
+[`DynamicAccel::update()`]: crate::acceleration::DynamicAccel::update
+[`AccelBuildOptions`]: crate::acceleration::AccelBuildOptions
+[`convert_pointer_to_traversable_handle`]: crate::acceleration::convert_pointer_to_traversable_handle
+[`MotionOptions`]: crate::acceleration::MotionOptions

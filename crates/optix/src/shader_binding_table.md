@@ -1,5 +1,11 @@
 # Shader Binding Table
 
+# Programming Guide...
+<details>
+<summary>Click here to expand programming guide</summary>
+
+# Contents
+
 - [Records](#records)
 - [Layout](#layout)
 - [Acceleration Structures](#acceleration-structures)
@@ -229,6 +235,8 @@ struct CHData {
 CHData* material_info = (CHData*)optixGetSbtDataPointer();
 ```
 The program is encouraged to rely on the alignment constraints of the SBT data section to read this data efficiently.
+
+</details>
 
 
  [`Instance`]: crate::acceleration::Instance

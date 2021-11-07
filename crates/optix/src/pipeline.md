@@ -1,6 +1,11 @@
 
 # Program Pipeline Creation
 
+# Programming Guide...
+<details>
+<summary>Click here to expand programming guide</summary>
+
+# Contents
 - [Program Input](#program-input)
 - [Programming Model](#programming-model)
 - [Module Creation](#module-creation)
@@ -274,6 +279,8 @@ This estimate is never worse than the previous one, but often better, for exampl
 Compilation work is triggered automatically when calling [`Module::new()`](crate::pipeline::Module::new) or [`ProgramGroup::new()`](crate::pipeline::ProgramGroup::new), and also potentially during [`Pipeline::new()`](crate::pipeline::Pipeline::new). This work is automatically cached on disk if enabled on the [`DeviceContext`]. Caching reduces compilation effort for recurring programs and program groups. While it is enabled by default, users can disable it through the use of [`DeviceContext::set_cache_enabled()`](crate::context::DeviceContext::set_cache_enabled). See [Context](crate::context) for other options regarding the compilation cache.
 
 Generally, cache entries are compatible with the same driver version and GPU type only.
+
+</details>
 
  [`DeviceContext`]: crate::context::DeviceContext;
  [`Module`]: crate::pipeline::Module

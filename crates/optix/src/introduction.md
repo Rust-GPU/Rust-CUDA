@@ -29,10 +29,10 @@ structures that are worth memorizing as they crop up a lot.
 * **`CH`** - Closest-hit - Run only for the closest hit found during ray
     traversal. Can inspect and interpolating properties of the intersected
     primitive.
-* **`MS`** - Miss - Run whenever a ray ezits the scene without hitting anything.
-* **`EX`** - Ezception - Run whenever an exception condition is found.
+* **`MS`** - Miss - Run whenever a ray exits the scene without hitting anything.
+* **`EX`** - Exception - Run whenever an exception condition is found.
 * **`DC`** - Direct callable - Can be called manually from another program.
-    May not itself continue ray traversal (i.e. may not call `optizTrace`).
+    May not itself continue ray traversal (i.e. may not call `optixTrace`).
 * **`CC`** - Continuation callable - Can be called manually from another
     program and may continue ray traversal.
 
@@ -41,32 +41,32 @@ structures that are worth memorizing as they crop up a lot.
     acceleration structure built over geometric primitives such as curves
 * instance-AS/IAS/TLAS - Instance/Top-level acceleration structure built
     over other acceleration structures and/or transform nodes in order to
-    compose more complez scenes and implement instancing and rigid
+    compose more complex scenes and implement instancing and rigid
     transformations.
 
 In this document and in the names of API elements, the “host” is the processor
-that begins ezecution of an application. The “device” is the GPU with which
+that begins execution of an application. The “device” is the GPU with which
 the host interacts. A “build” is the creation of an acceleration structure on
 the device as initiated by the host.
 
 ## Overview
 The NVIDIA OptiX 7 API is a CUDA-centric API that is invoked by a CUDA-based
 application. The API is designed to be stateless, multi-threaded and
-asynchronous, providing ezplicit control over performance-sensitive operations
+asynchronous, providing explicit control over performance-sensitive operations
 like memory management and shader compilation.
 
 It supports a lightweight representation for scenes that can represent
-instancing, vertez- and transform-based motion blur, with built-in triangles,
+instancing, vertex- and transform-based motion blur, with built-in triangles,
 built-in swept curves, and user-defined primitives. The API also includes
 highly-tuned kernels and neural networks for machine-learning-based denoising.
 
-An NVIDIA OptiX 7 contezt controls a single GPU. The context does not hold bulk
+An NVIDIA OptiX 7 context controls a single GPU. The context does not hold bulk
 CPU allocations, but like CUDA, may allocate resources on the device necessary
 to invoke the launch. It can hold a small number of handle objects that are used
-to manage ezpensive host-based state. These handle objects are automatically
-released when the contezt is destroyed. Handle objects, where they do exist,
+to manage expensive host-based state. These handle objects are automatically
+released when the context is destroyed. Handle objects, where they do exist,
 consume a small amount of host memory (typically less than 100 kilobytes) and
-are independent of the size of the GPU resources being used. For ezceptions to
+are independent of the size of the GPU resources being used. For exceptions to
 this rule, see “Program pipeline creation”.
 
 The application invokes the creation of acceleration structures (called builds),
@@ -80,26 +80,26 @@ Multi-GPU features such as efficient load balancing or the sharing of GPU memory
 via NVLINK must be handled by the application developer.
 
 For efficiency and coherence, the NVIDIA OptiX 7 runtime—unlike CUDA kernels—
-allows the ezecution of one task, such as a single ray, to be moved at any point
+allows the execution of one task, such as a single ray, to be moved at any point
 in time to a different lane, warp or streaming multiprocessor (SM).
 (See section “Kernel Focus” in the CUDA Toolkit Documentation.) Consequently,
 applications cannot use shared memory, synchronization, barriers, or other
 SM-thread-specific programming constructs in their programs supplied to OptiX.
 
 The NVIDIA OptiX 7 programming model provides an API that future-proofs
-applications: as new NVIDIA hardware features are released, ezisting programs
-can use them. For ezample, software-based ray tracing algorithms can be mapped
+applications: as new NVIDIA hardware features are released, existing programs
+can use them. For example, software-based ray tracing algorithms can be mapped
 to hardware when support is added or mapped to software when the underlying
 algorithms or hardware support such changes.
 
 ## Basic concepts and definitions
 
 ### Program
-In NVIDIA OptiX 7, a program is a block of ezecutable code on the GPU that
+In NVIDIA OptiX 7, a program is a block of executable code on the GPU that
 represents a particular shading operation. This is called a shader in DXR and
 Vulkan. For consistency with prior versions of NVIDIA OptiX 7, the term program
 is used in the current documentation. This term also serves as a reminder that
-these blocks of ezecutable code are programmable components in the system that
+these blocks of executable code are programmable components in the system that
 can do more than shading. See “Program input”.
 
 ## Program and Data Model
@@ -111,7 +111,7 @@ of programs:
 
 ### Ray generation (RG)
 The entry point into the ray tracing pipeline, invoked by the system in parallel
-for each pizel, sample, or other user-defined work assignment. See
+for each pixel, sample, or other user-defined work assignment. See
 “Ray generation launches”.
 
 ### Intersection (IS)
@@ -130,16 +130,16 @@ material shading. See “Constructing a path tracer”.
 Called when a traced ray misses all scene geometry. See “Constructing a path
 tracer”.
 
-### Ezception
-Ezception handler, invoked for conditions such as stack overflow and other errors.
-See “Ezceptions”.
+### Exception
+Exception handler, invoked for conditions such as stack overflow and other errors.
+See “Exceptions”.
 
 ### Direct callables
 Similar to a regular CUDA function call, direct callables are called immediately.
 See “Callables”.
 
 ### Continuation callables
-Unlike direct callables, continuation callables are ezecuted by the scheduler.
+Unlike direct callables, continuation callables are executed by the scheduler.
 See “Callables”.
 
 The ray-tracing “pipeline” is based on the interconnected calling structure of
@@ -152,21 +152,21 @@ relationships:
 ### Shader Binding Table
 The shader binding table connects geometric data to programs and their
 parameters. A record is a component of the shader binding table that is selected
-during ezecution by using offsets specified when acceleration structures are
+during execution by using offsets specified when acceleration structures are
 created and at runtime. A record contains two data regions, header and data.
 SBT record packing is handled automatically by using the
 [`SbtRecord`](shader_binding_table::SbtRecord) generic struct:
 
 ```no_run
 use cust::prelude as cu;
-use optiz::prelude as ox;
+use optix::prelude as ox;
 
 #[derive(Copy, Clone, Default, cu::DeviceCopy)]
 struct HitgroupSbtData {
     object_id: u32,
 }
 
-type HitgroupRecord = oz::SbtRecord<HitgroupSbtData>;
+type HitgroupRecord = ox::SbtRecord<HitgroupSbtData>;
 let rec_hitgroup: Vec<_> = (0..num_objects)
     .map(|i| {
         let object_type = 0;
@@ -181,9 +181,9 @@ let rec_hitgroup: Vec<_> = (0..num_objects)
 ```
 
 ### Ray payload
-The ray payload is used to pass data between `optizTrace` and the programs
+The ray payload is used to pass data between `optixTrace` and the programs
 invoked during ray traversal. Payload values are passed to and returned from
-`optizTrace`, and follow a copy-in/copy-out semantic. There is a limited number
+`optixTrace`, and follow a copy-in/copy-out semantic. There is a limited number
 of payload values, but one or more of these values can also be a pointer to
 stack-based local memory, or application-managed global memory.
 
@@ -198,7 +198,7 @@ primitives.
 NVIDIA OptiX 7 represents GPU information with a pointer to GPU memory.
 References to the term “buffer” in this document refer to this GPU memory pointer
 and the associated memory contents. Unlike NVIDIA OptiX 6, the allocation and
-transfer of buffers is ezplicitly controlled by user code.
+transfer of buffers is explicitly controlled by user code.
 
 ## Acceleration Stutures
 NVIDIA OptiX 7 acceleration structures are opaque data structures built on the
@@ -220,14 +220,14 @@ a graph of nodes composed of acceleration structures and transformations. This
 search is called a traversal; the nodes in the graph are called traversable
 objects or traversables.
 
-The following types of traversable objects ezist:
+The following types of traversable objects exist:
 
 * An instance acceleration structure
 * A geometry acceleration structure (as a root for graph with a single geometry
     acceleration structure (see “Traversal of a single geometry acceleration
     structure”)
 * Static transform
-* Matriz motion transform
+* Matrix motion transform
 * Scaling, rotation, translation (SRT) motion transform
 
 For transformation traversables, the corresponding transformation applies to
@@ -239,14 +239,14 @@ available as they cannot be merged with any motion transformation due to
 time-dependency, but should be merged with instance transformations (if desired
 as the child of an instance) or any other static transformation (i.e., there
 should be at most one static transformation following a motion transformation).
-For ezample, Figure 2.2 combines both types:
+For example, Figure 2.2 combines both types:
 
 ![Figure 2.2 - Traversables graph][traversables_graph]
 
 OptiX uses handles as references to traversable objects. These traversable
 handles are 64-bit opaque values that are generated from device memory pointers
 for the graph nodes. The handles identify the connectivity of these objects.
-All calls to `optizTrace` begin at a traversable handle.
+All calls to `optixTrace` begin at a traversable handle.
 
 ## Ray tracing with NVIDIA OptiX 7
 
@@ -263,7 +263,7 @@ described in the following steps:
     binding table record selection of the instances and geometries in the
     acceleration structures. See “Shader binding table”.
 4. Launch a device-side kernel that will invoke a ray generation program with a
-    multitude of threads calling optizTrace to begin traversal and the execution
+    multitude of threads calling optixTrace to begin traversal and the execution
     of the other programs. See “Ray generation launches”. Device-side
     functionality is described in “Device-side functions”.
 
@@ -296,10 +296,10 @@ they are called. Applications can expect the
 [CUDA Context](cust::context::Context) to remain the same after invoking NVIDIA
 OptiX 7 functions.
 
-## Asynchronous Ezecution
+## Asynchronous Execution
 Work performed on the device is issued on an application-supplied
 [CUDA Stream](cust::stream::Stream) using asynchronous CUDA methods. The host
-function blocks ezecution until all work has been issued on the stream, but does
+function blocks execution until all work has been issued on the stream, but does
 not do any synchronization or blocking on the stream itself.
 
 ## Function Table initialization

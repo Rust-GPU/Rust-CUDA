@@ -1,4 +1,8 @@
-OptiX Device Context handling.
+# OptiX Device Context handling.
+
+# Programming Guide...
+<details>
+<summary>Click here to expand programming guide</summary>
 
 A context is created by [`DeviceContext::new()`] and is used to manage a single
 GPU. The NVIDIA OptiX 7 device context is created by specifying the CUDA
@@ -135,7 +139,7 @@ Negative and non-integer values will be ignored.
 function. The low water mark will be set to half the value of
 `OPTIX_CACHE_MAXSIZE`.
 
-Corresponding get* functions are supplied to retrieve the current value of these
+Corresponding `get_xxx()` functions are supplied to retrieve the current value of these
 cache properties.
 
 ## Validation Mode
@@ -158,4 +162,6 @@ exceptions and provides an exception program if none is provided. The first
 non-user exception caught inside an exception program will therefore be reported
 and the launch terminated immediately. This will make exceptions more visible
 that otherwise might be overlooked.
+
+</details>
 
