@@ -1,3 +1,4 @@
+use cuda_builder::CudaBuilder;
 use find_cuda_helper::{find_cuda_root, find_optix_root};
 
 fn main() {
@@ -22,6 +23,14 @@ fn main() {
     ];
 
     compile_to_ptx("src/ex02_pipeline.cu", &args);
+
+    let ptx_path = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("device.ptx");
+
+    CudaBuilder::new("./device")
+        .copy_to(ptx_path)
+        .arch(cuda_builder::NvvmArch::Compute75)
+        .build()
+        .unwrap();
 }
 
 fn compile_to_ptx(cu_path: &str, args: &[String]) {

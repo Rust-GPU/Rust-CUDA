@@ -61,7 +61,8 @@ impl Renderer {
             .traversable_graph_flags(TraversableGraphFlags::ALLOW_SINGLE_GAS)
             .exception_flags(ExceptionFlags::NONE);
 
-        let ptx = include_str!(concat!(env!("OUT_DIR"), "/src/ex02_pipeline.ptx"));
+        // let ptx = include_str!(concat!(env!("OUT_DIR"), "/src/ex02_pipeline.ptx"));
+        let ptx = include_str!(concat!(env!("OUT_DIR"), "/device.ptx"));
 
         let (module, _log) = Module::new(
             &mut ctx,
