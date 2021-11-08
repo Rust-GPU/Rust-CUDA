@@ -18,6 +18,14 @@ use std::mem::size_of;
 use cust_raw::CUdeviceptr;
 use mint::{RowMatrix3x4, Vector3};
 
+// Kinda nasty hack to work around the fact taht bindgen generates an i32 for enums on windows,
+// but a u32 on linux
+#[cfg(windows)]
+type OptixEnumBaseType = i32;
+#[cfg(unix)]
+type OptixEnumBaseType = u32;
+
+
 
 pub trait BuildInput: std::hash::Hash {
     fn to_sys(&self) -> sys::OptixBuildInput;
@@ -681,7 +689,7 @@ bitflags::bitflags! {
     ///
     /// Note that `PREFER_FAST_TRACE` and `PREFER_FAST_BUILD` are mutually exclusive.
     #[derive(Default)]
-    pub struct BuildFlags: u32 {
+    pub struct BuildFlags: OptixEnumBaseType {
         const NONE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_NONE;
         const ALLOW_UPDATE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_UPDATE;
         const ALLOW_COMPACTION = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
@@ -692,7 +700,8 @@ bitflags::bitflags! {
 }
 
 /// Select which operation to perform with [`accel_build()`].
-#[repr(u32)]
+#[cfg_attr(windows, repr(i32))]
+#[cfg_attr(unix, repr(u32))]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BuildOperation {
     Build = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_BUILD,
@@ -1130,16 +1139,18 @@ pub enum VertexFormat {
 }
 
 /// Specifies the type of index data
-#[repr(u32)]
+#[cfg_attr(windows, repr(i32))]
+#[cfg_attr(unix, repr(u32))]
 #[derive(Copy, Clone, PartialEq)]
 pub enum IndicesFormat {
-    None = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_NONE as u32,
-    Short3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3 as u32,
-    Int3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_INT3 as u32,
+    None = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_NONE,
+    Short3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3,
+    Int3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_INT3,
 }
 
 /// Specifies the format of transform data
-#[repr(u32)]
+#[cfg_attr(windows, repr(i32))]
+#[cfg_attr(unix, repr(u32))]
 #[derive(Copy, Clone, PartialEq)]
 pub enum TransformFormat {
     None = sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE,
@@ -1291,7 +1302,7 @@ impl<'v, 'g, V: Vertex> BuildInput for TriangleArray<'v, 'g, V> {
                 triangle_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputTriangleArray {
                     vertexBuffers: self.d_vertex_buffers.as_ptr() as *const u64,
                     numVertices: self.num_vertices,
-                    vertexFormat: V::FORMAT as u32,
+                    vertexFormat: V::FORMAT as _,
                     vertexStrideInBytes: V::STRIDE,
                     indexBuffer: 0,
                     numIndexTriplets: 0,
@@ -1372,11 +1383,11 @@ impl<'v, 'i, V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'v, 
                 triangle_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputTriangleArray {
                     vertexBuffers: self.d_vertex_buffers.as_ptr() as *const u64,
                     numVertices: self.num_vertices,
-                    vertexFormat: V::FORMAT as u32,
+                    vertexFormat: V::FORMAT as _,
                     vertexStrideInBytes: V::STRIDE,
                     indexBuffer: self.index_buffer.as_device_ptr(),
                     numIndexTriplets: self.index_buffer.len() as u32,
-                    indexFormat: I::FORMAT as u32,
+                    indexFormat: I::FORMAT as _,
                     indexStrideInBytes: I::STRIDE,
                     flags: self.geometry_flags.as_ptr() as *const _,
                     numSbtRecords: 1,
@@ -1524,10 +1535,9 @@ pub struct Instance<'a> {
 const_assert_eq!(std::mem::align_of::<Instance>(), sys::OptixInstanceByteAlignment);
 const_assert_eq!(std::mem::size_of::<Instance>(), std::mem::size_of::<sys::OptixInstance>());
 
-
 bitflags::bitflags! {
     #[derive(DeviceCopy)]
-    pub struct InstanceFlags: u32 {
+    pub struct InstanceFlags: OptixEnumBaseType {
         const NONE = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_NONE;
         const DISABLE_TRIANGLE_FACE_CULLING = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_TRIANGLE_FACE_CULLING;
         const FLIP_TRIANGLE_FACING = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_FLIP_TRIANGLE_FACING;

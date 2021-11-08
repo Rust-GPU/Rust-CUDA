@@ -3,6 +3,13 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 use std::ffi::{CStr, CString};
 
+// Kinda nasty hack to work around the fact taht bindgen generates an i32 for enums on windows,
+// but a u32 on linux
+#[cfg(windows)]
+type OptixEnumBaseType = i32;
+#[cfg(unix)]
+type OptixEnumBaseType = u32;
+
 #[repr(transparent)]
 pub struct Pipeline {
     pub(crate) raw: sys::OptixPipeline,
@@ -19,7 +26,7 @@ impl From<PipelineLinkOptions> for sys::OptixPipelineLinkOptions {
     fn from(o: PipelineLinkOptions) -> Self {
         sys::OptixPipelineLinkOptions {
             maxTraceDepth: o.max_trace_depth,
-            debugLevel: o.debug_level as u32,
+            debugLevel: o.debug_level as _,
         }
     }
 }
@@ -129,7 +136,8 @@ pub struct Module {
 }
 
 /// Module compilation optimization level
-#[repr(u32)]
+#[cfg_attr(windows, repr(i32))]
+#[cfg_attr(unix, repr(u32))]
 #[derive(Debug, Hash, PartialEq, Copy, Clone)]
 pub enum CompileOptimizationLevel {
     Default = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_DEFAULT,
@@ -146,7 +154,8 @@ impl Default for CompileOptimizationLevel {
 }
 
 /// Module compilation debug level
-#[repr(u32)]
+#[cfg_attr(windows, repr(i32))]
+#[cfg_attr(unix, repr(u32))]
 #[derive(Debug, Hash, PartialEq, Copy, Clone)]
 pub enum CompileDebugLevel {
     None = sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_NONE,
@@ -174,8 +183,8 @@ cfg_if::cfg_if! {
             fn from(o: &ModuleCompileOptions) -> sys::OptixModuleCompileOptions {
                 sys::OptixModuleCompileOptions {
                     maxRegisterCount: o.max_register_count,
-                    optLevel: o.opt_level as u32,
-                    debugLevel: o.debug_level as u32,
+                    optLevel: o.opt_level as _,
+                    debugLevel: o.debug_level as _,
                     boundValues: std::ptr::null(),
                     numBoundValues: 0,
                 }
@@ -204,7 +213,7 @@ cfg_if::cfg_if! {
 
 bitflags::bitflags! {
     #[derive(Default)]
-    pub struct TraversableGraphFlags: u32 {
+    pub struct TraversableGraphFlags: OptixEnumBaseType {
         const ALLOW_ANY = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY;
         const ALLOW_SINGLE_GAS = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;
         const ALLOW_SINGLE_LEVEL_INSTANCING = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
@@ -213,7 +222,7 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     #[derive(Default)]
-    pub struct ExceptionFlags: u32 {
+    pub struct ExceptionFlags: OptixEnumBaseType {
         const NONE = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_NONE;
         const STACK_OVERFLOW = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
         const TRACE_DEPTH = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_TRACE_DEPTH;
@@ -273,10 +282,10 @@ impl PipelineCompileOptions {
         if #[cfg(feature="optix73")] {
                 sys::OptixPipelineCompileOptions {
                     usesMotionBlur: if self.uses_motion_blur { 1 } else { 0 },
-                    traversableGraphFlags: self.traversable_graph_flags.bits(),
+                    traversableGraphFlags: self.traversable_graph_flags.bits() as _,
                     numPayloadValues: self.num_payload_values,
                     numAttributeValues: self.num_attribute_values,
-                    exceptionFlags: self.exception_flags.bits(),
+                    exceptionFlags: self.exception_flags.bits() as _,
                     pipelineLaunchParamsVariableName: if let Some(ref name) = self
                         .pipeline_launch_params_variable_name {
                             name.as_ptr()
@@ -391,7 +400,7 @@ impl Module {
         uses_motion_blur: bool,
     ) -> Result<Module> {
         let is_options = sys::OptixBuiltinISOptions {
-            builtinISModuleType: builtin_is_module_type as u32,
+            builtinISModuleType: builtin_is_module_type as _,
             usesMotionBlur: if uses_motion_blur { 1 } else { 0 },
         };
 
