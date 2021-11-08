@@ -117,11 +117,14 @@ impl Renderer {
         let geometry_flags = GeometryFlags::None;
         let build_inputs =
             IndexedTriangleArray::new(&[&buf_vertex], &buf_indices, &[geometry_flags]);
+
+        let accel_options = AccelBuildOptions::new(BuildFlags::PREFER_FAST_TRACE | BuildFlags::ALLOW_COMPACTION);
+
         // build and compact the GAS
         let gas = Accel::build(
             &ctx,
             &stream,
-            &[AccelBuildOptions::new(BuildFlags::PREFER_FAST_TRACE)],
+            &[accel_options],
             &[build_inputs],
             true,
         )?;
