@@ -163,6 +163,56 @@ impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
     }
 }
 
+/// A trait describing a region of memory on the device with a base pointer and
+/// a size, used to be generic over DeviceBox, DeviceBuffer, DeviceVariable etc.
+pub trait DeviceMemory {
+    /// Get the raw cuda device pointer
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr;
+
+    /// Get the size of the memory region in bytes
+    fn size_in_bytes(&self) -> usize;
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceBox<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        self.as_device_ptr().as_raw()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>()
+    }
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceVariable<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        self.as_device_ptr().as_raw()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>()
+    }
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceBuffer<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        unsafe { self.as_device_ptr().as_raw() }
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>() * self.len()
+    }
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceSlice<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        self.as_device_ptr()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>() * self.len()
+    }
+}
+
 mod private {
     use super::{DeviceBox, DeviceBuffer, DeviceCopy, UnifiedBox, UnifiedBuffer};
 
