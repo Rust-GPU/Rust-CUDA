@@ -58,6 +58,7 @@ pub mod context;
 pub mod device;
 pub mod error;
 pub mod event;
+pub mod external;
 pub mod function;
 pub mod graph;
 pub mod link;
