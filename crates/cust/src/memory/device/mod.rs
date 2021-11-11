@@ -4,10 +4,12 @@ use crate::stream::Stream;
 mod device_box;
 mod device_buffer;
 mod device_slice;
+mod device_variable;
 
 pub use self::device_box::*;
 pub use self::device_buffer::*;
 pub use self::device_slice::*;
+pub use self::device_variable::*;
 
 /// Sealed trait implemented by types which can be the source or destination when copying data
 /// to/from the device or from one device allocation to another.
