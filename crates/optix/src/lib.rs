@@ -68,7 +68,7 @@ use shader_binding_table::ShaderBindingTable;
 pub mod sys;
 
 pub use cust;
-use cust::memory::DevicePointer;
+use cust::memory::{DeviceMemory, DevicePointer};
 use error::{Error, ToResult};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -121,31 +121,54 @@ macro_rules! optix_call {
 
 /// Launch the given [`Pipeline`](pipeline::Pipeline) on the given [`Stream`](cust::stream::Stream).
 ///
-/// A ray generation launch is the primary workhorse of the NVIDIA OptiX API. A launch invokes a 1D, 2D or 3D array of threads on the device and invokes ray generation programs for each thread. When the ray generation program invokes optixTrace, other programs are invoked to execute traversal, intersection, any-hit, closest-hit, miss and exception programs until the invocations are complete.
+/// A ray generation launch is the primary workhorse of the NVIDIA OptiX API. A
+/// launch invokes a 1D, 2D or 3D array of threads on the device and invokes ray
+/// generation programs for each thread. When the ray generation program invokes
+/// `optixTrace`, other programs are invoked to execute traversal, intersection,
+/// any-hit, closest-hit, miss and exception programs until the invocations are
+/// complete.
 ///
-/// A pipeline requires device-side memory for each launch. This space is allocated and managed by the API. Because launch resources may be shared between pipelines, they are only guaranteed to be freed when the [`DeviceContext`] is destroyed.
+/// A pipeline requires device-side memory for each launch. This space is allocated
+/// and managed by the API. Because launch resources may be shared between pipelines,
+/// they are only guaranteed to be freed when the [`DeviceContext`] is destroyed.
 ///
-/// All launches are asynchronous, using [`CUDA stream`]s. When it is necessary to implement synchronization, use the mechanisms provided by CUDA streams and events.
+/// All launches are asynchronous, using [`CUDA stream`]s. When it is necessary
+/// to implement synchronization, use the mechanisms provided by CUDA streams and
+/// events.
 ///
-/// In addition to the pipeline object, the CUDA stream, and the launch state, it is necessary to provide information about the SBT layout using the [`ShaderBindingTable`](crate::shader_binding_table::ShaderBindingTable) struct (see [Shader Binding Table](crate::shader_binding_table)).
+/// In addition to the pipeline object, the CUDA stream, and the launch state, it
+/// is necessary to provide information about the SBT layout using the
+/// [`ShaderBindingTable`](crate::shader_binding_table::ShaderBindingTable) struct
+/// (see [Shader Binding Table](crate::shader_binding_table)).
 ///
-/// The value of the pipeline launch parameter is specified by the `pipeline_launch_params_variable_name` field of the [`PipelineCompileOptions`](crate::pipeline::PipelineCompileOptions) struct. It is determined at launch with a [`DevicePointer`](cust::memory::DevicePointer) parameter, named `pipeline_params`]. This must be the same size as that passed to the module compilation or an error will occur.
+/// The value of the pipeline launch parameter is specified by the
+/// `pipeline_launch_params_variable_name` field of the
+/// [`PipelineCompileOptions`](crate::pipeline::PipelineCompileOptions) struct.
+/// It is determined at launch with a [`DevicePointer`](cust::memory::DevicePointer)
+/// parameter, named `pipeline_params`]. This must be the same size as that passed
+/// to the module compilation or an error will occur.
 ///
-/// The kernel creates a copy of `pipeline_params` before the launch, so the kernel is allowed to modify `pipeline_params` values during the launch. This means that subsequent launches can run with modified pipeline parameter values. Users cannot synchronize with this copy between the invocation of `launch()` and the start of the kernel.
+/// The kernel creates a copy of `pipeline_params` before the launch, so the kernel
+/// is allowed to modify `pipeline_params` values during the launch. This means
+/// that subsequent launches can run with modified pipeline parameter values. Users
+/// cannot synchronize with this copy between the invocation of `launch()` and
+/// the start of the kernel.
 ///
 /// # Safety
 /// You must ensure that:
 /// - Any device memory referenced in `buf_launch_params` point to valid,
 ///   correctly aligned memory
-/// - Any [`SbtRecord`](shader_binding_table::SbtRecord)s and associated data referenced by the
-///   [`ShaderBindingTable`](shader_binding_table::ShaderBindingTable) are alive and valid
+/// - Any [`SbtRecord`](shader_binding_table::SbtRecord)s and associated data
+///     referenced by the
+///     [`ShaderBindingTable`](shader_binding_table::ShaderBindingTable) are alive
+///     and valid
 ///
 /// [`CUDA stream`]: cust::stream::Stream
 /// [`DeviceContext`]: crate::context::DeviceContext
-pub unsafe fn launch<P: cust::memory::DeviceCopy>(
+pub unsafe fn launch<M: DeviceMemory>(
     pipeline: &crate::pipeline::Pipeline,
     stream: &cust::stream::Stream,
-    pipeline_params: DevicePointer<P>,
+    pipeline_params: &M,
     sbt: &ShaderBindingTable,
     width: u32,
     height: u32,
@@ -154,8 +177,8 @@ pub unsafe fn launch<P: cust::memory::DeviceCopy>(
     Ok(optix_call!(optixLaunch(
         pipeline.raw,
         stream.as_inner(),
-        pipeline_params.as_raw() as u64,
-        std::mem::size_of::<P>(),
+        pipeline_params.as_raw_ptr() as u64,
+        pipeline_params.size_in_bytes(),
         &sbt.0,
         width,
         height,
