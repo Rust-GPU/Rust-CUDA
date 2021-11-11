@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use cust::context::{Context as CuContext, ContextFlags};
 use cust::device::{Device, DeviceAttribute};
-use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer};
+use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer, DeviceVariable};
 use cust::stream::{Stream, StreamFlags};
 use cust::CudaFlags;
 use cust::DeviceCopy;
@@ -16,8 +16,7 @@ use optix::{
 };
 
 pub struct Renderer {
-    launch_params: LaunchParams,
-    buf_launch_params: DeviceBox<LaunchParams>,
+    launch_params: DeviceVariable<LaunchParams>,
     sbt: ShaderBindingTable,
     pipeline: Pipeline,
     buf_raygen: DeviceBuffer<RaygenRecord>,
@@ -145,23 +144,20 @@ impl Renderer {
 
         let color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
 
-        let launch_params = LaunchParams {
+        let launch_params = DeviceVariable::new(LaunchParams {
             frame_id: 0,
             color_buffer: color_buffer.as_ptr(),
             fb_size: Point2i {
                 x: width as i32,
                 y: height as i32,
             },
-        };
-
-        let buf_launch_params = DeviceBox::new(&launch_params)?;
+        })?;
 
         Ok(Renderer {
             ctx,
             cuda_context,
             stream,
             launch_params,
-            buf_launch_params,
             buf_raygen,
             buf_hitgroup,
             buf_miss,
@@ -184,14 +180,14 @@ impl Renderer {
     }
 
     pub fn render(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.buf_launch_params.copy_from(&self.launch_params)?;
+        self.launch_params.copy_htod()?;
         self.launch_params.frame_id += 1;
 
         unsafe {
             optix::launch(
                 &self.pipeline,
                 &self.stream,
-                self.buf_launch_params.as_device_ptr(),
+                &self.launch_params,
                 &self.sbt,
                 self.launch_params.fb_size.x as u32,
                 self.launch_params.fb_size.y as u32,
