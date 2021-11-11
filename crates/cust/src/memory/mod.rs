@@ -394,3 +394,18 @@ pub unsafe fn memcpy_htod(
     crate::sys::cuMemcpyHtoD_v2(d_ptr, src_ptr, size).to_result()?;
     Ok(())
 }
+
+/// Get the current free and total memory.
+///
+/// Returns in `.1` the total amount of memory available to the the current context.
+/// Returns in `.0` the amount of memory on the device that is free according to
+/// the OS. CUDA is not guaranteed to be able to allocate all of the memory that
+/// the OS reports as free.
+pub fn mem_get_info() -> CudaResult<(usize, usize)> {
+    let mut mem_free = 0;
+    let mut mem_total = 0;
+    unsafe {
+        crate::sys::cuMemGetInfo_v2(&mut mem_free, &mut mem_total).to_result()?;
+    }
+    Ok((mem_free, mem_total))
+}
