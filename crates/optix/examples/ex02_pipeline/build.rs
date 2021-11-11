@@ -29,7 +29,6 @@ fn main() {
     CudaBuilder::new("./device")
         .copy_to(ptx_path)
         .arch(cuda_builder::NvvmArch::Compute75)
-        .emit_llvm_ir(true)
         .build()
         .unwrap();
 }

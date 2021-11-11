@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/*",
+  "crates/cuda_test/kernels",
   "crates/optix/examples/ex*",
   "crates/optix/examples/ex*/device",
   "xtask",
