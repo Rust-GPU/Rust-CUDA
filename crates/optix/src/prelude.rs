@@ -1,18 +1,16 @@
 pub use crate::{
-    acceleration::CustomPrimitiveArray,
     acceleration::{
         Aabb, Accel, AccelBufferSizes, AccelBuildOptions, AccelEmitDesc, AccelRelocationInfo,
-        BuildFlags, BuildOperation, DynamicAccel, GeometryFlags,
+        BuildFlags, BuildOperation, CurveArray, CurveType, CustomPrimitiveArray, DynamicAccel,
+        GeometryFlags, IndexTriple, IndexedTriangleArray, Instance, InstanceArray, InstanceFlags,
+        InstancePointerArray, TraversableHandle, TriangleArray, Vertex,
     },
-    acceleration::{CurveArray, CurveType},
-    acceleration::{IndexTriple, IndexedTriangleArray, TriangleArray, Vertex},
-    acceleration::{Instance, InstanceArray, InstanceFlags, InstancePointerArray},
     context::{DeviceContext, DeviceProperty},
     init, launch,
     pipeline::{
-        Module, ModuleCompileOptions, PipelineCompileOptions, PrimitiveType, PrimitiveTypeFlags,
+        CompileDebugLevel, CompileOptimizationLevel, ExceptionFlags, Module, ModuleCompileOptions,
+        Pipeline, PipelineCompileOptions, PipelineLinkOptions, PrimitiveType, PrimitiveTypeFlags,
+        ProgramGroup, ProgramGroupDesc, ProgramGroupModule, StackSizes, TraversableGraphFlags,
     },
-    pipeline::{Pipeline, PipelineLinkOptions},
-    pipeline::{ProgramGroup, ProgramGroupDesc, ProgramGroupModule, StackSizes},
     shader_binding_table::{SbtRecord, ShaderBindingTable},
 };
