@@ -95,6 +95,16 @@ pub struct CudaBuilder {
     /// issues. If you are submitting a bug report try to include the LLVM IR file of
     /// the program that contains the offending function.
     pub emit: Option<EmitOption>,
+    /// Indicates to the codegen that the program is being compiled for use in the OptiX hardware raytracing library.
+    /// This does a couple of things:
+    /// - Aggressively inlines all functions.
+    /// - Immediately aborts on panic, not going through the panic handler or panicking machinery.
+    /// - sets the `optix` cfg.
+    ///
+    /// Code compiled with this option should always work under CUDA, but it might not be the most efficient or practical.
+    ///
+    /// `false` by default.
+    pub optix: bool,
 }
 
 impl CudaBuilder {
@@ -112,6 +122,7 @@ impl CudaBuilder {
             fast_div: false,
             fma_contraction: true,
             emit: None,
+            optix: false,
         }
     }
 
@@ -204,6 +215,18 @@ impl CudaBuilder {
     /// Copy the final ptx file to this location once finished building.
     pub fn copy_to(mut self, path: impl AsRef<Path>) -> Self {
         self.ptx_file_copy_path = Some(path.as_ref().to_path_buf());
+        self
+    }
+
+    /// Indicates to the codegen that the program is being compiled for use in the OptiX hardware raytracing library.
+    /// This does a couple of things:
+    /// - Aggressively inlines all functions. (not currently implemented but will be in the future)
+    /// - Immediately aborts on panic, not going through the panic handler or panicking machinery.
+    /// - sets the `optix` cfg.
+    ///
+    /// Code compiled with this option should always work under CUDA, but it might not be the most efficient or practical.
+    pub fn optix(mut self, optix: bool) -> Self {
+        self.optix = optix;
         self
     }
 
@@ -305,6 +328,13 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
 
     if builder.release {
         cargo.arg("--release");
+    }
+
+    if builder.optix {
+        cargo.arg("-Zbuild-std-features=panic_immediate_abort");
+        cargo.arg("-Zunstable-options");
+        cargo.arg("--config");
+        cargo.arg("optix=\"1\"");
     }
 
     // If we're nested in `cargo` invocation, use a different `--target-dir`,
