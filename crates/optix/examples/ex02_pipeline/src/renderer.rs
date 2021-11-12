@@ -145,7 +145,7 @@ impl Renderer {
         let color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
 
         let launch_params = LaunchParams {
-            frame_id: 0,
+            frame_id: 17,
             color_buffer: color_buffer.as_ptr(),
             fb_size: Point2i {
                 x: width as i32,
