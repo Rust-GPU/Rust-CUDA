@@ -27,7 +27,11 @@ pub struct LaunchParams {
 unsafe impl DeviceCopy for LaunchParams {}
 
 #[no_mangle]
-static PARAMS: MaybeUninit<LaunchParams> = MaybeUninit::uninit();
+static PARAMS: LaunchParams = LaunchParams {
+    frame_id: 88,
+    fb_size: [1, 1],
+    color_buffer: 0,
+};
 
 extern "C" {
     pub fn vprintf(format: *const u8, valist: *const core::ffi::c_void) -> i32;
@@ -52,8 +56,6 @@ pub unsafe fn __raygen__renderFrame() {
 
     let idx = optix::get_launch_index();
 
-    let params = PARAMS.assume_init_ref();
-
     if idx[0] == 3 && idx[1] == 4 {
         vprintf(
             b"Hello from Rust kernel!\n\0".as_ptr().cast(),
@@ -65,7 +67,7 @@ pub unsafe fn __raygen__renderFrame() {
 
         vprintf(
             b"frame id is %d\n\0".as_ptr().cast(),
-            core::mem::transmute(&PrintArgs(params.frame_id)),
+            core::mem::transmute(&PrintArgs(core::ptr::read_volatile(&PARAMS.frame_id))),
         );
     }
 }
