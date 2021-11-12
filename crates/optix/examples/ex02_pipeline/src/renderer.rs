@@ -190,7 +190,7 @@ impl Renderer {
             optix::launch(
                 &self.pipeline,
                 &self.stream,
-                self.buf_launch_params.as_device_ptr(),
+                &self.buf_launch_params,
                 &self.sbt,
                 self.launch_params.fb_size.x as u32,
                 self.launch_params.fb_size.y as u32,
