@@ -60,9 +60,12 @@ pub unsafe fn __raygen__renderFrame() {
             0 as *const core::ffi::c_void,
         );
 
+        #[repr(C)]
+        struct PrintArgs(i32);
+
         vprintf(
             b"frame id is %d\n\0".as_ptr().cast(),
-            &params.frame_id as *const _ as *const core::ffi::c_void,
+            core::mem::transmute(&PrintArgs(params.frame_id)),
         );
     }
 }

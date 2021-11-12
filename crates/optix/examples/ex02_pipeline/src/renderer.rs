@@ -187,8 +187,9 @@ impl Renderer {
     }
 
     pub fn render(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.launch_params.frame_id = 555;
         self.launch_params.copy_htod()?;
-        self.launch_params.frame_id += 1;
+        self.launch_params.frame_id = 777;
 
         unsafe {
             optix::launch(
