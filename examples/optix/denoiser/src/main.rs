@@ -1,13 +1,13 @@
 use cust::memory::DeviceBuffer;
 use cust::prelude::{Stream, StreamFlags};
 use cust::util::SliceExt;
-use cust::vek::{Clamp, Vec3};
 use image::io::Reader;
 use optix::context::DeviceContext;
 use optix::denoiser::{Denoiser, DenoiserModelKind, DenoiserParams, Image, ImageFormat};
 use std::error::Error;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use vek::{Clamp, Vec3};
 
 #[derive(StructOpt)]
 #[structopt(

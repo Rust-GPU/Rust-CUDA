@@ -28,6 +28,16 @@ pub struct Renderer {
     cuda_context: CuContext,
 }
 
+use device::LaunchParams;
+
+// #[repr(C)]
+// #[derive(Copy, Clone, DeviceCopy)]
+// struct LaunchParams {
+//     frame_id: i32,
+//     fb_size: [u32; 2],
+//     color_buffer: u64,
+// }
+
 impl Renderer {
     pub fn new(width: usize, height: usize) -> Result<Renderer, Box<dyn std::error::Error>> {
         init_optix()?;
@@ -145,12 +155,9 @@ impl Renderer {
         let color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
 
         let launch_params = DeviceVariable::new(LaunchParams {
-            frame_id: 0,
-            color_buffer: color_buffer.as_ptr(),
-            fb_size: Point2i {
-                x: width as i32,
-                y: height as i32,
-            },
+            frame_id: 17,
+            fb_size: [width as u32, height as u32],
+            color_buffer: color_buffer.as_device_ptr(),
         })?;
 
         Ok(Renderer {
@@ -173,9 +180,9 @@ impl Renderer {
         height: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
-        self.launch_params.fb_size.x = width as i32;
-        self.launch_params.fb_size.y = height as i32;
-        self.launch_params.color_buffer = self.color_buffer.as_ptr();
+        self.launch_params.fb_size[0] = width as u32;
+        self.launch_params.fb_size[1] = height as u32;
+        self.launch_params.color_buffer = self.color_buffer.as_device_ptr();
         Ok(())
     }
 
@@ -189,8 +196,8 @@ impl Renderer {
                 &self.stream,
                 &self.launch_params,
                 &self.sbt,
-                self.launch_params.fb_size.x as u32,
-                self.launch_params.fb_size.y as u32,
+                self.launch_params.fb_size[0],
+                self.launch_params.fb_size[1],
                 1,
             )?;
         }
@@ -199,21 +206,6 @@ impl Renderer {
 
         Ok(())
     }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, DeviceCopy)]
-struct Point2i {
-    pub x: i32,
-    pub y: i32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, DeviceCopy)]
-struct LaunchParams {
-    pub frame_id: i32,
-    pub color_buffer: DevicePointer<u32>,
-    pub fb_size: Point2i,
 }
 
 type RaygenRecord = SbtRecord<i32>;

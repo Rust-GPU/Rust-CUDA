@@ -26,9 +26,10 @@ fn main() {
 
     let ptx_path = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("device.ptx");
 
-    CudaBuilder::new("./device")
+    CudaBuilder::new("device")
         .copy_to(ptx_path)
         .arch(cuda_builder::NvvmArch::Compute75)
+        .optix(true)
         .build()
         .unwrap();
 }
