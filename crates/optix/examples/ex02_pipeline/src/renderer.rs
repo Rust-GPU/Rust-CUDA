@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use cust::context::{Context as CuContext, ContextFlags};
 use cust::device::{Device, DeviceAttribute};
-use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer};
+use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer, DeviceVariable};
 use cust::stream::{Stream, StreamFlags};
 use cust::CudaFlags;
 use cust::DeviceCopy;
@@ -16,8 +16,7 @@ use optix::{
 };
 
 pub struct Renderer {
-    launch_params: LaunchParams,
-    buf_launch_params: DeviceBox<LaunchParams>,
+    launch_params: DeviceVariable<LaunchParams>,
     sbt: ShaderBindingTable,
     pipeline: Pipeline,
     buf_raygen: DeviceBuffer<RaygenRecord>,
@@ -28,6 +27,8 @@ pub struct Renderer {
     stream: Stream,
     cuda_context: CuContext,
 }
+
+use device::LaunchParams;
 
 impl Renderer {
     pub fn new(width: usize, height: usize) -> Result<Renderer, Box<dyn std::error::Error>> {
@@ -61,7 +62,8 @@ impl Renderer {
             .traversable_graph_flags(TraversableGraphFlags::ALLOW_SINGLE_GAS)
             .exception_flags(ExceptionFlags::NONE);
 
-        let ptx = include_str!(concat!(env!("OUT_DIR"), "/src/ex02_pipeline.ptx"));
+        // let ptx = include_str!(concat!(env!("OUT_DIR"), "/src/ex02_pipeline.ptx"));
+        let ptx = include_str!(concat!(env!("OUT_DIR"), "/device.ptx"));
 
         let (module, _log) = Module::new(
             &mut ctx,
@@ -144,23 +146,17 @@ impl Renderer {
 
         let color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
 
-        let launch_params = LaunchParams {
+        let launch_params = DeviceVariable::new(LaunchParams {
             frame_id: 17,
-            color_buffer: color_buffer.as_ptr(),
-            fb_size: Point2i {
-                x: width as i32,
-                y: height as i32,
-            },
-        };
-
-        let buf_launch_params = DeviceBox::new(&launch_params)?;
+            fb_size: [width as u32, height as u32],
+            color_buffer: color_buffer.as_device_ptr(),
+        })?;
 
         Ok(Renderer {
             ctx,
             cuda_context,
             stream,
             launch_params,
-            buf_launch_params,
             buf_raygen,
             buf_hitgroup,
             buf_miss,
@@ -176,24 +172,25 @@ impl Renderer {
         height: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
-        self.launch_params.fb_size.x = width as i32;
-        self.launch_params.fb_size.y = height as i32;
-        self.launch_params.color_buffer = self.color_buffer.as_ptr();
+        self.launch_params.fb_size[0] = width as u32;
+        self.launch_params.fb_size[1] = height as u32;
+        self.launch_params.color_buffer = self.color_buffer.as_device_ptr();
         Ok(())
     }
 
     pub fn render(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.buf_launch_params.copy_from(&self.launch_params)?;
-        self.launch_params.frame_id += 1;
+        self.launch_params.frame_id = 555;
+        self.launch_params.copy_htod()?;
+        self.launch_params.frame_id = 777;
 
         unsafe {
             optix::launch(
                 &self.pipeline,
                 &self.stream,
-                &self.buf_launch_params,
+                &self.launch_params,
                 &self.sbt,
-                self.launch_params.fb_size.x as u32,
-                self.launch_params.fb_size.y as u32,
+                self.launch_params.fb_size[0],
+                self.launch_params.fb_size[1],
                 1,
             )?;
         }
@@ -202,21 +199,6 @@ impl Renderer {
 
         Ok(())
     }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, DeviceCopy)]
-struct Point2i {
-    pub x: i32,
-    pub y: i32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, DeviceCopy)]
-struct LaunchParams {
-    pub frame_id: i32,
-    pub color_buffer: DevicePointer<u32>,
-    pub fb_size: Point2i,
 }
 
 type RaygenRecord = SbtRecord<i32>;

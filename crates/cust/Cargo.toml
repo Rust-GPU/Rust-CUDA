@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 cust_raw = { path = "../cust_raw", version = "0.11.2"}
+cust_core = { path = "../cust_core", version = "0.1.0"}
 bitflags = "1.2"
 cust_derive = { path = "../cust_derive", version = "0.1" }
 vek = { version = "0.15.1", optional = true }
@@ -14,7 +15,12 @@ glam = { git = "https://github.com/anderslanglands/glam-rs", branch = "cuda", fe
 mint = { version = "^0.5", optional = true }
 
 [features]
-default-features = ["vek", "glam", "mint"]
+default-features = ["vek", "impl_glam", "impl_mint"]
+impl_glam = ["cust_core/glam", "glam"]
+impl_mint = ["cust_core/mint", "mint"]
+impl_vek = ["cust_core/vek", "vek"]
+
+
 
 [build-dependencies]
 find_cuda_helper = { path = "../find_cuda_helper", version = "0.1" }

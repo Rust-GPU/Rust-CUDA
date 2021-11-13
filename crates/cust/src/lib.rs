@@ -80,9 +80,6 @@ use crate::error::{CudaResult, ToResult};
 use bitflags::bitflags;
 use sys::{cuDriverGetVersion, cuInit};
 
-#[cfg(feature = "vek")]
-pub use vek;
-
 bitflags! {
     /// Bit flags for initializing the CUDA driver. Currently, no flags are defined,
     /// so `CudaFlags::empty()` is the only valid value.
