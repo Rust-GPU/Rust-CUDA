@@ -34,12 +34,16 @@ pub(crate) fn readjust_fn_abi<'tcx>(
             arg.mode = PassMode::Ignore;
         }
 
+        // this should never happen since rustc has always passed slices as pairs for years but we override it just to make sure.
+        // if rustc suddenly changes this we are in for a world of segfaults so if you are a rustc dev reading this, please dont, thanks :)
+        if arg.layout.ty.is_slice() && !matches!(arg.mode, PassMode::Pair { .. }) {
+            arg.mode = PassMode::Pair(ArgAttributes::new(), ArgAttributes::new());
+        }
+
         // pass all aggregates directly as values, ptx wants them to be passed all by value, but rustc's
         // ptx-kernel abi seems to be wrong, and it's unstable.
-        if matches!(
-            arg.layout.abi,
-            abi::Abi::Aggregate { .. } | abi::Abi::ScalarPair { .. }
-        ) && matches!(arg.mode, PassMode::Indirect { .. })
+        if matches!(arg.layout.abi, abi::Abi::Aggregate { .. })
+            && matches!(arg.mode, PassMode::Indirect { .. })
         {
             arg.mode = PassMode::Direct(ArgAttributes::new());
         }
