@@ -47,6 +47,7 @@ mod nvvm;
 mod target;
 mod ty;
 
+use abi::readjust_fn_abi;
 use back::target_machine_factory;
 use lto::ThinBuffer;
 use rustc_codegen_ssa::{
@@ -104,9 +105,16 @@ impl CodegenBackend for NvvmCodegenBackend {
         Box::new(link::NvvmMetadataLoader)
     }
 
-    // the llvm codegen just sets a special wasm handler we dont need
-    // for obvious reasons so we do nothing
-    fn provide(&self, _providers: &mut query::Providers) {}
+    fn provide(&self, providers: &mut query::Providers) {
+        providers.fn_abi_of_fn_ptr = |tcx, key| {
+            let result = (rustc_interface::DEFAULT_QUERY_PROVIDERS.fn_abi_of_fn_ptr)(tcx, key);
+            Ok(readjust_fn_abi(tcx, result?))
+        };
+        providers.fn_abi_of_instance = |tcx, key| {
+            let result = (rustc_interface::DEFAULT_QUERY_PROVIDERS.fn_abi_of_instance)(tcx, key);
+            Ok(readjust_fn_abi(tcx, result?))
+        };
+    }
     fn provide_extern(&self, _providers: &mut query::Providers) {}
 
     fn codegen_crate<'tcx>(

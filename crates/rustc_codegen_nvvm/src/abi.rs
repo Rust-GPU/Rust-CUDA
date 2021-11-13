@@ -1,155 +1,59 @@
-use crate::builder::{unnamed, Builder};
+use crate::builder::Builder;
 use crate::context::CodegenCx;
 use crate::int_replace::{get_transformed_type, transmute_llval};
 use crate::llvm::{self, *};
 use crate::ty::LayoutLlvmExt;
-use abi::Primitive::Pointer;
 use libc::c_uint;
 use rustc_codegen_ssa::mir::operand::OperandValue;
 use rustc_codegen_ssa::mir::place::PlaceRef;
 use rustc_codegen_ssa::traits::BaseTypeMethods;
 use rustc_codegen_ssa::{traits::*, MemFlags};
 use rustc_middle::bug;
-use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
-use rustc_middle::ty::layout::{conv_from_spec_abi, FnAbiError, LayoutCx, LayoutOf, TyAndLayout};
+use rustc_middle::ty::layout::LayoutOf;
 pub use rustc_middle::ty::layout::{FAT_PTR_ADDR, FAT_PTR_EXTRA};
-use rustc_middle::ty::{ParamEnv, PolyFnSig, Ty, TyCtxt, TyS};
+use rustc_middle::ty::{Ty, TyCtxt};
 pub use rustc_target::abi::call::*;
 use rustc_target::abi::call::{CastTarget, Reg, RegKind};
-use rustc_target::abi::{self, HasDataLayout, Int, PointerKind, Scalar, Size};
+use rustc_target::abi::{self, HasDataLayout, Int};
 pub use rustc_target::spec::abi::Abi;
 use tracing::trace;
 
-// /// Calculates an FnAbi for extern C functions. In our codegen, extern C is overriden
-// /// to mean "pass everything by value" . This is required because otherwise, rustc
-// /// will try to pass stuff indirectly which causes tons of issues, because when a user
-// /// goes to launch the kernel, the call will segfault/yield ub because parameter size/amount mismatches.
-// /// It is probably not possible to override ALL ABIs because rustc relies on rustcall details it can control.
-// /// Therefore, we override extern C instead. This also has better compatability with linking to gpu instrinsics.
-// ///
-// /// We may want to override everything but rustcall in the future.
-// pub(crate) fn fn_abi_for_extern_c_fn<'tcx>(
-//     cx: LayoutCx<'tcx, TyCtxt<'tcx>>,
-//     sig: PolyFnSig<'tcx>,
-//     extra_args: &[Ty<'tcx>],
-//     caller_location: Option<TyS<'tcx>>,
-//     attrs: CodegenFnAttrFlags,
-//     force_thin_self_ptr: bool,
-// ) -> Result<&'tcx FnAbi<'tcx, &'tcx TyS<'tcx>>, FnAbiError<'tcx>> {
-//     // this code is derived from fn_abi_new_uncached in LayoutCx
-//     assert_eq!(sig.abi(), Abi::C { unwind: false });
+pub(crate) fn readjust_fn_abi<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    fn_abi: &'tcx FnAbi<'tcx, Ty<'tcx>>,
+) -> &'tcx FnAbi<'tcx, Ty<'tcx>> {
+    // dont override anything in the rust abi for now
+    if fn_abi.conv == Conv::Rust {
+        return fn_abi;
+    }
+    let readjust_arg_abi = |arg: &ArgAbi<'tcx, Ty<'tcx>>| {
+        let mut arg = ArgAbi::new(&tcx, arg.layout, |_, _, _| ArgAttributes::new());
 
-//     let sig = cx
-//         .tcx
-//         .normalize_erasing_late_bound_regions(cx.param_env, sig);
-//     let conv = conv_from_spec_abi(cx.tcx, sig.abi);
+        // ignore zsts
+        if arg.layout.is_zst() {
+            arg.mode = PassMode::Ignore;
+        }
 
-//     let mut extra = {
-//         assert!(sig.c_variadic || extra_args.is_empty());
-//         extra_args.to_vec()
-//     };
-
-//     let adjust_for_rust_scalar = |attrs: &mut ArgAttributes,
-//                                   scalar: Scalar,
-//                                   layout: TyAndLayout<'tcx>,
-//                                   offset: Size,
-//                                   is_return: bool| {
-//         // Booleans are always an i1 that needs to be zero-extended.
-//         if scalar.is_bool() {
-//             attrs.ext(ArgExtension::Zext);
-//             return;
-//         }
-
-//         // Only pointer types handled below.
-//         if scalar.value != Pointer {
-//             return;
-//         }
-
-//         if !scalar.valid_range.contains(0) {
-//             attrs.set(ArgAttribute::NonNull);
-//         }
-
-//         if let Some(pointee) = layout.pointee_info_at(self, offset) {
-//             if let Some(kind) = pointee.safe {
-//                 attrs.pointee_align = Some(pointee.align);
-
-//                 // `Box` (`UniqueBorrowed`) are not necessarily dereferenceable
-//                 // for the entire duration of the function as they can be deallocated
-//                 // at any time. Set their valid size to 0.
-//                 attrs.pointee_size = match kind {
-//                     PointerKind::UniqueOwned => Size::ZERO,
-//                     _ => pointee.size,
-//                 };
-
-//                 // `Box` pointer parameters never alias because ownership is transferred
-//                 // `&mut` pointer parameters never alias other parameters,
-//                 // or mutable global data
-//                 //
-//                 // `&T` where `T` contains no `UnsafeCell<U>` is immutable,
-//                 // and can be marked as both `readonly` and `noalias`, as
-//                 // LLVM's definition of `noalias` is based solely on memory
-//                 // dependencies rather than pointer equality
-//                 //
-//                 // Due to miscompiles in LLVM < 12, we apply a separate NoAliasMutRef attribute
-//                 // for UniqueBorrowed arguments, so that the codegen backend can decide
-//                 // whether or not to actually emit the attribute.
-//                 let no_alias = match kind {
-//                     PointerKind::Shared | PointerKind::UniqueBorrowed => false,
-//                     PointerKind::UniqueOwned => true,
-//                     PointerKind::Frozen => !is_return,
-//                 };
-//                 if no_alias {
-//                     attrs.set(ArgAttribute::NoAlias);
-//                 }
-
-//                 if kind == PointerKind::Frozen && !is_return {
-//                     attrs.set(ArgAttribute::ReadOnly);
-//                 }
-
-//                 if kind == PointerKind::UniqueBorrowed && !is_return {
-//                     attrs.set(ArgAttribute::NoAliasMutRef);
-//                 }
-//             }
-//         }
-//     };
-
-//     let arg_of = |ty: Ty<'tcx>, arg_idx: Option<usize>| -> Result<_, FnAbiError<'tcx>> {
-//         let is_return = arg_idx.is_none();
-
-//         let layout = cx.layout_of(ty)?;
-//         let layout = if force_thin_self_ptr && arg_idx == Some(0) {
-//             // Don't pass the vtable, it's not an argument of the virtual fn.
-//             // Instead, pass just the data pointer, but give it the type `*const/mut dyn Trait`
-//             // or `&/&mut dyn Trait` because this is special-cased elsewhere in codegen
-//             make_thin_self_ptr(cx, layout)
-//         } else {
-//             layout
-//         };
-
-//         let mut arg = ArgAbi::new(cx, layout, |layout, scalar, offset| {
-//             let mut attrs = ArgAttributes::new();
-//             adjust_for_rust_scalar(&mut attrs, scalar, *layout, offset, is_return);
-//             attrs
-//         });
-
-//         if arg.layout.is_zst() {
-//             // For some forsaken reason, x86_64-pc-windows-gnu
-//             // doesn't ignore zero-sized struct arguments.
-//             // The same is true for {s390x,sparc64,powerpc}-unknown-linux-{gnu,musl}.
-//             if is_return
-//                 || rust_abi
-//                 || (!win_x64_gnu
-//                     && !linux_s390x_gnu_like
-//                     && !linux_sparc64_gnu_like
-//                     && !linux_powerpc_gnu_like)
-//             {
-//                 arg.mode = PassMode::Ignore;
-//             }
-//         }
-
-//         Ok(arg)
-//     };
-// }
+        // pass all aggregates directly as values, ptx wants them to be passed all by value, but rustc's
+        // ptx-kernel abi seems to be wrong, and it's unstable.
+        if matches!(
+            arg.layout.abi,
+            abi::Abi::Aggregate { .. } | abi::Abi::ScalarPair { .. }
+        ) && matches!(arg.mode, PassMode::Indirect { .. })
+        {
+            arg.mode = PassMode::Direct(ArgAttributes::new());
+        }
+        arg
+    };
+    tcx.arena.alloc(FnAbi {
+        args: fn_abi.args.iter().map(readjust_arg_abi).collect(),
+        ret: readjust_arg_abi(&fn_abi.ret),
+        c_variadic: fn_abi.c_variadic,
+        fixed_count: fn_abi.fixed_count,
+        conv: fn_abi.conv,
+        can_unwind: fn_abi.can_unwind,
+    })
+}
 
 macro_rules! for_each_kind {
     ($flags: ident, $f: ident, $($kind: ident),+) => ({
