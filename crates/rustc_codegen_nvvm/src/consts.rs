@@ -267,6 +267,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub(crate) fn const_bitcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
+        trace!("Const bitcast: `{:?}` to `{:?}`", val, ty);
         unsafe { llvm::LLVMConstBitCast(val, ty) }
     }
 

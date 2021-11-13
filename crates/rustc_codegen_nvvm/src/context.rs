@@ -46,6 +46,10 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     pub vtables: RefCell<FxHashMap<(Ty<'tcx>, Option<PolyExistentialTraitRef<'tcx>>), &'ll Value>>,
     /// A cache of constant strings and their values
     pub const_cstr_cache: RefCell<FxHashMap<Symbol, &'ll Value>>,
+    /// A map of functions which have parameters at specific indices replaced with an int-remapped type.
+    /// such as i128 --> <2 x i64>
+    pub remapped_integer_args:
+        RefCell<FxHashMap<&'ll Type, (Option<&'ll Type>, Vec<(usize, &'ll Type)>)>>,
 
     /// Cache of emitted const globals (value -> global)
     pub const_globals: RefCell<FxHashMap<&'ll Value, &'ll Value>>,
@@ -91,6 +95,9 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     // it is easier to use them in the future and add args we want to use before linking.
     #[allow(dead_code)]
     pub codegen_args: CodegenArgs,
+
+    // the value of the last call instruction. Needed for return type remapping.
+    pub last_call_llfn: Cell<Option<&'ll Value>>,
 }
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
@@ -132,6 +139,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             instances: Default::default(),
             vtables: Default::default(),
             const_cstr_cache: Default::default(),
+            remapped_integer_args: Default::default(),
             const_globals: Default::default(),
             statics_to_rauw: RefCell::new(Vec::new()),
             used_statics: RefCell::new(Vec::new()),
@@ -156,6 +164,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             },
             dbg_cx,
             codegen_args: CodegenArgs::from_session(tcx.sess()),
+            last_call_llfn: Cell::new(None),
         };
         cx.build_intrinsics_map();
         cx
@@ -369,17 +378,16 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     //// Codegens a reference to a function/method, monomorphizing and inlining as it goes.
     pub fn get_fn(&self, instance: Instance<'tcx>) -> &'ll Value {
-        trace!("Codegenning reference to function: `{:?}`", instance);
         let tcx = self.tcx;
 
         assert!(!instance.substs.needs_infer());
         assert!(!instance.substs.has_escaping_bound_vars());
+        let sym = tcx.symbol_name(instance).name;
 
         if let Some(&llfn) = self.instances.borrow().get(&instance) {
             return llfn;
         }
 
-        let sym = tcx.symbol_name(instance).name;
         let abi = self.fn_abi_of_instance(instance, ty::List::empty());
 
         let llfn = if let Some(llfn) = self.get_declared_value(&sym) {

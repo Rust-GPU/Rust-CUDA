@@ -5,7 +5,6 @@ use rustc_middle::bug;
 use rustc_session::Session;
 use rustc_target::spec::MergeFunctions;
 use std::ffi::CString;
-use tracing::debug;
 
 use std::mem;
 use std::path::Path;
@@ -54,10 +53,8 @@ unsafe fn configure_llvm(sess: &Session) {
     let tg_opts = sess.target.llvm_args.iter();
     let sess_args = cg_opts.chain(tg_opts);
 
-    debug!(
-        "Configuring llvm with sess_args:\n{}",
-        sess_args.clone().cloned().collect::<Vec<_>>().join("\n")
-    );
+    // dont print anything in here or it will interfere with cargo trying to print stuff which will
+    // cause the compilation to fail in mysterious ways.
 
     let user_specified_args: FxHashSet<_> = sess_args
         .clone()

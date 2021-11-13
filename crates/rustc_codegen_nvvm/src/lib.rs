@@ -91,6 +91,13 @@ unsafe impl Sync for NvvmCodegenBackend {}
 
 impl CodegenBackend for NvvmCodegenBackend {
     fn init(&self, sess: &Session) {
+        let filter = tracing_subscriber::EnvFilter::from_env("NVVM_LOG");
+        let subscriber = tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .compact()
+            .finish();
+
+        tracing::subscriber::set_global_default(subscriber).expect("no default subscriber");
         init::init(sess);
     }
     fn metadata_loader(&self) -> Box<MetadataLoaderDyn> {

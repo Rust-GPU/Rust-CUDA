@@ -1,6 +1,6 @@
 use crate::builder::{unnamed, Builder};
 use crate::context::CodegenCx;
-use crate::int_replace::get_transformed_type;
+use crate::int_replace::{get_transformed_type, transmute_llval};
 use crate::llvm::{self, *};
 use crate::ty::LayoutLlvmExt;
 use abi::Primitive::Pointer;
@@ -18,6 +18,7 @@ pub use rustc_target::abi::call::*;
 use rustc_target::abi::call::{CastTarget, Reg, RegKind};
 use rustc_target::abi::{self, HasDataLayout, Int, PointerKind, Scalar, Size};
 pub use rustc_target::spec::abi::Abi;
+use tracing::trace;
 
 // /// Calculates an FnAbi for extern C functions. In our codegen, extern C is overriden
 // /// to mean "pass everything by value" . This is required because otherwise, rustc
@@ -357,6 +358,11 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             if arg.pad.is_some() { 1 } else { 0 } +
             if let PassMode::Pair(_, _) = arg.mode { 2 } else { 1 }
         ).sum();
+
+        // the current index of each parameter in the function. Cant use enumerate on args because
+        // some pass modes pass args as multiple params, such as scalar pairs.
+        let mut idx = 0;
+
         let mut llargument_tys = Vec::with_capacity(
             if let PassMode::Indirect { .. } = self.ret.mode {
                 1
@@ -370,16 +376,25 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.immediate_llvm_type(cx),
             PassMode::Cast(cast) => cast.llvm_type(cx),
             PassMode::Indirect { .. } => {
+                idx += 1;
                 llargument_tys.push(cx.type_ptr_to(self.ret.memory_ty(cx)));
                 cx.type_void()
             }
         };
 
-        llreturn_ty = get_transformed_type(cx, llreturn_ty).0;
+        let mut transformed_types = Vec::new();
+        let mut old_ret_ty = Some(llreturn_ty);
 
-        for arg in &self.args {
+        let (new_ret, changed) = get_transformed_type(cx, llreturn_ty);
+        llreturn_ty = new_ret;
+        if !changed {
+            old_ret_ty = None;
+        }
+
+        for arg in self.args.iter() {
             // add padding
             if let Some(ty) = arg.pad {
+                idx += 1;
                 llargument_tys.push(ty.llvm_type(cx));
             }
 
@@ -389,6 +404,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                 PassMode::Pair(..) => {
                     llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 0, true));
                     llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 1, true));
+                    idx += 2;
                     continue;
                 }
                 PassMode::Indirect {
@@ -400,6 +416,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     let ptr_layout = cx.layout_of(ptr_ty);
                     llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 0, true));
                     llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 1, true));
+                    idx += 2;
                     continue;
                 }
                 PassMode::Cast(cast) => cast.llvm_type(cx),
@@ -409,14 +426,25 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     on_stack: _,
                 } => cx.type_ptr_to(arg.memory_ty(cx)),
             };
-            llargument_tys.push(get_transformed_type(cx, llarg_ty).0);
+            let (new, changed) = get_transformed_type(cx, llarg_ty);
+            if changed {
+                transformed_types.push((idx, llarg_ty));
+            }
+            llargument_tys.push(new);
+            idx += 1;
         }
 
-        if self.c_variadic {
+        let ty = if self.c_variadic {
             cx.type_variadic_func(&llargument_tys, llreturn_ty)
         } else {
             cx.type_func(&llargument_tys, llreturn_ty)
+        };
+        if !transformed_types.is_empty() || old_ret_ty.is_some() {
+            cx.remapped_integer_args
+                .borrow_mut()
+                .insert(ty, (old_ret_ty, transformed_types));
         }
+        ty
     }
 
     fn ptr_to_llvm_type(&self, cx: &CodegenCx<'ll, 'tcx>) -> &'ll Type {
@@ -505,7 +533,15 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
         }
     }
 
-    fn apply_attrs_callsite<'a>(&self, bx: &mut Builder<'a, 'll, 'tcx>, callsite: &'ll Value) {
+    fn apply_attrs_callsite<'a>(&self, bx: &mut Builder<'a, 'll, 'tcx>, mut callsite: &'ll Value) {
+        // HACK(RDambrosio016): We sometimes lie to rustc with return values and give it a bitcast
+        // instead of a call. This is because we sometimes have to bitcast return types like <2 x i64> to i128.
+        // So we just check if the last call was remapped.
+        if let Some(old) = bx.cx.last_call_llfn.get() {
+            callsite = old;
+            bx.cx.last_call_llfn.set(None);
+        }
+
         let mut i = 0;
         let mut apply = |cx: &CodegenCx<'_, '_>, attrs: &ArgAttributes| {
             attrs.apply_attrs_to_callsite(llvm::AttributePlace::Argument(i), cx, callsite);
@@ -584,15 +620,22 @@ impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn get_param(&self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
+        trace!("Get param `{:?}`", val);
         unsafe {
-            let ty = LLVMRustGetValueType(val);
-            let (new, changed) = crate::int_replace::get_transformed_type(self.cx, ty);
-            if changed {
-                let llbuilder = self.llbuilder.lock().unwrap();
-                LLVMBuildBitCast(&llbuilder, val, new, unnamed())
-            } else {
-                val
+            let llfnty = LLVMRustGetFunctionType(self.llfn());
+            let map = self.remapped_integer_args.borrow();
+            if let Some((_, key)) = map.get(llfnty) {
+                if let Some((_, new_ty)) = key.iter().find(|t| t.0 == index) {
+                    trace!("Casting irregular param {:?} to {:?}", val, new_ty);
+                    return transmute_llval(
+                        *self.llbuilder.lock().unwrap(),
+                        &self.cx,
+                        val,
+                        *new_ty,
+                    );
+                }
             }
+            val
         }
     }
 }
