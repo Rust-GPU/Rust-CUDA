@@ -1,6 +1,6 @@
 //! Utility crate for easily building CUDA crates using rustc_codegen_nvvm. Derived from rust-gpu's spirv_builder.
 
-use nvvm::NvvmArch;
+pub use nvvm::*;
 use serde::Deserialize;
 use std::{
     borrow::Borrow,
@@ -129,6 +129,7 @@ impl CudaBuilder {
     /// Whether to compile the gpu crate for release.
     pub fn release(mut self, release: bool) -> Self {
         self.release = release;
+        self.nvvm_opts = release;
         self
     }
 
@@ -308,6 +309,35 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
             EmitOption::Bitcode => "llvm-bc",
         };
         rustflags.push(format!("--emit={}", string));
+    }
+
+    let mut llvm_args = vec![];
+
+    llvm_args.push(NvvmOption::Arch(builder.arch).to_string());
+
+    if !builder.nvvm_opts {
+        llvm_args.push("-opt=0".to_string());
+    }
+
+    if builder.ftz {
+        llvm_args.push("-ftz=1".to_string());
+    }
+
+    if builder.fast_sqrt {
+        llvm_args.push("-prec-sqrt=0".to_string());
+    }
+
+    if builder.fast_div {
+        llvm_args.push("-prec-div=0".to_string());
+    }
+
+    if !builder.fma_contraction {
+        llvm_args.push("-fma=0".to_string());
+    }
+
+    let llvm_args = llvm_args.join(" ");
+    if !llvm_args.is_empty() {
+        rustflags.push(["-Cllvm-args=", &llvm_args].concat());
     }
 
     let target = if builder.nvptx_32 {
