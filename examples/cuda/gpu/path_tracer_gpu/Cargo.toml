@@ -1,0 +1,15 @@
+[package]
+name = "path_tracer_gpu"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+cuda_std = { version = "0.1", path = "../../../../crates/cuda_std" }
+enum_dispatch = "0.3.7"
+gpu_rand = { version = "0.1", path = "../../../../crates/gpu_rand" }
+
+[target.'cfg(not(target_os = "cuda"))'.dependencies]
+cust = { version = "0.1", path = "../../../../crates/cust" }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
