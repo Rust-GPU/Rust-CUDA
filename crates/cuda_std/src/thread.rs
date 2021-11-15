@@ -51,85 +51,85 @@ extern "C" {
 
 #[gpu_only]
 #[inline(always)]
-pub fn thread_idx_x() -> usize {
-    unsafe { __nvvm_thread_idx_x() as usize }
+pub fn thread_idx_x() -> u32 {
+    unsafe { __nvvm_thread_idx_x() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn thread_idx_y() -> usize {
-    unsafe { __nvvm_thread_idx_y() as usize }
+pub fn thread_idx_y() -> u32 {
+    unsafe { __nvvm_thread_idx_y() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn thread_idx_z() -> usize {
-    unsafe { __nvvm_thread_idx_z() as usize }
+pub fn thread_idx_z() -> u32 {
+    unsafe { __nvvm_thread_idx_z() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn block_idx_x() -> usize {
-    unsafe { __nvvm_block_idx_x() as usize }
+pub fn block_idx_x() -> u32 {
+    unsafe { __nvvm_block_idx_x() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn block_idx_y() -> usize {
-    unsafe { __nvvm_block_idx_y() as usize }
+pub fn block_idx_y() -> u32 {
+    unsafe { __nvvm_block_idx_y() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn block_idx_z() -> usize {
-    unsafe { __nvvm_block_idx_z() as usize }
+pub fn block_idx_z() -> u32 {
+    unsafe { __nvvm_block_idx_z() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn block_dim_x() -> usize {
-    unsafe { __nvvm_block_dim_x() as usize }
+pub fn block_dim_x() -> u32 {
+    unsafe { __nvvm_block_dim_x() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn block_dim_y() -> usize {
-    unsafe { __nvvm_block_dim_y() as usize }
+pub fn block_dim_y() -> u32 {
+    unsafe { __nvvm_block_dim_y() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn block_dim_z() -> usize {
-    unsafe { __nvvm_block_dim_z() as usize }
+pub fn block_dim_z() -> u32 {
+    unsafe { __nvvm_block_dim_z() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn grid_dim_x() -> usize {
-    unsafe { __nvvm_grid_dim_x() as usize }
+pub fn grid_dim_x() -> u32 {
+    unsafe { __nvvm_grid_dim_x() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn grid_dim_y() -> usize {
-    unsafe { __nvvm_grid_dim_y() as usize }
+pub fn grid_dim_y() -> u32 {
+    unsafe { __nvvm_grid_dim_y() }
 }
 
 #[gpu_only]
 #[inline(always)]
-pub fn grid_dim_z() -> usize {
-    unsafe { __nvvm_grid_dim_z() as usize }
+pub fn grid_dim_z() -> u32 {
+    unsafe { __nvvm_grid_dim_z() }
 }
 
 /// Gets the 3d index of the thread currently executing the kernel.
 #[gpu_only]
 #[inline(always)]
-pub fn thread_idx() -> Vec3<usize> {
+pub fn thread_idx() -> Vec3<u32> {
     unsafe {
         Vec3::new(
-            __nvvm_thread_idx_x() as usize,
-            __nvvm_thread_idx_y() as usize,
-            __nvvm_thread_idx_z() as usize,
+            __nvvm_thread_idx_x(),
+            __nvvm_thread_idx_y(),
+            __nvvm_thread_idx_z(),
         )
     }
 }
@@ -137,12 +137,12 @@ pub fn thread_idx() -> Vec3<usize> {
 /// Gets the 3d index of the block that the thread currently executing the kernel is located in.
 #[gpu_only]
 #[inline(always)]
-pub fn block_idx() -> Vec3<usize> {
+pub fn block_idx() -> Vec3<u32> {
     unsafe {
         Vec3::new(
-            __nvvm_block_idx_x() as usize,
-            __nvvm_block_idx_y() as usize,
-            __nvvm_block_idx_z() as usize,
+            __nvvm_block_idx_x(),
+            __nvvm_block_idx_y(),
+            __nvvm_block_idx_z(),
         )
     }
 }
@@ -151,12 +151,12 @@ pub fn block_idx() -> Vec3<usize> {
 /// how many threads exist in each thread block in every direction.
 #[gpu_only]
 #[inline(always)]
-pub fn block_dim() -> Vec3<usize> {
+pub fn block_dim() -> Vec3<u32> {
     unsafe {
         Vec3::new(
-            __nvvm_block_dim_x() as usize,
-            __nvvm_block_dim_y() as usize,
-            __nvvm_block_dim_z() as usize,
+            __nvvm_block_dim_x(),
+            __nvvm_block_dim_y(),
+            __nvvm_block_dim_z(),
         )
     }
 }
@@ -165,12 +165,12 @@ pub fn block_dim() -> Vec3<usize> {
 /// how many thread blocks exist in each grid in every direction.
 #[gpu_only]
 #[inline(always)]
-pub fn grid_dim() -> Vec3<usize> {
+pub fn grid_dim() -> Vec3<u32> {
     unsafe {
         Vec3::new(
-            __nvvm_grid_dim_x() as usize,
-            __nvvm_grid_dim_y() as usize,
-            __nvvm_grid_dim_z() as usize,
+            __nvvm_grid_dim_x(),
+            __nvvm_grid_dim_y(),
+            __nvvm_grid_dim_z(),
         )
     }
 }
@@ -184,7 +184,7 @@ pub fn grid_dim() -> Vec3<usize> {
 #[gpu_only]
 #[rustfmt::skip]
 #[inline(always)]
-pub fn index() -> usize {
+pub fn index() -> u32 {
     let grid_dim = grid_dim();
     let block_idx = block_idx();
     let block_dim = block_dim();
@@ -199,14 +199,19 @@ pub fn index() -> usize {
 }
 
 #[inline(always)]
-pub fn index_2d() -> Vec2<usize> {
+pub fn index_1d() -> u32 {
+    thread_idx_x() as u32 + block_idx_x() as u32 * block_dim_x() as u32
+}
+
+#[inline(always)]
+pub fn index_2d() -> Vec2<u32> {
     let i = thread_idx_x() + block_idx_x() * block_dim_x();
     let j = thread_idx_y() + block_idx_y() * block_dim_y();
     Vec2::new(i, j)
 }
 
 #[inline(always)]
-pub fn index_3d() -> Vec3<usize> {
+pub fn index_3d() -> Vec3<u32> {
     let i = thread_idx_x() + block_idx_x() * block_dim_x();
     let j = thread_idx_y() + block_idx_y() * block_dim_y();
     let k = thread_idx_z() + block_idx_z() * block_dim_z();
@@ -224,8 +229,8 @@ pub fn first() -> bool {
 /// Gets the number of threads inside of a warp. Currently 32 threads on every GPU architecture.
 #[gpu_only]
 #[inline(always)]
-pub fn warp_size() -> usize {
-    unsafe { __nvvm_warp_size() as usize }
+pub fn warp_size() -> u32 {
+    unsafe { __nvvm_warp_size() }
 }
 
 /// Waits until all threads in the thread block have reached this point. This guarantees

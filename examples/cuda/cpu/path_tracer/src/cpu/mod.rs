@@ -131,7 +131,7 @@ impl CpuRenderer {
             .for_each(|(idx, (px, rng))| {
                 let x = idx % viewport.bounds.x;
                 let y = idx / viewport.bounds.x;
-                let idx = Vec2::new(x, y);
+                let idx = Vec2::new(x as u32, y as u32);
 
                 let offset = Vec2::from(rng.normal_f32_2());
 

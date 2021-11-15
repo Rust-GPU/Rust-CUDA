@@ -52,6 +52,7 @@ pub use half::{bf16, f16};
 
 pub mod prelude {
     pub use crate::f16;
+    pub use crate::kernel;
     pub use crate::thread;
     pub use crate::{assert_eq, assert_ne, print, println};
     pub use alloc::{

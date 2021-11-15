@@ -517,17 +517,16 @@ impl<'a> Function<'a> {
 ///
 #[macro_export]
 macro_rules! launch {
-    ($module:ident . $function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* )) => {
+    ($module:ident . $function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* $(,)?)) => {
         {
-            let name = std::ffi::CString::new(stringify!($function)).unwrap();
-            let function = $module.get_function(&name);
+            let function = $module.get_function(stringify!($function));
             match function {
                 Ok(f) => launch!(f<<<$grid, $block, $shared, $stream>>>( $($arg),* ) ),
                 Err(e) => Err(e),
             }
         }
     };
-    ($function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* )) => {
+    ($function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* $(,)?)) => {
         {
             fn assert_impl_devicecopy<T: $crate::memory::DeviceCopy>(_val: T) {}
             if false {
