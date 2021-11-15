@@ -80,6 +80,10 @@ unsafe {
 }
 ```
 
+## Arrays 
+
+Arrays are passed the same as if they were structs, they are always passed by value as byte arrays.
+
 ## Slices 
 
 Slices are passed as **two parameters**, both 32-bit on `nvptx` or 64-bit on `nvptx64`. The first parameter is the pointer

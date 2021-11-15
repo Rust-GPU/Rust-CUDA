@@ -40,6 +40,11 @@ pub(crate) fn readjust_fn_abi<'tcx>(
             arg.mode = PassMode::Pair(ArgAttributes::new(), ArgAttributes::new());
         }
 
+        // same as in slice's case
+        if arg.layout.ty.is_array() && !matches!(arg.mode, PassMode::Direct { .. }) {
+            arg.mode = PassMode::Direct(ArgAttributes::new());
+        }
+
         // pass all aggregates directly as values, ptx wants them to be passed all by value, but rustc's
         // ptx-kernel abi seems to be wrong, and it's unstable.
         if matches!(arg.layout.abi, abi::Abi::Aggregate { .. })
