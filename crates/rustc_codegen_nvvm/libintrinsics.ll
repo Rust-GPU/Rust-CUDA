@@ -239,5 +239,52 @@ start:
 }
 declare {i16, i1} @llvm.umul.with.overflow.i16(i16, i16) #0
 
+; This is a bit weird, we need to use functions defined in rust crates (compiler_builtins)
+; as intrinsics in the codegen, but we can't directly use their name, otherwise we will have
+; really odd and incorrect behavior in the crate theyre defined in. So we need to make a wrapper for them that is opaque
+; to the codegen, which is what this is doing.
+
+define {<2 x i64>, i1} @__nvvm_i128_addo(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call {<2 x i64>, i1} @__rust_i128_addo(<2 x i64> %0, <2 x i64> %1)
+  ret {<2 x i64>, i1} %2
+}
+declare {<2 x i64>, i1} @__rust_i128_addo(<2 x i64>, <2 x i64>) #0
+
+define {<2 x i64>, i1} @__nvvm_u128_addo(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call {<2 x i64>, i1} @__rust_u128_addo(<2 x i64> %0, <2 x i64> %1)
+  ret {<2 x i64>, i1} %2
+}
+declare {<2 x i64>, i1} @__rust_u128_addo(<2 x i64>, <2 x i64>) #0
+
+define {<2 x i64>, i1} @__nvvm_i128_subo(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call {<2 x i64>, i1} @__rust_i128_subo(<2 x i64> %0, <2 x i64> %1)
+  ret {<2 x i64>, i1} %2
+}
+declare {<2 x i64>, i1} @__rust_i128_subo(<2 x i64>, <2 x i64>) #0
+
+define {<2 x i64>, i1} @__nvvm_u128_subo(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call {<2 x i64>, i1} @__rust_u128_subo(<2 x i64> %0, <2 x i64> %1)
+  ret {<2 x i64>, i1} %2
+}
+declare {<2 x i64>, i1} @__rust_u128_subo(<2 x i64>, <2 x i64>) #0
+
+define {<2 x i64>, i1} @__nvvm_i128_mulo(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call {<2 x i64>, i1} @__rust_i128_mulo(<2 x i64> %0, <2 x i64> %1)
+  ret {<2 x i64>, i1} %2
+}
+declare {<2 x i64>, i1} @__rust_i128_mulo(<2 x i64>, <2 x i64>) #0
+
+define {<2 x i64>, i1} @__nvvm_u128_mulo(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call {<2 x i64>, i1} @__rust_u128_mulo(<2 x i64> %0, <2 x i64> %1)
+  ret {<2 x i64>, i1} %2
+}
+declare {<2 x i64>, i1} @__rust_u128_mulo(<2 x i64>, <2 x i64>) #0
+
 attributes #0 = { alwaysinline speculatable }
 attributes #1 = { alwaysinline }

@@ -178,14 +178,16 @@ impl Module {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_function<'a>(&'a self, name: &CStr) -> CudaResult<Function<'a>> {
+    pub fn get_function<'a, T: AsRef<str>>(&'a self, name: T) -> CudaResult<Function<'a>> {
         unsafe {
+            let name = name.as_ref();
+            let cstr = CString::new(name).expect("Argument to get_function had a nul");
             let mut func: cuda::CUfunction = ptr::null_mut();
 
             cuda::cuModuleGetFunction(
                 &mut func as *mut cuda::CUfunction,
                 self.inner,
-                name.as_ptr(),
+                cstr.as_ptr(),
             )
             .to_result()?;
             Ok(Function::new(func, self))

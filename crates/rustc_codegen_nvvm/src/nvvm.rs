@@ -52,10 +52,7 @@ pub fn codegen_bitcode_modules(
     main: Vec<(Vec<u8>, String)>,
     lazy: Vec<(Vec<u8>, String)>,
 ) -> Result<Vec<u8>, CodegenErr> {
-    debug!(
-        "Codegenning bitcode, main modules:\n{:?}, lazy loaded modules:\n{:?}",
-        main, lazy
-    );
+    debug!("Codegenning bitcode to PTX");
 
     // make sure the nvvm version is high enough so users don't get confusing compilation errors.
     let (_, minor) = nvvm::ir_version();

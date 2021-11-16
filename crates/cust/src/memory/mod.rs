@@ -289,6 +289,7 @@ unsafe impl<
 {
 }
 
+#[cfg(feature = "vek")]
 macro_rules! impl_device_copy_vek {
     ($($strukt:ident),* $(,)?) => {
         $(

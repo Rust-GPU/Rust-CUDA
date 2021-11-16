@@ -1,11 +1,9 @@
 use libc::c_int;
-use rustc_data_structures::fx::FxHashSet;
 use rustc_metadata::dynamic_lib::DynamicLibrary;
 use rustc_middle::bug;
 use rustc_session::Session;
 use rustc_target::spec::MergeFunctions;
 use std::ffi::CString;
-use tracing::debug;
 
 use std::mem;
 use std::path::Path;
@@ -38,45 +36,45 @@ pub(crate) fn init(sess: &Session) {
 }
 
 unsafe fn configure_llvm(sess: &Session) {
+    // TODO(RDambrosio016): We override the meaning of llvm-args to pass our own nvvm args,
+    // but we should probably retain a way to pass args to LLVM.
     let n_args = sess.opts.cg.llvm_args.len() + sess.target.llvm_args.len();
     let mut llvm_c_strs = Vec::with_capacity(n_args + 1);
     let mut llvm_args = Vec::with_capacity(n_args + 1);
 
-    fn llvm_arg_to_arg_name(full_arg: &str) -> &str {
-        full_arg
-            .trim()
-            .split(|c: char| c == '=' || c.is_whitespace())
-            .next()
-            .unwrap_or("")
-    }
+    // fn llvm_arg_to_arg_name(full_arg: &str) -> &str {
+    //     full_arg
+    //         .trim()
+    //         .split(|c: char| c == '=' || c.is_whitespace())
+    //         .next()
+    //         .unwrap_or("")
+    // }
 
-    let cg_opts = sess.opts.cg.llvm_args.iter();
-    let tg_opts = sess.target.llvm_args.iter();
-    let sess_args = cg_opts.chain(tg_opts);
+    // let cg_opts = sess.opts.cg.llvm_args.iter();
+    // let tg_opts = sess.target.llvm_args.iter();
+    // let sess_args = cg_opts.chain(tg_opts);
 
-    debug!(
-        "Configuring llvm with sess_args:\n{}",
-        sess_args.clone().cloned().collect::<Vec<_>>().join("\n")
-    );
+    // dont print anything in here or it will interfere with cargo trying to print stuff which will
+    // cause the compilation to fail in mysterious ways.
 
-    let user_specified_args: FxHashSet<_> = sess_args
-        .clone()
-        .map(|s| llvm_arg_to_arg_name(s))
-        .filter(|s| !s.is_empty())
-        .collect();
+    // let user_specified_args: FxHashSet<_> = sess_args
+    //     .clone()
+    //     .map(|s| llvm_arg_to_arg_name(s))
+    //     .filter(|s| !s.is_empty())
+    //     .collect();
 
     {
         // This adds the given argument to LLVM. Unless `force` is true
         // user specified arguments are *not* overridden.
-        let mut add = |arg: &str, force: bool| {
-            if force || !user_specified_args.contains(llvm_arg_to_arg_name(arg)) {
-                let s = CString::new(arg).unwrap();
-                llvm_args.push(s.as_ptr());
-                llvm_c_strs.push(s);
-            }
+        let mut add = |arg: &str, _force: bool| {
+            // if force || !user_specified_args.contains(llvm_arg_to_arg_name(arg)) {
+            let s = CString::new(arg).unwrap();
+            llvm_args.push(s.as_ptr());
+            llvm_c_strs.push(s);
+            // }
         };
         // Set the llvm "program name" to make usage and invalid argument messages more clear.
-        add("rustc -Cllvm-args=\"...\" with", true);
+        // add("rustc -Cllvm-args=\"...\" with", true);
         if sess.time_llvm_passes() {
             add("-time-passes", false);
         }
@@ -109,9 +107,9 @@ unsafe fn configure_llvm(sess: &Session) {
         // Use non-zero `import-instr-limit` multiplier for cold callsites.
         add("-import-cold-multiplier=0.1", false);
 
-        for arg in sess_args {
-            add(&(*arg), true);
-        }
+        // for arg in sess_args {
+        //     add(&(*arg), true);
+        // }
     }
 
     llvm::LLVMInitializePasses();

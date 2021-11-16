@@ -61,6 +61,11 @@ static AtomicOrdering fromRust(LLVMAtomicOrdering Ordering)
   report_fatal_error("Invalid LLVMAtomicOrdering value!");
 }
 
+extern "C" LLVMTypeRef LLVMRustGetFunctionType(LLVMValueRef V)
+{
+  return wrap(dyn_cast<llvm::Function>(unwrap<llvm::Value>(V))->getFunctionType());
+}
+
 extern "C" LLVMTypeRef LLVMRustGetFunctionReturnType(LLVMValueRef V)
 {
   return wrap(dyn_cast<llvm::Function>(unwrap<llvm::Value>(V))->getReturnType());

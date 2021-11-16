@@ -1,7 +1,14 @@
+use find_cuda_helper::find_cuda_root;
+
 #[cfg(target_os = "windows")]
 fn lib_search_path() -> String {
-    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.3/nvvm/lib/x64"
-        .to_string()
+    find_cuda_root()
+        .expect("Failed to find CUDA ROOT, make sure the CUDA SDK is installed and CUDA_PATH or CUDA_ROOT are set!")
+        .join("nvvm")
+        .join("lib")
+        .join("x64")
+        .to_string_lossy()
+        .into_owned()
 }
 
 #[cfg(target_os = "linux")]
@@ -10,9 +17,6 @@ fn lib_search_path() -> String {
 }
 
 fn libnvvm_build() {
-    // on windows, libnvvm should be in CUDA_PATH/nvvm/
-    // println!("cargo:rustc-link-lib=dylib=../../../Program Files/NVIDIA GPU
-    // Computing Toolkit/CUDA/v11.3/nvvm/bin/nvvm64_40_0");
     println!("cargo:rustc-link-search={}", lib_search_path());
     println!("cargo:rustc-link-lib=dylib=nvvm");
 }

@@ -283,7 +283,7 @@ pub enum NvvmArch {
 impl Display for NvvmArch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut raw = format!("{:?}", self).to_ascii_lowercase();
-        raw.insert(6, '_');
+        raw.insert(7, '_');
         f.write_str(&raw)
     }
 }

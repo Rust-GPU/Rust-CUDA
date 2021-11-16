@@ -1,0 +1,22 @@
+[package]
+name = "path_tracer"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+bytemuck = { version = "1.7.2", features = ["derive"] }
+cust = { version = "0.1", path = "../../../../crates/cust", features = ["vek"] }
+image = "0.23.14"
+path_tracer_gpu = { path = "../../gpu/path_tracer_gpu" }
+gpu_rand = { version = "0.1", path = "../../../../crates/gpu_rand" }
+optix = { version = "0.1", path = "../../../../crates/optix" }
+glium = "0.30.2"
+glutin = "0.27.0"
+imgui = "0.8.0"
+imgui-glium-renderer = "0.8.0"
+imgui-winit-support = "0.8.0"
+rayon = "1.5.1"
+sysinfo = "0.20.5"
+
+[build-dependencies]
+cuda_builder = { version = "0.1", path = "../../../../crates/cuda_builder" }
