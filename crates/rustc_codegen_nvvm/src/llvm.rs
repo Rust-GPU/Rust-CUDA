@@ -553,10 +553,11 @@ pub(crate) unsafe fn LLVMRustGetOrInsertGlobal<'a>(
     Name: *const c_char,
     NameLen: usize,
     FunctionTy: &'a Type,
+    AddressSpace: c_uint,
 ) -> &'a Value {
     let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
     let cstring = CString::new(str).expect("str with nul");
-    __LLVMRustGetOrInsertGlobal(M, cstring.as_ptr(), FunctionTy)
+    __LLVMRustGetOrInsertGlobal(M, cstring.as_ptr(), FunctionTy, AddressSpace)
 }
 
 pub(crate) unsafe fn LLVMRustBuildCall<'a>(
@@ -621,6 +622,7 @@ extern "C" {
         M: &'a Module,
         Name: *const c_char,
         T: &'a Type,
+        AddressSpace: c_uint,
     ) -> &'a Value;
 
     // see comment on function before this extern block
@@ -641,8 +643,15 @@ extern "C" {
     pub(crate) fn LLVMRustSetLLVMOptions(Argc: c_int, Argv: *const *const c_char);
 }
 
-// #[rustc_codegen_nvvm_macros::trace_ffi_calls]
+// use rustc_codegen_nvvm_macros::trace_ffi_calls;
+// #[trace_ffi_calls]
 extern "C" {
+    pub(crate) fn LLVMAddGlobalInAddressSpace<'a>(
+        M: &'a Module,
+        Ty: &'a Type,
+        Name: *const c_char,
+        AddressSpace: c_uint,
+    ) -> &'a Value;
     pub(crate) fn LLVMGetOperand(Val: &Value, Index: c_uint) -> &Value;
     pub(crate) fn LLVMIsABitCastInst(Val: &Value) -> Option<&Value>;
     pub(crate) fn LLVMIsASelectInst(Val: &Value) -> Option<&Value>;
