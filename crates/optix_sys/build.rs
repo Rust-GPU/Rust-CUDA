@@ -1,4 +1,4 @@
-use find_cuda_helper::find_optix_root;
+use find_cuda_helper::{find_cuda_root, find_optix_root};
 use std::env;
 
 // OptiX is a bit exotic in how it provides its functions. It uses a function table
@@ -13,9 +13,16 @@ fn main() {
     that OPTIX_ROOT or OPTIX_ROOT_DIR are set",
     );
     header = header.join("include");
+    let cuda_dir = find_cuda_root()
+        .expect(
+            "Unable to find the CUDA SDK, make sure you 
+    installed it and that CUDA_ROOT is set",
+        )
+        .join("include");
 
     cc::Build::new()
         .file("./optix_stubs.c")
+        .include(cuda_dir)
         .include(header)
         .cpp(false)
         .compile("optix_stubs");
