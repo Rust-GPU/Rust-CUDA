@@ -23,6 +23,9 @@ rustc_codegen_nvvm_macros = { version = "0.1", path = "../rustc_codegen_nvvm_mac
 [build-dependencies]
 build-helper = "0.1.1"
 cc = { version = "1.0", features = ["parallel"] }
+xz = "0.1.0"
+tar = "0.4.37"
+curl = "0.4.40"
 
 [package.metadata.rust-analyzer]
 rustc_private = true
