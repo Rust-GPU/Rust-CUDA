@@ -127,3 +127,32 @@ pub fn find_optix_root() -> Option<PathBuf> {
         .or_else(|| env::var("OPTIX_ROOT_DIR").ok())
         .map(PathBuf::from)
 }
+
+#[cfg(target_family = "unix")]
+pub fn find_optix_root() -> Option<PathBuf> {
+    env::var("OPTIX_ROOT")
+        .ok()
+        .or_else(|| env::var("OPTIX_ROOT_DIR").ok())
+        .map(PathBuf::from)
+}
+
+#[cfg(target_os = "windows")]
+pub fn find_libnvvm_bin_dir() -> String {
+    find_cuda_root()
+        .expect("Failed to find CUDA ROOT, make sure the CUDA SDK is installed and CUDA_PATH or CUDA_ROOT are set!")
+        .join("nvvm")
+        .join("lib")
+        .join("x64")
+        .to_string_lossy()
+        .into_owned()
+}
+
+#[cfg(target_os = "linux")]
+pub fn find_libnvvm_bin_dir() -> String {
+    find_cuda_root()
+        .expect("Failed to find CUDA ROOT, make sure the CUDA SDK is installed and CUDA_PATH or CUDA_ROOT are set!")
+        .join("nvvm")
+        .join("lib64")
+        .to_string_lossy()
+        .into_owned()
+}
