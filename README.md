@@ -10,6 +10,8 @@
     <a href="guide">Guide</a>
     <span> | </span>
     <a href="guide/src/guide/getting_started.md">Getting Started</a>
+    <span> | </span>
+    <a href="guide/src/features.md">Features</a>
   </h3>
 <strong>⚠️ The project is still in early development, expect bugs, safety issues, and things that don't work ⚠️</strong>
 </div>
