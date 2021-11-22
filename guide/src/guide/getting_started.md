@@ -77,7 +77,7 @@ If you would like to use `alloc` or things like printing from GPU kernels (which
 extern crate alloc;
 ```
 
-Finally, if you would like to use types such as slices or arrays inside of GPU kernels you must allow `improper_cytypes_definitions` either on the whole crate or the individual GPU kernels. This is because on the CPU, such types are not guaranteed to be passed a certain way, so they should not be used in `extern "C"` functions (which is what kernels are implicitly declared as). However, `rustc_codegen_nvvm` guarantees the way in which things like structs, slices, and arrays are passed. See [Kernel ABI](../kernel_abi.md).
+Finally, if you would like to use types such as slices or arrays inside of GPU kernels you must allow `improper_cytypes_definitions` either on the whole crate or the individual GPU kernels. This is because on the CPU, such types are not guaranteed to be passed a certain way, so they should not be used in `extern "C"` functions (which is what kernels are implicitly declared as). However, `rustc_codegen_nvvm` guarantees the way in which things like structs, slices, and arrays are passed. See [Kernel ABI](./kernel_abi.md).
 
 ```rs
 #![allow(improper_ctypes_definitions)]
