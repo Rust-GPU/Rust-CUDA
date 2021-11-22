@@ -36,7 +36,8 @@ pub mod intrinsics;
 pub mod io;
 pub mod mem;
 pub mod misc;
-pub mod rt;
+// WIP
+// pub mod rt;
 pub mod thread;
 pub mod warp;
 

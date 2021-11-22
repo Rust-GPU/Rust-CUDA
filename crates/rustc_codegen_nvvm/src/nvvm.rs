@@ -55,12 +55,11 @@ pub fn codegen_bitcode_modules(
     debug!("Codegenning bitcode to PTX");
 
     // make sure the nvvm version is high enough so users don't get confusing compilation errors.
-    let (_, minor) = nvvm::ir_version();
+    let (major, minor) = nvvm::ir_version();
 
-    assert!(
-        minor >= 6,
-        "rustc_codegen_nvvm requires at least libnvvm 1.6 (CUDA 11.2)"
-    );
+    if minor < 6 || major < 1 {
+        sess.fatal("rustc_codegen_nvvm requires at least libnvvm 1.6 (CUDA 11.2)");
+    }
 
     // first, create the nvvm program we will add modules to.
     let prog = NvvmProgram::new()?;

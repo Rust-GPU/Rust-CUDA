@@ -62,13 +62,16 @@ macro_rules! println {
 #[macro_export]
 macro_rules! assert_eq {
     ($a:expr, $b:expr) => {
-        if $a != $b {
+        let _a = $a;
+        let _b = $b;
+
+        if _a != _b {
             let msg = ::alloc::format!(
                 "\nassertion failed: ({} == {})\nleft : {:?}\nright: {:?}",
                 stringify!($a),
                 stringify!($b),
-                $a,
-                $b
+                _a,
+                _b
             );
 
             unsafe {
@@ -83,13 +86,16 @@ macro_rules! assert_eq {
 #[macro_export]
 macro_rules! assert_ne {
     ($a:expr, $b:expr) => {
-        if $a == $b {
+        let _a = $a;
+        let _b = $b;
+
+        if _a == _b {
             let msg = ::alloc::format!(
                 "\nassertion failed: ({} != {})\nleft : {:?}\nright: {:?}",
                 stringify!($a),
                 stringify!($b),
-                $a,
-                $b
+                _a,
+                _b
             );
 
             unsafe {

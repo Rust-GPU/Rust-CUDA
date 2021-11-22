@@ -279,6 +279,17 @@ fn find_rustc_codegen_nvvm() -> PathBuf {
     panic!("Could not find {} in library path", filename);
 }
 
+fn add_libnvvm_to_path() {
+    let split_paths = env::var_os(dylib_path_envvar()).unwrap_or_default();
+    let mut paths = env::split_paths(&split_paths).collect::<Vec<_>>();
+    let libnvvm_path = PathBuf::from(find_cuda_helper::find_cuda_root().unwrap())
+        .join("nvvm")
+        .join("bin");
+    paths.push(libnvvm_path);
+    let joined = env::join_paths(&paths).expect("Failed to join paths for PATH");
+    env::set_var(dylib_path_envvar(), joined);
+}
+
 /// Joins strings together while ensuring none of the strings contain the separator.
 fn join_checking_for_separators(strings: Vec<impl Borrow<str>>, sep: &str) -> String {
     for s in &strings {
@@ -297,6 +308,8 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     // see https://github.com/EmbarkStudios/rust-gpu/blob/main/crates/spirv-builder/src/lib.rs#L385-L392
     // on what this does
     let rustc_codegen_nvvm = find_rustc_codegen_nvvm();
+
+    add_libnvvm_to_path();
 
     let mut rustflags = vec![format!(
         "-Zcodegen-backend={}",
