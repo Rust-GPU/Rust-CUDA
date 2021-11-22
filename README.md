@@ -9,7 +9,7 @@
   <h3>
     <a href="guide">Guide</a>
     <span> | </span>
-    <a href="guide/src/getting_started.md">Getting Started</a>
+    <a href="guide/src/guide/getting_started.md">Getting Started</a>
   </h3>
 <strong>⚠️ The project is still in early development, expect bugs, safety issues, and things that don't work ⚠️</strong>
 </div>
