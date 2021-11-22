@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["The Rand Project Developers", "The Rust CUDA Project Developers"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
+description = "GPU-friendly random number generators for the Rust CUDA Project"
 
 [dependencies]
 rand_core = { version = "0.6" }

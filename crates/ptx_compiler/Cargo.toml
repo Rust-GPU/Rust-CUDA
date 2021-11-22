@@ -3,6 +3,7 @@ name = "ptx_compiler"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "High level bindings to CUDA's ptx compilation APIs"
 
 [build-dependencies]
 find_cuda_helper = { path = "../find_cuda_helper", version = "0.1" }

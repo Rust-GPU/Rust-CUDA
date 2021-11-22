@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "The rust-gpu Authors"]
 license = "MIT OR Apache-2.0"
+description = "Builder for easily building rustc_codegen_nvvm crates"
 
 [dependencies]
 rustc_codegen_nvvm = { path = "../rustc_codegen_nvvm" }

@@ -3,6 +3,7 @@ name = "cuda_std_macros"
 version = "0.1.0"
 edition = "2018"
 license = "MIT OR Apache-2.0"
+description = "Macros for cuda_std"
 
 [lib]
 proc-macro = true

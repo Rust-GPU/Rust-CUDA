@@ -5,6 +5,7 @@ version = "0.1.0"
 authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "Brook Heisler <brookheisler@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+description = "High level bindings to the CUDA Driver API"
 
 [dependencies]
 cust_raw = { path = "../cust_raw", version = "0.11.2"}
