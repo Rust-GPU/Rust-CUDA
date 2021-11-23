@@ -1,0 +1,274 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Supported Features - GPU Computing with Rust using CUDA</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Writing extremely fast GPU Computing code with rust using rustc_codegen_nvvm and CUDA">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="features.html" class="active"><strong aria-hidden="true">2.</strong> Supported Features</a></li><li class="chapter-item expanded "><a href="faq.html"><strong aria-hidden="true">3.</strong> Frequently Asked Questions</a></li><li class="chapter-item expanded "><a href="guide/index.html"><strong aria-hidden="true">4.</strong> Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/getting_started.html"><strong aria-hidden="true">4.1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="guide/tips.html"><strong aria-hidden="true">4.2.</strong> Tips</a></li><li class="chapter-item expanded "><a href="guide/kernel_abi.html"><strong aria-hidden="true">4.3.</strong> Kernel ABI</a></li><li class="chapter-item expanded "><a href="guide/safety.html"><strong aria-hidden="true">4.4.</strong> Safety</a></li></ol></li><li class="chapter-item expanded "><a href="cuda/index.html"><strong aria-hidden="true">5.</strong> The CUDA Toolkit</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cuda/gpu_computing.html"><strong aria-hidden="true">5.1.</strong> GPU Computing</a></li><li class="chapter-item expanded "><a href="cuda/pipeline.html"><strong aria-hidden="true">5.2.</strong> The CUDA Pipeline</a></li></ol></li><li class="chapter-item expanded "><a href="nvvm/index.html"><strong aria-hidden="true">6.</strong> rustc_codegen_nvvm</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="nvvm/technical/index.html"><strong aria-hidden="true">6.1.</strong> Technical</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="nvvm/technical/backends.html"><strong aria-hidden="true">6.1.1.</strong> Custom Rustc Backends</a></li><li class="chapter-item expanded "><a href="nvvm/technical/nvvm.html"><strong aria-hidden="true">6.1.2.</strong> rustc_codegen_nvvm</a></li><li class="chapter-item expanded "><a href="nvvm/technical/types.html"><strong aria-hidden="true">6.1.3.</strong> Types</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">GPU Computing with Rust using CUDA</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="supported-features"><a class="header" href="#supported-features">Supported Features</a></h1>
+<p>This page is used for tracking Cargo/Rust and CUDA features that are currently supported 
+or planned to be supported in the future. As well as tracking some information about how they could 
+be supported.</p>
+<p>Note that <code>Not supported</code> does <strong>not</strong> mean it won't ever be supported, it just means we haven't gotten
+around to adding it yet.</p>
+<table><thead><tr><th>Indicator</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>➖</td><td>Not Applicable</td></tr>
+<tr><td>❌</td><td>Not Supported</td></tr>
+<tr><td>✔️</td><td>Fully Supported</td></tr>
+<tr><td>🟨</td><td>Partially Supported</td></tr>
+</tbody></table>
+<h1 id="rust-features"><a class="header" href="#rust-features">Rust Features</a></h1>
+<table><thead><tr><th>Feature Name</th><th>Support Level</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Opt-Levels</td><td>✔️</td><td>behaves mostly the same (because llvm is still used for optimizations). Except that libnvvm opts are run on anything except no-opts because nvvm only has -O0 and -O3</td></tr>
+<tr><td>codegen-units</td><td>✔️</td><td></td></tr>
+<tr><td>LTO</td><td>➖</td><td>we load bitcode modules lazily using dependency graphs, which then forms a single module optimized by libnvvm, so all the benefits of LTO are on without pre-libnvvm LTO being needed.</td></tr>
+<tr><td>Closures</td><td>✔️</td><td></td></tr>
+<tr><td>Enums</td><td>✔️</td><td></td></tr>
+<tr><td>Loops</td><td>✔️</td><td></td></tr>
+<tr><td>If</td><td>✔️</td><td></td></tr>
+<tr><td>Match</td><td>✔️</td><td></td></tr>
+<tr><td>Proc Macros</td><td>✔️</td><td></td></tr>
+<tr><td>Try (<code>?</code>)</td><td>✔️</td><td></td></tr>
+<tr><td>128 bit integers</td><td>🟨</td><td>Basic ops should work (and are emulated), advanced intrinsics like <code>ctpop</code>, <code>rotate</code>, etc are unsupported.</td></tr>
+<tr><td>Unions</td><td>✔️</td><td></td></tr>
+<tr><td>Iterators</td><td>✔️</td><td></td></tr>
+<tr><td>Dynamic Dispatch</td><td>✔️</td><td></td></tr>
+<tr><td>Pointer Casts</td><td>✔️</td><td></td></tr>
+<tr><td>Unsized Slices</td><td>✔️</td><td></td></tr>
+<tr><td>Alloc</td><td>✔️</td><td></td></tr>
+<tr><td>Printing</td><td>✔️</td><td></td></tr>
+<tr><td>Panicking</td><td>✔️</td><td>Currently just traps (aborts) because of weird printing failures in the panic handler</td></tr>
+<tr><td>Float Ops</td><td>✔️</td><td>Maps to libdevice intrinsics, calls to libm are not intercepted though, which we may want to do in the future</td></tr>
+<tr><td>Atomics</td><td>❌</td><td></td></tr>
+</tbody></table>
+<h1 id="cuda-libraries"><a class="header" href="#cuda-libraries">CUDA Libraries</a></h1>
+<table><thead><tr><th>Library Name</th><th>Support Level</th><th>Notes</th></tr></thead><tbody>
+<tr><td>CUDA Runtime API</td><td>➖</td><td>The CUDA Runtime API is for CUDA C++, we use the driver API</td></tr>
+<tr><td>CUDA Driver API</td><td>🟨</td><td>Most functions are implemented, but there is still a lot left to wrap because it is gigantic</td></tr>
+<tr><td>cuBLAS</td><td>❌</td><td></td></tr>
+<tr><td>cuFFT</td><td>❌</td><td></td></tr>
+<tr><td>cuSOLVER</td><td>❌</td><td></td></tr>
+<tr><td>cuRAND</td><td>➖</td><td>cuRAND only works with the runtime API, we have our own general purpose GPU rand library called <code>gpu_rand</code></td></tr>
+<tr><td>cuDNN</td><td>❌</td><td></td></tr>
+<tr><td>cuSPARSE</td><td>❌</td><td></td></tr>
+<tr><td>AmgX</td><td>❌</td><td></td></tr>
+<tr><td>cuTENSOR</td><td>❌</td><td></td></tr>
+<tr><td>OptiX</td><td>🟨</td><td>CPU OptiX is mostly complete, GPU OptiX is still heavily in-progress because it needs support from the codegen</td></tr>
+</tbody></table>
+<h1 id="gpu-side-features"><a class="header" href="#gpu-side-features">GPU-side Features</a></h1>
+<p>Note: Most of these categories are used <strong>very</strong> rarely in CUDA code, therefore
+do not be alarmed that it seems like many things are not supported. We just focus
+on things used by the wide majority of users.</p>
+<table><thead><tr><th>Feature Name</th><th>Support Level</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Function Execution Space Specifiers</td><td>➖</td><td></td></tr>
+<tr><td>Variable Memory Space Specifiers</td><td>➖</td><td>Handled Implicitly</td></tr>
+<tr><td>Built-in Vector Types</td><td>➖</td><td>Use linear algebra libraries like vek or glam</td></tr>
+<tr><td>Built-in Variables</td><td>✔️</td><td></td></tr>
+<tr><td>Memory Fence Instructions</td><td>✔️</td><td></td></tr>
+<tr><td>Synchronization Functions</td><td>✔️</td><td></td></tr>
+<tr><td>Mathematical Functions</td><td>🟨</td><td>Less common functions like native f16 math are not supported</td></tr>
+<tr><td>Texture Functions</td><td>❌</td><td></td></tr>
+<tr><td>Surface Functions</td><td>❌</td><td></td></tr>
+<tr><td>Read-Only Data Cache Load Function</td><td>❌</td><td>No real need, immutable references hint this automatically</td></tr>
+<tr><td>Load Functions Using Cache Hints</td><td>❌</td><td></td></tr>
+<tr><td>Store Functions Using Cache Hints</td><td>❌</td><td></td></tr>
+<tr><td>Time Function</td><td>✔️</td><td></td></tr>
+<tr><td>Atomic Functions</td><td>❌</td><td></td></tr>
+<tr><td>Address Space Predicate Functions</td><td>➖</td><td>Address Spaces are implicitly handled, but they may be added for exotic interop with CUDA C/C++</td></tr>
+<tr><td>Address Space Conversion Functions</td><td>➖</td><td></td></tr>
+<tr><td>Alloca Function</td><td>➖</td><td></td></tr>
+<tr><td>Compiler Optimization Hint Functions</td><td>➖</td><td>Existing <code>core</code> hints work</td></tr>
+<tr><td>Warp Vote Functions</td><td>❌</td><td></td></tr>
+<tr><td>Warp Match Functions</td><td>❌</td><td></td></tr>
+<tr><td>Warp Reduce Functions</td><td>❌</td><td></td></tr>
+<tr><td>Warp Shuffle Functions</td><td>❌</td><td></td></tr>
+<tr><td>Nanosleep</td><td>✔️</td><td></td></tr>
+<tr><td>Warp Matrix Functions (Tensor Cores)</td><td>❌</td><td></td></tr>
+<tr><td>Asynchronous Barrier</td><td>❌</td><td></td></tr>
+<tr><td>Asynchronous Data Copies</td><td>❌</td><td></td></tr>
+<tr><td>Profiler Counter Function</td><td>✔️</td><td></td></tr>
+<tr><td>Assertion</td><td>✔️</td><td></td></tr>
+<tr><td>Trap Function</td><td>✔️</td><td></td></tr>
+<tr><td>Breakpoint</td><td>✔️</td><td></td></tr>
+<tr><td>Formatted Output</td><td>✔️</td><td></td></tr>
+<tr><td>Dynamic Global Memory Allocation</td><td>✔️</td><td></td></tr>
+<tr><td>Execution Configuration</td><td>✔️</td><td></td></tr>
+<tr><td>Launch Bounds</td><td>❌</td><td></td></tr>
+<tr><td>Pragma Unroll</td><td>❌</td><td></td></tr>
+<tr><td>SIMD Video Instructions</td><td>❌</td><td></td></tr>
+<tr><td>Cooperative Groups</td><td>❌</td><td></td></tr>
+<tr><td>Dynamic Parallelism</td><td>❌</td><td></td></tr>
+<tr><td>Stream Ordered Memory</td><td>❌</td><td></td></tr>
+<tr><td>Graph Memory Nodes</td><td>❌</td><td></td></tr>
+<tr><td>Unified Memory</td><td>✔️</td><td></td></tr>
+<tr><td><code>__restrict__</code></td><td>➖</td><td>Not needed, you get that performance boost automatically through rust's noalias :)</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="faq.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="faq.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

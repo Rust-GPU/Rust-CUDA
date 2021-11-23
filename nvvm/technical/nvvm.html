@@ -1,0 +1,251 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>rustc_codegen_nvvm - GPU Computing with Rust using CUDA</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Writing extremely fast GPU Computing code with rust using rustc_codegen_nvvm and CUDA">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../features.html"><strong aria-hidden="true">2.</strong> Supported Features</a></li><li class="chapter-item expanded "><a href="../../faq.html"><strong aria-hidden="true">3.</strong> Frequently Asked Questions</a></li><li class="chapter-item expanded "><a href="../../guide/index.html"><strong aria-hidden="true">4.</strong> Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../guide/getting_started.html"><strong aria-hidden="true">4.1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../../guide/tips.html"><strong aria-hidden="true">4.2.</strong> Tips</a></li><li class="chapter-item expanded "><a href="../../guide/kernel_abi.html"><strong aria-hidden="true">4.3.</strong> Kernel ABI</a></li><li class="chapter-item expanded "><a href="../../guide/safety.html"><strong aria-hidden="true">4.4.</strong> Safety</a></li></ol></li><li class="chapter-item expanded "><a href="../../cuda/index.html"><strong aria-hidden="true">5.</strong> The CUDA Toolkit</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../cuda/gpu_computing.html"><strong aria-hidden="true">5.1.</strong> GPU Computing</a></li><li class="chapter-item expanded "><a href="../../cuda/pipeline.html"><strong aria-hidden="true">5.2.</strong> The CUDA Pipeline</a></li></ol></li><li class="chapter-item expanded "><a href="../../nvvm/index.html"><strong aria-hidden="true">6.</strong> rustc_codegen_nvvm</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../nvvm/technical/index.html"><strong aria-hidden="true">6.1.</strong> Technical</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../nvvm/technical/backends.html"><strong aria-hidden="true">6.1.1.</strong> Custom Rustc Backends</a></li><li class="chapter-item expanded "><a href="../../nvvm/technical/nvvm.html" class="active"><strong aria-hidden="true">6.1.2.</strong> rustc_codegen_nvvm</a></li><li class="chapter-item expanded "><a href="../../nvvm/technical/types.html"><strong aria-hidden="true">6.1.3.</strong> Types</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">GPU Computing with Rust using CUDA</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="rustc_codegen_nvvm"><a class="header" href="#rustc_codegen_nvvm">rustc_codegen_nvvm</a></h1>
+<p>At the highest level, our codegen workflow goes like this:</p>
+<pre><code>Source code -&gt; Typechecking -&gt; MIR -&gt; SSA Codegen -&gt; LLVM IR (NVVM IR) -&gt; PTX -&gt; PTX opts/function DCE -&gt; Final PTX
+               |                                     |                  |      |                                  ^
+               |                                     |          libnvvm +------+                                  |
+               |                                     |                                                            |
+               |                  rustc_codegen_nvvm +------------------------------------------------------------|
+         Rustc +---------------------------------------------------------------------------------------------------
+</code></pre>
+<p>Before we do anything, rustc does its normal job, it typechecks, converts everything to MIR, etc. Then, 
+rustc loads our codegen shared lib and invokes it to codegen the MIR. It creates an instance of
+<code>NvvmCodegenBackend</code> and it invokes <code>codegen_crate</code>. You could do anything inside <code>codegen_crate</code> but 
+we just defer back to rustc_codegen_ssa and tell it to do the job for us:</p>
+<pre><code class="language-rs">fn codegen_crate&lt;'tcx&gt;(
+    &amp;self,
+    tcx: TyCtxt&lt;'tcx&gt;,
+    metadata: EncodedMetadata,
+    need_metadata_module: bool,
+) -&gt; Box&lt;dyn std::any::Any&gt; {
+    Box::new(rustc_codegen_ssa::base::codegen_crate(
+        NvvmCodegenBackend,
+        tcx,
+        String::new(),
+        metadata,
+        need_metadata_module,
+    ))
+}
+</code></pre>
+<p>After that, the codegen logic is kind of abstracted away from us, which is a good thing!
+We just need to provide the SSA codegen whatever it needs to do its thing. This is 
+done in the form of traits, lots and lots and lots of traits, more traits than you've ever seen, traits
+your subconscious has warned you of in nightmares, anyways. Because talking about how the SSA codegen
+works is kind of useless, we will instead talk first about general concepts and terminology, then 
+dive into each trait. </p>
+<p>But first, let's talk about the end of the codegen, it is pretty simple, we do a couple of things:
+<em>after codegen is done and LLVM has been run to optimize each module</em></p>
+<ul>
+<li>1: We gather every llvm bitcode module we created.</li>
+<li>2: We create a new libnvvm program.</li>
+<li>3: We add every bitcode module to the libnvvm program.</li>
+<li>4: We try to find libdevice and add it to the program (see <a href="https://docs.nvidia.com/cuda/libdevice-users-guide/introduction.html#what-is-libdevice">nvidia docs</a> on what libdevice is).</li>
+<li>5: We run the verifier on the nvvm program just to check that we did not create any invalid nvvm ir.</li>
+<li>6: We run the compiler which gives us a final PTX string, hooray!</li>
+<li>7: Finally, the PTX goes through a small stage where its parsed and function DCE is run to eliminate
+Most of the bloat in the file, traditionally this is done by the linker but theres no linker to be found for miles here.</li>
+<li>8: We write this ptx file to wherever rustc tells us to write the final file.</li>
+</ul>
+<p>We will cover the libnvvm steps in more detail later on.</p>
+<h1 id="codegen-units-cgus"><a class="header" href="#codegen-units-cgus">Codegen Units (CGUs)</a></h1>
+<p>Ah codegen units, the thing everyone just tells you to set to <code>1</code> in Cargo.toml, but what are they?
+Well, to put it simply, codegen units are rustc splitting up a crate into different modules to then 
+run LLVM in parallel over. For example, rustc can run LLVM over two different modules in parallel and 
+save time.</p>
+<p>This gets a little bit more complex with generics, because MIR is not monomorphized and monomorphized MIR is not a thing,
+the codegen monomorphizes instances on the fly. Therefore rustc needs to put any generic functions that one CGU relies on
+inside of the same CGU because it needs to monomorphize them.</p>
+<h1 id="rlibs"><a class="header" href="#rlibs">Rlibs</a></h1>
+<p>rlibs are mysterious files, their origins are mysterious and their contents are the deepest layer of the iceberg. Just kidding,
+but rlibs often confuse people (including me at first). Rlibs are rustc's way of encoding basically everything it needs to know 
+about a crate into a file. Rlibs usually contain the following:</p>
+<ul>
+<li>Object files for each CGU.</li>
+<li>LLVM Bitcode.</li>
+<li>a Symbol table.</li>
+<li>metadata:
+<ul>
+<li>rustc version (because things can go kaboom if version mismatches, ABIs are fun amirite)</li>
+<li>A crate hash</li>
+<li>a crate id</li>
+<li>info about the source files</li>
+<li>the exported API, things like macros, traits, etc.</li>
+<li>MIR, for things such as generic functions and <code>#[inline]</code>d functions (please don't put <code>#[inline]</code> on everything, rustc will cry)</li>
+</ul>
+</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../nvvm/technical/backends.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../../nvvm/technical/types.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../nvvm/technical/backends.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../../nvvm/technical/types.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

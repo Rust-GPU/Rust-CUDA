@@ -1,0 +1,330 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Getting Started - GPU Computing with Rust using CUDA</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Writing extremely fast GPU Computing code with rust using rustc_codegen_nvvm and CUDA">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">2.</strong> Supported Features</a></li><li class="chapter-item expanded "><a href="../faq.html"><strong aria-hidden="true">3.</strong> Frequently Asked Questions</a></li><li class="chapter-item expanded "><a href="../guide/index.html"><strong aria-hidden="true">4.</strong> Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../guide/getting_started.html" class="active"><strong aria-hidden="true">4.1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../guide/tips.html"><strong aria-hidden="true">4.2.</strong> Tips</a></li><li class="chapter-item expanded "><a href="../guide/kernel_abi.html"><strong aria-hidden="true">4.3.</strong> Kernel ABI</a></li><li class="chapter-item expanded "><a href="../guide/safety.html"><strong aria-hidden="true">4.4.</strong> Safety</a></li></ol></li><li class="chapter-item expanded "><a href="../cuda/index.html"><strong aria-hidden="true">5.</strong> The CUDA Toolkit</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../cuda/gpu_computing.html"><strong aria-hidden="true">5.1.</strong> GPU Computing</a></li><li class="chapter-item expanded "><a href="../cuda/pipeline.html"><strong aria-hidden="true">5.2.</strong> The CUDA Pipeline</a></li></ol></li><li class="chapter-item expanded "><a href="../nvvm/index.html"><strong aria-hidden="true">6.</strong> rustc_codegen_nvvm</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../nvvm/technical/index.html"><strong aria-hidden="true">6.1.</strong> Technical</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../nvvm/technical/backends.html"><strong aria-hidden="true">6.1.1.</strong> Custom Rustc Backends</a></li><li class="chapter-item expanded "><a href="../nvvm/technical/nvvm.html"><strong aria-hidden="true">6.1.2.</strong> rustc_codegen_nvvm</a></li><li class="chapter-item expanded "><a href="../nvvm/technical/types.html"><strong aria-hidden="true">6.1.3.</strong> Types</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">GPU Computing with Rust using CUDA</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p>This section covers how to get started writing GPU crates with <code>cuda_std</code> and <code>cuda_builder</code>.</p>
+<h2 id="required-libraries"><a class="header" href="#required-libraries">Required Libraries</a></h2>
+<p>Before you can use the project to write GPU crates, you will need a couple of prerequisites:</p>
+<ul>
+<li>
+<p><a href="https://developer.nvidia.com/cuda-downloads">The CUDA SDK</a>, version <code>11.2</code> or higher. This is only for building
+GPU crates, to execute built PTX you only need CUDA 9+.</p>
+</li>
+<li>
+<p>LLVM 7.x (7.0 to 7.4), The codegen searches multiple places for LLVM:</p>
+<ul>
+<li>If <code>LLVM_CONFIG</code> is present, it will use that path as <code>llvm-config</code>.</li>
+<li>Or, if <code>llvm-config</code> is present as a binary, it will use that, assuming that <code>llvm-config --version</code> returns <code>7.x.x</code>.</li>
+<li>Finally, if neither are present or unusable, it will attempt to download and use prebuilt LLVM. This currently only
+works on Windows however.</li>
+</ul>
+</li>
+<li>
+<p>The OptiX SDK if using the optix library (the pathtracer example uses it for denoising).</p>
+</li>
+<li>
+<p>You may also need to add <code>libnvvm</code> to PATH, the builder should do it for you but in case it does not work, add libnvvm to PATH, it should be somewhere like <code>CUDA_ROOT/nvvm/bin</code>,</p>
+</li>
+</ul>
+<h2 id="rust-toolchain"><a class="header" href="#rust-toolchain">rust-toolchain</a></h2>
+<p>Currently, the Codegen only works on nightly (because it uses rustc internals), and it only works on a specific version of nightly.
+This is why you must copy the <code>rust-toolchain</code> file in the project repository to your own project. This will ensure
+you are on the correct nightly version so the codegen builds.</p>
+<p>Only the codegen requires nightly, <code>cust</code> and other CPU-side libraries work perfectly fine on stable.</p>
+<h2 id="cargotoml"><a class="header" href="#cargotoml">Cargo.toml</a></h2>
+<p>Now we can actually get started creating our GPU crate 🎉</p>
+<p>Start by making a normal crate as you normally would, manually or with <code>cargo init</code>: <code>cargo init name --lib</code>.</p>
+<p>After this, we just need to add a couple of things to our Cargo.toml:</p>
+<pre><code class="language-diff">[package]
+name = &quot;name&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2021&quot;
+
++[lib]
++crate-type = [&quot;cdylib&quot;, &quot;rlib&quot;]
+
+[dependencies]
++cuda_std = &quot;XX&quot;
+</code></pre>
+<p>Where <code>XX</code> is the latest version of <code>cuda_std</code>.</p>
+<p>We changed our crate's crate types to <code>cdylib</code> and <code>rlib</code>. We specified <code>cdylib</code> because the nvptx targets do not support binary crate types.
+<code>rlib</code> is so that we will be able to use the crate as a dependency, such as if we would like to use it on the CPU.</p>
+<h2 id="librs"><a class="header" href="#librs">lib.rs</a></h2>
+<p>Before we can write any GPU kernels, we must add a few directives to our <code>lib.rs</code> which are required by the codegen:</p>
+<pre><code class="language-rs">#![cfg_attr(
+    target_os = &quot;cuda&quot;,
+    no_std,
+    feature(register_attr),
+    register_attr(nvvm_internal)
+)]
+</code></pre>
+<p>This does a couple of things:</p>
+<ul>
+<li>It only applies the attributes if we are compiling the crate for the GPU (target_os = &quot;cuda&quot;).</li>
+<li>It declares the crate to be <code>no_std</code> on CUDA targets.</li>
+<li>It registers a special attribute required by the codegen for things like figuring out
+what functions are GPU kernels.</li>
+</ul>
+<p>If you would like to use <code>alloc</code> or things like printing from GPU kernels (which requires alloc) then you need to declare <code>alloc</code> too:</p>
+<pre><code class="language-rs">extern crate alloc;
+</code></pre>
+<p>Finally, if you would like to use types such as slices or arrays inside of GPU kernels you must allow <code>improper_cytypes_definitions</code> either on the whole crate or the individual GPU kernels. This is because on the CPU, such types are not guaranteed to be passed a certain way, so they should not be used in <code>extern &quot;C&quot;</code> functions (which is what kernels are implicitly declared as). However, <code>rustc_codegen_nvvm</code> guarantees the way in which things like structs, slices, and arrays are passed. See <a href="./kernel_abi.html">Kernel ABI</a>.</p>
+<pre><code class="language-rs">#![allow(improper_ctypes_definitions)]
+</code></pre>
+<h2 id="writing-our-first-gpu-kernel"><a class="header" href="#writing-our-first-gpu-kernel">Writing our first GPU kernel</a></h2>
+<p>Now we can finally start writing an actual GPU kernel. </p>
+<details>
+  <summary>Expand this section if you are not familiar with how GPU-side CUDA works</summary>
+<p>Firstly, we must explain a couple of things about GPU kernels, specifically, how they are executed. GPU Kernels (functions) are the entry point for executing anything on the GPU, they are the functions which will be executed from the CPU. GPU kernels do not return anything, they write their data to buffers passed into them.</p>
+<p>CUDA's execution model is very very complex and it is unrealistic to explain all of it in
+this section, but the TLDR of it is that CUDA will execute the GPU kernel once on every
+thread, with the number of threads being decided by the caller (the CPU).</p>
+<p>We call these parameters the launch dimensions of the kernel. Launch dimensions are split
+up into two basic concepts:</p>
+<ul>
+<li>Threads, a single thread executes the GPU kernel <strong>once</strong>, and it makes the index
+of itself available to the kernel through special registers (functions in our case).</li>
+<li>Blocks, Blocks house multiple threads that they execute on their own. Thread indices
+are only unique across the thread's block, therefore CUDA also exposes the index
+of the current block.</li>
+</ul>
+<p>One important thing to note is that block and thread dimensions may be 1d, 2d, or 3d.
+That is to say, i can launch <code>1</code> block of <code>6x6x6</code>, <code>6x6</code>, or <code>6</code> threads. I could 
+also launch <code>5x5x5</code> blocks. This is very useful for 2d/3d applications because it makes
+the 2d/3d index calculations much simpler. CUDA exposes thread and block indices 
+for each dimension through special registers. We expose thread index queries through
+<code>cuda_std::thread</code>.</p>
+</details>
+<p>Now that we know how GPU functions work, let's write a simple kernel. We will write
+a kernel which does <code>[1, 2, 3, 4] + [1, 2, 3, 4] = [2, 4, 6, 8]</code>. We will use 
+a 1-dimensional index and use the <code>cuda_std::thread::index_1d</code> utility method to 
+calculate a globally-unique thread index for us (this index is only unique if the kernel was launched with a 1d launch config!).</p>
+<pre><code class="language-rs">#[kernel]
+pub unsafe fn add(a: &amp;[f32], b: &amp;[f32], c: *mut f32) {
+    let idx = thread::index_1d() as usize;
+    if idx &lt; a.len() {
+        let elem = &amp;mut *c.add(idx);
+        *elem = a[idx] + b[idx];
+    }
+}
+</code></pre>
+<p>If you have used CUDA C++ before, this should seem fairly familiar, with a few oddities:</p>
+<ul>
+<li>Kernel functions must be unsafe currently, this is because the semantics of Rust safety 
+on the GPU are still very much undecided. This restriction will probably be removed in the future.</li>
+<li>We use <code>*mut f32</code> and not <code>&amp;mut [f32]</code>. This is because using <code>&amp;mut</code> in function arguments
+is unsound. The reason being that rustc assumes <code>&amp;mut</code> does not alias. However, because every thread gets a copy of the arguments, this would cause it to alias, thereby violating
+this invariant and yielding technically unsound code. Pointers do not have such an invariant on the other hand. Therefore, we use a pointer and only make a mutable reference once we 
+are sure the elements are disjoint: <code>let elem = &amp;mut *c.add(idx);</code>.</li>
+<li>We check that the index is not out of bounds before doing anything, this is because it is
+common to launch kernels with thread amounts that are not exactly divisible by the length for optimization.</li>
+</ul>
+<p>Internally what this does is it first checks that a couple of things are right in the kernel:</p>
+<ul>
+<li>All parameters are <code>Copy</code>.</li>
+<li>The function is <code>unsafe</code>.</li>
+<li>The function does not return anything.</li>
+</ul>
+<p>Then it declares this kernel to the codegen so that the codegen can tell CUDA this is a GPU kernel.
+It also applies <code>#[no_mangle]</code> so the name of the kernel is the same as it is declared in the code.</p>
+<h2 id="building-the-gpu-crate"><a class="header" href="#building-the-gpu-crate">Building the GPU crate</a></h2>
+<p>Now that you have some kernels defined in a crate, you can build them easily using <code>cuda_builder</code>.
+<code>cuda_builder</code> is a helper crate similar to <code>spirv_builder</code> (if you have used rust-gpu before), it builds
+GPU crates while passing everything needed by rustc.</p>
+<p>To use it you can simply add it as a build dependency in your CPU crate (the crate running the GPU kernels):</p>
+<pre><code class="language-diff">+[build-dependencies]
++cuda_builder = &quot;XX&quot;
+</code></pre>
+<p>Where <code>XX</code> is the current version of cuda_builder.</p>
+<p>Then, you can simply invoke it in the build.rs of your CPU crate:</p>
+<pre><code class="language-rs">use cuda_builder::CudaBuilder;
+
+fn main() {
+    CudaBuilder::new(&quot;path/to/gpu/crate/root&quot;)
+        .copy_to(&quot;some/path.ptx&quot;)
+        .build()
+        .unwrap();
+}
+</code></pre>
+<p>The first argument is the path to the root of the GPU crate you are trying to build, which would probably be <code>../name</code> in our case.
+The second function <code>.copy_to(path)</code> tells the builder to copy the built PTX file somewhere. By default the builder puts the PTX file 
+inside of <code>target/cuda-builder/nvptx64-nvidia-cuda/release/crate_name.ptx</code>, but it is usually helpful to copy it to another path, which is
+what such method does. Finally, <code>build()</code> actually runs rustc to compile the crate. This may take a while since it needs to build things like core
+from scratch, but after the first compile, incremental will make it much faster.</p>
+<p>Finally, you can include the PTX as a static string in your program:</p>
+<pre><code class="language-rs">static PTX: &amp;str = include_str!(&quot;some/path.ptx&quot;);
+</code></pre>
+<p>Then execute it using cust.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../guide/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="../guide/tips.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../guide/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="../guide/tips.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>

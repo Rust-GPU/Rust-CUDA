@@ -1,0 +1,437 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Frequently Asked Questions - GPU Computing with Rust using CUDA</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Writing extremely fast GPU Computing code with rust using rustc_codegen_nvvm and CUDA">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">2.</strong> Supported Features</a></li><li class="chapter-item expanded "><a href="faq.html" class="active"><strong aria-hidden="true">3.</strong> Frequently Asked Questions</a></li><li class="chapter-item expanded "><a href="guide/index.html"><strong aria-hidden="true">4.</strong> Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/getting_started.html"><strong aria-hidden="true">4.1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="guide/tips.html"><strong aria-hidden="true">4.2.</strong> Tips</a></li><li class="chapter-item expanded "><a href="guide/kernel_abi.html"><strong aria-hidden="true">4.3.</strong> Kernel ABI</a></li><li class="chapter-item expanded "><a href="guide/safety.html"><strong aria-hidden="true">4.4.</strong> Safety</a></li></ol></li><li class="chapter-item expanded "><a href="cuda/index.html"><strong aria-hidden="true">5.</strong> The CUDA Toolkit</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cuda/gpu_computing.html"><strong aria-hidden="true">5.1.</strong> GPU Computing</a></li><li class="chapter-item expanded "><a href="cuda/pipeline.html"><strong aria-hidden="true">5.2.</strong> The CUDA Pipeline</a></li></ol></li><li class="chapter-item expanded "><a href="nvvm/index.html"><strong aria-hidden="true">6.</strong> rustc_codegen_nvvm</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="nvvm/technical/index.html"><strong aria-hidden="true">6.1.</strong> Technical</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="nvvm/technical/backends.html"><strong aria-hidden="true">6.1.1.</strong> Custom Rustc Backends</a></li><li class="chapter-item expanded "><a href="nvvm/technical/nvvm.html"><strong aria-hidden="true">6.1.2.</strong> rustc_codegen_nvvm</a></li><li class="chapter-item expanded "><a href="nvvm/technical/types.html"><strong aria-hidden="true">6.1.3.</strong> Types</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">GPU Computing with Rust using CUDA</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="frequently-asked-questions"><a class="header" href="#frequently-asked-questions">Frequently Asked Questions</a></h1>
+<p>This page will cover a lot of the questions people often have when they encounter this project,
+so they are addressed all at once.</p>
+<h2 id="why-not-use-rustc-with-the-llvm-ptx-backend"><a class="header" href="#why-not-use-rustc-with-the-llvm-ptx-backend">Why not use rustc with the LLVM PTX backend?</a></h2>
+<p>Good question, a good amount of reasons:</p>
+<ul>
+<li>The LLVM PTX backend is still very much WIP and often doesn't have things and/or breaks.</li>
+<li>Due to odd dylib issues, the LLVM PTX backend does not work on windows, it will fail to link in intrinsics. 
+This can be circumvented by building LLVM in a special way, but this is far beyond what most users will do to get a backend to work.</li>
+<li>NVVM is used in NVCC itself, therefore NVIDIA is much more receptive to bugs inside of it. </li>
+<li>NVVM contains proprietary optimizations (which is why it's closed source) that are simply not present in the LLVM PTX backend
+which yield considerable performance differences (especially on more complex kernels with more information in the IR).</li>
+<li>For some reason (either rustc giving weird LLVM IR or the LLVM PTX backend being broken) the LLVM PTX backend often
+generates completely invalid PTX for trivial programs, so it is not an acceptable workflow for a production pipeline.</li>
+<li>GPU and CPU codegen is fundamentally different, creating a codegen that is only for the GPU allows us to 
+seamlessly implement features which would have been impossible or very difficult to implement in the existing codegen, such as:
+<ul>
+<li>Shared memory, this requires some special generation of globals with custom addrspaces, its just not possible to do without backend explicit handling.</li>
+<li>Lazy loading of modules, you can find more info in the <a href="./nvvm/technical/ptxgen.html">technical section</a>, TLDR: it allows us to speed up compilation time massively
+as well as generate smaller and faster PTX files. Just to give you an idea of how much of a difference it makes, no lazy loading with nvvm opts took 9+ minutes on my i9 10850k (10c/20t).</li>
+<li>Stripping away everything we do not need, no complex ABI handling, no shared lib handling, control over how function calls are generated, etc.</li>
+</ul>
+</li>
+</ul>
+<p>So overall, the LLVM PTX backend is fit for smaller kernels/projects/proofs of concept.
+It is however not fit for compiling an entire language (core is <strong>very</strong> big) with dependencies and more. The end goal is for rust to be able to be used 
+over CUDA C/C++ with the same (or better!) performance and features, therefore, we must take advantage of all optimizations NVCC has over us.</p>
+<h2 id="if-nvvm-ir-is-a-subset-of-llvm-ir-can-we-not-give-rustc-generated-llvm-ir-to-nvvm"><a class="header" href="#if-nvvm-ir-is-a-subset-of-llvm-ir-can-we-not-give-rustc-generated-llvm-ir-to-nvvm">If NVVM IR is a subset of LLVM IR, can we not give rustc-generated LLVM IR to NVVM?</a></h2>
+<p>Short answer, no.</p>
+<p>Long answer, there are a couple of things that make this impossible:</p>
+<ul>
+<li>At the time of writing, libnvvm expects LLVM 7 bitcode, giving it LLVM 12/13 bitcode (which is what rustc uses) does not work.</li>
+<li>NVVM IR is a <strong>subset</strong> of LLVM IR, there are tons of things that nvvm will not accept. Such as a lot of function attrs not being allowed. 
+This is well documented and you can find the spec <a href="https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html">here</a>. Not to mention
+many bugs in libnvvm that i have found along the way, the most infuriating of which is nvvm not accepting integer types that arent <code>i1, i8, i16, i32, or i64</code>.
+This required special handling in the codegen to convert these &quot;irregular&quot; types into vector types.</li>
+</ul>
+<h2 id="what-is-the-point-of-using-rust-if-a-lot-of-things-in-kernels-are-unsafe"><a class="header" href="#what-is-the-point-of-using-rust-if-a-lot-of-things-in-kernels-are-unsafe">What is the point of using Rust if a lot of things in kernels are unsafe?</a></h2>
+<p>This is probably the most asked question by far, so let's break it down in detail. </p>
+<p>TL;DR There are things we fundamentally can't check, but just because that is the case does not mean
+we cannot still prevent a lot of problems we <em>can</em> check.</p>
+<p>Yes it is true that GPU kernels have much more unsafe than CPU code usually, but why is that?</p>
+<p>The reason is that CUDA's entire model is not based on safety in any way, there are almost zero
+safety nets in CUDA. Rust is the polar opposite of this model, everything is safe unless there 
+are some invariants that cannot be checked by the compiler. Let's take a look at some of the
+invariants we face here.</p>
+<p>Take this program as an example, written in CUDA C++:</p>
+<pre><code class="language-cpp">__global__ void kernel(int* buf, int* other)
+{
+  int idx = threadIdx.x;
+  buf[idx] = other[idx];
+}
+
+int main(void)
+{
+  int N = 50;
+  int* a, b, d_a, d_b;
+  a = (int*)malloc(N*sizeof(int));
+  b = (int*)malloc(N*sizeof(int));
+
+  cudaMalloc(&amp;d_a, N*sizeof(int));
+  cudaMalloc(&amp;d_b, N*sizeof(int));
+
+  for (int i = 0; i &lt; N; i++) {
+    a[i] = 0.0f;
+    b[i] = 2.0f;
+  }
+
+  cudaMemcpy(d_a, a, N*sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_b, b, N*sizeof(float), cudaMemcpyHostToDevice);
+
+  kernel&lt;&lt;&lt;1, N&gt;&gt;&gt;(d_a, d_b);
+
+  cudaMemcpy(d_a, a, N*sizeof(float), cudaMemcpyDeviceToHost);
+  cudaMemcpy(d_b, b, N*sizeof(float), cudaMemcpyDeviceToHost);
+
+  /* do something with the data */
+
+  cudaFree(d_a);
+  cudaFree(d_b);
+  free(a);
+  free(b);
+}
+</code></pre>
+<p>You may think this looks innocent enough, it's a very easy and understandable program. But
+if you really think about it, this is a minefield of things that could go wrong. Let's list most of them:</p>
+<ul>
+<li><code>buf</code> could be too small, that is undefined behavior (reading beyond allocated memory)</li>
+<li>similarly, <code>other</code> could also be too small.</li>
+<li>The kernel could have been called with too many or not enough parameters.</li>
+<li>The kernel could have been called with a different grid/block dimension than expected, which would cause a data race.</li>
+<li>Any of the <code>cudaMalloc</code>, <code>cudaMemcpy</code>, kernel launches, or <code>cudaFree</code> calls could have errored, which we dont handle and simply ignore.</li>
+<li>We could have forgotten to initialize the buffers.</li>
+<li>We could have forgotten to free the buffers.</li>
+</ul>
+<p>This goes to show that CUDA C/C++ and CUDA overall rely on shifting the burden of correctness from the API to the developer.
+However, Rust uses a completely opposite design model, the compiler verifies as much as it can, and burden is only shifted to the 
+developer if its absolutely essential, behind <code>unsafe</code>.</p>
+<p>This creates a big problem for us, it is very difficult (and sometimes impossible) to prove correctness statically when wrapping 
+how CUDA works. We can solve a lot of the points using things like RAII and providing a high level wrapper, but we fundamentally
+cannot prove a lot of things, the most common place where this is shown is the CPU-GPU boundary, e.g. launching kernels.</p>
+<p>Firstly, we cannot verify that the PTX we are calling is sound, that it has no data races, writes into the right buffers, doesnt rely
+on undocumented invariants, and does not write invalid data to buffers. This already makes launching kernels perma-unsafe.</p>
+<p>Second, CUDA does zero validation in terms of kernel parameter mismatch, it will simply segfault on you, or even keep going 
+but produce invalid data (or cause the kernel to cause undefined behavior). This is a design flaw in CUDA itself, we have 
+no control over it and no 100% reliable way to fix it, therefore we must shift this burden of correctness to the developer. </p>
+<p>Moreover, the CUDA GPU kernel model is entirely based on trust, trusting each thread to index into the correct place in buffers,
+trusting the caller of the kernel to uphold some dimension invariants, etc. This is once again, completely incompatible with how 
+rust does things. We can provide wrappers to calculate an index that always works, and macros to index a buffer automatically, but 
+indexing in complex ways is a core operation in CUDA and it is impossible for us to prove that whatever the developer is doing is correct.</p>
+<p>Finally, We would love to be able to use mut refs in kernel parameters, but this is would be unsound. Because
+each kernel function is <em>technically</em> called multiple times in parallel with the same parameters, we would be
+aliasing the mutable ref, which Rustc declares as unsound (aliasing mechanics). So raw pointers or slightly-less-unsafe
+need to be used. However, they are usually only used for the initial buffer indexing, after which you can turn them into a
+mutable reference just fine (because you indexed in a way where no other thread will index that element). Also note
+that shared refs can be used as parameters just fine.</p>
+<p>Now that we outlined why this is a thing, why is using rust a benefit if we still need to use unsafe?</p>
+<p>Well it's simple, eliminating most of the things that a developer needs to think about to have a safe program
+is still exponentially safer than leaving <strong>everything</strong> to the developer to think about. </p>
+<p>By using rust, we eliminate:</p>
+<ul>
+<li>The forgotten/unhandled CUDA errors problem (yay results!).</li>
+<li>The uninitialized memory problem.</li>
+<li>The forgetting to dealloc memory problem.</li>
+<li>All of the inherent C++ problems in the kernel beyond the initial buffer indexing.</li>
+<li>The mismatched grid/block dimension problem (by providing <code>thread::index</code>).</li>
+<li>The forgetting to memcpy data back problem.</li>
+</ul>
+<p>And countless other problems with things like graphs, streams, devices, etc.</p>
+<p>So, just because we cannot solve <em>every</em> problem with CUDA safety, does not mean we cannot solve 
+a lot of them, and ease the burden of correctness from the developer. </p>
+<p>Besides, using Rust only adds to safety, it does not make CUDA <em>more</em> unsafe. This means there are only
+things to gain in terms of safety using Rust.</p>
+<h2 id="why-not-use-rust-gpu-with-compute-shaders"><a class="header" href="#why-not-use-rust-gpu-with-compute-shaders">Why not use rust-gpu with compute shaders?</a></h2>
+<p>The reasoning for this is the same reasoning as to why you would use CUDA over opengl/vulkan compute shaders:</p>
+<ul>
+<li>CUDA usually outperforms shaders if kernels are written well and launch configurations are optimal.</li>
+<li>CUDA has many useful features such as shared memory, unified memory, graphs, fine grained thread control, streams, the PTX ISA, etc.</li>
+<li>rust-gpu does not perform many optimizations, and with cg_ssa's less than ideal codegen, the optimizations by llvm and libnvvm are needed.</li>
+<li>SPIRV is arguably still not suitable for serious GPU kernel codegen, it is underspecced, complex, and does not mention many things which are needed.
+While libnvvm (which uses a well documented subset of LLVM IR) and the PTX ISA are very thoroughly documented/specified.</li>
+<li>rust-gpu is primarily focused on graphical shaders, compute shaders are secondary, which the rust ecosystem needs, but it also 
+needs a project 100% focused on computing, and computing only.</li>
+<li>SPIRV cannot access many useful CUDA libraries such as Optix, cuDNN, cuBLAS, etc.</li>
+<li>SPIRV debug info is still very young and rust-gpu cannot generate it. While rustc_codegen_nvvm does, which can be used
+for profiling kernels in something like nsight compute.</li>
+</ul>
+<p>Moreover, CUDA is the primary tool used in big computing industries such as VFX and scientific computing. Therefore 
+it is much easier for CUDA C++ users to use rust for GPU computing if most of the concepts are still the same. Plus,
+we can interface with existing CUDA code by compiling it to PTX then linking it with our rust code using the CUDA linker
+API (which is exposed in a high level wrapper in cust).</p>
+<h2 id="why-use-the-cuda-driver-api-over-the-runtime-api"><a class="header" href="#why-use-the-cuda-driver-api-over-the-runtime-api">Why use the CUDA Driver API over the Runtime API?</a></h2>
+<p>Simply put, the driver API provides better control over concurrency, context, and module management, and overall has better performance 
+control than the runtime API.</p>
+<p>Let's break it down into the main new concepts introduced in the Driver API.</p>
+<h3 id="contexts"><a class="header" href="#contexts">Contexts</a></h3>
+<p>The first big difference in the driver API is that CUDA context management is explicit and not implicit.</p>
+<p>Contexts are similar to CPU processes, they manage all of the resources, streams, allocations, etc associated with
+operations done inside them. </p>
+<p>The driver API provides control over these contexts. You can create new contexts and drop them at any time. 
+As opposed to the runtime API which works off of an implicit context destroyed on device reset. This
+causes a problem for larger applications because a new integration of CUDA could call device reset
+when it is finished, which causes further uses of CUDA to fail.</p>
+<h3 id="modules"><a class="header" href="#modules">Modules</a></h3>
+<p>Modules are the second big difference in the driver API. Modules are similar to shared libraries, they
+contain all of the globals and functions (kernels) inside of a PTX/cubin file. The driver API
+is language-agnostic, it purely works off of ptx/cubin files. To answer why this is important we
+need to cover what cubins and ptx files are briefly.</p>
+<p>PTX is a low level assembly-like language which is the penultimate step before what the GPU actually
+executes. It is human-readable and you can dump it from a CUDA C++ program with <code>nvcc ./file.cu --ptx</code>.
+This PTX is then optimized and lowered into a final format called SASS (Source and Assembly) and 
+turned into a cubin (CUDA binary) file. </p>
+<p>Driver API modules can be loaded as either ptx, cubin, or fatbin files. If they are loaded as 
+ptx then the driver API will JIT compile the PTX to cubin then cache it. You can also
+compile ptx to cubin yourself using ptx-compiler and cache it.</p>
+<p>This pipeline provides much better control over what functions you actually need to load and cache.
+You can separate different functions into different modules you can load dynamically (and even dynamically reload).
+This can yield considerable performance benefits when dealing with a lot of functions.</p>
+<h3 id="streams"><a class="header" href="#streams">Streams</a></h3>
+<p>Streams are (one of) CUDA's way of dispatching multiple kernels in parallel. You can kind of think of them 
+as OS threads essentially. Kernels dispatched one after the other inside of a particular stream
+will execute one after the other on the GPU, which is helpful for kernels that rely on a previous kernel's result.</p>
+<p>The CUDA runtime API operates off of a single global stream. This causes a lot of issues for users of large programs or libraries that
+need to manage many kernels being dispatched at the same time as efficiently as possible.</p>
+<h2 id="why-target-nvidia-gpus-only-instead-of-using-something-that-can-work-on-amd"><a class="header" href="#why-target-nvidia-gpus-only-instead-of-using-something-that-can-work-on-amd">Why target NVIDIA GPUs only instead of using something that can work on AMD?</a></h2>
+<p>This is a complex issue with many arguments for both sides, so i will give you
+both sides as well as my opinion. </p>
+<p>Pros for using OpenCL over CUDA:</p>
+<ul>
+<li>OpenCL (mostly) works on everything because it is a specification, not an actual centralized tool.</li>
+<li>OpenCL will be decently fast on most systems.</li>
+</ul>
+<p>Cons for using OpenCL over CUDA:</p>
+<ul>
+<li>Just like all open specifications, not every implementation is as good or supports the same things.
+Just because the absolute basics work, does not mean more exotic features work on everything because
+some vendors may lag behind others.</li>
+<li>OpenCL is slow to add new features, this is a natural consequence of being an open specification many
+vendors need to implement. For example, OpenCL 3.0 (which was announced in around April 2020) is supported
+by basically nobody. NVIDIA cards support OpenCL 2.0 while AMD cards support OpenCL 2.1. This means
+new features cannot be reliably relied upon because they are unlikely to work on a lot of cards for a LONG time.</li>
+<li>OpenCL can only be written in OpenCL C (based on C99), OpenCL C++ is a thing, but again, not everything
+supports it. This makes complex programs more difficult to create.</li>
+<li>OpenCL has less tools and libraries.</li>
+<li>OpenCL is nowhere near as language-agnostic as CUDA. CUDA works almost fully off of an assembly format (ptx)
+and debug info. Essentially how CPU code works. This makes writing language-agnostic things in OpenCL near impossible and
+locks you into using OpenCL C.</li>
+<li>OpenCL is plagued with serious driver bugs which have not been fixed, or that occur only on certain vendors.</li>
+</ul>
+<p>Pros for using CUDA over OpenCL:</p>
+<ul>
+<li>CUDA is for the most part the industry-standard tool for &quot;higher level&quot; computing such as scientific or
+VFX computing.</li>
+<li>CUDA is a proprietary tool, meaning that NVIDIA is able to push out bug fixes and features much faster
+than releasing a new spec and waiting for vendors to implement it. This allows for more features being added, 
+such as cooperative kernels, cuda graphs, unified memory, new profilers, etc.</li>
+<li>CUDA is a single entity, meaning that if something does or does not work on one system it is unlikely 
+that that will be different on another system. Assuming you are not using different architectures, where
+one gpu may be lacking a feature.</li>
+<li>CUDA is usually 10-30% faster than OpenCL overall, this is likely due to subpar OpenCL drivers by NVIDIA,
+but it is unlikely this performance gap will change in the near future.</li>
+<li>CUDA has a much richer set of libraries and tools than OpenCL, such as cuFFT, cuBLAS, cuRand, cuDNN, OptiX, NSight Compute, cuFile, etc.</li>
+<li>You can seamlessly use existing CUDA C/C++ code with <code>cust</code> or <code>rustc_codegen_nvvm</code>-generated PTX by
+using the CUDA linker APIs which are exposed in <code>cust</code>. Allowing for incremental switching to Rust.</li>
+<li>There is a generally larger set of code samples in CUDA C/C++ over OpenCL.</li>
+<li>Documentation is <strong>far</strong> better, there are (mostly) complete API docs for every single CUDA library and function out there.</li>
+<li>CUDA generally offers more control over the internals of how CUDA executes your GPU code. For example, you can choose
+to keep PTX which uses a virtual architecture, or you can compile that to cubin (SASS) and cache that for faster load times.</li>
+</ul>
+<p>Cons for using CUDA over OpenCL:</p>
+<ul>
+<li>CUDA only works on NVIDIA GPUs.</li>
+</ul>
+<h1 id="what-makes-cust-and-rustacuda-different"><a class="header" href="#what-makes-cust-and-rustacuda-different">What makes cust and RustaCUDA different?</a></h1>
+<p>Cust is a fork of rustacuda which changes a lot of things inside of it, as well as adds new features that
+are not inside of rustacuda. </p>
+<p>The most significant changes (This list is not complete!!) are:</p>
+<ul>
+<li>Drop code no longer panics on failure to drop raw CUDA handles, this is so that InvalidAddress errors, which cause 
+CUDA to nuke the driver and nuke any memory allocations no longer cause piles of panics from device boxes trying to be 
+dropped when returning from the function with <code>?</code>.</li>
+<li>cuda-sys is no longer used, instead, we have our own bindings <code>cust_raw</code> so we can ensure updates to the latest CUDA features.</li>
+<li>CUDA occupancy functions have been added.</li>
+<li>PTX linking functions have been added.</li>
+<li>Native support for <code>vek</code> linear algebra types for grid/block dimensions and DeviceCopy has been added under the <code>vek</code> feature.</li>
+<li>Util traits have been added.</li>
+<li>Basic graph support has been added.</li>
+<li>Some functions have been renamed.</li>
+<li>Some functions have been added.</li>
+</ul>
+<p>Changes that are currently in progress but not done/experimental:</p>
+<ul>
+<li>Surfaces</li>
+<li>Textures</li>
+<li>Graphs</li>
+<li>PTX validation</li>
+</ul>
+<p>Just like rustacuda, cust makes no assumptions of what language was used to generate the ptx/cubin. It could be 
+C, C++, futhark, or best of all, Rust!</p>
+<p>Cust's name is literally just rust + cuda mashed together in a horrible way.
+Or you can pretend it stands for custard if you really like custard.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="features.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="guide/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="features.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="guide/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
