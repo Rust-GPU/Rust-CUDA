@@ -6,15 +6,17 @@ use std::{
 };
 
 pub fn include_cuda() {
-    let cuda_lib_dir = find_cuda_lib_dir().expect("Could not find a cuda installation");
-    println!("cargo:rustc-link-search=native={}", cuda_lib_dir.display());
-
-    println!("cargo:rustc-link-lib=dylib=cuda");
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-env-changed=CUDA_LIBRARY_PATH");
-    println!("cargo:rerun-if-env-changed=CUDA_ROOT");
-    println!("cargo:rerun-if-env-changed=CUDA_PATH");
-    println!("cargo:rerun-if-env-changed=CUDA_TOOLKIT_ROOT_DIR");
+    if !cfg!(doc) {
+        let cuda_lib_dir = find_cuda_lib_dir().expect("Could not find a cuda installation");
+        println!("cargo:rustc-link-search=native={}", cuda_lib_dir.display());
+    
+        println!("cargo:rustc-link-lib=dylib=cuda");
+        println!("cargo:rerun-if-changed=build.rs");
+        println!("cargo:rerun-if-env-changed=CUDA_LIBRARY_PATH");
+        println!("cargo:rerun-if-env-changed=CUDA_ROOT");
+        println!("cargo:rerun-if-env-changed=CUDA_PATH");
+        println!("cargo:rerun-if-env-changed=CUDA_TOOLKIT_ROOT_DIR");
+    }
 }
 
 // Returns true if the given path is a valid cuda installation
@@ -136,7 +138,12 @@ pub fn find_optix_root() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(doc)]
+pub fn find_libnvvm_bin_dir() -> String {
+    String::new()
+}
+
+#[cfg(all(target_os = "windows", not(doc)))]
 pub fn find_libnvvm_bin_dir() -> String {
     find_cuda_root()
         .expect("Failed to find CUDA ROOT, make sure the CUDA SDK is installed and CUDA_PATH or CUDA_ROOT are set!")
@@ -147,7 +154,7 @@ pub fn find_libnvvm_bin_dir() -> String {
         .into_owned()
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", not(doc)))]
 pub fn find_libnvvm_bin_dir() -> String {
     find_cuda_root()
         .expect("Failed to find CUDA ROOT, make sure the CUDA SDK is installed and CUDA_PATH or CUDA_ROOT are set!")
