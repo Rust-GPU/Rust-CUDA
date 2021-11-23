@@ -11,7 +11,7 @@ use tar::Archive;
 use xz::read::XzDecoder;
 
 static PREBUILT_LLVM_URL: &str =
-    "https://github.com/RDambrosio016/rustc_codegen_nvvm-llvm/releases/download/LLVM-7.1.0/";
+    "https://github.com/rust-gpu/rustc_codegen_nvvm-llvm/releases/download/LLVM-7.1.0/";
 
 static REQUIRED_MAJOR_LLVM_VERSION: u8 = 7;
 
