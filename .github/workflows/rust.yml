@@ -28,7 +28,7 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.4
         id: cuda-toolkit
         with:
-          cuda: '11.5.0'
+          cuda: '11.2.2'
 
       - name: Setup Rust
         uses: hecrj/setup-rust-action@v1
