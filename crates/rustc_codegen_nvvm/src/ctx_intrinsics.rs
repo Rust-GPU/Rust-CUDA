@@ -1,7 +1,7 @@
+use crate::context::CodegenCx;
 use crate::llvm::Value;
 use rustc_codegen_ssa::traits::{BaseTypeMethods, DerivedTypeMethods};
 use rustc_session::config::DebugInfo;
-use crate::context::CodegenCx;
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub(crate) fn declare_intrinsic(&self, key: &str) -> Option<&'ll Value> {
@@ -104,7 +104,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         // for some very strange reason, they arent supported for i8 either, but that case
         // is easy to handle and we declare our own functions for that which just
         // zext to i16, use the i16 intrinsic, then trunc back to i8
-        
+
         // these are declared in libintrinsics, see libintrinsics.ll
         ifn!(map, "__nvvm_i8_addo", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "__nvvm_u8_addo", fn(t_i8, t_i8) -> t_i8_i1);
@@ -130,7 +130,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ifn!(map, "llvm.ssub.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.ssub.sat.i32", fn(t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.ssub.sat.i64", fn(t_i64, t_i64) -> t_i64);
-        
+
         ifn!(map, "llvm.usub.sat.i8", fn(t_i8, t_i8) -> t_i8);
         ifn!(map, "llvm.usub.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.usub.sat.i32", fn(t_i32, t_i32) -> t_i32);
@@ -380,7 +380,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         );
 
         // other intrinsics
-        
+
         ifn!(
             map,
             "__nv_powi",

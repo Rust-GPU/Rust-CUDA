@@ -15,10 +15,10 @@ use std::os::raw::c_void;
 ///
 /// See the [`module-level documentation`](../memory/index.html) for more information on device memory.
 #[derive(Debug)]
-pub struct DBox<T> {
+pub struct DeviceBox<T> {
     pub(crate) ptr: DevicePointer<T>,
 }
-impl<T: DeviceCopy> DBox<T> {
+impl<T: DeviceCopy> DeviceBox<T> {
     /// Allocate device memory and place val into it.
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
@@ -32,16 +32,16 @@ impl<T: DeviceCopy> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let five = DBox::new(&5).unwrap();
+    /// let five = DeviceBox::new(&5).unwrap();
     /// ```
     pub fn new(val: &T) -> CudaResult<Self> {
-        let mut dev_box = unsafe { DBox::uninitialized()? };
+        let mut dev_box = unsafe { DeviceBox::uninitialized()? };
         dev_box.copy_from(val)?;
         Ok(dev_box)
     }
 }
 
-impl<T: DeviceCopy + Default> DBox<T> {
+impl<T: DeviceCopy + Default> DeviceBox<T> {
     /// Read the data back from the GPU into host memory.
     pub fn as_host_value(&self) -> CudaResult<T> {
         let mut val = T::default();
@@ -50,7 +50,7 @@ impl<T: DeviceCopy + Default> DBox<T> {
     }
 }
 
-impl<T> DBox<T> {
+impl<T> DeviceBox<T> {
     /// Allocate device memory, but do not initialize it.
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
@@ -66,17 +66,17 @@ impl<T> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let mut five = unsafe { DBox::uninitialized().unwrap() };
+    /// let mut five = unsafe { DeviceBox::uninitialized().unwrap() };
     /// five.copy_from(&5u64).unwrap();
     /// ```
     pub unsafe fn uninitialized() -> CudaResult<Self> {
         if mem::size_of::<T>() == 0 {
-            Ok(DBox {
+            Ok(DeviceBox {
                 ptr: DevicePointer::null(),
             })
         } else {
             let ptr = cuda_malloc(1)?;
-            Ok(DBox { ptr })
+            Ok(DeviceBox { ptr })
         }
     }
 
@@ -95,13 +95,13 @@ impl<T> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let mut zero = unsafe { DBox::zeroed().unwrap() };
+    /// let mut zero = unsafe { DeviceBox::zeroed().unwrap() };
     /// let mut value = 5u64;
     /// zero.copy_to(&mut value).unwrap();
     /// assert_eq!(0, value);
     /// ```
     pub unsafe fn zeroed() -> CudaResult<Self> {
-        let mut new_box = DBox::uninitialized()?;
+        let mut new_box = DeviceBox::uninitialized()?;
         if mem::size_of::<T>() != 0 {
             cuda::cuMemsetD8_v2(
                 new_box.as_device_ptr().as_raw_mut() as u64,
@@ -113,10 +113,10 @@ impl<T> DBox<T> {
         Ok(new_box)
     }
 
-    /// Constructs a DBox from a raw pointer.
+    /// Constructs a DeviceBox from a raw pointer.
     ///
     /// After calling this function, the raw pointer and the memory it points to is owned by the
-    /// DBox. The DBox destructor will free the allocated memory, but will not call the destructor
+    /// DeviceBox. The DeviceBox destructor will free the allocated memory, but will not call the destructor
     /// of `T`. This function may accept any pointer produced by the `cuMemAllocManaged` CUDA API
     /// call.
     ///
@@ -131,22 +131,22 @@ impl<T> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// let ptr = DBox::into_device(x).as_raw_mut();
-    /// let x = unsafe { DBox::from_raw(ptr) };
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// let ptr = DeviceBox::into_device(x).as_raw_mut();
+    /// let x = unsafe { DeviceBox::from_raw(ptr) };
     /// ```
     pub unsafe fn from_raw(ptr: *mut T) -> Self {
-        DBox {
+        DeviceBox {
             ptr: DevicePointer::wrap(ptr),
         }
     }
 
-    /// Constructs a DBox from a DevicePointer.
+    /// Constructs a DeviceBox from a DevicePointer.
     ///
     /// After calling this function, the pointer and the memory it points to is owned by the
-    /// DBox. The DBox destructor will free the allocated memory, but will not call the destructor
+    /// DeviceBox. The DeviceBox destructor will free the allocated memory, but will not call the destructor
     /// of `T`. This function may accept any pointer produced by the `cuMemAllocManaged` CUDA API
-    /// call, such as one taken from `DBox::into_device`.
+    /// call, such as one taken from `DeviceBox::into_device`.
     ///
     /// # Safety
     ///
@@ -159,22 +159,22 @@ impl<T> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// let ptr = DBox::into_device(x);
-    /// let x = unsafe { DBox::from_device(ptr) };
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// let ptr = DeviceBox::into_device(x);
+    /// let x = unsafe { DeviceBox::from_device(ptr) };
     /// ```
     pub unsafe fn from_device(ptr: DevicePointer<T>) -> Self {
-        DBox { ptr }
+        DeviceBox { ptr }
     }
 
-    /// Consumes the DBox, returning the wrapped DevicePointer.
+    /// Consumes the DeviceBox, returning the wrapped DevicePointer.
     ///
     /// After calling this function, the caller is responsible for the memory previously managed by
-    /// the DBox. In particular, the caller should properly destroy T and deallocate the memory.
-    /// The easiest way to do so is to create a new DBox using the `DBox::from_device` function.
+    /// the DeviceBox. In particular, the caller should properly destroy T and deallocate the memory.
+    /// The easiest way to do so is to create a new DeviceBox using the `DeviceBox::from_device` function.
     ///
     /// Note: This is an associated function, which means that you have to all it as
-    /// `DBox::into_device(b)` instead of `b.into_device()` This is so that there is no conflict with
+    /// `DeviceBox::into_device(b)` instead of `b.into_device()` This is so that there is no conflict with
     /// a method on the inner type.
     ///
     /// # Examples
@@ -182,12 +182,12 @@ impl<T> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// let ptr = DBox::into_device(x);
-    /// # unsafe { DBox::from_device(ptr) };
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// let ptr = DeviceBox::into_device(x);
+    /// # unsafe { DeviceBox::from_device(ptr) };
     /// ```
     #[allow(clippy::wrong_self_convention)]
-    pub fn into_device(mut b: DBox<T>) -> DevicePointer<T> {
+    pub fn into_device(mut b: DeviceBox<T>) -> DevicePointer<T> {
         let ptr = mem::replace(&mut b.ptr, DevicePointer::null());
         mem::forget(b);
         ptr
@@ -202,7 +202,7 @@ impl<T> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let mut x = DBox::new(&5).unwrap();
+    /// let mut x = DeviceBox::new(&5).unwrap();
     /// let ptr = x.as_device_ptr();
     /// println!("{:p}", ptr);
     /// ```
@@ -210,7 +210,7 @@ impl<T> DBox<T> {
         self.ptr
     }
 
-    /// Destroy a `DBox`, returning an error.
+    /// Destroy a `DeviceBox`, returning an error.
     ///
     /// Deallocating device memory can return errors from previous asynchronous work. This function
     /// destroys the given box and returns the error and the un-destroyed box on failure.
@@ -220,8 +220,8 @@ impl<T> DBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// match DBox::drop(x) {
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// match DeviceBox::drop(x) {
     ///     Ok(()) => println!("Successfully destroyed"),
     ///     Err((e, dev_box)) => {
     ///         println!("Failed to destroy box: {:?}", e);
@@ -229,7 +229,7 @@ impl<T> DBox<T> {
     ///     },
     /// }
     /// ```
-    pub fn drop(mut dev_box: DBox<T>) -> DropResult<DBox<T>> {
+    pub fn drop(mut dev_box: DeviceBox<T>) -> DropResult<DeviceBox<T>> {
         if dev_box.ptr.is_null() {
             return Ok(());
         }
@@ -241,12 +241,12 @@ impl<T> DBox<T> {
                     mem::forget(dev_box);
                     Ok(())
                 }
-                Err(e) => Err((e, DBox { ptr })),
+                Err(e) => Err((e, DeviceBox { ptr })),
             }
         }
     }
 }
-impl<T> Drop for DBox<T> {
+impl<T> Drop for DeviceBox<T> {
     fn drop(&mut self) {
         if self.ptr.is_null() {
             return;
@@ -258,13 +258,13 @@ impl<T> Drop for DBox<T> {
         }
     }
 }
-impl<T> Pointer for DBox<T> {
+impl<T> Pointer for DeviceBox<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Pointer::fmt(&self.ptr, f)
     }
 }
-impl<T> crate::private::Sealed for DBox<T> {}
-impl<T: DeviceCopy> CopyDestination<T> for DBox<T> {
+impl<T> crate::private::Sealed for DeviceBox<T> {}
+impl<T: DeviceCopy> CopyDestination<T> for DeviceBox<T> {
     fn copy_from(&mut self, val: &T) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
@@ -295,8 +295,8 @@ impl<T: DeviceCopy> CopyDestination<T> for DBox<T> {
         Ok(())
     }
 }
-impl<T: DeviceCopy> CopyDestination<DBox<T>> for DBox<T> {
-    fn copy_from(&mut self, val: &DBox<T>) -> CudaResult<()> {
+impl<T: DeviceCopy> CopyDestination<DeviceBox<T>> for DeviceBox<T> {
+    fn copy_from(&mut self, val: &DeviceBox<T>) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
@@ -307,7 +307,7 @@ impl<T: DeviceCopy> CopyDestination<DBox<T>> for DBox<T> {
         Ok(())
     }
 
-    fn copy_to(&self, val: &mut DBox<T>) -> CudaResult<()> {
+    fn copy_to(&self, val: &mut DeviceBox<T>) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
@@ -318,8 +318,8 @@ impl<T: DeviceCopy> CopyDestination<DBox<T>> for DBox<T> {
         Ok(())
     }
 }
-impl<T: DeviceCopy> AsyncCopyDestination<DBox<T>> for DBox<T> {
-    unsafe fn async_copy_from(&mut self, val: &DBox<T>, stream: &Stream) -> CudaResult<()> {
+impl<T: DeviceCopy> AsyncCopyDestination<DeviceBox<T>> for DeviceBox<T> {
+    unsafe fn async_copy_from(&mut self, val: &DeviceBox<T>, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
             cuda::cuMemcpyDtoDAsync_v2(
@@ -333,7 +333,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<DBox<T>> for DBox<T> {
         Ok(())
     }
 
-    unsafe fn async_copy_to(&self, val: &mut DBox<T>, stream: &Stream) -> CudaResult<()> {
+    unsafe fn async_copy_to(&self, val: &mut DeviceBox<T>, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
             cuda::cuMemcpyDtoDAsync_v2(
@@ -359,41 +359,41 @@ mod test_device_box {
     #[test]
     fn test_allocate_and_free_device_box() {
         let _context = crate::quick_init().unwrap();
-        let x = DBox::new(&5u64).unwrap();
+        let x = DeviceBox::new(&5u64).unwrap();
         drop(x);
     }
 
     #[test]
     fn test_device_box_allocates_for_non_zst() {
         let _context = crate::quick_init().unwrap();
-        let x = DBox::new(&5u64).unwrap();
-        let ptr = DBox::into_device(x);
+        let x = DeviceBox::new(&5u64).unwrap();
+        let ptr = DeviceBox::into_device(x);
         assert!(!ptr.is_null());
-        let _ = unsafe { DBox::from_device(ptr) };
+        let _ = unsafe { DeviceBox::from_device(ptr) };
     }
 
     #[test]
     fn test_device_box_doesnt_allocate_for_zero_sized_type() {
         let _context = crate::quick_init().unwrap();
-        let x = DBox::new(&ZeroSizedType).unwrap();
-        let ptr = DBox::into_device(x);
+        let x = DeviceBox::new(&ZeroSizedType).unwrap();
+        let ptr = DeviceBox::into_device(x);
         assert!(ptr.is_null());
-        let _ = unsafe { DBox::from_device(ptr) };
+        let _ = unsafe { DeviceBox::from_device(ptr) };
     }
 
     #[test]
     fn test_into_from_device() {
         let _context = crate::quick_init().unwrap();
-        let x = DBox::new(&5u64).unwrap();
-        let ptr = DBox::into_device(x);
-        let _ = unsafe { DBox::from_device(ptr) };
+        let x = DeviceBox::new(&5u64).unwrap();
+        let ptr = DeviceBox::into_device(x);
+        let _ = unsafe { DeviceBox::from_device(ptr) };
     }
 
     #[test]
     fn test_copy_host_to_device() {
         let _context = crate::quick_init().unwrap();
         let y = 5u64;
-        let mut x = DBox::new(&0u64).unwrap();
+        let mut x = DeviceBox::new(&0u64).unwrap();
         x.copy_from(&y).unwrap();
         let mut z = 10u64;
         x.copy_to(&mut z).unwrap();
@@ -403,7 +403,7 @@ mod test_device_box {
     #[test]
     fn test_copy_device_to_host() {
         let _context = crate::quick_init().unwrap();
-        let x = DBox::new(&5u64).unwrap();
+        let x = DeviceBox::new(&5u64).unwrap();
         let mut y = 0u64;
         x.copy_to(&mut y).unwrap();
         assert_eq!(5, y);
@@ -412,9 +412,9 @@ mod test_device_box {
     #[test]
     fn test_copy_device_to_device() {
         let _context = crate::quick_init().unwrap();
-        let x = DBox::new(&5u64).unwrap();
-        let mut y = DBox::new(&0u64).unwrap();
-        let mut z = DBox::new(&0u64).unwrap();
+        let x = DeviceBox::new(&5u64).unwrap();
+        let mut y = DeviceBox::new(&0u64).unwrap();
+        let mut z = DeviceBox::new(&0u64).unwrap();
         x.copy_to(&mut y).unwrap();
         z.copy_from(&y).unwrap();
 
@@ -426,8 +426,8 @@ mod test_device_box {
     #[test]
     fn test_device_pointer_implements_traits_safely() {
         let _context = crate::quick_init().unwrap();
-        let mut x = DBox::new(&5u64).unwrap();
-        let mut y = DBox::new(&0u64).unwrap();
+        let mut x = DeviceBox::new(&5u64).unwrap();
+        let mut y = DeviceBox::new(&0u64).unwrap();
 
         // If the impls dereference the pointer, this should segfault.
         let _ = Ord::cmp(&x.as_device_ptr(), &y.as_device_ptr());

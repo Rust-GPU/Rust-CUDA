@@ -173,8 +173,7 @@ impl Module {
     ///
     /// let ptx = CString::new(include_str!("../resources/add.ptx"))?;
     /// let module = Module::load_from_string(&ptx)?;
-    /// let name = CString::new("sum")?;
-    /// let function = module.get_function(&name)?;
+    /// let function = module.get_function("sum")?;
     /// # Ok(())
     /// # }
     /// ```

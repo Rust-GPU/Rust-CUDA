@@ -1,6 +1,6 @@
 use crate::error::{CudaResult, ToResult};
 use crate::memory::device::AsyncCopyDestination;
-use crate::memory::device::{CopyDestination, DBuffer};
+use crate::memory::device::{CopyDestination, DeviceBuffer};
 use crate::memory::DeviceCopy;
 use crate::memory::DevicePointer;
 use crate::stream::Stream;
@@ -504,12 +504,12 @@ impl<T: DeviceCopy> CopyDestination<DSlice<T>> for DSlice<T> {
         Ok(())
     }
 }
-impl<T: DeviceCopy> CopyDestination<DBuffer<T>> for DSlice<T> {
-    fn copy_from(&mut self, val: &DBuffer<T>) -> CudaResult<()> {
+impl<T: DeviceCopy> CopyDestination<DeviceBuffer<T>> for DSlice<T> {
+    fn copy_from(&mut self, val: &DeviceBuffer<T>) -> CudaResult<()> {
         self.copy_from(val as &DSlice<T>)
     }
 
-    fn copy_to(&self, val: &mut DBuffer<T>) -> CudaResult<()> {
+    fn copy_to(&self, val: &mut DeviceBuffer<T>) -> CudaResult<()> {
         self.copy_to(val as &mut DSlice<T>)
     }
 }
@@ -589,12 +589,12 @@ impl<T: DeviceCopy> AsyncCopyDestination<DSlice<T>> for DSlice<T> {
         Ok(())
     }
 }
-impl<T: DeviceCopy> AsyncCopyDestination<DBuffer<T>> for DSlice<T> {
-    unsafe fn async_copy_from(&mut self, val: &DBuffer<T>, stream: &Stream) -> CudaResult<()> {
+impl<T: DeviceCopy> AsyncCopyDestination<DeviceBuffer<T>> for DSlice<T> {
+    unsafe fn async_copy_from(&mut self, val: &DeviceBuffer<T>, stream: &Stream) -> CudaResult<()> {
         self.async_copy_from(val as &DSlice<T>, stream)
     }
 
-    unsafe fn async_copy_to(&self, val: &mut DBuffer<T>, stream: &Stream) -> CudaResult<()> {
+    unsafe fn async_copy_to(&self, val: &mut DeviceBuffer<T>, stream: &Stream) -> CudaResult<()> {
         self.async_copy_to(val as &mut DSlice<T>, stream)
     }
 }

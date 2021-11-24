@@ -1,13 +1,13 @@
+use rustc_codegen_ssa::traits::ThinBufferMethods;
 use rustc_codegen_ssa::CodegenResults;
 use rustc_codegen_ssa::CompiledModule;
 use rustc_codegen_ssa::NativeLib;
-use rustc_codegen_ssa::traits::ThinBufferMethods;
 use rustc_data_structures::owning_ref::OwningRef;
 use rustc_data_structures::rustc_erase_owner;
 use rustc_data_structures::sync::MetadataRef;
 use rustc_hash::FxHashSet;
-use rustc_session::cstore::MetadataLoader;
 use rustc_middle::middle::dependency_format::Linkage;
+use rustc_session::cstore::MetadataLoader;
 use rustc_session::output::out_filename;
 use rustc_session::{
     config::{CrateType, OutputFilenames, OutputType},
@@ -26,13 +26,13 @@ use std::{
 use tar::{Archive, Builder, Header};
 use tracing::{debug, trace};
 
-use crate::LlvmMod;
 use crate::context::CodegenArgs;
 use crate::create_module;
 use crate::llvm::Context;
 use crate::llvm::LLVMLinkModules2;
 use crate::llvm::LLVMRustParseBitcodeForLTO;
 use crate::lto::ThinBuffer;
+use crate::LlvmMod;
 
 pub(crate) struct NvvmMetadataLoader;
 
@@ -216,16 +216,16 @@ fn codegen_into_ptx_file(
 ) -> io::Result<()> {
     debug!("Codegenning crate into PTX, allocator: {}, deps:\n{:#?}, objects:\n{:#?}, rlibs:\n{:#?}, out_filename:\n{:#?}",
         allocator.is_some(),
-        deps, 
-        objects, 
-        rlibs, 
+        deps,
+        objects,
+        rlibs,
         out_filename
     );
 
     // we need to make a new llvm context because we need it for linking together modules,
     // but we dont have our original one because rustc drops tyctxt and codegencx before linking.
     let cx = LlvmMod::new("link_tmp");
-    
+
     let deps = deps.unwrap_or_default();
     let mut main_modules = Vec::with_capacity(objects.len());
     let mut rlib_deps = Vec::with_capacity(rlibs.len());
@@ -255,7 +255,14 @@ fn codegen_into_ptx_file(
             // metadata is where rustc puts rlib metadata, so its not a cgu we are interested in.
             if entry.path().unwrap() != Path::new(".metadata") {
                 if name == String::new() {
-                    name = entry.path().unwrap().file_name().unwrap().to_str().unwrap().to_string();
+                    name = entry
+                        .path()
+                        .unwrap()
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string();
                 }
                 // std::fs::read adds 1 to the size, so do the same here - see comment:
                 // https://github.com/rust-lang/rust/blob/72868e017bdade60603a25889e253f556305f996/library/std/src/fs.rs#L200-L202
@@ -270,7 +277,12 @@ fn codegen_into_ptx_file(
     }
 
     if let Some(alloc) = allocator {
-        let bc = std::fs::read(alloc.object.clone().expect("expected obj path for allocator module"))?;
+        let bc = std::fs::read(
+            alloc
+                .object
+                .clone()
+                .expect("expected obj path for allocator module"),
+        )?;
         main_modules.push((bc, String::from("allocator")));
     }
 
@@ -284,7 +296,7 @@ fn codegen_into_ptx_file(
         // HACK(RDambrosio016): If a dep cannot be found then it is probably a proc macro crate.
         // in which case we should just ignore it and move on, but in the future we should filter out those
         // deps before linking.
-        None 
+        None
     }).collect::<Vec<_>>();
 
     // now that we have our nice bitcode modules, we just need to find libdevice and give our
@@ -293,13 +305,14 @@ fn codegen_into_ptx_file(
     // we need to actually parse the codegen args again, because codegencx is not available at link time.
     let nvvm_opts = CodegenArgs::from_session(sess).nvvm_options;
 
-    let ptx_bytes = match crate::nvvm::codegen_bitcode_modules(&nvvm_opts, sess, main_modules, sorted_deps) {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            // TODO(RDambrosio016): maybe include the nvvm log with this fatal error
-            sess.fatal(&err.to_string())
-        }
-    };
+    let ptx_bytes =
+        match crate::nvvm::codegen_bitcode_modules(&nvvm_opts, sess, main_modules, sorted_deps) {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                // TODO(RDambrosio016): maybe include the nvvm log with this fatal error
+                sess.fatal(&err.to_string())
+            }
+        };
 
     std::fs::write(out_filename, ptx_bytes)
 }
@@ -309,12 +322,11 @@ fn codegen_into_ptx_file(
 /// entire modules, not just individual CGUs.
 fn merge_cgus(cgus: Vec<Vec<u8>>, llcx: &Context, crate_name: String) -> Vec<u8> {
     let cstr = CString::new(crate_name.clone()).unwrap();
-    let module = unsafe {
-        create_module(llcx, &crate_name)
-    };
+    let module = unsafe { create_module(llcx, &crate_name) };
     for cgu in cgus {
         unsafe {
-            let tmp = LLVMRustParseBitcodeForLTO(llcx, cgu.as_ptr(), cgu.len(), cstr.as_ptr()).expect("Failed to parse CGU bitcode");
+            let tmp = LLVMRustParseBitcodeForLTO(llcx, cgu.as_ptr(), cgu.len(), cstr.as_ptr())
+                .expect("Failed to parse CGU bitcode");
             LLVMLinkModules2(module, tmp);
         }
     }

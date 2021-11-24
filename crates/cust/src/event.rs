@@ -232,16 +232,16 @@ impl Event {
     /// # use cust::stream::{Stream, StreamFlags};
     /// # use cust::launch;
     /// # use cust::module::Module;
-    /// # use cust::memory::DBox;
+    /// # use cust::memory::DeviceBox;
     /// # use std::error::Error;
     /// # use std::ffi::CString;
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// # let _context = quick_init()?;
     /// # let module_data = CString::new(include_str!("../resources/add.ptx"))?;
     /// # let module = Module::load_from_string(&module_data)?;
-    /// # let mut x = DBox::new(&10.0f32)?;
-    /// # let mut y = DBox::new(&20.0f32)?;
-    /// # let mut result = DBox::new(&0.0f32)?;
+    /// # let mut x = DeviceBox::new(&10.0f32)?;
+    /// # let mut y = DeviceBox::new(&20.0f32)?;
+    /// # let mut result = DeviceBox::new(&0.0f32)?;
     /// use cust::event::{Event, EventFlags};
     ///
     /// let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;

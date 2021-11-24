@@ -2,6 +2,7 @@
 
 import os
 import json
+import inspect
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'data/libdevice.json')
@@ -39,7 +40,8 @@ for intrinsic in raw:
 
     # There isnt actually any availability which is `No` instead of `Yes`, so including it is useless for now
     hyperlink = f"[Nvidia docs](https://docs.nvidia.com/cuda/libdevice-users-guide/{raw_name}.html#{raw_name})"
-    full_desc = f"{description}\n\n{hyperlink}\n\n# Returns\n\n{returns}"
+    full_desc = inspect.cleandoc(
+        f"{description}\n\n{hyperlink}\n\n# Returns\n\n{returns}")
     out += f"#[doc = \"{full_desc}\"]\n"
     out += f"pub fn {name}("
     sig = intrinsic["sig"]

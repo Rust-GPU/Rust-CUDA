@@ -7,7 +7,7 @@
 //!
 //! Device memory is just what it sounds like - memory allocated on the device. Device memory
 //! cannot be accessed from the host directly, but data can be copied to and from the device.
-//! cust exposes device memory through the [`DBox`](struct.DBox.html) and
+//! cust exposes device memory through the [`DeviceBox`](struct.DeviceBox.html) and
 //! [`DeviceBuffer`](struct.DeviceBuffer.html) structures. Pointers to device memory are
 //! represented by [`DevicePointer`](struct.DevicePointer.html), while slices in device memory are
 //! represented by [`DeviceSlice`](struct.DeviceSlice.html).
@@ -92,7 +92,7 @@ use core::marker::PhantomData;
 use core::num::*;
 
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
-/// or a regular [`DBuffer`].
+/// or a regular [`DeviceBuffer`].
 pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
     /// Obtains a device pointer to this buffer, not requiring `&mut self`. This means
     /// the buffer must be used only for immutable reads, and must not be written to.
@@ -101,7 +101,7 @@ pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
     fn len(&self) -> usize;
 }
 
-impl<T: DeviceCopy> GpuBuffer<T> for DBuffer<T> {
+impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
     unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
         DevicePointer::wrap((**self).as_ptr() as *mut _)
     }
@@ -131,7 +131,7 @@ impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
 }
 
 /// A trait describing a generic pointer that can be accessed from the GPU. This could be either a [`UnifiedBox`]
-/// or a regular [`DBox`].
+/// or a regular [`DeviceBox`].
 pub trait GpuBox<T: DeviceCopy>: private::Sealed {
     /// Obtains a device pointer to this value, not requiring `&mut self`. This means
     /// the value must be used only for immutable reads, and must not be written to.
@@ -139,13 +139,13 @@ pub trait GpuBox<T: DeviceCopy>: private::Sealed {
     fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
 }
 
-impl<T: DeviceCopy> GpuBox<T> for DBox<T> {
+impl<T: DeviceCopy> GpuBox<T> for DeviceBox<T> {
     unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
     }
 
     fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        DBox::as_device_ptr(self)
+        DeviceBox::as_device_ptr(self)
     }
 }
 
@@ -161,13 +161,13 @@ impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
 }
 
 mod private {
-    use super::{DBox, DBuffer, DeviceCopy, UnifiedBox, UnifiedBuffer};
+    use super::{DeviceBox, DeviceBuffer, DeviceCopy, UnifiedBox, UnifiedBuffer};
 
     pub trait Sealed {}
     impl<T: DeviceCopy> Sealed for UnifiedBuffer<T> {}
-    impl<T: DeviceCopy> Sealed for DBuffer<T> {}
+    impl<T: DeviceCopy> Sealed for DeviceBuffer<T> {}
     impl<T: DeviceCopy> Sealed for UnifiedBox<T> {}
-    impl<T: DeviceCopy> Sealed for DBox<T> {}
+    impl<T: DeviceCopy> Sealed for DeviceBox<T> {}
 }
 
 /// Marker trait for types which can safely be copied to or from a CUDA device.
