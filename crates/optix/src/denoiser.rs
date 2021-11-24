@@ -374,7 +374,7 @@ impl Denoiser {
         let raw_params = parameters.to_raw();
 
         let mut out = input_image.to_raw();
-        out.data = out_buffer.as_device_ptr_mut().as_raw_mut() as u64;
+        out.data = out_buffer.as_device_ptr().as_raw_mut() as u64;
 
         let layer = sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
@@ -427,11 +427,11 @@ impl DenoiserParams<'_> {
             denoiseAlpha: self.denoise_alpha as u32,
             hdrIntensity: self
                 .hdr_intensity
-                .map(|x| unsafe { x.as_device_ptr().as_raw() as u64 })
+                .map(|x| x.as_device_ptr().as_raw() as u64)
                 .unwrap_or_default(),
             hdrAverageColor: self
                 .hdr_average_color
-                .map(|x| unsafe { x.as_device_ptr().as_raw() as u64 })
+                .map(|x| x.as_device_ptr().as_raw() as u64)
                 .unwrap_or_default(),
             blendFactor: self.blend_factor,
         }

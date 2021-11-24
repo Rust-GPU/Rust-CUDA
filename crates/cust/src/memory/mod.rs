@@ -94,20 +94,13 @@ use core::num::*;
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
 /// or a regular [`DeviceBuffer`].
 pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
-    /// Obtains a device pointer to this buffer, not requiring `&mut self`. This means
-    /// the buffer must be used only for immutable reads, and must not be written to.
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T>;
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
+    fn as_device_ptr(&self) -> DevicePointer<T>;
     fn len(&self) -> usize;
 }
 
 impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap((**self).as_ptr() as *mut _)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        (**self).as_device_ptr()
+    fn as_device_ptr(&self) -> DevicePointer<T> {
+        unsafe { DevicePointer::wrap((**self).as_ptr() as *mut _) }
     }
 
     fn len(&self) -> usize {
@@ -116,12 +109,7 @@ impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
 }
 
 impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap(self.as_ptr() as *mut _)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        // SAFETY: unified pointers can be dereferenced from the gpu.
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         unsafe { DevicePointer::wrap(self.as_ptr() as *mut _) }
     }
 
@@ -133,29 +121,17 @@ impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
 /// A trait describing a generic pointer that can be accessed from the GPU. This could be either a [`UnifiedBox`]
 /// or a regular [`DeviceBox`].
 pub trait GpuBox<T: DeviceCopy>: private::Sealed {
-    /// Obtains a device pointer to this value, not requiring `&mut self`. This means
-    /// the value must be used only for immutable reads, and must not be written to.
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T>;
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
+    fn as_device_ptr(&self) -> DevicePointer<T>;
 }
 
 impl<T: DeviceCopy> GpuBox<T> for DeviceBox<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        DeviceBox::as_device_ptr(self)
     }
 }
 
 impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap(self.ptr.as_raw() as *mut _)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        // SAFETY: unified pointers can be dereferenced from the gpu.
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         unsafe { DevicePointer::wrap(self.ptr.as_raw() as *mut _) }
     }
 }
