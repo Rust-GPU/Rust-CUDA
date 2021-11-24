@@ -18,8 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { rust: nightly,           os: ubuntu-latest }
-          - { rust: nightly,           os: windows-latest }
+          - os: ubuntu-20.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -30,11 +32,12 @@ jobs:
         with:
           cuda: '11.2.2'
 
-      - name: Setup Rust
-        uses: hecrj/setup-rust-action@v1
-        with:
-          rust-version: ${{ matrix.rust }}
-          components: clippy,rustfmt
+      # random command that forces rustup to install stuff in rust-toolchain
+      - name: Install rust-toolchain
+        run: cargo version
+        
+      - name: Add rustup components
+        run: rustup component add rustfmt clippy
 
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v1
