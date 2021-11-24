@@ -6,10 +6,10 @@ use std::{
 };
 
 pub fn include_cuda() {
-    if !cfg!(doc) {
+    if env::var("DOCS_RS").is_err() && !cfg!(doc) {
         let cuda_lib_dir = find_cuda_lib_dir().expect("Could not find a cuda installation");
         println!("cargo:rustc-link-search=native={}", cuda_lib_dir.display());
-    
+
         println!("cargo:rustc-link-lib=dylib=cuda");
         println!("cargo:rerun-if-changed=build.rs");
         println!("cargo:rerun-if-env-changed=CUDA_LIBRARY_PATH");

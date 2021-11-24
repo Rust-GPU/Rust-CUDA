@@ -1,6 +1,6 @@
 [package]
 name = "cust"
-version = "0.1.1"
+version = "0.1.2"
 # Big thanks to the original author of rustacuda <3
 authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "Brook Heisler <brookheisler@gmail.com>"]
 edition = "2018"
