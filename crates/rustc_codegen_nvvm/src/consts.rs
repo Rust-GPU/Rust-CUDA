@@ -239,7 +239,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
         };
         unsafe {
             // Declare a symbol `foo` with the desired linkage.
-            let g1 = cx.declare_global(&sym, llty2, AddressSpace::DATA);
+            let g1 = cx.declare_global(sym, llty2, AddressSpace::DATA);
             llvm::LLVMRustSetLinkage(g1, linkage_to_llvm(linkage));
 
             // Declare an internal global `extern_with_linkage_foo` which
@@ -249,7 +249,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
             // `extern_with_linkage_foo` will instead be initialized to
             // zero.
             let mut real_name = "_rust_extern_with_linkage_".to_string();
-            real_name.push_str(&sym);
+            real_name.push_str(sym);
             let g2 = cx
                 .define_global(&real_name, llty, AddressSpace::DATA)
                 .unwrap_or_else(|| {
@@ -263,7 +263,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
             g2
         }
     } else {
-        cx.declare_global(&sym, llty, AddressSpace::DATA)
+        cx.declare_global(sym, llty, AddressSpace::DATA)
     }
 }
 
@@ -332,7 +332,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
             g
         } else {
-            check_and_apply_linkage(&self, &fn_attrs, ty, sym, def_id)
+            check_and_apply_linkage(self, fn_attrs, ty, sym, def_id)
         };
 
         if fn_attrs.flags.contains(CodegenFnAttrFlags::THREAD_LOCAL) {
@@ -369,7 +369,7 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
         unsafe {
             let attrs = self.tcx.codegen_fn_attrs(def_id);
 
-            let (v, _) = match codegen_static_initializer(&self, def_id) {
+            let (v, _) = match codegen_static_initializer(self, def_id) {
                 Ok(v) => v,
                 // Error has already been reported
                 Err(_) => return,
@@ -437,7 +437,7 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
                 llvm::LLVMSetGlobalConstant(g, llvm::True);
             }
 
-            debug_info::create_global_var_metadata(&self, def_id, g);
+            debug_info::create_global_var_metadata(self, def_id, g);
 
             if attrs.flags.contains(CodegenFnAttrFlags::THREAD_LOCAL) {
                 self.unsupported("thread locals");

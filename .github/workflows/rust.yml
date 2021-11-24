@@ -1,0 +1,62 @@
+name: Rust CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+env:
+  RUST_LOG: info
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust:
+    name: Rust ${{ matrix.rust }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rust: nightly,           os: ubuntu-latest }
+          - { rust: nightly,           os: windows-latest }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install CUDA 
+        uses: Jimver/cuda-toolkit@v0.2.4
+        id: cuda-toolkit
+        with:
+          cuda: '11.5.0'
+
+      - name: Setup Rust
+        uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: ${{ matrix.rust }}
+          components: clippy,rustfmt
+
+      - name: Load Rust Cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Rustfmt
+        if: contains(matrix.os, 'ubuntu')
+        run: cargo fmt --all -- --check
+
+      - name: Build
+        run: cargo build --workspace
+
+      # Don't currently test because many tests rely on the system having a CUDA GPU
+      # - name: Test
+      #   run: cargo test --workspace
+
+      - name: Clippy
+        if: contains(matrix.os, 'ubuntu')
+        env:
+          RUSTFLAGS: -Dwarnings
+        run: cargo clippy --workspace
+
+      - name: Check documentation
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+        run: cargo doc --workspace --all-features --document-private-items --no-deps

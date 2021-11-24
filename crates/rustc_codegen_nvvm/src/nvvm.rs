@@ -84,7 +84,7 @@ pub fn codegen_bitcode_modules(
     };
 
     prog.add_lazy_module(&libdevice, "libdevice".to_string())?;
-    prog.add_lazy_module(&LIBINTRINSICS, "libintrinsics".to_string())?;
+    prog.add_lazy_module(LIBINTRINSICS, "libintrinsics".to_string())?;
 
     // for now, while the codegen is young, we always run verification on the program.
     // This is to make debugging much easier, libnvvm tends to infinitely loop or segfault on invalid programs
@@ -120,8 +120,7 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
         let libdevice_file = fs::read_dir(Path::new(&base_path).join("nvvm").join("libdevice"))
             .ok()?
             .filter_map(Result::ok)
-            .filter(|f| f.path().extension() == Some(OsStr::new("bc")))
-            .next()?
+            .find(|f| f.path().extension() == Some(OsStr::new("bc")))?
             .path();
 
         fs::read(libdevice_file).ok()

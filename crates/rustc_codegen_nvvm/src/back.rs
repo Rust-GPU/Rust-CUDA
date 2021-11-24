@@ -30,7 +30,7 @@ use std::{
 pub fn llvm_err(handler: &Handler, msg: &str) -> FatalError {
     match llvm::last_error() {
         Some(err) => handler.fatal(&format!("{}: {}", msg, err)),
-        None => handler.fatal(&msg),
+        None => handler.fatal(msg),
     }
 }
 
@@ -238,10 +238,7 @@ pub(crate) unsafe fn codegen(
 /// given to other functions to "compile it" (in our case not really because nvvm does
 /// codegen on all the modules at once) and then link it (once again, nvvm does linking and codegen
 /// in a single step)
-pub fn compile_codegen_unit<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    cgu_name: Symbol,
-) -> (ModuleCodegen<LlvmMod>, u64) {
+pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen<LlvmMod>, u64) {
     let dep_node = tcx.codegen_unit(cgu_name).codegen_dep_node(tcx);
     let (module, _) = tcx.dep_graph.with_task(
         dep_node,
@@ -387,7 +384,7 @@ pub(crate) unsafe fn optimize(
             let opt_level = config
                 .opt_level
                 .map_or(llvm::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
-            with_llvm_pmb(llmod, &config, opt_level, &mut |b| {
+            with_llvm_pmb(llmod, config, opt_level, &mut |b| {
                 llvm::LLVMPassManagerBuilderPopulateFunctionPassManager(b, fpm);
                 llvm::LLVMPassManagerBuilderPopulateModulePassManager(b, mpm);
             })

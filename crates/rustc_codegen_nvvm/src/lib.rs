@@ -117,9 +117,9 @@ impl CodegenBackend for NvvmCodegenBackend {
     }
     fn provide_extern(&self, _providers: &mut query::Providers) {}
 
-    fn codegen_crate<'tcx>(
+    fn codegen_crate(
         &self,
-        tcx: TyCtxt<'tcx>,
+        tcx: TyCtxt<'_>,
         metadata: EncodedMetadata,
         need_metadata_module: bool,
     ) -> Box<dyn std::any::Any> {

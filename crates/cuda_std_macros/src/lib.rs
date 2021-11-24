@@ -158,7 +158,7 @@ pub fn gpu_only(_attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -
     cloned_attrs.retain(|a| {
         !a.path
             .get_ident()
-            .map(|x| x.to_string() == "nvvm_internal")
+            .map(|x| *x == "nvvm_internal")
             .unwrap_or_default()
     });
 

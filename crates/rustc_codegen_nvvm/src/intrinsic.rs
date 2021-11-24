@@ -73,7 +73,7 @@ fn saturating_intrinsic_impl<'a, 'll, 'tcx>(
     let lhs = args[0].immediate();
     let rhs = args[1].immediate();
 
-    let (val, overflowed) = b.checked_binop(overflow_op, &ty, lhs, rhs);
+    let (val, overflowed) = b.checked_binop(overflow_op, ty, lhs, rhs);
 
     if !signed {
         let select_val = if is_add {
@@ -203,7 +203,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 None,
             ),
             sym::likely => {
-                let expect = self.get_intrinsic(&("llvm.expect.i1"));
+                let expect = self.get_intrinsic("llvm.expect.i1");
                 self.call(
                     self.type_i1(),
                     expect,
@@ -212,7 +212,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 )
             }
             sym::unlikely => {
-                let expect = self.get_intrinsic(&("llvm.expect.i1"));
+                let expect = self.get_intrinsic("llvm.expect.i1");
                 self.call(
                     self.type_i1(),
                     expect,
@@ -233,7 +233,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 return;
             }
             sym::va_copy => {
-                let intrinsic = self.cx().get_intrinsic(&("llvm.va_copy"));
+                let intrinsic = self.cx().get_intrinsic("llvm.va_copy");
                 self.call(
                     self.type_i1(),
                     intrinsic,
@@ -305,7 +305,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
             | sym::prefetch_write_data
             | sym::prefetch_read_instruction
             | sym::prefetch_write_instruction => {
-                let expect = self.get_intrinsic(&("llvm.prefetch"));
+                let expect = self.get_intrinsic("llvm.prefetch");
                 let (rw, cache_type) = match name {
                     sym::prefetch_read_data => (0, 1),
                     sym::prefetch_write_data => (1, 1),
@@ -445,7 +445,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn abort(&mut self) {
         trace!("Generate abort call");
-        let fnname = self.get_intrinsic(&("llvm.trap"));
+        let fnname = self.get_intrinsic("llvm.trap");
         self.call(self.type_i1(), fnname, &[], None);
     }
 
@@ -457,7 +457,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn expect(&mut self, cond: Self::Value, expected: bool) -> Self::Value {
         trace!("Generate expect call with `{:?}`, {}", cond, expected);
-        let expect = self.get_intrinsic(&"llvm.expect.i1");
+        let expect = self.get_intrinsic("llvm.expect.i1");
         self.call(
             self.type_i1(),
             expect,
@@ -468,7 +468,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn sideeffect(&mut self) {
         trace!("Generate sideeffect call");
-        let fnname = self.get_intrinsic(&("llvm.sideeffect"));
+        let fnname = self.get_intrinsic("llvm.sideeffect");
         self.call(self.type_i1(), fnname, &[], None);
     }
 

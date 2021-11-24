@@ -6,7 +6,12 @@
 //!
 //! Most of this code was taken from rustc_codegen_llvm with many things removed.
 
-#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+#![allow(
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    clippy::enum_variant_names
+)]
 // we have a lot of functions we linked to from cg_llvm that we don't use
 // but likely will use in the future, so we ignore any unused functions
 // in case we need them in the future for things like debug info or LTO.
@@ -145,7 +150,7 @@ pub fn last_error() -> Option<String> {
     }
 }
 
-pub(crate) fn SetUnnamedAddress<'a>(global: &'a Value, unnamed: UnnamedAddr) {
+pub(crate) fn SetUnnamedAddress(global: &'_ Value, unnamed: UnnamedAddr) {
     unsafe {
         LLVMSetUnnamedAddress(global, unnamed);
     }
@@ -153,8 +158,8 @@ pub(crate) fn SetUnnamedAddress<'a>(global: &'a Value, unnamed: UnnamedAddr) {
 
 pub(crate) type Bool = c_uint;
 
-pub const True: Bool = 1 as Bool;
-pub const False: Bool = 0 as Bool;
+pub const True: Bool = 1;
+pub const False: Bool = 0;
 
 #[derive(Copy, Clone, PartialEq)]
 #[repr(C)]
@@ -583,6 +588,7 @@ pub enum CodeGenOptLevel {
 
 /// LLVMRelocMode
 #[derive(Copy, Clone, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
 #[repr(C)]
 pub enum RelocMode {
     Default,

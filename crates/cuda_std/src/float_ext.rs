@@ -1,5 +1,5 @@
 //! Extension trait for [`f32`] and [`f64`], providing high level wrappers on top of
-//! raw libdevice intrinsics from [`intrinsics`](crate::instrinsics).
+//! raw libdevice intrinsics from [`intrinsics`](crate::intrinsics).
 
 use crate::intrinsics as raw;
 

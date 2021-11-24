@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_mut_passed)]
+
 use crate::context::CodegenCx;
 use crate::int_replace::{get_transformed_type, transmute_llval};
 use crate::llvm::{self, BasicBlock, LLVMRustGetValueType, Type, Value};
@@ -82,7 +84,7 @@ impl<'tcx> ty::layout::HasParamEnv<'tcx> for Builder<'_, '_, 'tcx> {
 
 impl<'tcx> HasTargetSpec for Builder<'_, '_, 'tcx> {
     fn target_spec(&self) -> &Target {
-        &self.cx.target_spec()
+        self.cx.target_spec()
     }
 }
 
@@ -218,7 +220,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             if changed {
                 v = crate::int_replace::transmute_llval(
                     *self.llbuilder.lock().unwrap(),
-                    &self.cx,
+                    self.cx,
                     v,
                     new_ty,
                 );
@@ -443,7 +445,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             },
         };
 
-        let intrinsic = self.get_intrinsic(&name);
+        let intrinsic = self.get_intrinsic(name);
         // call actually ignores the ty param for now, we just need it for conformance with nightly api
         // so give it a dummy type
         let res = self.call(self.type_i1(), intrinsic, &[lhs, rhs], None);
@@ -598,12 +600,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 self.to_immediate_scalar(load, *scalar)
             };
 
-            let val = OperandValue::Pair(
+            OperandValue::Pair(
                 load(0, a, place.align),
                 load(1, b, place.align.restrict_for_offset(b_offset)),
-            );
-
-            val
+            )
         } else {
             OperandValue::Ref(place.llval, None, place.align)
         };
@@ -1076,18 +1076,14 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         self.unsupported("resumes");
     }
 
-    fn cleanup_pad(&mut self, _parent: Option<&'ll Value>, _args: &[&'ll Value]) -> () {
-        ()
-    }
+    fn cleanup_pad(&mut self, _parent: Option<&'ll Value>, _args: &[&'ll Value]) {}
 
     fn cleanup_ret(&mut self, _funclet: &(), _unwind: Option<&'ll BasicBlock>) -> &'ll Value {
         // rustc doesnt actually use this value ;)
         self.const_bool(false)
     }
 
-    fn catch_pad(&mut self, _parent: &'ll Value, _args: &[&'ll Value]) -> () {
-        ()
-    }
+    fn catch_pad(&mut self, _parent: &'ll Value, _args: &[&'ll Value]) {}
 
     fn catch_switch(
         &mut self,
@@ -1194,7 +1190,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         }
         if let Some((Some(ret_ty), _)) = map.get(fn_ty) {
             self.cx.last_call_llfn.set(Some(ret));
-            ret = transmute_llval(&mut *self.llbuilder.lock().unwrap(), &self.cx, ret, ret_ty);
+            ret = transmute_llval(*self.llbuilder.lock().unwrap(), self.cx, ret, ret_ty);
         }
 
         ret
@@ -1355,7 +1351,7 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
 
     fn add_incoming_to_phi(&mut self, phi: &'ll Value, val: &'ll Value, bb: &'ll BasicBlock) {
         unsafe {
-            llvm::LLVMAddIncoming(phi, &val, &bb, 1 as c_uint);
+            llvm::LLVMAddIncoming(phi, &val, &bb, 1);
         }
     }
 }

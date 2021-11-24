@@ -93,6 +93,7 @@ use core::num::*;
 
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
 /// or a regular [`DeviceBuffer`].
+#[allow(clippy::len_without_is_empty)]
 pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
     fn as_device_ptr(&self) -> DevicePointer<T>;
     fn len(&self) -> usize;
@@ -159,7 +160,7 @@ mod private {
 /// ```
 /// use cust::DeviceCopy;
 ///
-/// #[derive(Clone, DeviceCopy)]
+/// #[derive(Clone, Copy, DeviceCopy)]
 /// struct MyStruct(u64);
 ///
 /// # fn main () {}
@@ -182,7 +183,7 @@ mod private {
 /// ```
 /// use cust::memory::DeviceCopy;
 ///
-/// #[derive(Clone)]
+/// #[derive(Clone, Copy)]
 /// struct MyStruct(u64);
 ///
 /// unsafe impl DeviceCopy for MyStruct { }
@@ -203,6 +204,7 @@ mod private {
 /// invalid reference on the device which would segfault if dereferenced. Generalizing this, any
 /// type implementing `Drop` cannot be `DeviceCopy` since it is responsible for some resource that
 /// would not be available on the device.
+#[allow(clippy::missing_safety_doc)] // explained in the doc already
 pub unsafe trait DeviceCopy: Copy {}
 
 macro_rules! impl_device_copy {

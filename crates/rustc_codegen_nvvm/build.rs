@@ -39,13 +39,14 @@ pub fn output(cmd: &mut Command) -> String {
             cmd, e
         )),
     };
-    if !output.status.success() {
-        panic!(
-            "command did not execute successfully: {:?}\n\
-             expected success, got: {}",
-            cmd, output.status
-        );
-    }
+    assert!(
+        output.status.success(),
+        "command did not execute successfully: {:?}\n\
+    expected success, got: {}",
+        cmd,
+        output.status
+    );
+
     String::from_utf8(output.stdout).unwrap()
 }
 
@@ -144,9 +145,11 @@ fn rustc_llvm_build() {
     components.retain(|c| required_components.contains(c));
 
     for component in required_components {
-        if !components.contains(component) {
-            panic!("require llvm component {} but wasn't found", component);
-        }
+        assert!(
+            components.contains(component),
+            "require llvm component {} but wasn't found",
+            component
+        );
     }
 
     for component in components.iter() {

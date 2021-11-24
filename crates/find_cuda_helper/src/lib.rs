@@ -58,7 +58,7 @@ pub fn find_cuda_lib_dir() -> Option<PathBuf> {
             .expect("cargo did not set the TARGET environment variable as required.");
 
         // Targets use '-' separators. e.g. x86_64-pc-windows-msvc
-        let target_components: Vec<_> = target.as_str().split("-").collect();
+        let target_components: Vec<_> = target.as_str().split('-').collect();
 
         // We check that we're building for Windows. This code assumes that the layout in
         // CUDA_PATH matches Windows.

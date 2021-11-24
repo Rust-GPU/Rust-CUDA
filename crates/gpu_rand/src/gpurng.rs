@@ -10,19 +10,19 @@ fn u64_to_unit_f64(x: u64) -> f64 {
 /// Methods for float random number generation that are common in GPU/massively parallel
 /// applications. Such as uniform or normal f32/64 generation.
 pub trait GpuRand: RngCore {
-    /// Creates an [`f32`] in the range of `[0.0, 1.0)` and advances the state once.
+    /// Creates an [`prim@f32`] in the range of `[0.0, 1.0)` and advances the state once.
     fn uniform_f32(&mut self) -> f32;
-    /// Creates an [`f64`] in the range of `[0.0, 1.0)` and advances the state once.
+    /// Creates an [`prim@f64`] in the range of `[0.0, 1.0)` and advances the state once.
     fn uniform_f64(&mut self) -> f64;
-    /// Creates an [`f32`] with normal distribution. The value is drawn from a Gaussian of
+    /// Creates an [`prim@f32`] with normal distribution. The value is drawn from a Gaussian of
     /// mean=0 and sigma=1 using the Box-Mueller transform. Advances the state twice.
     fn normal_f32(&mut self) -> f32;
-    /// Creates an [`f64`] with normal distribution. The value is drawn from a Gaussian of
+    /// Creates an [`prim@f64`] with normal distribution. The value is drawn from a Gaussian of
     /// mean=0 and sigma=1 using the Box-Mueller transform. Advances the state twice.
     fn normal_f64(&mut self) -> f64;
-    /// Same as [`normal_f32`] but doesn't discard the second normal value.
+    /// Same as [`Self::normal_f32`] but doesn't discard the second normal value.
     fn normal_f32_2(&mut self) -> [f32; 2];
-    /// Same as [`normal_f64`] but doesn't discard the second normal value.
+    /// Same as [`Self::normal_f64`] but doesn't discard the second normal value.
     fn normal_f64_2(&mut self) -> [f64; 2];
 }
 

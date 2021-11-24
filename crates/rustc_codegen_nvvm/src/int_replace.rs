@@ -20,7 +20,7 @@ pub(crate) fn type_needs_transformation(ty: &Type) -> bool {
             }
             TypeKind::Struct => struct_type_fields(ty)
                 .into_iter()
-                .any(|field| type_needs_transformation(field)),
+                .any(type_needs_transformation),
             _ => false,
         }
     }

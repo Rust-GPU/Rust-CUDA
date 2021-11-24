@@ -44,7 +44,7 @@ impl Surface {
     }
 
     pub fn new(resource_desc: ResourceDescriptor) -> CudaResult<Self> {
-        let raw = resource_desc.to_raw();
+        let raw = resource_desc.into_raw();
         unsafe {
             let mut uninit = MaybeUninit::<CUsurfObject>::uninit();
             cuSurfObjectCreate(uninit.as_mut_ptr(), &raw as *const _).to_result()?;

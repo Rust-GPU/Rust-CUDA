@@ -237,8 +237,7 @@ impl CudaBuilder {
         println!("cargo:rerun-if-changed={}", self.path_to_crate.display());
         let path = invoke_rustc(&self)?;
         if let Some(copy_path) = self.ptx_file_copy_path {
-            std::fs::copy(path, &copy_path)
-                .map_err(|x| CudaBuilderError::FailedToCopyPtxFile(x))?;
+            std::fs::copy(path, &copy_path).map_err(CudaBuilderError::FailedToCopyPtxFile)?;
             Ok(copy_path)
         } else {
             Ok(path)
@@ -282,7 +281,8 @@ fn find_rustc_codegen_nvvm() -> PathBuf {
 fn add_libnvvm_to_path() {
     let split_paths = env::var_os(dylib_path_envvar()).unwrap_or_default();
     let mut paths = env::split_paths(&split_paths).collect::<Vec<_>>();
-    let libnvvm_path = PathBuf::from(find_cuda_helper::find_cuda_root().unwrap())
+    let libnvvm_path = find_cuda_helper::find_cuda_root()
+        .unwrap()
         .join("nvvm")
         .join("bin");
     paths.push(libnvvm_path);
@@ -324,9 +324,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         rustflags.push(format!("--emit={}", string));
     }
 
-    let mut llvm_args = vec![];
-
-    llvm_args.push(NvvmOption::Arch(builder.arch).to_string());
+    let mut llvm_args = vec![NvvmOption::Arch(builder.arch).to_string()];
 
     if !builder.nvvm_opts {
         llvm_args.push("-opt=0".to_string());

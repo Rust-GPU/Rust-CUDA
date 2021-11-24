@@ -164,7 +164,7 @@ fn link_rlib(sess: &Session, codegen_results: &CodegenResults, out_filename: &Pa
     create_archive(
         sess,
         &file_list,
-        &codegen_results.metadata.raw_data(),
+        codegen_results.metadata.raw_data(),
         out_filename,
     );
 }
@@ -405,7 +405,7 @@ fn add_upstream_rust_crates(
         .expect("failed to find crate type in dependency format list");
     let deps = &codegen_results.crate_info.used_crates;
     for cnum in deps.iter() {
-        let src = &codegen_results.crate_info.used_crate_source[&cnum];
+        let src = &codegen_results.crate_info.used_crate_source[cnum];
         match data[cnum.as_usize() - 1] {
             Linkage::NotLinked => {}
             Linkage::Static => rlibs.push(src.rlib.as_ref().unwrap().0.clone()),
@@ -424,7 +424,7 @@ fn add_upstream_native_libraries(
 ) {
     let crates = &codegen_results.crate_info.used_crates;
     for cnum in crates {
-        for lib in codegen_results.crate_info.native_libraries[&cnum].iter() {
+        for lib in codegen_results.crate_info.native_libraries[cnum].iter() {
             if !relevant_lib(sess, lib) {
                 continue;
             }

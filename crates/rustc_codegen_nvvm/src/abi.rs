@@ -470,7 +470,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
         };
         match self.ret.mode {
             PassMode::Direct(ref attrs) => {
-                attrs.apply_attrs_to_callsite(llvm::AttributePlace::ReturnValue, &bx.cx, callsite);
+                attrs.apply_attrs_to_callsite(llvm::AttributePlace::ReturnValue, bx.cx, callsite);
             }
             PassMode::Indirect {
                 ref attrs,
@@ -547,12 +547,7 @@ impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
             if let Some((_, key)) = map.get(llfnty) {
                 if let Some((_, new_ty)) = key.iter().find(|t| t.0 == index) {
                     trace!("Casting irregular param {:?} to {:?}", val, new_ty);
-                    return transmute_llval(
-                        *self.llbuilder.lock().unwrap(),
-                        &self.cx,
-                        val,
-                        *new_ty,
-                    );
+                    return transmute_llval(*self.llbuilder.lock().unwrap(), self.cx, val, *new_ty);
                 }
             }
             val

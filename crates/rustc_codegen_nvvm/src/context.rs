@@ -50,6 +50,7 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     pub const_cstr_cache: RefCell<FxHashMap<Symbol, &'ll Value>>,
     /// A map of functions which have parameters at specific indices replaced with an int-remapped type.
     /// such as i128 --> <2 x i64>
+    #[allow(clippy::type_complexity)]
     pub remapped_integer_args:
         RefCell<FxHashMap<&'ll Type, (Option<&'ll Type>, Vec<(usize, &'ll Type)>)>>,
 
@@ -183,7 +184,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     fn create_used_variable_impl(&self, name: *const i8, values: &[&'ll Value]) {
         let section = "llvm.metadata\0".as_ptr().cast();
-        let array = self.const_array(&self.type_ptr_to(self.type_i8()), values);
+        let array = self.const_array(self.type_ptr_to(self.type_i8()), values);
 
         unsafe {
             trace!(
@@ -223,7 +224,7 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn sess(&self) -> &Session {
-        &self.tcx.sess
+        self.tcx.sess
     }
 
     fn check_overflow(&self) -> bool {
@@ -289,7 +290,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     /// Declare a function. All functions use the default ABI, NVVM ignores any calling convention markers.
     /// All functions calls are generated according to the PTX calling convention.
-    /// https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#calling-conventions
+    /// <https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#calling-conventions>
     pub fn declare_fn(
         &self,
         name: &str,
@@ -324,10 +325,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ty: &'ll Type,
         address_space: AddressSpace,
     ) -> Option<&'ll Value> {
-        if self.get_defined_value(&name).is_some() {
+        if self.get_defined_value(name).is_some() {
             None
         } else {
-            Some(self.declare_global(&name, ty, address_space))
+            Some(self.declare_global(name, ty, address_space))
         }
     }
 
@@ -416,7 +417,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
         let abi = self.fn_abi_of_instance(instance, ty::List::empty());
 
-        let llfn = if let Some(llfn) = self.get_declared_value(&sym) {
+        let llfn = if let Some(llfn) = self.get_declared_value(sym) {
             trace!("Returning existing llfn `{:?}`", llfn);
             let llptrty = abi.ptr_to_llvm_type(self);
 
@@ -431,7 +432,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 llfn
             }
         } else {
-            let llfn = self.declare_fn(&sym, abi.llvm_type(self), Some(abi));
+            let llfn = self.declare_fn(sym, abi.llvm_type(self), Some(abi));
             attributes::from_fn_attrs(self, llfn, instance);
             let def_id = instance.def_id();
 

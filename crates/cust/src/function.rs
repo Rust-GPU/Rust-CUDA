@@ -57,7 +57,7 @@ impl From<(u32, u32, u32)> for GridSize {
 }
 impl<'a> From<&'a GridSize> for GridSize {
     fn from(other: &GridSize) -> GridSize {
-        other.clone()
+        *other
     }
 }
 #[cfg(feature = "vek")]
@@ -137,7 +137,7 @@ impl From<(u32, u32, u32)> for BlockSize {
 }
 impl<'a> From<&'a BlockSize> for BlockSize {
     fn from(other: &BlockSize) -> BlockSize {
-        other.clone()
+        *other
     }
 }
 #[cfg(feature = "vek")]

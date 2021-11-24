@@ -177,7 +177,7 @@ impl Module {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_function<'a, T: AsRef<str>>(&'a self, name: T) -> CudaResult<Function<'a>> {
+    pub fn get_function<T: AsRef<str>>(&'_ self, name: T) -> CudaResult<Function<'_>> {
         unsafe {
             let name = name.as_ref();
             let cstr = CString::new(name).expect("Argument to get_function had a nul");

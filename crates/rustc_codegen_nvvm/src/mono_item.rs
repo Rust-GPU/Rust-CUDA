@@ -70,7 +70,7 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty());
 
-        let lldecl = self.declare_fn(symbol_name, &fn_abi.llvm_type(self), Some(fn_abi));
+        let lldecl = self.declare_fn(symbol_name, fn_abi.llvm_type(self), Some(fn_abi));
 
         unsafe { llvm::LLVMRustSetLinkage(lldecl, linkage_to_llvm(linkage)) };
 
@@ -95,7 +95,7 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         let def_id = instance.def_id();
         let attrs = self.tcx.get_attrs(def_id);
-        let nvvm_attrs = NvvmAttributes::parse(&self, attrs);
+        let nvvm_attrs = NvvmAttributes::parse(self, attrs);
 
         unsafe {
             // if this function is marked as being a kernel, add it

@@ -8,7 +8,7 @@ use rustc_span::Symbol;
 use crate::context::CodegenCx;
 
 #[inline] // so meta
-fn inline<'ll>(val: &'ll Value, inline: InlineAttr) {
+fn inline(val: &'_ Value, inline: InlineAttr) {
     use InlineAttr::*;
     match inline {
         Hint => llvm::Attribute::InlineHint.apply_llfn(Function, val),
@@ -18,7 +18,7 @@ fn inline<'ll>(val: &'ll Value, inline: InlineAttr) {
     }
 }
 
-pub(crate) fn default_optimisation_attrs<'ll>(sess: &Session, llfn: &'ll Value) {
+pub(crate) fn default_optimisation_attrs(sess: &Session, llfn: &'_ Value) {
     match sess.opts.optimize {
         OptLevel::Size => {
             llvm::Attribute::MinSize.unapply_llfn(Function, llfn);
@@ -108,13 +108,10 @@ impl NvvmAttributes {
         for attr in attrs {
             if attr.has_name(cx.symbols.nvvm_internal) {
                 let args = attr.meta_item_list().unwrap_or_default();
-                match args.first() {
-                    Some(arg) => {
-                        if arg.has_name(cx.symbols.kernel) {
-                            nvvm_attrs.kernel = true;
-                        }
+                if let Some(arg) = args.first() {
+                    if arg.has_name(cx.symbols.kernel) {
+                        nvvm_attrs.kernel = true;
                     }
-                    _ => {}
                 }
             }
         }

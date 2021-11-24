@@ -46,6 +46,7 @@ pub struct CrateDebugContext<'a, 'tcx> {
     llcontext: &'a llvm::Context,
     llmod: &'a llvm::Module,
     builder: &'a mut DIBuilder<'a>,
+    #[allow(clippy::type_complexity)]
     created_files: RefCell<FxHashMap<(Option<String>, Option<String>), &'a DIFile>>,
     created_enum_disr_types: RefCell<FxHashMap<(DefId, Primitive), &'a DIType>>,
 
@@ -138,10 +139,7 @@ impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
     fn set_dbg_loc(&mut self, dbg_loc: &'ll DILocation) {
         unsafe {
             let dbg_loc_as_llval = llvm::LLVMRustMetadataAsValue(self.cx().llcx, dbg_loc);
-            llvm::LLVMSetCurrentDebugLocation(
-                &mut *self.llbuilder.lock().unwrap(),
-                dbg_loc_as_llval,
-            );
+            llvm::LLVMSetCurrentDebugLocation(*self.llbuilder.lock().unwrap(), dbg_loc_as_llval);
         }
     }
 

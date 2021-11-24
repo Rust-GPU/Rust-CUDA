@@ -177,7 +177,7 @@ impl Denoiser {
     /// `width` and `height` are the __max__ expected dimensions of the image layers in a denoiser launch. Launches may be smaller than `width` and `height`, but
     /// they must not be larger, or the launch will panic.
     ///
-    /// OptiX requires scratch memory for carrying out denoising, of a certain size obtained with [`required_gpu_memory`]. This method will handle
+    /// OptiX requires scratch memory for carrying out denoising, of a certain size obtained with [`Self::required_gpu_memory`]. This method will handle
     /// the management of the scratch memory automatically. It will reuse allocated scratch memory across denoiser invocations, but not across
     /// state setups, calling setup_state will always reallocate the scratch memory.
     ///
@@ -463,15 +463,15 @@ impl DenoiserGuideImages<'_> {
             albedo: self
                 .albedo
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
             normal: self
                 .normal
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
             flow: self
                 .flow
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
         }
     }
 }

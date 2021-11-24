@@ -1,5 +1,5 @@
 use crate::error::{CudaResult, DropResult, ToResult};
-use crate::memory::device::{AsyncCopyDestination, CopyDestination, DSlice};
+use crate::memory::device::{AsyncCopyDestination, CopyDestination, DeviceSlice};
 use crate::memory::malloc::{cuda_free, cuda_malloc};
 use crate::memory::DeviceCopy;
 use crate::memory::DevicePointer;
@@ -227,11 +227,11 @@ impl<T: DeviceCopy> DeviceBuffer<T> {
     }
 }
 impl<T> Deref for DeviceBuffer<T> {
-    type Target = DSlice<T>;
+    type Target = DeviceSlice<T>;
 
-    fn deref(&self) -> &DSlice<T> {
+    fn deref(&self) -> &DeviceSlice<T> {
         unsafe {
-            DSlice::from_slice(::std::slice::from_raw_parts(
+            DeviceSlice::from_slice(::std::slice::from_raw_parts(
                 self.buf.as_raw(),
                 self.capacity,
             ))
@@ -239,10 +239,10 @@ impl<T> Deref for DeviceBuffer<T> {
     }
 }
 impl<T> DerefMut for DeviceBuffer<T> {
-    fn deref_mut(&mut self) -> &mut DSlice<T> {
+    fn deref_mut(&mut self) -> &mut DeviceSlice<T> {
         unsafe {
             &mut *(::std::slice::from_raw_parts_mut(self.buf.as_raw_mut(), self.capacity)
-                as *mut [T] as *mut DSlice<T>)
+                as *mut [T] as *mut DeviceSlice<T>)
         }
     }
 }
