@@ -145,6 +145,9 @@ pub fn find_libnvvm_bin_dir() -> String {
 
 #[cfg(all(target_os = "windows", not(doc)))]
 pub fn find_libnvvm_bin_dir() -> String {
+    if env::var("DOCS_RS").is_ok() {
+        return String::new();
+    }
     find_cuda_root()
         .expect("Failed to find CUDA ROOT, make sure the CUDA SDK is installed and CUDA_PATH or CUDA_ROOT are set!")
         .join("nvvm")
@@ -156,6 +159,9 @@ pub fn find_libnvvm_bin_dir() -> String {
 
 #[cfg(all(target_os = "linux", not(doc)))]
 pub fn find_libnvvm_bin_dir() -> String {
+    if env::var("DOCS_RS").is_ok() {
+        return String::new();
+    }
     find_cuda_root()
         .expect("Failed to find CUDA ROOT, make sure the CUDA SDK is installed and CUDA_PATH or CUDA_ROOT are set!")
         .join("nvvm")
