@@ -286,3 +286,6 @@ impl_device_copy_vek! {
     CubicBezier2, CubicBezier3,
     Quaternion,
 }
+
+#[cfg(feature = "num-complex")]
+unsafe impl<T: DeviceCopy> DeviceCopy for num_complex::Complex<T> {}
