@@ -51,7 +51,8 @@ jobs:
       - name: Install LLVM 7.1.0
         if: contains(matrix.os, 'ubuntu')
         run: | 
-            sudo apt-get install llvm-7-dev
+            sudo apt-get install llvm-7.1
+            sudo ln -s /usr/bin/llvm-config-7.1 /usr/local/bin/llvm-config
 
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v1
