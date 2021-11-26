@@ -18,6 +18,8 @@ jobs:
   rust:
     name: Rust ${{ matrix.rust }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      LLVM_LINK_STATIC: 1
     strategy:
       fail-fast: false
       matrix:
