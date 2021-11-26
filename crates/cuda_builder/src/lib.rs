@@ -4,7 +4,9 @@ pub use nvvm::*;
 use serde::Deserialize;
 use std::{
     borrow::Borrow,
-    env, fmt,
+    env,
+    ffi::OsString,
+    fmt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -278,7 +280,7 @@ fn find_rustc_codegen_nvvm() -> PathBuf {
     panic!("Could not find {} in library path", filename);
 }
 
-fn add_libnvvm_to_path() {
+fn get_new_path_var() -> OsString {
     let split_paths = env::var_os(dylib_path_envvar()).unwrap_or_default();
     let mut paths = env::split_paths(&split_paths).collect::<Vec<_>>();
     let libnvvm_path = find_cuda_helper::find_cuda_root()
@@ -286,8 +288,7 @@ fn add_libnvvm_to_path() {
         .join("nvvm")
         .join("bin");
     paths.push(libnvvm_path);
-    let joined = env::join_paths(&paths).expect("Failed to join paths for PATH");
-    env::set_var(dylib_path_envvar(), joined);
+    env::join_paths(&paths).expect("Failed to join paths for PATH")
 }
 
 /// Joins strings together while ensuring none of the strings contain the separator.
@@ -309,7 +310,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     // on what this does
     let rustc_codegen_nvvm = find_rustc_codegen_nvvm();
 
-    add_libnvvm_to_path();
+    let new_path = get_new_path_var();
 
     let mut rustflags = vec![format!(
         "-Zcodegen-backend={}",
@@ -366,6 +367,8 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         "--target",
         target,
     ]);
+
+    cargo.env(dylib_path_envvar(), new_path);
 
     if builder.release {
         cargo.arg("--release");
