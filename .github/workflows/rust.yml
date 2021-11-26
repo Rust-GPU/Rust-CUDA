@@ -55,8 +55,9 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: cargo fmt --all -- --check
 
+      # Temporarily exclude crates that rely on OptiX until we merge the rewritten optix because of bindings weirdness
       - name: Build
-        run: cargo build --workspace
+        run: cargo build --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser"
 
       # Don't currently test because many tests rely on the system having a CUDA GPU
       # - name: Test
