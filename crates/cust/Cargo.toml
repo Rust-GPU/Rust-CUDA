@@ -18,6 +18,3 @@ find_cuda_helper = { path = "../find_cuda_helper", version = "0.1" }
 
 [dev-dependencies]
 image = "0.23.14"
-
-[features]
-default = ["vek"]
