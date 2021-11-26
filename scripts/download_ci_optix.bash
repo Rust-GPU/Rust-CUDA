@@ -1,5 +1,4 @@
-BASE_DIR=$(cd $(dirname "$0"); pwd)
-DEPS_DIR="${BASE_DIR}/deps"
+DEPS_DIR="$HOME/deps"
 OPTIX_VERSION="7.0"
 
 echo "Used OptiX version: ${OPTIX_VERSION}"
