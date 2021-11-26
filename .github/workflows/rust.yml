@@ -44,7 +44,9 @@ jobs:
         run: rustup component add rustfmt clippy
 
       - name: Download OptiX Headers
-        run: scripts/download_ci_optix.bash
+        run: | 
+            chmod +x "${GITHUB_WORKSPACE}/scripts/download_ci_optix.bash"
+            scripts/download_ci_optix.bash
 
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v1

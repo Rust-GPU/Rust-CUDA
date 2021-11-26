@@ -16,4 +16,5 @@ for f in optix.h optix_device.h optix_function_table.h \
     curl --retry 100 -m 120 --connect-timeout 30 \
         $OPTIX_URL/include/$f > $DEPS_DIR/optix/include/$f
 done
-export OPTIX_ROOT=${DEPS_DIR}/optix
+OPTIX_ROOT=${DEPS_DIR}/optix
+echo "OPTIX_ROOT=${OPTIX_ROOT}" >> $GITHUB_ENV
