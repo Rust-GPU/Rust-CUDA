@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 optix = { version = "0.1", path = "../../../crates/optix" }
 structopt = "0.3"
-cust = { version = "0.1", path = "../../../crates/cust", features = ["vek"] }
+cust = { version = "0.2", path = "../../../crates/cust", features = ["vek"] }
 image = "0.23.14"

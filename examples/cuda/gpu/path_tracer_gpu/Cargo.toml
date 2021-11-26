@@ -9,7 +9,7 @@ enum_dispatch = "0.3.7"
 gpu_rand = { version = "0.1", path = "../../../../crates/gpu_rand" }
 
 [target.'cfg(not(target_os = "cuda"))'.dependencies]
-cust = { version = "0.1", path = "../../../../crates/cust" }
+cust = { version = "0.2", path = "../../../../crates/cust" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

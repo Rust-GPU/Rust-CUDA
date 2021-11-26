@@ -6,4 +6,4 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 optix_sys = { version = "0.1", path = "../optix_sys" }
-cust = { version = "0.1", path = "../cust" }
+cust = { version = "0.2", path = "../cust" }
