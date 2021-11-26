@@ -2,7 +2,11 @@ name: Rust CI
 
 on:
   pull_request:
+    paths-ignore:
+      - '**.md'
   push:
+    paths-ignore:
+      - '**.md'
     branches:
       - master
 
@@ -38,6 +42,9 @@ jobs:
         
       - name: Add rustup components
         run: rustup component add rustfmt clippy
+
+      - name: Download OptiX Headers
+        run: scripts/download_ci_optix.bash
 
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v1
