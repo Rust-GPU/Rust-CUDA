@@ -283,11 +283,15 @@ fn find_rustc_codegen_nvvm() -> PathBuf {
 fn get_new_path_var() -> OsString {
     let split_paths = env::var_os(dylib_path_envvar()).unwrap_or_default();
     let mut paths = env::split_paths(&split_paths).collect::<Vec<_>>();
-    let libnvvm_path = find_cuda_helper::find_cuda_root()
-        .unwrap()
-        .join("nvvm")
-        .join("bin");
-    paths.push(libnvvm_path);
+    let possible_paths = if cfg!(target_os = "windows") {
+        vec![find_cuda_helper::find_cuda_root()
+            .unwrap()
+            .join("nvvm")
+            .join("bin")]
+    } else {
+        find_cuda_helper::find_cuda_lib_dirs()
+    };
+    paths.extend(possible_paths);
     env::join_paths(&paths).expect("Failed to join paths for PATH")
 }
 
