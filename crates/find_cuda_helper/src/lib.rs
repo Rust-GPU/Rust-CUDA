@@ -110,7 +110,11 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
 #[cfg(not(target_os = "windows"))]
 pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     if let Some(root_path) = find_cuda_root() {
-        vec![root_path.clone().join("lib64"), root_path.join("lib")]
+        vec![
+            root_path.clone().join("lib64"),
+            root_path.clone().join("lib"),
+            root_path.join("lib").join("stubs"),
+        ]
     } else {
         vec![]
     }
