@@ -109,15 +109,31 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
 
 #[cfg(not(target_os = "windows"))]
 pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
-    if let Some(root_path) = find_cuda_root() {
-        vec![
-            root_path.clone().join("lib64"),
-            root_path.clone().join("lib"),
-            root_path.join("lib").join("stubs"),
-        ]
-    } else {
-        vec![]
+    let mut candidates = read_env();
+    candidates.push(PathBuf::from("/opt/cuda"));
+    candidates.push(PathBuf::from("/usr/local/cuda"));
+    for e in glob::glob("/usr/local/cuda-*").unwrap() {
+        if let Ok(path) = e {
+            candidates.push(path)
+        }
     }
+
+    let mut valid_paths = vec![];
+    for base in &candidates {
+        let lib = PathBuf::from(base).join("lib64");
+        if lib.is_dir() {
+            valid_paths.push(lib.clone());
+            valid_paths.push(lib.join("stubs"));
+        }
+        let base = base.join("targets/x86_64-linux");
+        let header = base.join("include/cuda.h");
+        if header.is_file() {
+            valid_paths.push(base.join("lib"));
+            valid_paths.push(base.join("lib/stubs"));
+            continue;
+        }
+    }
+    valid_paths
 }
 
 #[cfg(target_os = "windows")]
