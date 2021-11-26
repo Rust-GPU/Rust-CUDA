@@ -19,7 +19,10 @@ jobs:
     name: Rust ${{ matrix.rust }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     env:
+      # Temporarily exclude crates that rely on OptiX until we merge the rewritten optix because of bindings weirdness
+      # Also exclude add until we figure out the right way to auto-add libnvvm to path.
       LLVM_LINK_STATIC: 1
+      EXCLUDE_ARGS: --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
     strategy:
       fail-fast: false
       matrix:
@@ -48,7 +51,7 @@ jobs:
       - name: Download OptiX Headers
         run: | 
             chmod +x "${GITHUB_WORKSPACE}/scripts/download_ci_optix.bash"
-            scripts/download_ci_optix.bash
+            ${GITHUB_WORKSPACE}/scripts/download_ci_optix.bash
 
       - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
@@ -63,10 +66,8 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: cargo fmt --all -- --check
 
-      # Temporarily exclude crates that rely on OptiX until we merge the rewritten optix because of bindings weirdness
-      # Also exclude add until we figure out the right way to auto-add libnvvm to path.
       - name: Build
-        run: cargo build --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
+        run: cargo build --workspace ${EXCLUDE_ARGS}
 
       # Don't currently test because many tests rely on the system having a CUDA GPU
       # - name: Test
@@ -76,7 +77,7 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         env:
           RUSTFLAGS: -Dwarnings
-        run: cargo clippy --workspace
+        run: cargo clippy --workspace ${EXCLUDE_ARGS}
 
       - name: Check documentation
         env:
