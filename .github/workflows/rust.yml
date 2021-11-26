@@ -64,8 +64,9 @@ jobs:
         run: cargo fmt --all -- --check
 
       # Temporarily exclude crates that rely on OptiX until we merge the rewritten optix because of bindings weirdness
+      # Also exclude add until we figure out the right way to auto-add libnvvm to path.
       - name: Build
-        run: cargo build --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser"
+        run: cargo build --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
 
       # Don't currently test because many tests rely on the system having a CUDA GPU
       # - name: Test
