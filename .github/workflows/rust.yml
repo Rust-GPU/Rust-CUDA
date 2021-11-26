@@ -48,11 +48,11 @@ jobs:
             chmod +x "${GITHUB_WORKSPACE}/scripts/download_ci_optix.bash"
             scripts/download_ci_optix.bash
 
-      - name: Install LLVM 7.1.0
+      - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
         run: | 
-            sudo apt-get install llvm-7.1
-            sudo ln -s /usr/bin/llvm-config-7.1 /usr/local/bin/llvm-config
+            sudo apt-get install llvm-7
+            sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
 
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v1
