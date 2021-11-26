@@ -107,6 +107,21 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     vec![]
 }
 
+pub fn read_env() -> Vec<PathBuf> {
+    if let Ok(path) = env::var("CUDA_LIBRARY_PATH") {
+        // The location of the libcuda, libcudart, and libcublas can be hardcoded with the
+        // CUDA_LIBRARY_PATH environment variable.
+        let split_char = if cfg!(target_os = "windows") {
+            ";"
+        } else {
+            ":"
+        };
+        path.split(split_char).map(PathBuf::from).collect()
+    } else {
+        vec![]
+    }
+}
+
 #[cfg(not(target_os = "windows"))]
 pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     let mut candidates = read_env();
