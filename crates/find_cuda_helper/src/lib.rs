@@ -7,8 +7,13 @@ use std::{
 
 pub fn include_cuda() {
     if env::var("DOCS_RS").is_err() && !cfg!(doc) {
-        let cuda_lib_dir = find_cuda_lib_dir().expect("Could not find a cuda installation");
-        println!("cargo:rustc-link-search=native={}", cuda_lib_dir.display());
+        let paths = find_cuda_lib_dirs();
+        if paths.is_empty() {
+            panic!("Could not find a cuda installation");
+        }
+        for path in paths {
+            println!("cargo:rustc-link-search=native={}", path.display());
+        }
 
         println!("cargo:rustc-link-lib=dylib=cuda");
         println!("cargo:rerun-if-changed=build.rs");
@@ -51,7 +56,7 @@ pub fn find_cuda_root() -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn find_cuda_lib_dir() -> Option<PathBuf> {
+pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     if let Some(root_path) = find_cuda_root() {
         // To do this the right way, we check to see which target we're building for.
         let target = env::var("TARGET")
@@ -93,28 +98,21 @@ pub fn find_cuda_lib_dir() -> Option<PathBuf> {
         let lib_dir = root_path.join("lib").join(lib_path);
 
         return if lib_dir.is_dir() {
-            Some(lib_dir)
+            vec![lib_dir]
         } else {
-            None
+            vec![]
         };
     }
 
-    None
+    vec![]
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn find_cuda_lib_dir() -> Option<PathBuf> {
+pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     if let Some(root_path) = find_cuda_root() {
-        let lib_dir = root_path.join("lib64");
-        // TODO (AL): we probably want to check for an actual library under here
-        // too...
-        if lib_dir.is_dir() {
-            Some(lib_dir)
-        } else {
-            None
-        }
+        vec![root_path.clone().join("lib64"), root_path.join("lib")]
     } else {
-        None
+        vec![]
     }
 }
 
