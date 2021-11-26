@@ -156,6 +156,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ifn!(map, "llvm.bitreverse.i32", fn(t_i32) -> t_i32);
         ifn!(map, "llvm.bitreverse.i64", fn(t_i64) -> t_i64);
 
+        ifn!(map, "llvm.bswap.i16", fn(t_i16) -> t_i16);
+        ifn!(map, "llvm.bswap.i32", fn(t_i32) -> t_i32);
+        ifn!(map, "llvm.bswap.i64", fn(t_i64) -> t_i64);
+
         ifn!(map, "llvm.ctlz.i8", fn(t_i8, i1) -> t_i8);
         ifn!(map, "llvm.ctlz.i16", fn(t_i16, i1) -> t_i16);
         ifn!(map, "llvm.ctlz.i32", fn(t_i32, i1) -> t_i32);

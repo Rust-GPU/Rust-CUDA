@@ -67,7 +67,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Build
-        run: cargo build --workspace ${EXCLUDE_ARGS}
+        run: eval("cargo build --workspace ${EXCLUDE_ARGS}")
 
       # Don't currently test because many tests rely on the system having a CUDA GPU
       # - name: Test
@@ -77,9 +77,9 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         env:
           RUSTFLAGS: -Dwarnings
-        run: cargo clippy --workspace ${EXCLUDE_ARGS}
+        run: eval("cargo clippy --workspace ${EXCLUDE_ARGS}")
 
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -Dwarnings
-        run: cargo doc --workspace --all-features --document-private-items --no-deps
+        run: eval("cargo doc --workspace --all-features --document-private-items --no-deps ${EXCLUDE_ARGS}")
