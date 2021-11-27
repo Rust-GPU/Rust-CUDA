@@ -1,4 +1,3 @@
-use rustc_codegen_ssa::traits::ThinBufferMethods;
 use rustc_codegen_ssa::CodegenResults;
 use rustc_codegen_ssa::CompiledModule;
 use rustc_codegen_ssa::NativeLib;
@@ -16,7 +15,6 @@ use rustc_session::{
     Session,
 };
 use rustc_target::spec::Target;
-use std::ffi::CString;
 use std::{
     ffi::OsStr,
     fs::File,
@@ -27,11 +25,6 @@ use tar::{Archive, Builder, Header};
 use tracing::{debug, trace};
 
 use crate::context::CodegenArgs;
-use crate::create_module;
-use crate::llvm::Context;
-use crate::llvm::LLVMLinkModules2;
-use crate::llvm::LLVMRustParseBitcodeForLTO;
-use crate::lto::ThinBuffer;
 use crate::LlvmMod;
 
 pub(crate) struct NvvmMetadataLoader;
@@ -73,13 +66,12 @@ fn read_metadata(rlib: &Path) -> Result<MetadataRef, String> {
 }
 
 pub fn link<'tcx>(
-    deps: Option<Vec<String>>,
     sess: &'tcx Session,
     codegen_results: &CodegenResults,
     outputs: &OutputFilenames,
     crate_name: &str,
 ) {
-    debug!("Linking crate `{}`, deps:\n{:?}", crate_name, deps);
+    debug!("Linking crate `{}`", crate_name);
     // largely inspired by rust-gpu
     let output_metadata = sess.opts.output_types.contains_key(&OutputType::Metadata);
     for &crate_type in sess.crate_types().iter() {
@@ -107,7 +99,6 @@ pub fn link<'tcx>(
                 CrateType::Executable | CrateType::Cdylib | CrateType::Dylib => {
                     let _ = link_exe(
                         &codegen_results.allocator_module,
-                        deps.clone(),
                         sess,
                         crate_type,
                         &out_filename,
@@ -171,7 +162,6 @@ fn link_rlib(sess: &Session, codegen_results: &CodegenResults, out_filename: &Pa
 
 fn link_exe(
     allocator: &Option<CompiledModule>,
-    deps: Option<Vec<String>>,
     sess: &Session,
     crate_type: CrateType,
     out_filename: &Path,
@@ -201,22 +191,20 @@ fn link_exe(
         std::fs::create_dir_all(&out_dir)?;
     }
 
-    codegen_into_ptx_file(allocator, deps, sess, &objects, &rlibs, out_filename)
+    codegen_into_ptx_file(allocator, sess, &objects, &rlibs, out_filename)
 }
 
 /// This is the meat of the codegen, taking all of the llvm bitcode modules we have, and giving them to
 /// nvvm to make into a final
 fn codegen_into_ptx_file(
     allocator: &Option<CompiledModule>,
-    deps: Option<Vec<String>>,
     sess: &Session,
     objects: &[PathBuf],
     rlibs: &[PathBuf],
     out_filename: &Path,
 ) -> io::Result<()> {
-    debug!("Codegenning crate into PTX, allocator: {}, deps:\n{:#?}, objects:\n{:#?}, rlibs:\n{:#?}, out_filename:\n{:#?}",
+    debug!("Codegenning crate into PTX, allocator: {}, objects:\n{:#?}, rlibs:\n{:#?}, out_filename:\n{:#?}",
         allocator.is_some(),
-        deps,
         objects,
         rlibs,
         out_filename
@@ -238,7 +226,6 @@ fn codegen_into_ptx_file(
     // rlibs are archives that we made previously, they are usually made for crates that are referenced
     // in this crate. We must unpack them and devour their bitcode to link in.
     for rlib in rlibs {
-        // every entry will be a CGU, we need to merge those CGUs into a single module so we can give it to libnvvm to load.
         let mut cgus = Vec::with_capacity(16);
         // just pick the first cgu name as the overall name for now.
         let mut name = String::new();
@@ -264,8 +251,7 @@ fn codegen_into_ptx_file(
             }
         }
 
-        let merged = merge_cgus(cgus, cx.llcx, name.clone());
-        modules.push(merged);
+        modules.extend(cgus);
     }
 
     if let Some(alloc) = allocator {
@@ -293,24 +279,6 @@ fn codegen_into_ptx_file(
     };
 
     std::fs::write(out_filename, ptx_bytes)
-}
-
-/// Merges multiple codegen units into a single codegen unit. This is needed because
-/// we lazy-load modules in dependency order, not sub-crate order, so we need to lazy load
-/// entire modules, not just individual CGUs.
-fn merge_cgus(cgus: Vec<Vec<u8>>, llcx: &Context, crate_name: String) -> Vec<u8> {
-    let cstr = CString::new(crate_name.clone()).unwrap();
-    let module = unsafe { create_module(llcx, &crate_name) };
-    for cgu in cgus {
-        unsafe {
-            let tmp = LLVMRustParseBitcodeForLTO(llcx, cgu.as_ptr(), cgu.len(), cstr.as_ptr())
-                .expect("Failed to parse CGU bitcode");
-            LLVMLinkModules2(module, tmp);
-        }
-    }
-
-    let thin = ThinBuffer::new(module);
-    thin.data().to_vec()
 }
 
 fn create_archive(sess: &Session, files: &[&Path], metadata: &[u8], out_filename: &Path) {
