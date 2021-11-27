@@ -226,21 +226,13 @@ fn codegen_into_ptx_file(
     // but we dont have our original one because rustc drops tyctxt and codegencx before linking.
     let cx = LlvmMod::new("link_tmp");
 
-    let deps = deps.unwrap_or_default();
-    let mut main_modules = Vec::with_capacity(objects.len());
-    let mut rlib_deps = Vec::with_capacity(rlibs.len());
+    let mut modules = Vec::with_capacity(objects.len() + rlibs.len());
 
     // object files (theyre not object files, they are impostors ඞ) are the bitcode modules produced by this codegen session
     // they *should* be the final crate.
     for obj in objects {
         let bitcode = std::fs::read(obj)?;
-        let name = obj
-            .file_name()
-            .unwrap()
-            .to_str()
-            .expect("non-utf8 bitcode file name")
-            .to_string();
-        main_modules.push((bitcode, name));
+        modules.push(bitcode);
     }
 
     // rlibs are archives that we made previously, they are usually made for crates that are referenced
@@ -273,7 +265,7 @@ fn codegen_into_ptx_file(
         }
 
         let merged = merge_cgus(cgus, cx.llcx, name.clone());
-        rlib_deps.push((merged, name));
+        modules.push(merged);
     }
 
     if let Some(alloc) = allocator {
@@ -283,21 +275,8 @@ fn codegen_into_ptx_file(
                 .clone()
                 .expect("expected obj path for allocator module"),
         )?;
-        main_modules.push((bc, String::from("allocator")));
+        modules.push(bc);
     }
-
-    let sorted_deps = deps.into_iter().filter_map(|x| {
-        for (bc, name) in &rlib_deps {
-            let new_name = name.split_once("-").expect("uh oh rustc changed the format of rlib file names, better go make an angry zulip thread.").0;
-            if new_name == x.replace("-", "_") {
-                return Some((bc.clone(), name.to_string()));
-            }
-        }
-        // HACK(RDambrosio016): If a dep cannot be found then it is probably a proc macro crate.
-        // in which case we should just ignore it and move on, but in the future we should filter out those
-        // deps before linking.
-        None
-    }).collect::<Vec<_>>();
 
     // now that we have our nice bitcode modules, we just need to find libdevice and give our
     // modules to nvvm to make a final ptx file
@@ -305,14 +284,13 @@ fn codegen_into_ptx_file(
     // we need to actually parse the codegen args again, because codegencx is not available at link time.
     let nvvm_opts = CodegenArgs::from_session(sess).nvvm_options;
 
-    let ptx_bytes =
-        match crate::nvvm::codegen_bitcode_modules(&nvvm_opts, sess, main_modules, sorted_deps) {
-            Ok(bytes) => bytes,
-            Err(err) => {
-                // TODO(RDambrosio016): maybe include the nvvm log with this fatal error
-                sess.fatal(&err.to_string())
-            }
-        };
+    let ptx_bytes = match crate::nvvm::codegen_bitcode_modules(&nvvm_opts, sess, modules, cx.llcx) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            // TODO(RDambrosio016): maybe include the nvvm log with this fatal error
+            sess.fatal(&err.to_string())
+        }
+    };
 
     std::fs::write(out_filename, ptx_bytes)
 }

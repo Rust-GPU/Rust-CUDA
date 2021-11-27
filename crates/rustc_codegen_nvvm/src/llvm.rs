@@ -652,6 +652,13 @@ extern "C" {
 // use rustc_codegen_nvvm_macros::trace_ffi_calls;
 // #[trace_ffi_calls]
 extern "C" {
+    pub(crate) fn LLVMAddGlobalDCEPass(PM: &mut PassManager);
+    pub(crate) fn LLVMGetNamedMetadataOperands(M: &Module, name: *const c_char, Dest: *mut &Value);
+    pub(crate) fn LLVMGetNamedMetadataNumOperands(M: &Module, name: *const c_char) -> c_uint;
+    pub(crate) fn LLVMGetMDNodeOperands(V: &Value, Dest: *mut &Value);
+    pub(crate) fn LLVMGetMDNodeNumOperands(V: &Value) -> c_uint;
+    pub(crate) fn LLVMGetFirstFunction(M: &Module) -> Option<&Value>;
+    pub(crate) fn LLVMGetNextFunction(Fn: &Value) -> Option<&Value>;
     pub(crate) fn LLVMAddGlobalInAddressSpace<'a>(
         M: &'a Module,
         Ty: &'a Type,
