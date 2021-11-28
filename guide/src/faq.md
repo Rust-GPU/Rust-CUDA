@@ -17,8 +17,7 @@ generates completely invalid PTX for trivial programs, so it is not an acceptabl
 - GPU and CPU codegen is fundamentally different, creating a codegen that is only for the GPU allows us to 
 seamlessly implement features which would have been impossible or very difficult to implement in the existing codegen, such as:
   - Shared memory, this requires some special generation of globals with custom addrspaces, its just not possible to do without backend explicit handling.
-  - Lazy loading of modules, you can find more info in the [technical section](./nvvm/technical/ptxgen.md), TLDR: it allows us to speed up compilation time massively
-    as well as generate smaller and faster PTX files. Just to give you an idea of how much of a difference it makes, no lazy loading with nvvm opts took 9+ minutes on my i9 10850k (10c/20t).
+  - Custom linking logic to do dead code elimination so as to not end up with large PTX files full of dead functions/globals.
   - Stripping away everything we do not need, no complex ABI handling, no shared lib handling, control over how function calls are generated, etc.
 
 So overall, the LLVM PTX backend is fit for smaller kernels/projects/proofs of concept.

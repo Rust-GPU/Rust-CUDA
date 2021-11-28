@@ -184,3 +184,27 @@ pub fn gpu_only(_attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -
 
     output.into()
 }
+
+/// Notifies the codegen that this function is externally visible and should not be
+/// removed if it is not used by a kernel. Usually used for linking with other PTX/cubin files.
+///
+/// # Panics
+///
+/// Panics if the function is not also no_mangle.
+#[proc_macro_attribute]
+pub fn externally_visible(
+    _attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> TokenStream {
+    let mut func = syn::parse_macro_input!(item as syn::ItemFn);
+
+    assert!(
+        func.attrs.iter().any(|a| a.path.is_ident("no_mangle")),
+        "#[externally_visible] function should also be #[no_mangle]"
+    );
+
+    let new_attr = parse_quote!(#[cfg_attr(target_os = "cuda", nvvm_internal(used))]);
+    func.attrs.push(new_attr);
+
+    func.into_token_stream().into()
+}

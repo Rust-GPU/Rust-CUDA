@@ -1,13 +1,16 @@
 //! Final steps in codegen, coalescing modules and feeding them to libnvvm.
-//!
-//! This module also includes a safe wrapper over the nvvm_sys module.
 
+use crate::builder::unnamed;
+use crate::llvm::*;
+use crate::lto::ThinBuffer;
 use find_cuda_helper::find_cuda_root;
 use nvvm::*;
+use rustc_codegen_ssa::traits::ThinBufferMethods;
 use rustc_session::Session;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs;
+use std::marker::PhantomData;
 use std::path::Path;
 use tracing::debug;
 
@@ -49,8 +52,8 @@ impl Display for CodegenErr {
 pub fn codegen_bitcode_modules(
     opts: &[NvvmOption],
     sess: &Session,
-    main: Vec<(Vec<u8>, String)>,
-    lazy: Vec<(Vec<u8>, String)>,
+    modules: Vec<Vec<u8>>,
+    llcx: &Context,
 ) -> Result<Vec<u8>, CodegenErr> {
     debug!("Codegenning bitcode to PTX");
 
@@ -64,15 +67,14 @@ pub fn codegen_bitcode_modules(
     // first, create the nvvm program we will add modules to.
     let prog = NvvmProgram::new()?;
 
-    // next, load our main bitcode modules from the tempdir.
-    for (bc, name) in main {
-        prog.add_module(&bc, name)?;
+    let module = merge_llvm_modules(modules, llcx);
+    unsafe {
+        internalize_pass(module, llcx);
+        dce_pass(module);
     }
+    let buf = ThinBuffer::new(module);
 
-    // then, load our lazy bitcode modules.
-    for (bc, name) in lazy {
-        prog.add_lazy_module(&bc, name)?;
-    }
+    prog.add_module(buf.data(), "merged".to_string())?;
 
     let libdevice = if let Some(bc) = find_libdevice() {
         bc
@@ -127,4 +129,174 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
     } else {
         None
     }
+}
+
+// Merging and DCE (dead code elimination) logic. Inspired a lot by rust-ptx-linker.
+//
+// This works in a couple of steps starting from the bitcode of every single module (crate), then:
+// - Merge all of the modules into a single large module, basically fat LTO. In the future we could probably lazily-load only
+// the things we need using dependency graphs, like we used to do for libnvvm.
+// - Iterate over every function in the module and:
+//      - If it is not a kernel and it is not a declaration (i.e. an extern fn) then mark its linkage as internal and its visiblity as default
+// - Iterate over every global in the module and:
+//      - Same as functions, if it is not an external declaration, mark it as internal.
+// - run LLVM's global DCE pass, this will remove any functions and globals that are not directly or indirectly used by kernels.
+
+fn merge_llvm_modules(modules: Vec<Vec<u8>>, llcx: &Context) -> &Module {
+    let module = unsafe { crate::create_module(llcx, "merged_modules") };
+    for merged_module in modules {
+        unsafe {
+            let tmp = LLVMRustParseBitcodeForLTO(
+                llcx,
+                merged_module.as_ptr(),
+                merged_module.len(),
+                unnamed(),
+            )
+            .expect("Failed to parse module bitcode");
+            LLVMLinkModules2(module, tmp);
+        }
+    }
+    module
+}
+
+struct FunctionIter<'a, 'll> {
+    module: PhantomData<&'a &'ll Module>,
+    next: Option<&'ll Value>,
+}
+
+struct GlobalIter<'a, 'll> {
+    module: PhantomData<&'a &'ll Module>,
+    next: Option<&'ll Value>,
+}
+
+impl<'a, 'll> FunctionIter<'a, 'll> {
+    pub fn new(module: &'a &'ll Module) -> Self {
+        FunctionIter {
+            module: PhantomData::default(),
+            next: unsafe { LLVMGetFirstFunction(*module) },
+        }
+    }
+}
+
+impl<'a, 'll> Iterator for FunctionIter<'a, 'll> {
+    type Item = &'ll Value;
+
+    fn next(&mut self) -> Option<&'ll Value> {
+        let next = self.next;
+
+        self.next = match next {
+            Some(next) => unsafe { LLVMGetNextFunction(&*next) },
+            None => None,
+        };
+
+        next
+    }
+}
+
+impl<'a, 'll> GlobalIter<'a, 'll> {
+    pub fn new(module: &'a &'ll Module) -> Self {
+        GlobalIter {
+            module: PhantomData::default(),
+            next: unsafe { LLVMGetFirstGlobal(*module) },
+        }
+    }
+}
+
+impl<'a, 'll> Iterator for GlobalIter<'a, 'll> {
+    type Item = &'ll Value;
+
+    fn next(&mut self) -> Option<&'ll Value> {
+        let next = self.next;
+
+        self.next = match next {
+            Some(next) => unsafe { LLVMGetNextGlobal(&*next) },
+            None => None,
+        };
+
+        next
+    }
+}
+
+unsafe fn internalize_pass(module: &Module, cx: &Context) {
+    // collect the values of all the declared kernels
+    let num_operands =
+        LLVMGetNamedMetadataNumOperands(module, "nvvm.annotations\0".as_ptr().cast()) as usize;
+    let mut operands = Vec::with_capacity(num_operands);
+    LLVMGetNamedMetadataOperands(
+        module,
+        "nvvm.annotations\0".as_ptr().cast(),
+        operands.as_mut_ptr(),
+    );
+    operands.set_len(num_operands);
+    let mut kernels = Vec::with_capacity(num_operands);
+    let kernel_str = LLVMMDStringInContext(cx, "kernel".as_ptr().cast(), 6);
+
+    for mdnode in operands {
+        let num_operands = LLVMGetMDNodeNumOperands(mdnode) as usize;
+        let mut operands = Vec::with_capacity(num_operands);
+        LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+        operands.set_len(num_operands);
+
+        if operands.get(1) == Some(&kernel_str) {
+            kernels.push(operands[0]);
+        }
+    }
+
+    // see what functions are marked as externally visible by the user.
+    let num_operands =
+        LLVMGetNamedMetadataNumOperands(module, "cg_nvvm_used\0".as_ptr().cast()) as usize;
+    let mut operands = Vec::with_capacity(num_operands);
+    LLVMGetNamedMetadataOperands(
+        module,
+        "cg_nvvm_used\0".as_ptr().cast(),
+        operands.as_mut_ptr(),
+    );
+    operands.set_len(num_operands);
+    let mut used_funcs = Vec::with_capacity(num_operands);
+
+    for mdnode in operands {
+        let num_operands = LLVMGetMDNodeNumOperands(mdnode) as usize;
+        let mut operands = Vec::with_capacity(num_operands);
+        LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+        operands.set_len(num_operands);
+
+        used_funcs.push(operands[0]);
+    }
+
+    let iter = FunctionIter::new(&module);
+    for func in iter {
+        let is_kernel = kernels.contains(&func);
+        let is_decl = LLVMIsDeclaration(func) == True;
+        let is_used = used_funcs.contains(&func);
+
+        if !is_decl && !is_kernel {
+            LLVMRustSetLinkage(func, Linkage::InternalLinkage);
+            LLVMRustSetVisibility(func, Visibility::Default);
+        }
+
+        // explicitly set it to external just in case the codegen set them to internal for some reason
+        if is_used {
+            LLVMRustSetLinkage(func, Linkage::ExternalLinkage);
+            LLVMRustSetVisibility(func, Visibility::Default);
+        }
+    }
+
+    let iter = GlobalIter::new(&module);
+    for func in iter {
+        let is_decl = LLVMIsDeclaration(func) == True;
+
+        if !is_decl {
+            LLVMRustSetLinkage(func, Linkage::InternalLinkage);
+            LLVMRustSetVisibility(func, Visibility::Default);
+        }
+    }
+}
+
+unsafe fn dce_pass(module: &Module) {
+    let pass_manager = LLVMCreatePassManager();
+
+    LLVMAddGlobalDCEPass(pass_manager);
+
+    LLVMRunPassManager(pass_manager, module);
+    LLVMDisposePassManager(pass_manager);
 }

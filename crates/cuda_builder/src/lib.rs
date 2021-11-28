@@ -378,6 +378,10 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         cargo.arg("--release");
     }
 
+    // TODO(RDambrosio016): Remove this once we can get meaningful error messages in panic to work.
+    // for now we enable it to remove some useless indirect calls in the ptx.
+    cargo.arg("-Zbuild-std-features=panic_immediate_abort");
+
     if builder.optix {
         cargo.arg("-Zbuild-std-features=panic_immediate_abort");
         cargo.arg("-Zunstable-options");
