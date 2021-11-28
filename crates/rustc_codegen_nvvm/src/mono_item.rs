@@ -112,6 +112,17 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     node,
                 );
             }
+            if nvvm_attrs.used {
+                trace!("Marking function `{:?}` as used", symbol_name);
+                let mdvals = &[lldecl];
+                let node =
+                    llvm::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
+                llvm::LLVMAddNamedMetadataOperand(
+                    self.llmod,
+                    "cg_nvvm_used\0".as_ptr().cast(),
+                    node,
+                );
+            }
         }
 
         self.instances.borrow_mut().insert(instance, lldecl);

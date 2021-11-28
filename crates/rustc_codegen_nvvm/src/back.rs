@@ -14,11 +14,10 @@ use rustc_data_structures::small_c_str::SmallCStr;
 use rustc_errors::{FatalError, Handler};
 use rustc_fs_util::path_to_c_string;
 use rustc_middle::bug;
-use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::{dep_graph, ty::TyCtxt};
 use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_session::Session;
-use rustc_span::{sym, Symbol};
+use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
 use std::ffi::CString;
 use std::sync::Arc;
@@ -265,22 +264,6 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
             // ... and now that we have everything pre-defined, fill out those definitions.
             for &(mono_item, _) in &mono_items {
                 mono_item.define::<Builder<'_, '_, '_>>(&cx);
-                if let MonoItem::Fn(inst) = mono_item {
-                    let name = tcx.symbol_name(inst).name;
-                    let attrs = tcx.get_attrs(inst.def_id());
-                    let is_no_mangle = attrs.iter().any(|x| x.has_name(sym::no_mangle));
-
-                    if name == "rust_begin_unwind"
-                        || name.starts_with("__rg")
-                        || name == "rust_oom"
-                        || is_no_mangle
-                    {
-                        let func = cx.get_fn(inst);
-                        let llval =
-                            unsafe { llvm::LLVMConstBitCast(func, cx.type_ptr_to(cx.type_i8())) };
-                        cx.used_statics.borrow_mut().push(llval);
-                    }
-                }
             }
 
             // a main function for gpu kernels really makes no sense but

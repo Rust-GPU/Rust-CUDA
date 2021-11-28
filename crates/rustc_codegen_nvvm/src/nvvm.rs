@@ -242,13 +242,41 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
         }
     }
 
+    // see what functions are marked as externally visible by the user.
+    let num_operands =
+        LLVMGetNamedMetadataNumOperands(module, "cg_nvvm_used\0".as_ptr().cast()) as usize;
+    let mut operands = Vec::with_capacity(num_operands);
+    LLVMGetNamedMetadataOperands(
+        module,
+        "cg_nvvm_used\0".as_ptr().cast(),
+        operands.as_mut_ptr(),
+    );
+    operands.set_len(num_operands);
+    let mut used_funcs = Vec::with_capacity(num_operands);
+
+    for mdnode in operands {
+        let num_operands = LLVMGetMDNodeNumOperands(mdnode) as usize;
+        let mut operands = Vec::with_capacity(num_operands);
+        LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+        operands.set_len(num_operands);
+
+        used_funcs.push(operands[0]);
+    }
+
     let iter = FunctionIter::new(&module);
     for func in iter {
         let is_kernel = kernels.contains(&func);
         let is_decl = LLVMIsDeclaration(func) == True;
+        let is_used = used_funcs.contains(&func);
 
         if !is_decl && !is_kernel {
             LLVMRustSetLinkage(func, Linkage::InternalLinkage);
+            LLVMRustSetVisibility(func, Visibility::Default);
+        }
+
+        // explicitly set it to external just in case the codegen set them to internal for some reason
+        if is_used {
+            LLVMRustSetLinkage(func, Linkage::ExternalLinkage);
             LLVMRustSetVisibility(func, Visibility::Default);
         }
     }

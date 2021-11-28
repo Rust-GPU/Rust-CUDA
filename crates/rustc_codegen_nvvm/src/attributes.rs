@@ -3,7 +3,7 @@ use rustc_ast::Attribute;
 use rustc_attr::{InlineAttr, OptimizeAttr};
 use rustc_middle::{middle::codegen_fn_attrs::CodegenFnAttrFlags, ty};
 use rustc_session::{config::OptLevel, Session};
-use rustc_span::Symbol;
+use rustc_span::{sym, Symbol};
 
 use crate::context::CodegenCx;
 
@@ -99,6 +99,7 @@ pub struct Symbols {
 #[derive(Default, Clone, PartialEq)]
 pub(crate) struct NvvmAttributes {
     pub kernel: bool,
+    pub used: bool,
 }
 
 impl NvvmAttributes {
@@ -111,6 +112,9 @@ impl NvvmAttributes {
                 if let Some(arg) = args.first() {
                     if arg.has_name(cx.symbols.kernel) {
                         nvvm_attrs.kernel = true;
+                    }
+                    if arg.has_name(sym::used) {
+                        nvvm_attrs.used = true;
                     }
                 }
             }

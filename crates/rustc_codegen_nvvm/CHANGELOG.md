@@ -13,6 +13,8 @@ we instead merge all the modules into one then run global DCE on it before givin
 This means all of the dead code is gone before it gets to the libnvvm stage, drastically lowering the size of 
 the built PTX and improving codegen performance.
 
+- Trace-level debug is compiled out for release now, decreasing the size of the codegen dll and improving compile times.
+
 ## 0.1.1 - 11/26/21
 
 - Fix things using the `bswap` intrinsic panicking.
