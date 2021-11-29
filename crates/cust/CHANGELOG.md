@@ -14,3 +14,4 @@ at some point, but now we reconsidered that it may be the wrong choice.
 - Remove `GpuBox::as_device_ptr_mut` and `GpuBuffer::as_device_ptr_mut`.
 - Change `GpuBox::as_device_ptr` and `GpuBuffer::as_device_ptr` to take `&self` instead of `&mut self`.
 - Remove accidentally added `vek` default feature.
+- `vek` feature now uses `default-features = false`, this also means `Rgb` and `Rgba` no longer implement `DeviceCopy`.

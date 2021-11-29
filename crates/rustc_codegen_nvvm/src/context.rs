@@ -92,13 +92,7 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     eh_personality: &'ll Value,
 
     pub symbols: Symbols,
-
-    // we do not currently use codegen_args before linking, and during linking we reparse
-    // them because codegencx is not available at link time. However, we keep this so
-    // it is easier to use them in the future and add args we want to use before linking.
-    #[allow(dead_code)]
     pub codegen_args: CodegenArgs,
-
     // the value of the last call instruction. Needed for return type remapping.
     pub last_call_llfn: Cell<Option<&'ll Value>>,
 }
@@ -505,25 +499,31 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     }
 }
 
+#[derive(Default, Clone)]
 pub struct CodegenArgs {
     pub nvvm_options: Vec<NvvmOption>,
+    pub override_libm: bool,
 }
 
 impl CodegenArgs {
     pub fn from_session(sess: &Session) -> Self {
-        match Self::parse(&sess.opts.cg.llvm_args) {
-            Ok(x) => x,
-            Err(err) => sess.fatal(&format!("Failed to parse codegen args: {}", err)),
-        }
+        Self::parse(&sess.opts.cg.llvm_args)
     }
 
     // we may want to use rustc's own option parsing facilities to have better errors in the future.
-    pub fn parse(args: &[String]) -> Result<Self, &'static str> {
-        let nvvm_options = args
-            .iter()
-            .map(|x| NvvmOption::from_str(x))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self { nvvm_options })
+    pub fn parse(args: &[String]) -> Self {
+        // TODO: replace this with a "proper" arg parser.
+        let mut cg_args = Self::default();
+
+        for arg in args {
+            if let Ok(flag) = NvvmOption::from_str(arg) {
+                cg_args.nvvm_options.push(flag);
+            } else if arg == "--override-libm" {
+                cg_args.override_libm = true;
+            }
+        }
+
+        cg_args
     }
 }
 

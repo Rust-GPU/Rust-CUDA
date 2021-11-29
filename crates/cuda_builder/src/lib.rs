@@ -107,6 +107,16 @@ pub struct CudaBuilder {
     ///
     /// `false` by default.
     pub optix: bool,
+    /// Whether to override calls to [`libm`](https://docs.rs/libm/latest/libm/) with calls to libdevice intrinsics.
+    ///
+    /// Libm is used by no_std crates for functions such as sin, cos, fabs, etc. However, CUDA provides
+    /// extremely fast GPU-specific implementations of such functions through `libdevice`. Therefore, the codegen
+    /// exposes the option to automatically override any calls to libm functions with calls to libdevice functions.
+    /// However, this means the overriden functions are likely to not be deterministic, so if you rely on strict
+    /// determinism in things like `rapier`, then it may be helpful to disable such a feature.
+    ///
+    /// `true` by default.
+    pub override_libm: bool,
 }
 
 impl CudaBuilder {
@@ -125,6 +135,7 @@ impl CudaBuilder {
             fma_contraction: true,
             emit: None,
             optix: false,
+            override_libm: true,
         }
     }
 
@@ -230,6 +241,18 @@ impl CudaBuilder {
     /// Code compiled with this option should always work under CUDA, but it might not be the most efficient or practical.
     pub fn optix(mut self, optix: bool) -> Self {
         self.optix = optix;
+        self
+    }
+
+    /// Whether to override calls to [`libm`](https://docs.rs/libm/latest/libm/) with calls to libdevice intrinsics.
+    ///
+    /// Libm is used by no_std crates for functions such as sin, cos, fabs, etc. However, CUDA provides
+    /// extremely fast GPU-specific implementations of such functions through `libdevice`. Therefore, the codegen
+    /// exposes the option to automatically override any calls to libm functions with calls to libdevice functions.
+    /// However, this means the overriden functions are likely to not be deterministic, so if you rely on strict
+    /// determinism in things like `rapier`, then it may be helpful to disable such a feature.
+    pub fn override_libm(mut self, override_libm: bool) -> Self {
+        self.override_libm = override_libm;
         self
     }
 
@@ -349,6 +372,10 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
 
     if !builder.fma_contraction {
         llvm_args.push("-fma=0".to_string());
+    }
+
+    if builder.override_libm {
+        llvm_args.push("--override-libm".to_string());
     }
 
     let llvm_args = llvm_args.join(" ");

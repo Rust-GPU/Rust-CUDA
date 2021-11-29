@@ -44,6 +44,7 @@ mod llvm;
 mod lto;
 mod mono_item;
 mod nvvm;
+mod override_fns;
 mod target;
 mod ty;
 

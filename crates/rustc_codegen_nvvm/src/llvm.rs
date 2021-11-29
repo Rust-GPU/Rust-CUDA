@@ -119,6 +119,17 @@ pub(crate) fn get_param(llfn: &Value, index: c_uint) -> &Value {
     }
 }
 
+/// Safe wrapper around `LLVMGetParams`.
+pub(crate) fn get_params(llfn: &Value) -> Vec<&Value> {
+    unsafe {
+        let count = LLVMCountParams(llfn) as usize;
+        let mut params = Vec::with_capacity(count);
+        LLVMGetParams(llfn, params.as_mut_ptr());
+        params.set_len(count);
+        params
+    }
+}
+
 /// Safe wrapper for `LLVMGetValueName2` into a byte slice
 pub(crate) fn get_value_name(value: &Value) -> &[u8] {
     unsafe {

@@ -1,4 +1,5 @@
 use crate::llvm::{self};
+use crate::override_fns::define_or_override_fn;
 use crate::{builder::Builder, context::CodegenCx, lto::ThinBuffer, LlvmMod, NvvmCodegenBackend};
 use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
@@ -14,6 +15,7 @@ use rustc_data_structures::small_c_str::SmallCStr;
 use rustc_errors::{FatalError, Handler};
 use rustc_fs_util::path_to_c_string;
 use rustc_middle::bug;
+use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::{dep_graph, ty::TyCtxt};
 use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_session::Session;
@@ -263,7 +265,11 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
 
             // ... and now that we have everything pre-defined, fill out those definitions.
             for &(mono_item, _) in &mono_items {
-                mono_item.define::<Builder<'_, '_, '_>>(&cx);
+                if let MonoItem::Fn(func) = mono_item {
+                    define_or_override_fn(func, &cx);
+                } else {
+                    mono_item.define::<Builder<'_, '_, '_>>(&cx);
+                }
             }
 
             // a main function for gpu kernels really makes no sense but

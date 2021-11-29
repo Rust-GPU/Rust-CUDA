@@ -281,7 +281,7 @@ use vek::*;
 
 #[cfg(feature = "vek")]
 impl_device_copy_vek! {
-    Vec2, Vec3, Vec4, Extent2, Extent3, Rgb, Rgba,
+    Vec2, Vec3, Vec4, Extent2, Extent3,
     Mat2, Mat3, Mat4,
     CubicBezier2, CubicBezier3,
     Quaternion,

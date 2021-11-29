@@ -262,8 +262,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgamma" |
             "__nv_trunc" |
             "__nv_y0" |
-            "__nv_y1" |
-            "__nv_yn",
+            "__nv_y1",
             fn(t_f64) -> t_f64
         );
 
@@ -316,8 +315,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgammaf" |
             "__nv_truncf" |
             "__nv_y0f" |
-            "__nv_y1f" |
-            "__nv_ynf",
+            "__nv_y1f",
             fn(t_f32) -> t_f32
         );
 
@@ -407,6 +405,18 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             map,
             "__nv_fmaf",
             fn(t_f32, t_f32, t_f32) -> t_f32
+        );
+
+        ifn!(
+            map,
+            "__nv_yn",
+            fn(t_i32, t_f64) -> t_f64
+        );
+
+        ifn!(
+            map,
+            "__nv_ynf",
+            fn(t_i32, t_f32) -> t_f32
         );
     }
 }
