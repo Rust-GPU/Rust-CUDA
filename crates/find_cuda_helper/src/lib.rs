@@ -127,10 +127,8 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     let mut candidates = read_env();
     candidates.push(PathBuf::from("/opt/cuda"));
     candidates.push(PathBuf::from("/usr/local/cuda"));
-    for e in glob::glob("/usr/local/cuda-*").unwrap() {
-        if let Ok(path) = e {
-            candidates.push(path)
-        }
+    for e in glob::glob("/usr/local/cuda-*").unwrap().flatten() {
+        candidates.push(e)
     }
 
     let mut valid_paths = vec![];

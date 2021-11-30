@@ -45,11 +45,6 @@ jobs:
       - name: Add rustup components
         run: rustup component add rustfmt clippy
 
-      - name: Download OptiX Headers
-        run: | 
-            chmod +x "${GITHUB_WORKSPACE}/scripts/download_ci_optix.bash"
-            ${GITHUB_WORKSPACE}/scripts/download_ci_optix.bash
-
       - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
         run: | 
