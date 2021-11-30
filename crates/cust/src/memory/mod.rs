@@ -17,8 +17,7 @@
 //! Unified memory is a memory allocation which can be read from and written to by both the host
 //! and the device. When the host (or device) attempts to access a page of unified memory, it is
 //! seamlessly transferred from host RAM to device RAM or vice versa. The programmer may also
-//! choose to explicitly prefetch data to one side or another (though this is not currently exposed
-//! through cust). cust exposes unified memory through the
+//! choose to explicitly prefetch data to one side or another. cust exposes unified memory through the
 //! [`UnifiedBox`](struct.UnifiedBox.html) and [`UnifiedBuffer`](struct.UnifiedBuffer.html)
 //! structures, and pointers to unified memory are represented by
 //! [`UnifiedPointer`](struct.UnifiedPointer.html). Since unified memory is accessible to the host,
