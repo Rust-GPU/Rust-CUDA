@@ -1,7 +1,12 @@
 use super::DeviceCopy;
+use crate::device::Device;
+#[allow(unused_imports)]
+use crate::device::DeviceAttribute;
 use crate::error::*;
 use crate::memory::malloc::{cuda_free_unified, cuda_malloc_unified};
 use crate::memory::UnifiedPointer;
+use crate::prelude::Stream;
+use crate::sys as cuda;
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::Ordering;
 use std::convert::{AsMut, AsRef};
@@ -175,7 +180,7 @@ impl<T: DeviceCopy> UnifiedBox<T> {
     /// let ptr = x.as_unified_ptr();
     /// println!("{:p}", ptr);
     /// ```
-    pub fn as_unified_ptr(&mut self) -> UnifiedPointer<T> {
+    pub fn as_unified_ptr(&self) -> UnifiedPointer<T> {
         self.ptr
     }
 
@@ -591,6 +596,191 @@ impl<T: DeviceCopy> Drop for UnifiedBuffer<T> {
     }
 }
 
+/// Functions for advising the driver about certain uses of unified memory. Such as advising the driver
+/// to prefetch memory or to treat memory as read-mostly.
+///
+/// Note that none of the following APIs are required for correctness and/or safety, any use of the memory
+/// will be valid no matter the use of the following functions. However, such uses may be very inefficient and/or
+/// have increased memory consumption.
+pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
+    fn as_slice(&self) -> &[T];
+
+    // prefetch is documented as only being able to return Success, InvalidValue, or InvalidDevice.
+    // None of which should ever happen because Streams, Devices, and unified buffers are always valid.
+    // So we don't return a CUDA result.
+
+    /// Advises the driver to enqueue an operation on the stream to prefetch the memory to the CPU.
+    /// This will cause the driver to fetch the data back to the CPU as soon as the operation is reached
+    /// on the stream.
+    ///
+    /// The CPU must have the attribute [`DeviceAttribute::ConcurrentManagedAccess`].
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _context = cust::quick_init().unwrap();
+    /// # use cust::prelude::*;
+    /// use cust::memory::*;
+    /// let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
+    /// let x = UnifiedBuffer::from_slice(&[10u32, 20, 30])?;
+    /// x.prefetch_to_host(&stream);
+    /// stream.synchronize()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn prefetch_to_host(&self, stream: &Stream) -> CudaResult<()> {
+        let slice = self.as_slice();
+        let mem_size = std::mem::size_of_val(slice);
+
+        unsafe {
+            cuda::cuMemPrefetchAsync(
+                slice.as_ptr() as cuda::CUdeviceptr,
+                mem_size,
+                -1, // CU_DEVICE_CPU #define
+                stream.as_inner(),
+            )
+            .to_result()?;
+        }
+        Ok(())
+    }
+
+    /// Advises the driver to enqueue an operation on the stream to prefetch the memory to a certain GPU.
+    /// This will cause the driver to fetch the data to the specified device as soon as the operation
+    /// is reached on the stream.
+    ///
+    /// The device must have the attribute [`DeviceAttribute::ConcurrentManagedAccess`].
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _context = cust::quick_init().unwrap();
+    /// # use cust::prelude::*;
+    /// use cust::memory::*;
+    /// let device = Device::get_device(0)?;
+    /// let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
+    /// let x = UnifiedBuffer::from_slice(&[10u32, 20, 30])?;
+    /// x.prefetch_to_device(&stream, &device);
+    /// stream.synchronize()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn prefetch_to_device(&self, stream: &Stream, device: &Device) -> CudaResult<()> {
+        let slice = self.as_slice();
+        let mem_size = std::mem::size_of_val(slice);
+
+        unsafe {
+            cuda::cuMemPrefetchAsync(
+                slice.as_ptr() as cuda::CUdeviceptr,
+                mem_size,
+                device.as_raw(),
+                stream.as_inner(),
+            )
+            .to_result()?;
+        }
+        Ok(())
+    }
+
+    /// Advises the driver that this memory range is mostly going to be read to, and occasionally written to.
+    ///
+    /// Any read accesses from any processor will create a read-only copy of at least the accessed pages in that processor's memory.
+    ///
+    /// Additionally, when prefetching, a read-only copy of the data will be created on the destination processor. If any processor
+    /// attempts to write to this data, all copies of the corresponding page will be invalidated except for the one where the write occurred.
+    ///
+    /// For a page to be read-duplicated, the accessing processor must have a non-zero value for [`DeviceAttribute::ConcurrentManagedAccess`].
+    /// Additionally, if a context is created on a device that does not have [`DeviceAttribute::ConcurrentManagedAccess`], then read-duplication
+    /// will not occur until all such contexts are destroyed.
+    fn advise_read_mostly(&self, read_mostly: bool) -> CudaResult<()> {
+        let slice = self.as_slice();
+        let mem_size = std::mem::size_of_val(slice);
+
+        let advice = if read_mostly {
+            cuda::CUmem_advise::CU_MEM_ADVISE_SET_READ_MOSTLY
+        } else {
+            cuda::CUmem_advise::CU_MEM_ADVISE_UNSET_READ_MOSTLY
+        };
+
+        unsafe {
+            cuda::cuMemAdvise(slice.as_ptr() as cuda::CUdeviceptr, mem_size, advice, 0)
+                .to_result()?;
+        }
+        Ok(())
+    }
+
+    /// Advises the driver as to the preferred device for this memory range. Either
+    /// a device with `Some(device)` or the CPU with `None`. If the device is a GPU,
+    /// it must have [`DeviceAttribute::ConcurrentManagedAccess`].
+    ///
+    /// Setting the preferred location does not cause the data to be migrated to that location immediately.
+    /// It instead guides the migration policy when a fault occurs on the memory region. If the data is already in
+    /// its preferred location and the faulting processor can establish a mapping without requiring the data to be migrated,
+    /// then data migration will be avoided. On the other hand, if the data is not there or a mapping cannot be established,
+    /// then it will be migrated to the accessing processor.
+    ///
+    /// Having a preferred location can override the page thrash detection and resolution logic in the unified memory driver.
+    /// Normally if a page is detected to be constantly thrashing between processors, the page may eventually be pinned to
+    /// host memory by the driver. But if the preferred location is set as device memory, then the page will continue
+    /// to thrash indefinitely.
+    ///
+    /// If [`advise_read_mostly`](Self::advise_read_mostly) is set on this memory region or a subset of it, then the policies
+    /// associated with that device will override the policies of this advice.
+    ///
+    /// This advice does not prevent the use of [`prefetch_to_host`](Self::prefetch_to_host) or [`prefetch_to_device`](Self::prefetch_to_device).
+    fn preferred_location(&self, preferred_location: Option<Device>) -> CudaResult<()> {
+        let slice = self.as_slice();
+        let mem_size = std::mem::size_of_val(slice);
+
+        unsafe {
+            cuda::cuMemAdvise(
+                slice.as_ptr() as cuda::CUdeviceptr,
+                mem_size,
+                cuda::CUmem_advise::CU_MEM_ADVISE_SET_PREFERRED_LOCATION,
+                preferred_location.map(|d| d.as_raw()).unwrap_or(-1),
+            )
+            .to_result()?;
+        }
+        Ok(())
+    }
+
+    /// Undoes the most recent changes by [`set_preferred_location`](Self::set_preferred_location).
+    fn unset_preferred_location(&self) -> CudaResult<()> {
+        let slice = self.as_slice();
+        let mem_size = std::mem::size_of_val(slice);
+
+        unsafe {
+            cuda::cuMemAdvise(
+                slice.as_ptr() as cuda::CUdeviceptr,
+                mem_size,
+                cuda::CUmem_advise::CU_MEM_ADVISE_UNSET_PREFERRED_LOCATION,
+                0,
+            )
+            .to_result()?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: DeviceCopy> MemoryAdvise<T> for UnifiedBox<T> {
+    fn as_slice(&self) -> &[T] {
+        // SAFETY: unified pointers are valid on the CPU
+        unsafe { std::slice::from_raw_parts(self.as_unified_ptr().as_raw(), 1) }
+    }
+}
+
+impl<T: DeviceCopy> MemoryAdvise<T> for UnifiedBuffer<T> {
+    fn as_slice(&self) -> &[T] {
+        self
+    }
+}
+
+mod private {
+    pub trait Sealed {}
+    impl<T: super::DeviceCopy> Sealed for super::UnifiedBox<T> {}
+    impl<T: super::DeviceCopy> Sealed for super::UnifiedBuffer<T> {}
+}
+
 #[cfg(test)]
 mod test_unified_box {
     use super::*;
@@ -718,8 +908,8 @@ mod test_unified_buffer {
     #[test]
     fn test_unified_pointer_implements_traits_safely() {
         let _context = crate::quick_init().unwrap();
-        let mut x = UnifiedBox::new(5u64).unwrap();
-        let mut y = UnifiedBox::new(0u64).unwrap();
+        let x = UnifiedBox::new(5u64).unwrap();
+        let y = UnifiedBox::new(0u64).unwrap();
 
         // If the impls dereference the pointer, this should segfault.
         let _ = Ord::cmp(&x.as_unified_ptr(), &y.as_unified_ptr());
