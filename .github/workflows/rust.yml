@@ -74,4 +74,4 @@ jobs:
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -Dwarnings
-        run: \cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
+        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
