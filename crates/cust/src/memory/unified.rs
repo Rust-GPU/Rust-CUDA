@@ -744,7 +744,7 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         Ok(())
     }
 
-    /// Undoes the most recent changes by [`set_preferred_location`](Self::set_preferred_location).
+    /// Undoes the most recent changes by [`preferred_location`](Self::preferred_location).
     fn unset_preferred_location(&self) -> CudaResult<()> {
         let slice = self.as_slice();
         let mem_size = std::mem::size_of_val(slice);
