@@ -5,6 +5,8 @@ authors = ["The Rand Project Developers", "The Rust CUDA Project Developers"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 description = "GPU-friendly random number generators for the Rust CUDA Project"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
 
 [dependencies]
 rand_core = { version = "0.6" }

@@ -5,6 +5,8 @@ authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "The Rust Project De
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "A codegen backend for Rustc which targets the libnvvm CUDA library"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
 
 [lib]
 crate-type = ["dylib"]

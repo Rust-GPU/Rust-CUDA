@@ -4,6 +4,8 @@ version = "0.11.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Low level bindings to the CUDA Driver API"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
 
 [build-dependencies]
 find_cuda_helper = { path = "../find_cuda_helper", version = "0.1" }
