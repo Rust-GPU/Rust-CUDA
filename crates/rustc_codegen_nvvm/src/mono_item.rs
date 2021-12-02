@@ -12,7 +12,6 @@ use rustc_middle::mir::mono::{Linkage, Visibility};
 use rustc_middle::ty::layout::FnAbiOf;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, Instance, TypeFoldable};
-use rustc_target::abi::AddressSpace;
 use tracing::trace;
 
 pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm::Visibility {
@@ -35,9 +34,10 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         let instance = Instance::mono(self.tcx, def_id);
         let ty = instance.ty(self.tcx, ty::ParamEnv::reveal_all());
         let llty = self.layout_of(ty).llvm_type(self);
+        let addrspace = self.static_addrspace(instance);
 
         let g = self
-            .define_global(symbol_name, llty, AddressSpace::DATA)
+            .define_global(symbol_name, llty, addrspace)
             .unwrap_or_else(|| {
                 self.sess().span_fatal(
                     self.tcx.def_span(def_id),

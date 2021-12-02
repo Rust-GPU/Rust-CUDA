@@ -1,5 +1,5 @@
 use crate::llvm::{self, AttributePlace::*, Value};
-use rustc_ast::Attribute;
+use rustc_ast::{Attribute, Lit, LitKind};
 use rustc_attr::{InlineAttr, OptimizeAttr};
 use rustc_middle::{middle::codegen_fn_attrs::CodegenFnAttrFlags, ty};
 use rustc_session::{config::OptLevel, Session};
@@ -93,6 +93,7 @@ pub(crate) fn from_fn_attrs<'ll, 'tcx>(
 pub struct Symbols {
     pub nvvm_internal: Symbol,
     pub kernel: Symbol,
+    pub addrspace: Symbol,
 }
 
 // inspired by rust-gpu's attribute handling
@@ -100,6 +101,7 @@ pub struct Symbols {
 pub(crate) struct NvvmAttributes {
     pub kernel: bool,
     pub used: bool,
+    pub addrspace: Option<u8>,
 }
 
 impl NvvmAttributes {
@@ -115,6 +117,21 @@ impl NvvmAttributes {
                     }
                     if arg.has_name(sym::used) {
                         nvvm_attrs.used = true;
+                    }
+                    if arg.has_name(cx.symbols.addrspace) {
+                        let args = arg.meta_item_list().unwrap_or_default();
+                        if let Some(arg) = args.first() {
+                            let lit = arg.literal();
+                            if let Some(Lit {
+                                kind: LitKind::Int(val, _),
+                                ..
+                            }) = lit
+                            {
+                                nvvm_attrs.addrspace = Some(*val as u8);
+                            } else {
+                                panic!();
+                            }
+                        }
                     }
                 }
             }

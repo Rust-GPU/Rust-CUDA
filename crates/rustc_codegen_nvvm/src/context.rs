@@ -1,16 +1,16 @@
 use crate::abi::FnAbiLlvmExt;
-use crate::attributes::{self, Symbols};
+use crate::attributes::{self, NvvmAttributes, Symbols};
 use crate::debug_info::{self, compile_unit_metadata, CrateDebugContext};
 use crate::llvm::{self, BasicBlock, Type, Value};
 use crate::{target, LlvmMod};
 use nvvm::NvvmOption;
-use rustc_codegen_ssa::traits::ConstMethods;
 use rustc_codegen_ssa::traits::{BackendTypes, BaseTypeMethods, CoverageInfoMethods, MiscMethods};
+use rustc_codegen_ssa::traits::{ConstMethods, DerivedTypeMethods};
 use rustc_data_structures::base_n;
 use rustc_hash::FxHashMap;
 use rustc_middle::dep_graph::DepContext;
 use rustc_middle::ty::layout::{
-    FnAbiError, FnAbiOf, FnAbiRequest, HasParamEnv, LayoutError, TyAndLayout,
+    FnAbiError, FnAbiOf, FnAbiRequest, HasParamEnv, HasTyCtxt, LayoutError, TyAndLayout,
 };
 use rustc_middle::ty::layout::{FnAbiOfHelpers, LayoutOfHelpers};
 use rustc_middle::ty::{Ty, TypeFoldable};
@@ -158,6 +158,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             symbols: Symbols {
                 nvvm_internal: Symbol::intern("nvvm_internal"),
                 kernel: Symbol::intern("kernel"),
+                addrspace: Symbol::intern("addrspace"),
             },
             dbg_cx,
             codegen_args: CodegenArgs::from_session(tcx.sess()),
@@ -261,6 +262,24 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 }
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
+    /// Computes the address space for a static.
+    pub fn static_addrspace(&self, instance: Instance<'tcx>) -> AddressSpace {
+        let ty = instance.ty(self.tcx, ty::ParamEnv::reveal_all());
+        let is_mutable = self.tcx().is_mutable_static(instance.def_id());
+        let attrs = self.tcx.get_attrs(instance.def_id());
+        let nvvm_attrs = NvvmAttributes::parse(self, attrs);
+
+        if let Some(addr) = nvvm_attrs.addrspace {
+            return AddressSpace(addr as u32);
+        }
+
+        if !is_mutable && self.type_is_freeze(ty) {
+            AddressSpace(4)
+        } else {
+            AddressSpace::DATA
+        }
+    }
+
     /// Declare a global value, returns the existing value if it was already declared.
     pub fn declare_global(
         &self,

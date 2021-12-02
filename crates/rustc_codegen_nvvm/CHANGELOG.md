@@ -4,6 +4,17 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Address Spaces 
+
+CUDA Address Spaces have been mostly implemented. Statics that are not mut statics and do not rely on
+interior mutability (are "freeze" types) are placed in constant memory (`__constant__` in CUDA C++), otherwise
+they are placed in global memory (`__global__`). Currently this only happens for user-defined statics, not for
+codegen-internal globals such as intermediate alloc globals.
+
+An `#[address_space(...)]` macro has been added to cuda_std to complement this change. However, this macro
+is mostly just for advanced users and internal support for things like shared memory. Improper use can 
+cause undefined behavior, so its use is generally discouraged.
+
 ### Dead Code Elimination 
 
 PTX files no longer include useless functions and globals, we have switched to an alternative

@@ -17,7 +17,7 @@ use rustc_middle::ty::layout::{
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_span::Span;
 use rustc_target::abi::call::FnAbi;
-use rustc_target::abi::{self, Align, Size, WrappingRange};
+use rustc_target::abi::{self, AddressSpace, Align, Size, WrappingRange};
 use rustc_target::spec::{HasTargetSpec, Target};
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
@@ -870,6 +870,21 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn bitcast(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("Bitcast `{:?}` to ty `{:?}`", val, dest_ty);
         unsafe {
+            let ty = llvm::LLVMRustGetValueType(val);
+            let kind = llvm::LLVMRustGetTypeKind(ty);
+            if kind == llvm::TypeKind::Pointer {
+                let element = llvm::LLVMGetElementType(ty);
+                let addrspace = llvm::LLVMGetPointerAddressSpace(ty);
+                let new_ty = self.type_ptr_to_ext(element, AddressSpace::DATA);
+                if addrspace != 0 {
+                    return llvm::LLVMBuildAddrSpaceCast(
+                        *self.llbuilder.lock().unwrap(),
+                        val,
+                        new_ty,
+                        unnamed(),
+                    );
+                }
+            }
             llvm::LLVMBuildBitCast(&mut self.llbuilder.lock().unwrap(), val, dest_ty, unnamed())
         }
     }
@@ -1212,8 +1227,19 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
 impl<'a, 'll, 'tcx> StaticBuilderMethods for Builder<'a, 'll, 'tcx> {
     fn get_static(&mut self, def_id: DefId) -> &'ll Value {
-        // Forward to the `get_static` method of `CodegenCx`
-        self.cx().get_static(def_id)
+        unsafe {
+            let mut g = self.cx.get_static(def_id);
+            let llty = llvm::LLVMRustGetValueType(g);
+            let addrspace = AddressSpace(llvm::LLVMGetPointerAddressSpace(llty));
+            if addrspace != AddressSpace::DATA {
+                trace!("Remapping global address space of global {:?}", g);
+                let llty = llvm::LLVMGetElementType(llty);
+                let ty = self.type_ptr_to_ext(llty, AddressSpace::DATA);
+                let builder = &*self.llbuilder.lock().unwrap();
+                g = llvm::LLVMBuildAddrSpaceCast(builder, g, ty, unnamed());
+            }
+            g
+        }
     }
 }
 

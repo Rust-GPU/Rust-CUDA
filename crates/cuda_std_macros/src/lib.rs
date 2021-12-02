@@ -208,3 +208,31 @@ pub fn externally_visible(
 
     func.into_token_stream().into()
 }
+
+/// Notifies the codegen to put a `static`/`static mut` inside of a specific memory address space.
+/// This is mostly for internal use and/or advanced users, as the codegen and `cuda_std` handle address space placement
+/// implicitly. **Improper use of this macro could yield weird or undefined behavior**.
+///
+/// This macro takes a single argument which can either be `global`, `shared`, `constant`, or `local`.
+///
+/// This macro does nothing on the CPU.
+#[proc_macro_attribute]
+pub fn address_space(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> TokenStream {
+    let mut global = syn::parse_macro_input!(item as syn::ItemStatic);
+    let input = syn::parse_macro_input!(attr as Ident);
+
+    let addrspace_num = match input.to_string().as_str() {
+        "global" => 1,
+        // what did you do to address space 2 libnvvm??
+        "shared" => 3,
+        "constant" => 4,
+        "local" => 5,
+        addr => panic!("Invalid address space `{}`", addr),
+    };
+
+    let new_attr =
+        parse_quote!(#[cfg_attr(target_os = "cuda", nvvm_internal(addrspace(#addrspace_num)))]);
+    global.attrs.push(new_attr);
+
+    global.into_token_stream().into()
+}

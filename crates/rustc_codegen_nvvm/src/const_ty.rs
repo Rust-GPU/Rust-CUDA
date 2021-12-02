@@ -110,7 +110,12 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         }
     }
 
-    fn scalar_to_backend(&self, cv: Scalar, layout: abi::Scalar, llty: &'ll Type) -> &'ll Value {
+    fn scalar_to_backend(
+        &self,
+        cv: Scalar,
+        layout: abi::Scalar,
+        mut llty: &'ll Type,
+    ) -> &'ll Value {
         trace!("Scalar to backend `{:?}`, `{:?}`, `{:?}`", cv, layout, llty);
         let bitsize = if layout.is_bool() {
             1
@@ -152,7 +157,11 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     GlobalAlloc::Static(def_id) => {
                         assert!(self.tcx.is_static(def_id));
                         assert!(!self.tcx.is_thread_local_static(def_id));
-                        (self.get_static(def_id), AddressSpace::DATA)
+                        let val = self.get_static(def_id);
+                        let addrspace = unsafe {
+                            llvm::LLVMGetPointerAddressSpace(llvm::LLVMRustGetValueType(val))
+                        };
+                        (self.get_static(def_id), AddressSpace(addrspace))
                     }
                 };
                 let llval = unsafe {
@@ -162,15 +171,23 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                         1,
                     )
                 };
+
                 if layout.value != Pointer {
                     unsafe { llvm::LLVMConstPtrToInt(llval, llty) }
                 } else {
+                    if base_addr_space != AddressSpace::DATA {
+                        unsafe {
+                            let element = llvm::LLVMGetElementType(llty);
+                            llty = self.type_ptr_to_ext(element, base_addr_space);
+                        }
+                    }
                     self.const_bitcast(llval, llty)
                 }
             }
         };
 
         trace!("...Scalar to backend: `{:?}`", val);
+        trace!("{:?}", std::backtrace::Backtrace::force_capture());
 
         val
     }

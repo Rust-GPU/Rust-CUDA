@@ -564,18 +564,6 @@ pub(crate) unsafe fn LLVMRustGetOrInsertFunction<'a>(
     __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), FunctionTy)
 }
 
-pub(crate) unsafe fn LLVMRustGetOrInsertGlobal<'a>(
-    M: &'a Module,
-    Name: *const c_char,
-    NameLen: usize,
-    FunctionTy: &'a Type,
-    AddressSpace: c_uint,
-) -> &'a Value {
-    let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
-    let cstring = CString::new(str).expect("str with nul");
-    __LLVMRustGetOrInsertGlobal(M, cstring.as_ptr(), FunctionTy, AddressSpace)
-}
-
 pub(crate) unsafe fn LLVMRustBuildCall<'a>(
     B: &Builder<'a>,
     Fn: &'a Value,
@@ -634,14 +622,6 @@ extern "C" {
         Name: *const c_char,
     ) -> &'a Value;
 
-    #[link_name = "LLVMRustGetOrInsertGlobal"]
-    fn __LLVMRustGetOrInsertGlobal<'a>(
-        M: &'a Module,
-        Name: *const c_char,
-        T: &'a Type,
-        AddressSpace: c_uint,
-    ) -> &'a Value;
-
     // see comment on function before this extern block
     #[link_name = "LLVMRustGetOrInsertFunction"]
     fn __LLVMRustGetOrInsertFunction<'a>(
@@ -663,6 +643,20 @@ extern "C" {
 // use rustc_codegen_nvvm_macros::trace_ffi_calls;
 // #[trace_ffi_calls]
 extern "C" {
+    pub(crate) fn LLVMGetPointerAddressSpace(PointerTy: &Type) -> c_uint;
+    pub(crate) fn LLVMBuildAddrSpaceCast<'a>(
+        arg1: &Builder<'a>,
+        Val: &'a Value,
+        DestTy: &'a Type,
+        Name: *const c_char,
+    ) -> &'a Value;
+    pub(crate) fn LLVMRustGetOrInsertGlobal<'a>(
+        M: &'a Module,
+        Name: *const c_char,
+        NameLen: usize,
+        T: &'a Type,
+        AddressSpace: c_uint,
+    ) -> &'a Value;
     pub(crate) fn LLVMAddGlobalDCEPass(PM: &mut PassManager);
     pub(crate) fn LLVMGetNamedMetadataOperands(M: &Module, name: *const c_char, Dest: *mut &Value);
     pub(crate) fn LLVMGetNamedMetadataNumOperands(M: &Module, name: *const c_char) -> c_uint;

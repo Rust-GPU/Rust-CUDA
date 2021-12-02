@@ -227,22 +227,10 @@ fn codegen_into_ptx_file(
     // in this crate. We must unpack them and devour their bitcode to link in.
     for rlib in rlibs {
         let mut cgus = Vec::with_capacity(16);
-        // just pick the first cgu name as the overall name for now.
-        let mut name = String::new();
         for entry in Archive::new(File::open(rlib)?).entries()? {
             let mut entry = entry?;
             // metadata is where rustc puts rlib metadata, so its not a cgu we are interested in.
             if entry.path().unwrap() != Path::new(".metadata") {
-                if name == String::new() {
-                    name = entry
-                        .path()
-                        .unwrap()
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_string();
-                }
                 // std::fs::read adds 1 to the size, so do the same here - see comment:
                 // https://github.com/rust-lang/rust/blob/72868e017bdade60603a25889e253f556305f996/library/std/src/fs.rs#L200-L202
                 let mut bitcode = Vec::with_capacity(entry.size() as usize + 1);
