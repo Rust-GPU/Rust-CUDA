@@ -61,22 +61,22 @@ pub unsafe fn convert_generic_to_specific_address_space<T>(
         AddressSpace::Global => asm!(
             "cvta.to.global.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
         AddressSpace::Shared => asm!(
             "cvta.to.shared.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
         AddressSpace::Constant => asm!(
             "cvta.to.const.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
         AddressSpace::Local => asm!(
             "cvta.to.local.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
     }
 
@@ -101,22 +101,22 @@ pub unsafe fn convert_specific_address_space_to_generic<T>(
         AddressSpace::Global => asm!(
             "cvta.global.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
         AddressSpace::Shared => asm!(
             "cvta.shared.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
         AddressSpace::Constant => asm!(
             "cvta.const.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
         AddressSpace::Local => asm!(
             "cvta.local.u64 {}, {}",
             out(reg64) ret,
-            in(reg64), ptr
+            in(reg64) ptr
         ),
     }
 
