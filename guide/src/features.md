@@ -65,7 +65,7 @@ on things used by the wide majority of users.
 | Feature Name | Support Level | Notes |
 | ------------ | ------------- | ----- |
 | Function Execution Space Specifiers | ➖ |
-| Variable Memory Space Specifiers | ➖ | Handled Implicitly |
+| Variable Memory Space Specifiers | ✔️ | Handled Implicitly but can be explicitly stated for statics with `#[address_space(...)]` |
 | Built-in Vector Types | ➖ | Use linear algebra libraries like vek or glam |
 | Built-in Variables | ✔️ |
 | Memory Fence Instructions | ✔️ |
@@ -78,8 +78,8 @@ on things used by the wide majority of users.
 | Store Functions Using Cache Hints | ❌ |
 | Time Function | ✔️ | 
 | Atomic Functions | ❌ |
-| Address Space Predicate Functions | ➖ | Address Spaces are implicitly handled, but they may be added for exotic interop with CUDA C/C++ |
-| Address Space Conversion Functions | ➖ |
+| Address Space Predicate Functions | ✔️ | Address Spaces are implicitly handled, but they may be added for exotic interop with CUDA C/C++ |
+| Address Space Conversion Functions | ✔️ |
 | Alloca Function | ➖ |
 | Compiler Optimization Hint Functions | ➖ | Existing `core` hints work |
 | Warp Vote Functions | ❌ |

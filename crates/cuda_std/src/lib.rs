@@ -38,6 +38,7 @@ pub mod mem;
 pub mod misc;
 // WIP
 // pub mod rt;
+pub mod ptr;
 pub mod thread;
 pub mod warp;
 
