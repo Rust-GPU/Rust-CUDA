@@ -191,7 +191,7 @@ do not be alarmed that it seems like many things are not supported. We just focu
 on things used by the wide majority of users.</p>
 <table><thead><tr><th>Feature Name</th><th>Support Level</th><th>Notes</th></tr></thead><tbody>
 <tr><td>Function Execution Space Specifiers</td><td>➖</td><td></td></tr>
-<tr><td>Variable Memory Space Specifiers</td><td>➖</td><td>Handled Implicitly</td></tr>
+<tr><td>Variable Memory Space Specifiers</td><td>✔️</td><td>Handled Implicitly but can be explicitly stated for statics with <code>#[address_space(...)]</code></td></tr>
 <tr><td>Built-in Vector Types</td><td>➖</td><td>Use linear algebra libraries like vek or glam</td></tr>
 <tr><td>Built-in Variables</td><td>✔️</td><td></td></tr>
 <tr><td>Memory Fence Instructions</td><td>✔️</td><td></td></tr>
@@ -204,8 +204,8 @@ on things used by the wide majority of users.</p>
 <tr><td>Store Functions Using Cache Hints</td><td>❌</td><td></td></tr>
 <tr><td>Time Function</td><td>✔️</td><td></td></tr>
 <tr><td>Atomic Functions</td><td>❌</td><td></td></tr>
-<tr><td>Address Space Predicate Functions</td><td>➖</td><td>Address Spaces are implicitly handled, but they may be added for exotic interop with CUDA C/C++</td></tr>
-<tr><td>Address Space Conversion Functions</td><td>➖</td><td></td></tr>
+<tr><td>Address Space Predicate Functions</td><td>✔️</td><td>Address Spaces are implicitly handled, but they may be added for exotic interop with CUDA C/C++</td></tr>
+<tr><td>Address Space Conversion Functions</td><td>✔️</td><td></td></tr>
 <tr><td>Alloca Function</td><td>➖</td><td></td></tr>
 <tr><td>Compiler Optimization Hint Functions</td><td>➖</td><td>Existing <code>core</code> hints work</td></tr>
 <tr><td>Warp Vote Functions</td><td>❌</td><td></td></tr>
