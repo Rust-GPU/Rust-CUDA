@@ -12,3 +12,4 @@ and advanced users.
 - Added `is_in_address_space`
 - Added `convert_generic_to_specific_address_space`
 - Added `convert_specific_address_space_to_generic`
+- Added basic static shared memory support with `cuda_std::shared_array`.
