@@ -27,6 +27,8 @@ bitflags::bitflags! {
 
         /// This stream does not synchronize with the NULL stream.
         ///
+        /// **Note: this flag has been temporarily disabled because of [soundness concerns](https://github.com/Rust-GPU/Rust-CUDA/issues/15)**
+        ///
         /// Note that the name is chosen to correspond to CUDA documentation, but is nevertheless
         /// misleading. All work within a single stream is ordered and asynchronous regardless
         /// of whether this flag is set. All streams in cust may execute work concurrently,
@@ -83,7 +85,9 @@ impl Stream {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(flags: StreamFlags, priority: Option<i32>) -> CudaResult<Self> {
+    pub fn new(mut flags: StreamFlags, priority: Option<i32>) -> CudaResult<Self> {
+        // NOTE(RDambrosio016): See https://github.com/Rust-GPU/Rust-CUDA/issues/15
+        flags.remove(StreamFlags::NON_BLOCKING);
         unsafe {
             let mut stream = Stream {
                 inner: ptr::null_mut(),
