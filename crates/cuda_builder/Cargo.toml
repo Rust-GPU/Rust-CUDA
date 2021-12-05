@@ -13,4 +13,4 @@ rustc_codegen_nvvm = { version = "0.2", path = "../rustc_codegen_nvvm" }
 nvvm = { path = "../nvvm", version = "0.1" }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
-find_cuda_helper = { version = "0.1", path = "../find_cuda_helper" }
+find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }

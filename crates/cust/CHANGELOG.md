@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## 0.2.2 - 12/5/21
+
+- Update find_cuda_helper to 0.2
+
 ## 0.2.1 - 12/5/21
 
 - Added `Device::as_raw`.

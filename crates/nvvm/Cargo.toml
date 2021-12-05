@@ -1,6 +1,6 @@
 [package]
 name = "nvvm"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -9,4 +9,4 @@ repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 
 [build-dependencies]
-find_cuda_helper = { version = "0.1", path = "../find_cuda_helper" }
+find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
