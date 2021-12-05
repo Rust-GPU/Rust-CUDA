@@ -4,6 +4,8 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.2.0 - 12/5/21
+
 - Added `#[externally_visible]` in conjunction with cg_nvvm dead code elimination changes to mark that
 a function is externally visible.
 - Added `#[address_space(...)]` in conjunction with cg_nvvm address space changes. Only meant for internal use

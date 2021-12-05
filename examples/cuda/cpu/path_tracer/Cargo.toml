@@ -19,4 +19,4 @@ rayon = "1.5.1"
 sysinfo = "0.20.5"
 
 [build-dependencies]
-cuda_builder = { version = "0.1", path = "../../../../crates/cuda_builder" }
+cuda_builder = { version = "0.2", path = "../../../../crates/cuda_builder" }

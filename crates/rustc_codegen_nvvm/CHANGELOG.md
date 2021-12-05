@@ -4,6 +4,8 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.2.0 - 12/5/21
+
 ### Address Spaces 
 
 CUDA Address Spaces have been mostly implemented. Statics that are not mut statics and do not rely on
@@ -40,6 +42,7 @@ However, if you rely on libm for determinism, you must disable the overriding, s
 This also makes PTX much smaller generally, in our example path tracer, it slimmed the PTX file from about `3800` LoC to `2300` LoC.
 
 - Trace-level debug is compiled out for release now, decreasing the size of the codegen dll and improving compile times.
+- Updated to nightly 12/5/21
 
 ## 0.1.1 - 11/26/21
 
