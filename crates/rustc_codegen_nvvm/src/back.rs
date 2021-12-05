@@ -246,7 +246,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
         tcx,
         cgu_name,
         module_codegen,
-        dep_graph::hash_result,
+        Some(dep_graph::hash_result),
     );
 
     fn module_codegen(tcx: TyCtxt<'_>, cgu_name: Symbol) -> ModuleCodegen<LlvmMod> {

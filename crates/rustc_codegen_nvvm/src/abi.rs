@@ -220,15 +220,7 @@ impl LlvmType for CastTarget {
         let mut args: Vec<_> = self
             .prefix
             .iter()
-            .flat_map(|option_kind| {
-                option_kind.map(|kind| {
-                    Reg {
-                        kind,
-                        size: self.prefix_chunk_size,
-                    }
-                    .llvm_type(cx)
-                })
-            })
+            .flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)))
             .chain((0..rest_count).map(|_| rest_ll_unit))
             .collect();
 
@@ -538,16 +530,18 @@ impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         fn_abi.apply_attrs_callsite(self, callsite)
     }
 
-    fn get_param(&self, index: usize) -> Self::Value {
+    fn get_param(&mut self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
         trace!("Get param `{:?}`", val);
         unsafe {
             let llfnty = LLVMRustGetFunctionType(self.llfn());
-            let map = self.remapped_integer_args.borrow();
+            // destructure so rustc doesnt complain in the call to transmute_llval
+            let Self { cx, llbuilder } = self;
+            let map = cx.remapped_integer_args.borrow();
             if let Some((_, key)) = map.get(llfnty) {
                 if let Some((_, new_ty)) = key.iter().find(|t| t.0 == index) {
                     trace!("Casting irregular param {:?} to {:?}", val, new_ty);
-                    return transmute_llval(*self.llbuilder.lock().unwrap(), self.cx, val, *new_ty);
+                    return transmute_llval(llbuilder, cx, val, *new_ty);
                 }
             }
             val

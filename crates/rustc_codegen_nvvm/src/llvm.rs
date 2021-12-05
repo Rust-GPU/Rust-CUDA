@@ -414,10 +414,14 @@ extern "C" {
     pub(crate) type ThinLTOData;
 }
 
+unsafe impl Send for ThinLTOData {}
+
 /// LLVMRustThinLTOBuffer
 extern "C" {
     pub(crate) type ThinLTOBuffer;
 }
+
+unsafe impl Send for ThinLTOBuffer {}
 
 /// LLVMRustThinLTOModule
 #[repr(C)]
@@ -443,6 +447,9 @@ extern "C" {
 extern "C" {
     pub type Context;
 }
+
+unsafe impl Send for Context {}
+
 extern "C" {
     pub(crate) type Type;
 }
@@ -468,6 +475,9 @@ pub(crate) struct OperandBundleDef<'a>(InvariantOpaque<'a>);
 extern "C" {
     pub(crate) type ModuleBuffer;
 }
+
+unsafe impl Send for ModuleBuffer {}
+
 #[repr(C)]
 pub struct PassManager<'a>(InvariantOpaque<'a>);
 extern "C" {

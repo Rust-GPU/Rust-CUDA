@@ -110,7 +110,7 @@ impl CodegenBackend for NvvmCodegenBackend {
             Ok(readjust_fn_abi(tcx, result?))
         };
     }
-    fn provide_extern(&self, _providers: &mut query::Providers) {}
+    fn provide_extern(&self, _providers: &mut query::ExternProviders) {}
 
     fn codegen_crate(
         &self,
