@@ -5,6 +5,8 @@ authors = ["Brook Heisler <brookheisler@gmail.com>", "Riccardo D'Ambrosio <rdamb
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "Macros for cust"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
 
 [lib]
 proc-macro = true

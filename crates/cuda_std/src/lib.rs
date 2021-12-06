@@ -22,9 +22,15 @@
 //! structures as well as common imports such as [`thread`].
 
 #![cfg_attr(
-    any(target_arch = "nvptx", target_arch = "nvptx64"),
+    target_os = "cuda",
     no_std,
-    feature(register_attr, alloc_error_handler, asm, link_llvm_intrinsics),
+    feature(
+        register_attr,
+        alloc_error_handler,
+        asm,
+        asm_experimental_arch,
+        link_llvm_intrinsics
+    ),
     register_attr(nvvm_internal)
 )]
 
@@ -38,6 +44,8 @@ pub mod mem;
 pub mod misc;
 // WIP
 // pub mod rt;
+pub mod ptr;
+pub mod shared;
 pub mod thread;
 pub mod warp;
 

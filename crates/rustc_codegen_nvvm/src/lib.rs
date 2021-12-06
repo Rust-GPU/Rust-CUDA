@@ -44,6 +44,7 @@ mod llvm;
 mod lto;
 mod mono_item;
 mod nvvm;
+mod override_fns;
 mod target;
 mod ty;
 
@@ -69,7 +70,7 @@ use rustc_middle::{
 use rustc_session::{cstore::MetadataLoaderDyn, Session};
 use tracing::debug;
 
-use std::{ffi::CString, sync::Arc, sync::Mutex};
+use std::ffi::CString;
 
 // codegen dylib entrypoint
 #[no_mangle]
@@ -79,13 +80,7 @@ pub fn __rustc_codegen_backend() -> Box<dyn CodegenBackend> {
 }
 
 #[derive(Default, Clone)]
-pub struct NvvmCodegenBackend {
-    /// HACK(RDambrosio016): To lazy load modules, we need to know the depedency graph
-    /// of the crate, we can get this through cstore, but cstore is made using TyCtxt
-    /// and rustc drops TyCtxt before linking to save memory. So we populate this field
-    /// in codegen_crate so we can then use it in link.
-    deps: Arc<Mutex<Option<Vec<String>>>>,
-}
+pub struct NvvmCodegenBackend(());
 
 unsafe impl Send for NvvmCodegenBackend {}
 unsafe impl Sync for NvvmCodegenBackend {}
@@ -115,7 +110,7 @@ impl CodegenBackend for NvvmCodegenBackend {
             Ok(readjust_fn_abi(tcx, result?))
         };
     }
-    fn provide_extern(&self, _providers: &mut query::Providers) {}
+    fn provide_extern(&self, _providers: &mut query::ExternProviders) {}
 
     fn codegen_crate(
         &self,
@@ -124,14 +119,6 @@ impl CodegenBackend for NvvmCodegenBackend {
         need_metadata_module: bool,
     ) -> Box<dyn std::any::Any> {
         debug!("Codegen crate");
-        let mut raw_deps = tcx.postorder_cnums(()).to_vec();
-        raw_deps.reverse();
-        let out = raw_deps
-            .into_iter()
-            .map(|x| tcx.crate_name(x).as_str().to_string())
-            .collect::<Vec<_>>();
-
-        *self.deps.lock().unwrap() = Some(out);
         Box::new(rustc_codegen_ssa::base::codegen_crate(
             NvvmCodegenBackend::default(),
             tcx,
@@ -164,7 +151,6 @@ impl CodegenBackend for NvvmCodegenBackend {
         outputs: &rustc_session::config::OutputFilenames,
     ) -> Result<(), rustc_errors::ErrorReported> {
         link::link(
-            self.deps.lock().unwrap().clone(),
             sess,
             &codegen_results,
             outputs,

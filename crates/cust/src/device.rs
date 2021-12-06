@@ -356,7 +356,9 @@ impl Device {
         }
     }
 
-    pub(crate) fn into_inner(self) -> CUdevice {
+    /// Returns a raw handle to this device, not handing over ownership, meaning that dropping
+    /// this device will try to drop the underlying device.
+    pub fn as_raw(&self) -> CUdevice {
         self.device
     }
 }

@@ -1,2 +1,1 @@
-# Ignore built ptx since it is usually large and changes across invocations sometimes
 *.ptx

@@ -156,6 +156,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ifn!(map, "llvm.bitreverse.i32", fn(t_i32) -> t_i32);
         ifn!(map, "llvm.bitreverse.i64", fn(t_i64) -> t_i64);
 
+        ifn!(map, "llvm.bswap.i16", fn(t_i16) -> t_i16);
+        ifn!(map, "llvm.bswap.i32", fn(t_i32) -> t_i32);
+        ifn!(map, "llvm.bswap.i64", fn(t_i64) -> t_i64);
+
         ifn!(map, "llvm.ctlz.i8", fn(t_i8, i1) -> t_i8);
         ifn!(map, "llvm.ctlz.i16", fn(t_i16, i1) -> t_i16);
         ifn!(map, "llvm.ctlz.i32", fn(t_i32, i1) -> t_i32);
@@ -258,8 +262,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgamma" |
             "__nv_trunc" |
             "__nv_y0" |
-            "__nv_y1" |
-            "__nv_yn",
+            "__nv_y1",
             fn(t_f64) -> t_f64
         );
 
@@ -312,8 +315,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgammaf" |
             "__nv_truncf" |
             "__nv_y0f" |
-            "__nv_y1f" |
-            "__nv_ynf",
+            "__nv_y1f",
             fn(t_f32) -> t_f32
         );
 
@@ -403,6 +405,18 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             map,
             "__nv_fmaf",
             fn(t_f32, t_f32, t_f32) -> t_f32
+        );
+
+        ifn!(
+            map,
+            "__nv_yn",
+            fn(t_i32, t_f64) -> t_f64
+        );
+
+        ifn!(
+            map,
+            "__nv_ynf",
+            fn(t_i32, t_f32) -> t_f32
         );
     }
 }

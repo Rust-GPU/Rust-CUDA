@@ -17,7 +17,7 @@ We have our own high level bindings to it published as a crate called `nvvm`.
 The libnvvm API could not be simpler, it is just a couple of functions:
 - Make new program
 - Add bitcode module
-- Lazy add bitcode module (we will cover this soon)
+- Lazy add bitcode module
 - Verify program
 - Compile program
 
@@ -40,35 +40,19 @@ and we do not have a linker, nvvm *is* our linker. However, nvvm does not elimin
 I think you can guess why that is a problem, so unless we want `11mb` ptx files (yes this is actually
 how big it was) we need to do something about it.
 
-# Lazy loading
+# Module Merging and DCE
 
-Nvvm supports a special way of loading modules called lazy loading. This is the key to 
-reducing our glorious fat ptx files.
+To solve our dead code issue, we take a pretty simple approach. We merge every module (one crate maybe be multiple modules
+because of codegen units) into a single module to start. Then, we do the following:
+- (Internalize) Iterate over every global and function then:
+  - If the global/function is not a declaration (i.e. an extern decl) and not a kernel, then mark its linkage as `internal` and give it default visibility.
+- (Global DCE) Run the `globalDCE` LLVM Pass over the module. This will delete any globals/functions we do not use.
 
-Suppose you have a dependency graph like this:
+Internal linkage tells LLVM that the symbol is not externally-needed, meaning that it can delete the symbol if
+it is not used by other non-internal functions. In this case, our non-internal functions are kernel functions.
 
-```
-A -> B -> C
-\        /
- +------+
-```
-
-`A` is the main crate with the kernels we are compiling, and it depends on `B` and `C`, `B` also depends on `C`.
-
-And let's say that `A` and `B` do not use every function inside of `C`. If they do not use every function, why
-are we wasting time optimizing this and putting it in the PTX?
-
-Lazy loading solves this, lazy loading looks at the previous modules to see what functions from the module we are using,
-then it only loads the functions that we are using. This saves nvvm from some useless optimization and it makes our ptx 
-file smaller.
-
-Lazy loading must be done in order or it wont work, we need to load this specific graph in this order:
-- 1: Load `A` as a normal (non-lazy) module
-- 2: Load `B` as a lazy module
-- 3: Load `C` as a lazy module
-
-This would be complex if we had to resolve the graph ourselves, but thankfully we can just call our dearest friend 
-rustc and ask them what the dependencies are using [`CStore`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_metadata/creader/struct.CStore.html#method.crate_dependencies_in_postorder).
+In the future we could probably make this even better by combining our previous lazy-loading approach, by only loading functions/modules
+into the module if they are used, doing so using dependency graphs.
 
 # libdevice
 

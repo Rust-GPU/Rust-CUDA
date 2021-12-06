@@ -4,7 +4,9 @@ pub use nvvm::*;
 use serde::Deserialize;
 use std::{
     borrow::Borrow,
-    env, fmt,
+    env,
+    ffi::OsString,
+    fmt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -105,6 +107,16 @@ pub struct CudaBuilder {
     ///
     /// `false` by default.
     pub optix: bool,
+    /// Whether to override calls to [`libm`](https://docs.rs/libm/latest/libm/) with calls to libdevice intrinsics.
+    ///
+    /// Libm is used by no_std crates for functions such as sin, cos, fabs, etc. However, CUDA provides
+    /// extremely fast GPU-specific implementations of such functions through `libdevice`. Therefore, the codegen
+    /// exposes the option to automatically override any calls to libm functions with calls to libdevice functions.
+    /// However, this means the overriden functions are likely to not be deterministic, so if you rely on strict
+    /// determinism in things like `rapier`, then it may be helpful to disable such a feature.
+    ///
+    /// `true` by default.
+    pub override_libm: bool,
 }
 
 impl CudaBuilder {
@@ -123,6 +135,7 @@ impl CudaBuilder {
             fma_contraction: true,
             emit: None,
             optix: false,
+            override_libm: true,
         }
     }
 
@@ -231,6 +244,18 @@ impl CudaBuilder {
         self
     }
 
+    /// Whether to override calls to [`libm`](https://docs.rs/libm/latest/libm/) with calls to libdevice intrinsics.
+    ///
+    /// Libm is used by no_std crates for functions such as sin, cos, fabs, etc. However, CUDA provides
+    /// extremely fast GPU-specific implementations of such functions through `libdevice`. Therefore, the codegen
+    /// exposes the option to automatically override any calls to libm functions with calls to libdevice functions.
+    /// However, this means the overriden functions are likely to not be deterministic, so if you rely on strict
+    /// determinism in things like `rapier`, then it may be helpful to disable such a feature.
+    pub fn override_libm(mut self, override_libm: bool) -> Self {
+        self.override_libm = override_libm;
+        self
+    }
+
     /// Runs rustc to build the codegen and codegens the gpu crate, returning the path of the final
     /// ptx file. If [`ptx_file_copy_path`](Self::ptx_file_copy_path) is set, this returns the copied path.
     pub fn build(self) -> Result<PathBuf, CudaBuilderError> {
@@ -278,16 +303,19 @@ fn find_rustc_codegen_nvvm() -> PathBuf {
     panic!("Could not find {} in library path", filename);
 }
 
-fn add_libnvvm_to_path() {
+fn get_new_path_var() -> OsString {
     let split_paths = env::var_os(dylib_path_envvar()).unwrap_or_default();
     let mut paths = env::split_paths(&split_paths).collect::<Vec<_>>();
-    let libnvvm_path = find_cuda_helper::find_cuda_root()
-        .unwrap()
-        .join("nvvm")
-        .join("bin");
-    paths.push(libnvvm_path);
-    let joined = env::join_paths(&paths).expect("Failed to join paths for PATH");
-    env::set_var(dylib_path_envvar(), joined);
+    let possible_paths = if cfg!(target_os = "windows") {
+        vec![find_cuda_helper::find_cuda_root()
+            .unwrap()
+            .join("nvvm")
+            .join("bin")]
+    } else {
+        find_cuda_helper::find_cuda_lib_dirs()
+    };
+    paths.extend(possible_paths);
+    env::join_paths(&paths).expect("Failed to join paths for PATH")
 }
 
 /// Joins strings together while ensuring none of the strings contain the separator.
@@ -309,7 +337,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     // on what this does
     let rustc_codegen_nvvm = find_rustc_codegen_nvvm();
 
-    add_libnvvm_to_path();
+    let new_path = get_new_path_var();
 
     let mut rustflags = vec![format!(
         "-Zcodegen-backend={}",
@@ -346,6 +374,10 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         llvm_args.push("-fma=0".to_string());
     }
 
+    if builder.override_libm {
+        llvm_args.push("--override-libm".to_string());
+    }
+
     let llvm_args = llvm_args.join(" ");
     if !llvm_args.is_empty() {
         rustflags.push(["-Cllvm-args=", &llvm_args].concat());
@@ -367,9 +399,15 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         target,
     ]);
 
+    cargo.env(dylib_path_envvar(), new_path);
+
     if builder.release {
         cargo.arg("--release");
     }
+
+    // TODO(RDambrosio016): Remove this once we can get meaningful error messages in panic to work.
+    // for now we enable it to remove some useless indirect calls in the ptx.
+    cargo.arg("-Zbuild-std-features=panic_immediate_abort");
 
     if builder.optix {
         cargo.arg("-Zbuild-std-features=panic_immediate_abort");

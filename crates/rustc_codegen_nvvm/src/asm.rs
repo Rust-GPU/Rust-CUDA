@@ -14,7 +14,7 @@ use rustc_codegen_ssa::{
 };
 use rustc_hash::FxHashMap;
 use rustc_hir::LlvmInlineAsmInner;
-use rustc_middle::span_bug;
+use rustc_middle::{span_bug, ty::Instance};
 use rustc_span::{Pos, Span};
 use rustc_target::asm::{InlineAsmRegClass, InlineAsmRegOrRegClass, NvptxInlineAsmRegClass};
 
@@ -118,6 +118,7 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         operands: &[InlineAsmOperandRef<'tcx, Self>],
         options: rustc_ast::InlineAsmOptions,
         line_spans: &[Span],
+        _inst: Instance,
     ) {
         // Collect the types of output operands
         let mut constraints = vec![];

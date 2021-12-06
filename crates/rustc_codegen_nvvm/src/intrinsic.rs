@@ -466,10 +466,9 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         )
     }
 
-    fn sideeffect(&mut self) {
-        trace!("Generate sideeffect call");
-        let fnname = self.get_intrinsic("llvm.sideeffect");
-        self.call(self.type_i1(), fnname, &[], None);
+    fn type_test(&mut self, _pointer: Self::Value, _typeid: Self::Value) -> Self::Value {
+        // LLVM CFI doesnt make sense on the GPU
+        self.const_i32(0)
     }
 
     fn va_start(&mut self, va_list: &'ll Value) -> Self::Value {

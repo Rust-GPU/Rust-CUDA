@@ -1,4 +1,5 @@
 use crate::llvm::{self};
+use crate::override_fns::define_or_override_fn;
 use crate::{builder::Builder, context::CodegenCx, lto::ThinBuffer, LlvmMod, NvvmCodegenBackend};
 use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
@@ -18,7 +19,7 @@ use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::{dep_graph, ty::TyCtxt};
 use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_session::Session;
-use rustc_span::{sym, Symbol};
+use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
 use std::ffi::CString;
 use std::sync::Arc;
@@ -245,7 +246,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
         tcx,
         cgu_name,
         module_codegen,
-        dep_graph::hash_result,
+        Some(dep_graph::hash_result),
     );
 
     fn module_codegen(tcx: TyCtxt<'_>, cgu_name: Symbol) -> ModuleCodegen<LlvmMod> {
@@ -264,22 +265,10 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
 
             // ... and now that we have everything pre-defined, fill out those definitions.
             for &(mono_item, _) in &mono_items {
-                mono_item.define::<Builder<'_, '_, '_>>(&cx);
-                if let MonoItem::Fn(inst) = mono_item {
-                    let name = tcx.symbol_name(inst).name;
-                    let attrs = tcx.get_attrs(inst.def_id());
-                    let is_no_mangle = attrs.iter().any(|x| x.has_name(sym::no_mangle));
-
-                    if name == "rust_begin_unwind"
-                        || name.starts_with("__rg")
-                        || name == "rust_oom"
-                        || is_no_mangle
-                    {
-                        let func = cx.get_fn(inst);
-                        let llval =
-                            unsafe { llvm::LLVMConstBitCast(func, cx.type_ptr_to(cx.type_i8())) };
-                        cx.used_statics.borrow_mut().push(llval);
-                    }
+                if let MonoItem::Fn(func) = mono_item {
+                    define_or_override_fn(func, &cx);
+                } else {
+                    mono_item.define::<Builder<'_, '_, '_>>(&cx);
                 }
             }
 

@@ -2,7 +2,11 @@ name: Rust CI
 
 on:
   pull_request:
+    paths-ignore:
+      - '**.md'
   push:
+    paths-ignore:
+      - '**.md'
     branches:
       - master
 
@@ -14,6 +18,8 @@ jobs:
   rust:
     name: Rust ${{ matrix.rust }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      LLVM_LINK_STATIC: 1
     strategy:
       fail-fast: false
       matrix:
@@ -39,6 +45,12 @@ jobs:
       - name: Add rustup components
         run: rustup component add rustfmt clippy
 
+      - name: Install LLVM 7
+        if: contains(matrix.os, 'ubuntu')
+        run: | 
+            sudo apt-get install llvm-7
+            sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
+
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v1
 
@@ -47,7 +59,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Build
-        run: cargo build --workspace
+        run: cargo build --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
 
       # Don't currently test because many tests rely on the system having a CUDA GPU
       # - name: Test
@@ -57,9 +69,9 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         env:
           RUSTFLAGS: -Dwarnings
-        run: cargo clippy --workspace
+        run: cargo clippy --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
 
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -Dwarnings
-        run: cargo doc --workspace --all-features --document-private-items --no-deps
+        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"

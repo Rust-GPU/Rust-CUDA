@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cuda_std = { version = "0.1", path = "../../../../crates/cuda_std" }
+cuda_std = { version = "0.2", path = "../../../../crates/cuda_std" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

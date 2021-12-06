@@ -7,8 +7,13 @@ use std::{
 
 pub fn include_cuda() {
     if env::var("DOCS_RS").is_err() && !cfg!(doc) {
-        let cuda_lib_dir = find_cuda_lib_dir().expect("Could not find a cuda installation");
-        println!("cargo:rustc-link-search=native={}", cuda_lib_dir.display());
+        let paths = find_cuda_lib_dirs();
+        if paths.is_empty() {
+            panic!("Could not find a cuda installation");
+        }
+        for path in paths {
+            println!("cargo:rustc-link-search=native={}", path.display());
+        }
 
         println!("cargo:rustc-link-lib=dylib=cuda");
         println!("cargo:rerun-if-changed=build.rs");
@@ -51,7 +56,7 @@ pub fn find_cuda_root() -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn find_cuda_lib_dir() -> Option<PathBuf> {
+pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     if let Some(root_path) = find_cuda_root() {
         // To do this the right way, we check to see which target we're building for.
         let target = env::var("TARGET")
@@ -93,29 +98,55 @@ pub fn find_cuda_lib_dir() -> Option<PathBuf> {
         let lib_dir = root_path.join("lib").join(lib_path);
 
         return if lib_dir.is_dir() {
-            Some(lib_dir)
+            vec![lib_dir]
         } else {
-            None
+            vec![]
         };
     }
 
-    None
+    vec![]
+}
+
+pub fn read_env() -> Vec<PathBuf> {
+    if let Ok(path) = env::var("CUDA_LIBRARY_PATH") {
+        // The location of the libcuda, libcudart, and libcublas can be hardcoded with the
+        // CUDA_LIBRARY_PATH environment variable.
+        let split_char = if cfg!(target_os = "windows") {
+            ";"
+        } else {
+            ":"
+        };
+        path.split(split_char).map(PathBuf::from).collect()
+    } else {
+        vec![]
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn find_cuda_lib_dir() -> Option<PathBuf> {
-    if let Some(root_path) = find_cuda_root() {
-        let lib_dir = root_path.join("lib64");
-        // TODO (AL): we probably want to check for an actual library under here
-        // too...
-        if lib_dir.is_dir() {
-            Some(lib_dir)
-        } else {
-            None
-        }
-    } else {
-        None
+pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
+    let mut candidates = read_env();
+    candidates.push(PathBuf::from("/opt/cuda"));
+    candidates.push(PathBuf::from("/usr/local/cuda"));
+    for e in glob::glob("/usr/local/cuda-*").unwrap().flatten() {
+        candidates.push(e)
     }
+
+    let mut valid_paths = vec![];
+    for base in &candidates {
+        let lib = PathBuf::from(base).join("lib64");
+        if lib.is_dir() {
+            valid_paths.push(lib.clone());
+            valid_paths.push(lib.join("stubs"));
+        }
+        let base = base.join("targets/x86_64-linux");
+        let header = base.join("include/cuda.h");
+        if header.is_file() {
+            valid_paths.push(base.join("lib"));
+            valid_paths.push(base.join("lib/stubs"));
+            continue;
+        }
+    }
+    valid_paths
 }
 
 #[cfg(target_os = "windows")]
