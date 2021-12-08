@@ -4,6 +4,12 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.2.1 - 12/8/21
+
+- Fixed `shared_array!` not using fully qualified MaybeUninit.
+- Fixed `shared_array!` working on the CPU.
+- Added experimental dynamic shared memory support through `shared::dynamic_shared_memory`.
+
 ## 0.2.0 - 12/5/21
 
 - Added `#[externally_visible]` in conjunction with cg_nvvm dead code elimination changes to mark that
