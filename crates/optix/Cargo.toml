@@ -28,7 +28,7 @@ embed-doc-image = {version = "0.1.4"}
 [build-dependencies]
 bindgen = "0.59"
 cc = "1.0.71"
-find_cuda_helper = { version = "0.1", path = "../find_cuda_helper" }
+find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]

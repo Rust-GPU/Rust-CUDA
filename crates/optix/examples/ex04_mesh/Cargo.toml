@@ -15,4 +15,4 @@ num-traits = "0.2.14"
 glam = { git = "https://github.com/anderslanglands/glam-rs", branch = "cuda", features=["cuda"] }
 
 [build-dependencies]
-find_cuda_helper = { version = "0.1", path = "../../../find_cuda_helper" }
+find_cuda_helper = { version = "0.2", path = "../../../find_cuda_helper" }

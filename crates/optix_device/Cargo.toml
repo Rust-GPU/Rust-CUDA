@@ -5,6 +5,6 @@ edition = "2021"
 authors = ["Anders Langlands <anderslanglands@gmail.com>", "Riccardo D'Ambrosio <rdambrosio016@gmail.com>"]
 
 [dependencies]
-cuda_std = { version = "0.1", path = "../cuda_std" }
+cuda_std = { version = "0.2", path = "../cuda_std" }
 glam = { git = "https://github.com/anderslanglands/glam-rs", branch = "cuda", features=["cuda", "libm"], default-features=false }
 
