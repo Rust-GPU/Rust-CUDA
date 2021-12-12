@@ -6,6 +6,15 @@ use std::{
     process::{Command, Stdio},
 };
 
+use curl::easy::Easy;
+use tar::Archive;
+use xz::read::XzDecoder;
+
+static PREBUILT_LLVM_URL: &str =
+    "https://github.com/rust-gpu/rustc_codegen_nvvm-llvm/releases/download/LLVM-7.1.0/";
+
+static REQUIRED_MAJOR_LLVM_VERSION: u8 = 7;
+
 fn main() {
     rustc_llvm_build();
 
@@ -30,14 +39,84 @@ pub fn output(cmd: &mut Command) -> String {
             cmd, e
         )),
     };
-    if !output.status.success() {
-        panic!(
-            "command did not execute successfully: {:?}\n\
-             expected success, got: {}",
-            cmd, output.status
-        );
-    }
+    assert!(
+        output.status.success(),
+        "command did not execute successfully: {:?}\n\
+    expected success, got: {}",
+        cmd,
+        output.status
+    );
+
     String::from_utf8(output.stdout).unwrap()
+}
+
+fn target_to_llvm_prebuilt(target: &str) -> String {
+    let base = match target {
+        "x86_64-pc-windows-msvc" => "windows-x86_64",
+        // NOTE(RDambrosio016): currently disabled because of weird issues with segfaults and building the C++ shim
+        // "x86_64-unknown-linux-gnu" => "linux-x86_64",
+        _ => panic!("Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG", target)
+    };
+    format!("{}.tar.xz", base)
+}
+
+fn find_llvm_config(target: &str) -> PathBuf {
+    // first, if LLVM_CONFIG is set then see if its llvm version if 7.x, if so, use that.
+    let config_env = tracked_env_var_os("LLVM_CONFIG");
+    // if LLVM_CONFIG is not set, try using llvm-config as a normal app in PATH.
+    let path_to_try = config_env.unwrap_or_else(|| "llvm-config".into());
+
+    // if USE_PREBUILT_LLVM is set to 1 then download prebuilt llvm without trying llvm-config
+    if tracked_env_var_os("USE_PREBUILT_LLVM") != Some("1".into()) {
+        let cmd = Command::new(&path_to_try).arg("--version").output();
+
+        if let Ok(out) = cmd {
+            let version = String::from_utf8(out.stdout).unwrap();
+            if version.starts_with(&REQUIRED_MAJOR_LLVM_VERSION.to_string()) {
+                return PathBuf::from(path_to_try);
+            }
+        }
+    }
+
+    // otherwise, download prebuilt LLVM.
+    println!("cargo:warning=Downloading prebuilt LLVM");
+    let mut url = tracked_env_var_os("PREBUILT_LLVM_URL")
+        .map(|x| x.to_string_lossy().to_string())
+        .unwrap_or_else(|| PREBUILT_LLVM_URL.to_string());
+
+    let prebuilt_name = target_to_llvm_prebuilt(target);
+    url = format!("{}{}", url, prebuilt_name);
+
+    let out = env::var("OUT_DIR").expect("OUT_DIR was not set");
+    let mut easy = Easy::new();
+
+    easy.url(&url).unwrap();
+    let _redirect = easy.follow_location(true).unwrap();
+    let mut xz_encoded = Vec::with_capacity(20_000_000); // 20mb
+    {
+        let mut transfer = easy.transfer();
+        transfer
+            .write_function(|data| {
+                xz_encoded.extend_from_slice(data);
+                Ok(data.len())
+            })
+            .expect("Failed to download prebuilt LLVM");
+        transfer
+            .perform()
+            .expect("Failed to download prebuilt LLVM");
+    }
+
+    let decompressor = XzDecoder::new(xz_encoded.as_slice());
+    let mut ar = Archive::new(decompressor);
+
+    ar.unpack(&out).expect("Failed to unpack LLVM to LLVM dir");
+    let out_path = PathBuf::from(out).join(prebuilt_name.strip_suffix(".tar.xz").unwrap());
+
+    println!("cargo:rerun-if-changed={}", out_path.display());
+
+    out_path
+        .join("bin")
+        .join(format!("llvm-config{}", std::env::consts::EXE_SUFFIX))
 }
 
 fn detect_llvm_link() -> (&'static str, &'static str) {
@@ -57,67 +136,20 @@ pub fn tracked_env_var_os<K: AsRef<OsStr> + Display>(key: K) -> Option<OsString>
 
 fn rustc_llvm_build() {
     let target = env::var("TARGET").expect("TARGET was not set");
-    let llvm_config = tracked_env_var_os("LLVM_CONFIG")
-        .map(|x| Some(PathBuf::from(x)))
-        .unwrap_or_else(|| {
-            if let Some(dir) = tracked_env_var_os("CARGO_TARGET_DIR").map(PathBuf::from) {
-                let to_test = dir
-                    .parent()
-                    .unwrap()
-                    .parent()
-                    .unwrap()
-                    .join(&target)
-                    .join("llvm/bin/llvm-config");
-                if Command::new(&to_test).output().is_ok() {
-                    return Some(to_test);
-                }
-            }
-            None
-        });
+    let llvm_config = find_llvm_config(&target);
 
-    if let Some(llvm_config) = &llvm_config {
-        println!("cargo:rerun-if-changed={}", llvm_config.display());
-    }
-    let llvm_config = llvm_config.unwrap_or_else(|| PathBuf::from("llvm-config"));
-
-    let optional_components = &[
-        "x86",
-        "arm",
-        "aarch64",
-        "amdgpu",
-        "avr",
-        "mips",
-        "powerpc",
-        "systemz",
-        "jsbackend",
-        "webassembly",
-        "msp430",
-        "sparc",
-        "nvptx",
-        "hexagon",
-        "riscv",
-        "bpf",
-    ];
-
-    let required_components = &[
-        "ipo",
-        "bitreader",
-        "bitwriter",
-        "linker",
-        "asmparser",
-        "lto",
-        "coverage",
-        "instrumentation",
-    ];
+    let required_components = &["ipo", "bitreader", "bitwriter", "lto", "nvptx"];
 
     let components = output(Command::new(&llvm_config).arg("--components"));
     let mut components = components.split_whitespace().collect::<Vec<_>>();
-    components.retain(|c| optional_components.contains(c) || required_components.contains(c));
+    components.retain(|c| required_components.contains(c));
 
     for component in required_components {
-        if !components.contains(component) {
-            panic!("require llvm component {} but wasn't found", component);
-        }
+        assert!(
+            components.contains(component),
+            "require llvm component {} but wasn't found",
+            component
+        );
     }
 
     for component in components.iter() {

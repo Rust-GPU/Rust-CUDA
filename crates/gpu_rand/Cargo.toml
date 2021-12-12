@@ -1,18 +1,21 @@
 [package]
 name = "gpu_rand"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["The Rand Project Developers", "The Rust CUDA Project Developers"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
+description = "GPU-friendly random number generators for the Rust CUDA Project"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
 
 [dependencies]
 rand_core = { version = "0.6" }
 
 [target.'cfg(target_os = "cuda")'.dependencies]
-cuda_std = { version = "0.1", path = "../cuda_std" }
+cuda_std = { version = "0.2", path = "../cuda_std" }
 
 [target.'cfg(not(target_os = "cuda"))'.dependencies]
-cust = { version = "0.1", path = "../cust" }
+cust = { version = "0.2", path = "../cust" }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

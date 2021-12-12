@@ -1,0 +1,16 @@
+[package]
+name = "rustc_codegen_nvvm_macros"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Macros for rustc_codegen_nvvm"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.0.81", features = ["full"] }
+quote = "1.0.10"
+proc-macro2 = "1.0.32"

@@ -5,9 +5,9 @@ use crate::ty::LayoutLlvmExt;
 use crate::{builder::Builder, context::CodegenCx};
 use rustc_codegen_ssa::common::span_invalid_monomorphization_error;
 use rustc_codegen_ssa::mir::place::PlaceRef;
-use rustc_codegen_ssa::traits::{BaseTypeMethods, BuilderMethods, ConstMethods};
+use rustc_codegen_ssa::traits::{BaseTypeMethods, BuilderMethods, ConstMethods, OverflowOp};
 use rustc_codegen_ssa::{mir::operand::OperandRef, traits::IntrinsicCallMethods};
-use rustc_middle::ty::layout::LayoutOf;
+use rustc_middle::ty::layout::{HasTyCtxt, LayoutOf};
 use rustc_middle::ty::Ty;
 use rustc_middle::{bug, ty};
 use rustc_span::symbol::kw;
@@ -17,12 +17,85 @@ use rustc_target::abi::call::{FnAbi, PassMode};
 use rustc_target::abi::{self, HasDataLayout, Primitive};
 use tracing::trace;
 
-// TODO(RDambrosio016): i129 is severely broken in libnvvm right now, most uses of it across function calls
-// yield a segfault, but we need it to compile core. So for now we use `<i64 x 2>` and trap on uses of it.
-// I have submitted a bug report for this to nvidia and if/when they fix it, we will use i128 again. If this isnt
-// fixed, our alternative is doing the ops directly on the vector type.
+// libnvvm does not support some advanced intrinsics for i128 so we just abort on them for now. In the future
+// we should emulate them in software.
 fn handle_128_bit_intrinsic<'a, 'll, 'tcx>(b: &mut Builder<'a, 'll, 'tcx>) -> &'ll Value {
     b.abort_and_ret_i128()
+}
+
+// llvm 7 does not have saturating intrinsics, so we reimplement them right here.
+// This is derived from what rustc used to do before the intrinsics. It should map to the same assembly.
+fn saturating_intrinsic_impl<'a, 'll, 'tcx>(
+    b: &mut Builder<'a, 'll, 'tcx>,
+    width: u32,
+    signed: bool,
+    is_add: bool,
+    args: &[OperandRef<'tcx, &'ll Value>],
+) -> &'ll Value {
+    use rustc_middle::ty::IntTy::*;
+    use rustc_middle::ty::UintTy::*;
+    use rustc_middle::ty::{Int, Uint};
+
+    let ty = b.cx.tcx().mk_ty(match (signed, width) {
+        (true, 8) => Int(I8),
+        (true, 16) => Int(I16),
+        (true, 32) => Int(I32),
+        (true, 64) => Int(I64),
+        (true, 128) => Int(I128),
+        (false, 8) => Uint(U8),
+        (false, 16) => Uint(U16),
+        (false, 32) => Uint(U32),
+        (false, 64) => Uint(U64),
+        (false, 128) => Uint(U128),
+        _ => unreachable!(),
+    });
+
+    let unsigned_max_value = match width {
+        8 => u8::MAX as i64,
+        16 => u16::MAX as i64,
+        32 => u32::MAX as i64,
+        64 => u64::MAX as i64,
+        _ => unreachable!(),
+    };
+
+    let (min_value, max_value) = if signed {
+        (-((unsigned_max_value / 2) + 1), (unsigned_max_value / 2))
+    } else {
+        (0, unsigned_max_value)
+    };
+
+    let overflow_op = if is_add {
+        OverflowOp::Add
+    } else {
+        OverflowOp::Sub
+    };
+    let llty = b.type_ix(width as u64);
+    let lhs = args[0].immediate();
+    let rhs = args[1].immediate();
+
+    let (val, overflowed) = b.checked_binop(overflow_op, ty, lhs, rhs);
+
+    if !signed {
+        let select_val = if is_add {
+            b.const_int(llty, -1)
+        } else {
+            b.const_int(llty, 0)
+        };
+        b.select(overflowed, select_val, val)
+    } else {
+        let const_val = b.const_int(llty, (width - 1) as i64);
+        let first_val = if is_add {
+            b.ashr(rhs, const_val)
+        } else {
+            b.lshr(rhs, const_val)
+        };
+        let second_val = if is_add {
+            b.unchecked_uadd(first_val, b.const_int(llty, max_value))
+        } else {
+            b.xor(first_val, b.const_int(llty, min_value))
+        };
+        b.select(overflowed, second_val, val)
+    }
 }
 
 fn get_simple_intrinsic<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, name: Symbol) -> Option<&'ll Value> {
@@ -130,7 +203,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 None,
             ),
             sym::likely => {
-                let expect = self.get_intrinsic(&("llvm.expect.i1"));
+                let expect = self.get_intrinsic("llvm.expect.i1");
                 self.call(
                     self.type_i1(),
                     expect,
@@ -139,7 +212,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 )
             }
             sym::unlikely => {
-                let expect = self.get_intrinsic(&("llvm.expect.i1"));
+                let expect = self.get_intrinsic("llvm.expect.i1");
                 self.call(
                     self.type_i1(),
                     expect,
@@ -160,7 +233,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 return;
             }
             sym::va_copy => {
-                let intrinsic = self.cx().get_intrinsic(&("llvm.va_copy"));
+                let intrinsic = self.cx().get_intrinsic("llvm.va_copy");
                 self.call(
                     self.type_i1(),
                     intrinsic,
@@ -232,7 +305,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
             | sym::prefetch_write_data
             | sym::prefetch_read_instruction
             | sym::prefetch_write_instruction => {
-                let expect = self.get_intrinsic(&("llvm.prefetch"));
+                let expect = self.get_intrinsic("llvm.prefetch");
                 let (rw, cache_type) = match name {
                     sym::prefetch_read_data => (0, 1),
                     sym::prefetch_write_data => (1, 1),
@@ -278,7 +351,15 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                     );
                     return;
                 };
-                if width == 128 {
+                if name == sym::saturating_add || name == sym::saturating_sub {
+                    saturating_intrinsic_impl(
+                        self,
+                        width as u32,
+                        signed,
+                        name == sym::saturating_add,
+                        args,
+                    )
+                } else if width == 128 {
                     handle_128_bit_intrinsic(self)
                 } else {
                     match name {
@@ -364,7 +445,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn abort(&mut self) {
         trace!("Generate abort call");
-        let fnname = self.get_intrinsic(&("llvm.trap"));
+        let fnname = self.get_intrinsic("llvm.trap");
         self.call(self.type_i1(), fnname, &[], None);
     }
 
@@ -376,7 +457,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn expect(&mut self, cond: Self::Value, expected: bool) -> Self::Value {
         trace!("Generate expect call with `{:?}`, {}", cond, expected);
-        let expect = self.get_intrinsic(&"llvm.expect.i1");
+        let expect = self.get_intrinsic("llvm.expect.i1");
         self.call(
             self.type_i1(),
             expect,
@@ -385,10 +466,9 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         )
     }
 
-    fn sideeffect(&mut self) {
-        trace!("Generate sideeffect call");
-        let fnname = self.get_intrinsic(&("llvm.sideeffect"));
-        self.call(self.type_i1(), fnname, &[], None);
+    fn type_test(&mut self, _pointer: Self::Value, _typeid: Self::Value) -> Self::Value {
+        // LLVM CFI doesnt make sense on the GPU
+        self.const_i32(0)
     }
 
     fn va_start(&mut self, va_list: &'ll Value) -> Self::Value {

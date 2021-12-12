@@ -6,7 +6,12 @@
 //!
 //! Most of this code was taken from rustc_codegen_llvm with many things removed.
 
-#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+#![allow(
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    clippy::enum_variant_names
+)]
 // we have a lot of functions we linked to from cg_llvm that we don't use
 // but likely will use in the future, so we ignore any unused functions
 // in case we need them in the future for things like debug info or LTO.
@@ -114,6 +119,17 @@ pub(crate) fn get_param(llfn: &Value, index: c_uint) -> &Value {
     }
 }
 
+/// Safe wrapper around `LLVMGetParams`.
+pub(crate) fn get_params(llfn: &Value) -> Vec<&Value> {
+    unsafe {
+        let count = LLVMCountParams(llfn) as usize;
+        let mut params = Vec::with_capacity(count);
+        LLVMGetParams(llfn, params.as_mut_ptr());
+        params.set_len(count);
+        params
+    }
+}
+
 /// Safe wrapper for `LLVMGetValueName2` into a byte slice
 pub(crate) fn get_value_name(value: &Value) -> &[u8] {
     unsafe {
@@ -145,7 +161,7 @@ pub fn last_error() -> Option<String> {
     }
 }
 
-pub(crate) fn SetUnnamedAddress<'a>(global: &'a Value, unnamed: UnnamedAddr) {
+pub(crate) fn SetUnnamedAddress(global: &'_ Value, unnamed: UnnamedAddr) {
     unsafe {
         LLVMSetUnnamedAddress(global, unnamed);
     }
@@ -153,8 +169,8 @@ pub(crate) fn SetUnnamedAddress<'a>(global: &'a Value, unnamed: UnnamedAddr) {
 
 pub(crate) type Bool = c_uint;
 
-pub const True: Bool = 1 as Bool;
-pub const False: Bool = 0 as Bool;
+pub const True: Bool = 1;
+pub const False: Bool = 0;
 
 #[derive(Copy, Clone, PartialEq)]
 #[repr(C)]
@@ -398,10 +414,14 @@ extern "C" {
     pub(crate) type ThinLTOData;
 }
 
+unsafe impl Send for ThinLTOData {}
+
 /// LLVMRustThinLTOBuffer
 extern "C" {
     pub(crate) type ThinLTOBuffer;
 }
+
+unsafe impl Send for ThinLTOBuffer {}
 
 /// LLVMRustThinLTOModule
 #[repr(C)]
@@ -427,6 +447,9 @@ extern "C" {
 extern "C" {
     pub type Context;
 }
+
+unsafe impl Send for Context {}
+
 extern "C" {
     pub(crate) type Type;
 }
@@ -443,13 +466,18 @@ extern "C" {
     pub(crate) type BasicBlock;
 }
 #[repr(C)]
-pub(crate) struct Builder<'a>(InvariantOpaque<'a>);
+pub(crate) struct Builder<'a> {
+    _inv: InvariantOpaque<'a>,
+}
 #[repr(C)]
 pub(crate) struct OperandBundleDef<'a>(InvariantOpaque<'a>);
 
 extern "C" {
     pub(crate) type ModuleBuffer;
 }
+
+unsafe impl Send for ModuleBuffer {}
+
 #[repr(C)]
 pub struct PassManager<'a>(InvariantOpaque<'a>);
 extern "C" {
@@ -546,17 +574,6 @@ pub(crate) unsafe fn LLVMRustGetOrInsertFunction<'a>(
     __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), FunctionTy)
 }
 
-pub(crate) unsafe fn LLVMRustGetOrInsertGlobal<'a>(
-    M: &'a Module,
-    Name: *const c_char,
-    NameLen: usize,
-    FunctionTy: &'a Type,
-) -> &'a Value {
-    let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
-    let cstring = CString::new(str).expect("str with nul");
-    __LLVMRustGetOrInsertGlobal(M, cstring.as_ptr(), FunctionTy)
-}
-
 pub(crate) unsafe fn LLVMRustBuildCall<'a>(
     B: &Builder<'a>,
     Fn: &'a Value,
@@ -580,6 +597,7 @@ pub enum CodeGenOptLevel {
 
 /// LLVMRelocMode
 #[derive(Copy, Clone, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
 #[repr(C)]
 pub enum RelocMode {
     Default,
@@ -604,6 +622,68 @@ pub enum CodeModel {
 }
 
 extern "C" {
+    #[link_name = "LLVMRustBuildCall"]
+    pub(crate) fn __LLVMRustBuildCall<'a>(
+        B: &Builder<'a>,
+        Fn: &'a Value,
+        Args: *const &'a Value,
+        NumArgs: c_uint,
+        Bundle: Option<&OperandBundleDef<'a>>,
+        Name: *const c_char,
+    ) -> &'a Value;
+
+    // see comment on function before this extern block
+    #[link_name = "LLVMRustGetOrInsertFunction"]
+    fn __LLVMRustGetOrInsertFunction<'a>(
+        M: &'a Module,
+        Name: *const c_char,
+        FunctionTy: &'a Type,
+    ) -> &'a Value;
+
+    // dont trace these functions or cargo will error, see init.rs
+    pub(crate) fn LLVMStartMultithreaded() -> Bool;
+    pub(crate) fn LLVMInitializeNVPTXTargetInfo();
+    pub(crate) fn LLVMInitializeNVPTXTarget();
+    pub(crate) fn LLVMInitializeNVPTXTargetMC();
+    pub(crate) fn LLVMInitializeNVPTXAsmPrinter();
+    pub(crate) fn LLVMInitializePasses();
+    pub(crate) fn LLVMRustSetLLVMOptions(Argc: c_int, Argv: *const *const c_char);
+}
+
+// use rustc_codegen_nvvm_macros::trace_ffi_calls;
+// #[trace_ffi_calls]
+extern "C" {
+    pub(crate) fn LLVMGetPointerAddressSpace(PointerTy: &Type) -> c_uint;
+    pub(crate) fn LLVMBuildAddrSpaceCast<'a>(
+        arg1: &Builder<'a>,
+        Val: &'a Value,
+        DestTy: &'a Type,
+        Name: *const c_char,
+    ) -> &'a Value;
+    pub(crate) fn LLVMRustGetOrInsertGlobal<'a>(
+        M: &'a Module,
+        Name: *const c_char,
+        NameLen: usize,
+        T: &'a Type,
+        AddressSpace: c_uint,
+    ) -> &'a Value;
+    pub(crate) fn LLVMAddGlobalDCEPass(PM: &mut PassManager);
+    pub(crate) fn LLVMGetNamedMetadataOperands(M: &Module, name: *const c_char, Dest: *mut &Value);
+    pub(crate) fn LLVMGetNamedMetadataNumOperands(M: &Module, name: *const c_char) -> c_uint;
+    pub(crate) fn LLVMGetMDNodeOperands(V: &Value, Dest: *mut &Value);
+    pub(crate) fn LLVMGetMDNodeNumOperands(V: &Value) -> c_uint;
+    pub(crate) fn LLVMGetFirstFunction(M: &Module) -> Option<&Value>;
+    pub(crate) fn LLVMGetNextFunction(Fn: &Value) -> Option<&Value>;
+    pub(crate) fn LLVMAddGlobalInAddressSpace<'a>(
+        M: &'a Module,
+        Ty: &'a Type,
+        Name: *const c_char,
+        AddressSpace: c_uint,
+    ) -> &'a Value;
+    pub(crate) fn LLVMGetOperand(Val: &Value, Index: c_uint) -> &Value;
+    pub(crate) fn LLVMIsABitCastInst(Val: &Value) -> Option<&Value>;
+    pub(crate) fn LLVMIsASelectInst(Val: &Value) -> Option<&Value>;
+    pub(crate) fn LLVMRustGetFunctionType(V: &Value) -> &Type;
     pub(crate) fn LLVMLinkModules2(Dest: &Module, Src: &Module) -> Bool;
     pub(crate) fn LLVMParseIRInContext<'ll, 'a, 'b>(
         ContextRef: &'ll Context,
@@ -903,13 +983,6 @@ extern "C" {
     pub fn LLVMRustDIBuilderCreateOpDeref() -> i64;
     pub fn LLVMRustDIBuilderCreateOpPlusUconst() -> i64;
 
-    pub(crate) fn LLVMRustSetLLVMOptions(Argc: c_int, Argv: *const *const c_char);
-
-    pub(crate) fn LLVMInitializeNVPTXTargetInfo();
-    pub(crate) fn LLVMInitializeNVPTXTarget();
-    pub(crate) fn LLVMInitializeNVPTXTargetMC();
-    pub(crate) fn LLVMInitializeNVPTXAsmPrinter();
-
     pub(crate) fn LLVMRustRunFunctionPassManager(PM: &PassManager, M: &Module);
     pub(crate) fn LLVMRustAddAlwaysInlinePass(P: &PassManagerBuilder, AddLifetimes: bool);
 
@@ -970,8 +1043,6 @@ extern "C" {
 
     /// Runs a pass manager on a module.
     pub(crate) fn LLVMRunPassManager<'a>(PM: &PassManager<'a>, M: &'a Module) -> Bool;
-
-    pub(crate) fn LLVMInitializePasses();
 
     pub(crate) fn LLVMTimeTraceProfilerFinish(FileName: *const c_char);
 
@@ -1067,6 +1138,9 @@ extern "C" {
         ElementCount: c_uint,
         Packed: Bool,
     ) -> &'a Type;
+    pub(crate) fn LLVMGetStructElementTypes<'a>(StructTy: &'a Type, Dest: *mut &'a Type);
+    pub(crate) fn LLVMCountStructElementTypes(StructTy: &Type) -> c_uint;
+    pub(crate) fn LLVMIsPackedStruct(StructTy: &Type) -> Bool;
 
     // Operations on array, pointer, and vector types (sequence types)
     pub(crate) fn LLVMRustArrayType(ElementType: &Type, ElementCount: u64) -> &Type;
@@ -1176,12 +1250,6 @@ extern "C" {
     pub(crate) fn LLVMIsAGlobalVariable(GlobalVar: &Value) -> Option<&Value>;
     pub(crate) fn LLVMAddGlobal<'a>(M: &'a Module, Ty: &'a Type, Name: *const c_char) -> &'a Value;
     pub(crate) fn LLVMGetNamedGlobal(M: &Module, Name: *const c_char) -> Option<&Value>;
-    #[link_name = "LLVMRustGetOrInsertGlobal"]
-    fn __LLVMRustGetOrInsertGlobal<'a>(
-        M: &'a Module,
-        Name: *const c_char,
-        T: &'a Type,
-    ) -> &'a Value;
     pub(crate) fn LLVMRustInsertPrivateGlobal<'a>(M: &'a Module, T: &'a Type) -> &'a Value;
     pub(crate) fn LLVMGetFirstGlobal(M: &Module) -> Option<&Value>;
     pub(crate) fn LLVMGetNextGlobal(GlobalVar: &Value) -> Option<&Value>;
@@ -1199,13 +1267,6 @@ extern "C" {
     pub(crate) fn LLVMSetUnnamedAddress(Global: &Value, UnnamedAddr: UnnamedAddr);
 
     // Operations on functions
-    // see comment on function before this extern block
-    #[link_name = "LLVMRustGetOrInsertFunction"]
-    fn __LLVMRustGetOrInsertFunction<'a>(
-        M: &'a Module,
-        Name: *const c_char,
-        FunctionTy: &'a Type,
-    ) -> &'a Value;
     pub(crate) fn LLVMSetFunctionCallConv(Fn: &Value, CC: c_uint);
     pub(crate) fn LLVMRustAddAlignmentAttr(Fn: &Value, index: c_uint, bytes: u32);
     pub(crate) fn LLVMRustAddFunctionAttribute(Fn: &Value, index: c_uint, attr: Attribute);
@@ -1599,15 +1660,6 @@ extern "C" {
     pub(crate) fn LLVMBuildPhi<'a>(B: &Builder<'a>, Ty: &'a Type, Name: *const c_char)
         -> &'a Value;
     pub(crate) fn LLVMRustGetInstrProfIncrementIntrinsic<'a>(M: &Module) -> &'a Value;
-    #[link_name = "LLVMRustBuildCall"]
-    pub(crate) fn __LLVMRustBuildCall<'a>(
-        B: &Builder<'a>,
-        Fn: &'a Value,
-        Args: *const &'a Value,
-        NumArgs: c_uint,
-        Bundle: Option<&OperandBundleDef<'a>>,
-        Name: *const c_char,
-    ) -> &'a Value;
     pub(crate) fn LLVMRustBuildMemCpy<'a>(
         B: &Builder<'a>,
         Dst: &'a Value,
@@ -1720,17 +1772,15 @@ extern "C" {
     pub(crate) fn LLVMRustBuildMinNum<'a>(
         B: &Builder<'a>,
         LHS: &'a Value,
-        LHS: &'a Value,
+        RHS: &'a Value,
     ) -> &'a Value;
     pub(crate) fn LLVMRustBuildMaxNum<'a>(
         B: &Builder<'a>,
         LHS: &'a Value,
-        LHS: &'a Value,
+        RHS: &'a Value,
     ) -> &'a Value;
 
     pub(crate) fn LLVMDisposeMessage(message: *mut c_char);
-
-    pub(crate) fn LLVMStartMultithreaded() -> Bool;
 
     /// Returns a string describing the last error caused by an LLVMRust* call.
     pub(crate) fn LLVMRustGetLastError() -> *const c_char;

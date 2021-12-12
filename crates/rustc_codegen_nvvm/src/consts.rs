@@ -58,7 +58,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             );
             let sym = self.generate_local_symbol_name("str");
             let g = self
-                .define_global(&sym[..], self.val_ty(sc))
+                .define_global(&sym[..], self.val_ty(sc), AddressSpace::DATA)
                 .unwrap_or_else(|| {
                     bug!("symbol `{}` is already defined", sym);
                 });
@@ -213,7 +213,9 @@ fn check_and_apply_linkage<'ll, 'tcx>(
     ty: Ty<'tcx>,
     sym: &str,
     span_def_id: DefId,
+    instance: Instance<'tcx>,
 ) -> &'ll Value {
+    let addrspace = cx.static_addrspace(instance);
     let llty = cx.layout_of(ty).llvm_type(cx);
     if let Some(linkage) = attrs.linkage {
         // https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#linkage-types-nvvm
@@ -239,7 +241,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
         };
         unsafe {
             // Declare a symbol `foo` with the desired linkage.
-            let g1 = cx.declare_global(&sym, llty2);
+            let g1 = cx.declare_global(sym, llty2, addrspace);
             llvm::LLVMRustSetLinkage(g1, linkage_to_llvm(linkage));
 
             // Declare an internal global `extern_with_linkage_foo` which
@@ -249,24 +251,27 @@ fn check_and_apply_linkage<'ll, 'tcx>(
             // `extern_with_linkage_foo` will instead be initialized to
             // zero.
             let mut real_name = "_rust_extern_with_linkage_".to_string();
-            real_name.push_str(&sym);
-            let g2 = cx.define_global(&real_name, llty).unwrap_or_else(|| {
-                cx.sess().span_fatal(
-                    cx.tcx.def_span(span_def_id),
-                    &format!("symbol `{}` is already defined", &sym),
-                )
-            });
+            real_name.push_str(sym);
+            let g2 = cx
+                .define_global(&real_name, llty, addrspace)
+                .unwrap_or_else(|| {
+                    cx.sess().span_fatal(
+                        cx.tcx.def_span(span_def_id),
+                        &format!("symbol `{}` is already defined", &sym),
+                    )
+                });
             llvm::LLVMRustSetLinkage(g2, llvm::Linkage::InternalLinkage);
             llvm::LLVMSetInitializer(g2, g1);
             g2
         }
     } else {
-        cx.declare_global(&sym, llty)
+        cx.declare_global(sym, llty, addrspace)
     }
 }
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub(crate) fn const_bitcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
+        trace!("Const bitcast: `{:?}` to `{:?}`", val, ty);
         unsafe { llvm::LLVMConstBitCast(val, ty) }
     }
 
@@ -280,7 +285,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             // TODO(RDambrosio016): replace this with latest rustc's handling when we use llvm 13
             let name = self.generate_local_symbol_name(kind.unwrap_or("private"));
             let gv = self
-                .define_global(&name[..], self.val_ty(cv))
+                .define_global(&name[..], self.val_ty(cv), AddressSpace::DATA)
                 .unwrap_or_else(|| bug!("symbol `{}` is already defined", name));
             llvm::LLVMRustSetLinkage(gv, llvm::Linkage::PrivateLinkage);
             llvm::LLVMSetInitializer(gv, cv);
@@ -319,7 +324,8 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 }
             }
 
-            let g = self.declare_global(sym, llty);
+            let addrspace = self.static_addrspace(instance);
+            let g = self.declare_global(sym, llty, addrspace);
 
             if !self.tcx.is_reachable_non_generic(def_id) {
                 unsafe {
@@ -329,7 +335,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
             g
         } else {
-            check_and_apply_linkage(&self, &fn_attrs, ty, sym, def_id)
+            check_and_apply_linkage(self, fn_attrs, ty, sym, def_id, instance)
         };
 
         if fn_attrs.flags.contains(CodegenFnAttrFlags::THREAD_LOCAL) {
@@ -366,7 +372,7 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
         unsafe {
             let attrs = self.tcx.codegen_fn_attrs(def_id);
 
-            let (v, _) = match codegen_static_initializer(&self, def_id) {
+            let (v, _) = match codegen_static_initializer(self, def_id) {
                 Ok(v) => v,
                 // Error has already been reported
                 Err(_) => return,
@@ -388,6 +394,12 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
             let g = if val_llty == llty {
                 g
             } else {
+                trace!(
+                    "Making new RAUW global: from ty `{:?}` to `{:?}`, initializer: `{:?}`",
+                    llty,
+                    val_llty,
+                    v
+                );
                 // If we created the global with the wrong type,
                 // correct the type.
                 let name = llvm::get_value_name(g).to_vec();
@@ -397,11 +409,13 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
                 let linkage = llvm::LLVMRustGetLinkage(g);
                 let visibility = llvm::LLVMRustGetVisibility(g);
 
+                let addrspace = self.static_addrspace(instance);
                 let new_g = llvm::LLVMRustGetOrInsertGlobal(
                     self.llmod,
                     name.as_ptr().cast(),
                     name.len(),
                     val_llty,
+                    addrspace.0,
                 );
 
                 llvm::LLVMRustSetLinkage(new_g, linkage);
@@ -424,10 +438,10 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
             if !is_mutable && self.type_is_freeze(ty) {
                 // TODO(RDambrosio016): is this the same as putting this in
                 // the __constant__ addrspace for nvvm? should we set this addrspace explicitly?
-                llvm::LLVMSetGlobalConstant(g, llvm::True);
+                // llvm::LLVMSetGlobalConstant(g, llvm::True);
             }
 
-            debug_info::create_global_var_metadata(&self, def_id, g);
+            debug_info::create_global_var_metadata(self, def_id, g);
 
             if attrs.flags.contains(CodegenFnAttrFlags::THREAD_LOCAL) {
                 self.unsupported("thread locals");
@@ -436,6 +450,7 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
             if attrs.flags.contains(CodegenFnAttrFlags::USED) {
                 self.add_used_global(g);
             }
+            trace!("Codegen static `{:?}`", g);
         }
     }
 

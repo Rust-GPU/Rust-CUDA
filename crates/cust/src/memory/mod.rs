@@ -7,7 +7,7 @@
 //!
 //! Device memory is just what it sounds like - memory allocated on the device. Device memory
 //! cannot be accessed from the host directly, but data can be copied to and from the device.
-//! cust exposes device memory through the [`DBox`](struct.DBox.html) and
+//! cust exposes device memory through the [`DeviceBox`](struct.DeviceBox.html) and
 //! [`DeviceBuffer`](struct.DeviceBuffer.html) structures. Pointers to device memory are
 //! represented by [`DevicePointer`](struct.DevicePointer.html), while slices in device memory are
 //! represented by [`DeviceSlice`](struct.DeviceSlice.html).
@@ -17,8 +17,7 @@
 //! Unified memory is a memory allocation which can be read from and written to by both the host
 //! and the device. When the host (or device) attempts to access a page of unified memory, it is
 //! seamlessly transferred from host RAM to device RAM or vice versa. The programmer may also
-//! choose to explicitly prefetch data to one side or another (though this is not currently exposed
-//! through cust). cust exposes unified memory through the
+//! choose to explicitly prefetch data to one side or another. cust exposes unified memory through the
 //! [`UnifiedBox`](struct.UnifiedBox.html) and [`UnifiedBuffer`](struct.UnifiedBuffer.html)
 //! structures, and pointers to unified memory are represented by
 //! [`UnifiedPointer`](struct.UnifiedPointer.html). Since unified memory is accessible to the host,
@@ -95,12 +94,10 @@ pub use cust_core::DeviceCopy;
 use std::ffi::c_void;
 
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
-/// or a regular [`DBuffer`].
+/// or a regular [`DeviceBuffer`].
+#[allow(clippy::len_without_is_empty)]
 pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
-    /// Obtains a device pointer to this buffer, not requiring `&mut self`. This means
-    /// the buffer must be used only for immutable reads, and must not be written to.
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T>;
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
+    fn as_device_ptr(&self) -> DevicePointer<T>;
     fn len(&self) -> usize;
 }
 
@@ -134,12 +131,9 @@ impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
 }
 
 /// A trait describing a generic pointer that can be accessed from the GPU. This could be either a [`UnifiedBox`]
-/// or a regular [`DBox`].
+/// or a regular [`DeviceBox`].
 pub trait GpuBox<T: DeviceCopy>: private::Sealed {
-    /// Obtains a device pointer to this value, not requiring `&mut self`. This means
-    /// the value must be used only for immutable reads, and must not be written to.
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T>;
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
+    fn as_device_ptr(&self) -> DevicePointer<T>;
 }
 
 impl<T: DeviceCopy> GpuBox<T> for DeviceBox<T> {

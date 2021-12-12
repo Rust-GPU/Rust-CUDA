@@ -1,16 +1,16 @@
 use crate::abi::FnAbiLlvmExt;
-use crate::attributes::{self, Symbols};
+use crate::attributes::{self, NvvmAttributes, Symbols};
 use crate::debug_info::{self, compile_unit_metadata, CrateDebugContext};
 use crate::llvm::{self, BasicBlock, Type, Value};
 use crate::{target, LlvmMod};
 use nvvm::NvvmOption;
-use rustc_codegen_ssa::traits::ConstMethods;
 use rustc_codegen_ssa::traits::{BackendTypes, BaseTypeMethods, CoverageInfoMethods, MiscMethods};
+use rustc_codegen_ssa::traits::{ConstMethods, DerivedTypeMethods};
 use rustc_data_structures::base_n;
 use rustc_hash::FxHashMap;
 use rustc_middle::dep_graph::DepContext;
 use rustc_middle::ty::layout::{
-    FnAbiError, FnAbiOf, FnAbiRequest, HasParamEnv, LayoutError, TyAndLayout,
+    FnAbiError, FnAbiOf, FnAbiRequest, HasParamEnv, HasTyCtxt, LayoutError, TyAndLayout,
 };
 use rustc_middle::ty::layout::{FnAbiOfHelpers, LayoutOfHelpers};
 use rustc_middle::ty::{Ty, TypeFoldable};
@@ -23,7 +23,9 @@ use rustc_session::config::DebugInfo;
 use rustc_session::Session;
 use rustc_span::{Span, Symbol};
 use rustc_target::abi::call::FnAbi;
-use rustc_target::abi::{HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx};
+use rustc_target::abi::{
+    AddressSpace, HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx,
+};
 use rustc_target::spec::{HasTargetSpec, Target};
 use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
@@ -46,6 +48,11 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     pub vtables: RefCell<FxHashMap<(Ty<'tcx>, Option<PolyExistentialTraitRef<'tcx>>), &'ll Value>>,
     /// A cache of constant strings and their values
     pub const_cstr_cache: RefCell<FxHashMap<Symbol, &'ll Value>>,
+    /// A map of functions which have parameters at specific indices replaced with an int-remapped type.
+    /// such as i128 --> <2 x i64>
+    #[allow(clippy::type_complexity)]
+    pub remapped_integer_args:
+        RefCell<FxHashMap<&'ll Type, (Option<&'ll Type>, Vec<(usize, &'ll Type)>)>>,
 
     /// Cache of emitted const globals (value -> global)
     pub const_globals: RefCell<FxHashMap<&'ll Value, &'ll Value>>,
@@ -85,12 +92,9 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     eh_personality: &'ll Value,
 
     pub symbols: Symbols,
-
-    // we do not currently use codegen_args before linking, and during linking we reparse
-    // them because codegencx is not available at link time. However, we keep this so
-    // it is easier to use them in the future and add args we want to use before linking.
-    #[allow(dead_code)]
     pub codegen_args: CodegenArgs,
+    // the value of the last call instruction. Needed for return type remapping.
+    pub last_call_llfn: Cell<Option<&'ll Value>>,
 }
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
@@ -132,6 +136,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             instances: Default::default(),
             vtables: Default::default(),
             const_cstr_cache: Default::default(),
+            remapped_integer_args: Default::default(),
             const_globals: Default::default(),
             statics_to_rauw: RefCell::new(Vec::new()),
             used_statics: RefCell::new(Vec::new()),
@@ -153,9 +158,11 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             symbols: Symbols {
                 nvvm_internal: Symbol::intern("nvvm_internal"),
                 kernel: Symbol::intern("kernel"),
+                addrspace: Symbol::intern("addrspace"),
             },
             dbg_cx,
             codegen_args: CodegenArgs::from_session(tcx.sess()),
+            last_call_llfn: Cell::new(None),
         };
         cx.build_intrinsics_map();
         cx
@@ -172,7 +179,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     fn create_used_variable_impl(&self, name: *const i8, values: &[&'ll Value]) {
         let section = "llvm.metadata\0".as_ptr().cast();
-        let array = self.const_array(&self.type_ptr_to(self.type_i8()), values);
+        let array = self.const_array(self.type_ptr_to(self.type_i8()), values);
 
         unsafe {
             trace!(
@@ -212,7 +219,7 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn sess(&self) -> &Session {
-        &self.tcx.sess
+        self.tcx.sess
     }
 
     fn check_overflow(&self) -> bool {
@@ -255,18 +262,54 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 }
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
+    /// Computes the address space for a static.
+    pub fn static_addrspace(&self, instance: Instance<'tcx>) -> AddressSpace {
+        let ty = instance.ty(self.tcx, ty::ParamEnv::reveal_all());
+        let is_mutable = self.tcx().is_mutable_static(instance.def_id());
+        let attrs = self.tcx.get_attrs(instance.def_id());
+        let nvvm_attrs = NvvmAttributes::parse(self, attrs);
+
+        if let Some(addr) = nvvm_attrs.addrspace {
+            return AddressSpace(addr as u32);
+        }
+
+        if !is_mutable && self.type_is_freeze(ty) {
+            AddressSpace(4)
+        } else {
+            AddressSpace::DATA
+        }
+    }
+
     /// Declare a global value, returns the existing value if it was already declared.
-    pub fn declare_global(&self, name: &str, ty: &'ll Type) -> &'ll Value {
+    pub fn declare_global(
+        &self,
+        name: &str,
+        ty: &'ll Type,
+        address_space: AddressSpace,
+    ) -> &'ll Value {
         // NVVM doesnt allow `.` inside of globals, this should be sound, at worst it should result in an nvvm error if something goes wrong.
         let name = sanitize_global_ident(name);
         trace!("Declaring global `{}`", name);
-        unsafe { llvm::LLVMRustGetOrInsertGlobal(self.llmod, name.as_ptr().cast(), name.len(), ty) }
+        unsafe {
+            llvm::LLVMRustGetOrInsertGlobal(
+                self.llmod,
+                name.as_ptr().cast(),
+                name.len(),
+                ty,
+                address_space.0,
+            )
+        }
     }
 
     /// Declare a function. All functions use the default ABI, NVVM ignores any calling convention markers.
     /// All functions calls are generated according to the PTX calling convention.
-    /// https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#calling-conventions
-    pub fn declare_fn(&self, name: &str, ty: &'ll Type) -> &'ll Value {
+    /// <https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#calling-conventions>
+    pub fn declare_fn(
+        &self,
+        name: &str,
+        ty: &'ll Type,
+        fn_abi: Option<&FnAbi<'tcx, Ty<'tcx>>>,
+    ) -> &'ll Value {
         let llfn = unsafe {
             llvm::LLVMRustGetOrInsertFunction(self.llmod, name.as_ptr().cast(), name.len(), ty)
         };
@@ -276,8 +319,9 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         // TODO(RDambrosio016): we should probably still generate accurate calling conv for functions
         // just to make it easier to debug IR and/or make it more compatible with compiling using llvm
         llvm::SetUnnamedAddress(llfn, llvm::UnnamedAddr::Global);
-        // nvvm doesnt support noredzone and nonlazybind so dont generate it
-
+        if let Some(abi) = fn_abi {
+            abi.apply_attrs_llfn(self, llfn);
+        }
         attributes::default_optimisation_attrs(self.tcx.sess, llfn);
         llfn
     }
@@ -288,11 +332,16 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     /// return `None` if the name already has a definition associated with it. In that
     /// case an error should be reported to the user, because it usually happens due
     /// to user’s fault (e.g., misuse of `#[no_mangle]` or `#[export_name]` attributes).
-    pub fn define_global(&self, name: &str, ty: &'ll Type) -> Option<&'ll Value> {
-        if self.get_defined_value(&name).is_some() {
+    pub fn define_global(
+        &self,
+        name: &str,
+        ty: &'ll Type,
+        address_space: AddressSpace,
+    ) -> Option<&'ll Value> {
+        if self.get_defined_value(name).is_some() {
             None
         } else {
-            Some(self.declare_global(&name, ty))
+            Some(self.declare_global(name, ty, address_space))
         }
     }
 
@@ -349,7 +398,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         } else {
             self.type_variadic_func(&[], ret)
         };
-        let f = self.declare_fn(&name, fn_ty);
+        let f = self.declare_fn(&name, fn_ty, None);
         llvm::SetUnnamedAddress(f, llvm::UnnamedAddr::No);
         self.intrinsics.borrow_mut().insert(name, f);
         f
@@ -369,20 +418,19 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     //// Codegens a reference to a function/method, monomorphizing and inlining as it goes.
     pub fn get_fn(&self, instance: Instance<'tcx>) -> &'ll Value {
-        trace!("Codegenning reference to function: `{:?}`", instance);
         let tcx = self.tcx;
 
         assert!(!instance.substs.needs_infer());
         assert!(!instance.substs.has_escaping_bound_vars());
+        let sym = tcx.symbol_name(instance).name;
 
         if let Some(&llfn) = self.instances.borrow().get(&instance) {
             return llfn;
         }
 
-        let sym = tcx.symbol_name(instance).name;
         let abi = self.fn_abi_of_instance(instance, ty::List::empty());
 
-        let llfn = if let Some(llfn) = self.get_declared_value(&sym) {
+        let llfn = if let Some(llfn) = self.get_declared_value(sym) {
             trace!("Returning existing llfn `{:?}`", llfn);
             let llptrty = abi.ptr_to_llvm_type(self);
 
@@ -397,7 +445,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 llfn
             }
         } else {
-            let llfn = self.declare_fn(&sym, abi.llvm_type(self));
+            let llfn = self.declare_fn(sym, abi.llvm_type(self), Some(abi));
             attributes::from_fn_attrs(self, llfn, instance);
             let def_id = instance.def_id();
 
@@ -470,25 +518,31 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     }
 }
 
+#[derive(Default, Clone)]
 pub struct CodegenArgs {
     pub nvvm_options: Vec<NvvmOption>,
+    pub override_libm: bool,
 }
 
 impl CodegenArgs {
     pub fn from_session(sess: &Session) -> Self {
-        match Self::parse(&sess.opts.cg.llvm_args) {
-            Ok(x) => x,
-            Err(err) => sess.fatal(&format!("Failed to parse codegen args: {}", err)),
-        }
+        Self::parse(&sess.opts.cg.llvm_args)
     }
 
     // we may want to use rustc's own option parsing facilities to have better errors in the future.
-    pub fn parse(args: &[String]) -> Result<Self, &'static str> {
-        let nvvm_options = args
-            .iter()
-            .map(|x| NvvmOption::from_str(x))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self { nvvm_options })
+    pub fn parse(args: &[String]) -> Self {
+        // TODO: replace this with a "proper" arg parser.
+        let mut cg_args = Self::default();
+
+        for arg in args {
+            if let Ok(flag) = NvvmOption::from_str(arg) {
+                cg_args.nvvm_options.push(flag);
+            } else if arg == "--override-libm" {
+                cg_args.override_libm = true;
+            }
+        }
+
+        cg_args
     }
 }
 

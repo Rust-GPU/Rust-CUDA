@@ -1,5 +1,7 @@
+use rustc_codegen_ssa::traits::BaseTypeMethods;
 use tracing::trace;
 
+use crate::builder::unnamed;
 use crate::context::CodegenCx;
 use crate::llvm::*;
 
@@ -7,21 +9,30 @@ use crate::llvm::*;
 // types and falling back to 1 if excrement hits the rotating fan.
 const WIDTH_CANDIDATES: &[u32] = &[64, 32, 16, 8, 1];
 
-/// returns Some(true) if the type is an integer of width 64, 32, 16, 8, or 1. Some(false) if its an int, and None if it
-/// is not an int.
-pub(crate) fn is_regular_int(ty: &Type) -> Option<bool> {
+/// returns `true` if the type is or contains irregular integers.
+pub(crate) fn type_needs_transformation(ty: &Type) -> bool {
     unsafe {
         let kind = LLVMRustGetTypeKind(ty);
-        if kind == TypeKind::Integer {
-            let width = LLVMGetIntTypeWidth(ty);
-            if WIDTH_CANDIDATES.contains(&width) {
-                Some(true)
-            } else {
-                Some(false)
+        match kind {
+            TypeKind::Integer => {
+                let width = LLVMGetIntTypeWidth(ty);
+                !WIDTH_CANDIDATES.contains(&width)
             }
-        } else {
-            None
+            TypeKind::Struct => struct_type_fields(ty)
+                .into_iter()
+                .any(type_needs_transformation),
+            _ => false,
         }
+    }
+}
+
+fn struct_type_fields(ty: &Type) -> Vec<&Type> {
+    unsafe {
+        let count = LLVMCountStructElementTypes(ty);
+        let mut fields = Vec::with_capacity(count as usize);
+        LLVMGetStructElementTypes(ty, fields.as_mut_ptr());
+        fields.set_len(count as usize);
+        fields
     }
 }
 
@@ -32,17 +43,33 @@ pub(crate) fn get_transformed_type<'ll, 'tcx>(
     ty: &'ll Type,
 ) -> (&'ll Type, bool) {
     unsafe {
-        if is_regular_int(ty) == Some(false) {
-            let width = LLVMGetIntTypeWidth(ty);
-            let (width, count) = target_vector_width_and_count(width);
-            let int_ty = LLVMIntTypeInContext(cx.llcx, width);
-            trace!(
-                "Transforming irregular int type `{:?}` to vector ty `{:?}` with length {}",
-                ty,
-                int_ty,
-                count
-            );
-            (LLVMVectorType(int_ty, count), true)
+        if type_needs_transformation(ty) {
+            let kind = LLVMRustGetTypeKind(ty);
+            match kind {
+                TypeKind::Integer => {
+                    let width = LLVMGetIntTypeWidth(ty);
+                    let (width, count) = target_vector_width_and_count(width);
+                    let int_ty = LLVMIntTypeInContext(cx.llcx, width);
+                    trace!(
+                        "Transforming irregular int type `{:?}` to vector ty `{:?}` with length {}",
+                        ty,
+                        int_ty,
+                        count
+                    );
+                    (LLVMVectorType(int_ty, count), true)
+                }
+                TypeKind::Struct => {
+                    let fields = struct_type_fields(ty);
+                    let transformed = fields
+                        .into_iter()
+                        .map(|field| get_transformed_type(cx, field).0)
+                        .collect::<Vec<_>>();
+
+                    let packed = LLVMIsPackedStruct(ty);
+                    (cx.type_struct(&transformed, packed == True), true)
+                }
+                _ => unreachable!(),
+            }
         } else {
             (ty, false)
         }
@@ -58,4 +85,31 @@ pub(crate) fn target_vector_width_and_count(int_width: u32) -> (u32, u32) {
         }
     }
     unreachable!()
+}
+
+/// transmutes a value to a certain type, accounting for structs.
+pub(crate) fn transmute_llval<'ll>(
+    bx: &mut Builder<'ll>,
+    cx: &CodegenCx<'ll, '_>,
+    a_val: &'ll Value,
+    ty: &'ll Type,
+) -> &'ll Value {
+    trace!("transmute_llval: transmuting `{:?}` to `{:?}`", a_val, ty);
+    unsafe {
+        let kind = LLVMRustGetTypeKind(ty);
+        match kind {
+            // structs cannot be bitcasted, so we need to do it using a bunch of extract/insert values.
+            TypeKind::Struct => {
+                let new_struct = LLVMGetUndef(ty);
+                let mut last_val = new_struct;
+                for (idx, field) in struct_type_fields(ty).into_iter().enumerate() {
+                    let field_val = LLVMBuildExtractValue(bx, a_val, idx as u32, unnamed());
+                    let new_val = transmute_llval(bx, cx, field_val, field);
+                    last_val = LLVMBuildInsertValue(bx, last_val, new_val, idx as u32, unnamed());
+                }
+                last_val
+            }
+            _ => LLVMBuildBitCast(bx, a_val, ty, unnamed()),
+        }
+    }
 }

@@ -235,10 +235,9 @@ impl<'src> Lexer<'src> {
                         });
                         if self.cur != self.src.len()
                             && self.cur_char() == AsciiChar::CarriageReturn
+                            && self.peek() == Some(AsciiChar::LineFeed)
                         {
-                            if self.peek() == Some(AsciiChar::LineFeed) {
-                                self.next();
-                            }
+                            self.next();
                         }
 
                         return self.next_token();

@@ -178,7 +178,7 @@ impl Denoiser {
     /// `width` and `height` are the __max__ expected dimensions of the image layers in a denoiser launch. Launches may be smaller than `width` and `height`, but
     /// they must not be larger, or the launch will panic.
     ///
-    /// OptiX requires scratch memory for carrying out denoising, of a certain size obtained with [`required_gpu_memory`]. This method will handle
+    /// OptiX requires scratch memory for carrying out denoising, of a certain size obtained with [`Self::required_gpu_memory`]. This method will handle
     /// the management of the scratch memory automatically. It will reuse allocated scratch memory across denoiser invocations, but not across
     /// state setups, calling setup_state will always reallocate the scratch memory.
     ///
@@ -375,7 +375,7 @@ impl Denoiser {
         let raw_params = parameters.to_raw();
 
         let mut out = input_image.to_raw();
-        out.data = out_buffer.as_device_ptr_mut().as_raw() as u64;
+        out.data = out_buffer.as_device_ptr().as_raw_mut() as u64;
 
         let layer = sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
@@ -428,11 +428,11 @@ impl DenoiserParams<'_> {
             denoiseAlpha: self.denoise_alpha as u32,
             hdrIntensity: self
                 .hdr_intensity
-                .map(|x| unsafe { x.as_device_ptr().as_raw() as u64 })
+                .map(|x| x.as_device_ptr().as_raw() as u64)
                 .unwrap_or_default(),
             hdrAverageColor: self
                 .hdr_average_color
-                .map(|x| unsafe { x.as_device_ptr().as_raw() as u64 })
+                .map(|x| x.as_device_ptr().as_raw() as u64)
                 .unwrap_or_default(),
             blendFactor: self.blend_factor,
         }
@@ -464,15 +464,15 @@ impl DenoiserGuideImages<'_> {
             albedo: self
                 .albedo
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
             normal: self
                 .normal
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
             flow: self
                 .flow
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
         }
     }
 }

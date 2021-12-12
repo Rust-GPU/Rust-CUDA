@@ -1,0 +1,12 @@
+[package]
+name = "blastoff"
+version = "0.1.0"
+edition = "2021"
+authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>"]
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+
+[dependencies]
+bitflags = "1.3.2"
+cublas_sys = { version = "0.1", path = "../cublas_sys" }
+cust = { version = "0.2", path = "../cust", features = ["num-complex"] }
+num-complex = "0.4.0"

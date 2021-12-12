@@ -48,7 +48,7 @@ impl Debug for Type {
 
 impl Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (&self as *const _ as *const Type).hash(state);
+        (self as *const _ as *const Type).hash(state);
     }
 }
 
@@ -85,10 +85,6 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     ///x Creates an integer type with the given number of bits, e.g., i24
     pub(crate) fn type_ix(&self, num_bits: u64) -> &'ll Type {
-        // FIXME(RDambrosio016): fix this when nvidia fixes i128
-        if num_bits == 128 {
-            return self.type_i128();
-        }
         unsafe { llvm::LLVMIntTypeInContext(self.llcx, num_bits as c_uint) }
     }
 
@@ -152,7 +148,7 @@ impl<'ll, 'tcx> BaseTypeMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn type_i128(&self) -> &'ll Type {
-        unsafe { llvm::LLVMVectorType(self.type_i64(), 2) }
+        unsafe { llvm::LLVMIntTypeInContext(self.llcx, 128) }
     }
 
     fn type_isize(&self) -> &'ll Type {
@@ -183,11 +179,6 @@ impl<'ll, 'tcx> BaseTypeMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn type_kind(&self, ty: &'ll Type) -> TypeKind {
-        if ty == self.type_i128() {
-            // 🤏 just a little lying
-            // FIXME(RDambrosio016): fix this when nvidia fixes i128
-            return TypeKind::Integer;
-        }
         unsafe { llvm::LLVMRustGetTypeKind(ty).to_generic() }
     }
 
@@ -206,7 +197,8 @@ impl<'ll, 'tcx> BaseTypeMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn element_type(&self, ty: &'ll Type) -> &'ll Type {
-        unsafe { llvm::LLVMGetElementType(ty) }
+        let out = unsafe { llvm::LLVMGetElementType(ty) };
+        out
     }
 
     fn vector_length(&self, ty: &'ll Type) -> usize {
@@ -224,10 +216,6 @@ impl<'ll, 'tcx> BaseTypeMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn int_width(&self, ty: &'ll Type) -> u64 {
-        if ty == self.type_i128() {
-            // FIXME(RDambrosio016): fix this when nvidia fixes i128
-            return 128;
-        }
         unsafe { llvm::LLVMGetIntTypeWidth(ty) as u64 }
     }
 
@@ -324,7 +312,6 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
     /// of that field's type - this is useful for taking the address of
     /// that field and ensuring the struct has the right alignment.
     fn llvm_type<'a>(&self, cx: &CodegenCx<'a, 'tcx>) -> &'a Type {
-        trace!("Calculating LLVM type of {:?}", self);
         if let Abi::Scalar(ref scalar) = self.abi {
             // Use a different cache for scalars because pointers to DSTs
             // can be either fat or thin (data pointers of fat pointers).
@@ -340,7 +327,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
                     cx.type_ptr_to(cx.layout_of(self.ty.boxed_ty()).llvm_type(cx))
                 }
                 ty::FnPtr(sig) => {
-                    cx.fn_ptr_backend_type(&cx.fn_abi_of_fn_ptr(sig, ty::List::empty()))
+                    cx.fn_ptr_backend_type(cx.fn_abi_of_fn_ptr(sig, ty::List::empty()))
                 }
                 _ => self.scalar_llvm_type_at(cx, scalar, Size::ZERO),
             };

@@ -46,6 +46,7 @@ pub struct CrateDebugContext<'a, 'tcx> {
     llcontext: &'a llvm::Context,
     llmod: &'a llvm::Module,
     builder: &'a mut DIBuilder<'a>,
+    #[allow(clippy::type_complexity)]
     created_files: RefCell<FxHashMap<(Option<String>, Option<String>), &'a DIFile>>,
     created_enum_disr_types: RefCell<FxHashMap<(DefId, Primitive), &'a DIType>>,
 
@@ -138,10 +139,7 @@ impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
     fn set_dbg_loc(&mut self, dbg_loc: &'ll DILocation) {
         unsafe {
             let dbg_loc_as_llval = llvm::LLVMRustMetadataAsValue(self.cx().llcx, dbg_loc);
-            llvm::LLVMSetCurrentDebugLocation(
-                &mut *self.llbuilder.lock().unwrap(),
-                dbg_loc_as_llval,
-            );
+            llvm::LLVMSetCurrentDebugLocation(self.llbuilder, dbg_loc_as_llval);
         }
     }
 
@@ -258,7 +256,7 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         type_names::push_item_name(self.tcx(), def_id, false, &mut name);
 
         // Find the enclosing function, in case this is a closure.
-        let enclosing_fn_def_id = self.tcx().closure_base_def_id(def_id);
+        let enclosing_fn_def_id = self.tcx().typeck_root_def_id(def_id);
 
         // Get_template_parameters() will append a `<...>` clause to the function
         // name if necessary.

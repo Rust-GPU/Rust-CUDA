@@ -33,7 +33,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let five = DBox::new(&5).unwrap();
+    /// let five = DeviceBox::new(&5).unwrap();
     /// ```
     pub fn new(val: &T) -> CudaResult<Self> {
         let mut dev_box = unsafe { DeviceBox::uninitialized()? };
@@ -67,7 +67,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let mut five = unsafe { DBox::uninitialized().unwrap() };
+    /// let mut five = unsafe { DeviceBox::uninitialized().unwrap() };
     /// five.copy_from(&5u64).unwrap();
     /// ```
     pub unsafe fn uninitialized() -> CudaResult<Self> {
@@ -96,7 +96,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let mut zero = unsafe { DBox::zeroed().unwrap() };
+    /// let mut zero = unsafe { DeviceBox::zeroed().unwrap() };
     /// let mut value = 5u64;
     /// zero.copy_to(&mut value).unwrap();
     /// assert_eq!(0, value);
@@ -110,10 +110,10 @@ impl<T: DeviceCopy> DeviceBox<T> {
         Ok(new_box)
     }
 
-    /// Constructs a DBox from a raw pointer.
+    /// Constructs a DeviceBox from a raw pointer.
     ///
     /// After calling this function, the raw pointer and the memory it points to is owned by the
-    /// DBox. The DBox destructor will free the allocated memory, but will not call the destructor
+    /// DeviceBox. The DeviceBox destructor will free the allocated memory, but will not call the destructor
     /// of `T`. This function may accept any pointer produced by the `cuMemAllocManaged` CUDA API
     /// call.
     ///
@@ -128,9 +128,9 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// let ptr = DBox::into_device(x).as_raw_mut();
-    /// let x = unsafe { DBox::from_raw(ptr) };
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// let ptr = DeviceBox::into_device(x).as_raw_mut();
+    /// let x = unsafe { DeviceBox::from_raw(ptr) };
     /// ```
     pub unsafe fn from_raw(ptr: cust_raw::CUdeviceptr) -> Self {
         DeviceBox {
@@ -138,12 +138,12 @@ impl<T: DeviceCopy> DeviceBox<T> {
         }
     }
 
-    /// Constructs a DBox from a DevicePointer.
+    /// Constructs a DeviceBox from a DevicePointer.
     ///
     /// After calling this function, the pointer and the memory it points to is owned by the
-    /// DBox. The DBox destructor will free the allocated memory, but will not call the destructor
+    /// DeviceBox. The DeviceBox destructor will free the allocated memory, but will not call the destructor
     /// of `T`. This function may accept any pointer produced by the `cuMemAllocManaged` CUDA API
-    /// call, such as one taken from `DBox::into_device`.
+    /// call, such as one taken from `DeviceBox::into_device`.
     ///
     /// # Safety
     ///
@@ -156,22 +156,22 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// let ptr = DBox::into_device(x);
-    /// let x = unsafe { DBox::from_device(ptr) };
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// let ptr = DeviceBox::into_device(x);
+    /// let x = unsafe { DeviceBox::from_device(ptr) };
     /// ```
     pub unsafe fn from_device(ptr: DevicePointer<T>) -> Self {
         DeviceBox { ptr }
     }
 
-    /// Consumes the DBox, returning the wrapped DevicePointer.
+    /// Consumes the DeviceBox, returning the wrapped DevicePointer.
     ///
     /// After calling this function, the caller is responsible for the memory previously managed by
-    /// the DBox. In particular, the caller should properly destroy T and deallocate the memory.
-    /// The easiest way to do so is to create a new DBox using the `DBox::from_device` function.
+    /// the DeviceBox. In particular, the caller should properly destroy T and deallocate the memory.
+    /// The easiest way to do so is to create a new DeviceBox using the `DeviceBox::from_device` function.
     ///
     /// Note: This is an associated function, which means that you have to all it as
-    /// `DBox::into_device(b)` instead of `b.into_device()` This is so that there is no conflict with
+    /// `DeviceBox::into_device(b)` instead of `b.into_device()` This is so that there is no conflict with
     /// a method on the inner type.
     ///
     /// # Examples
@@ -179,9 +179,9 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// let ptr = DBox::into_device(x);
-    /// # unsafe { DBox::from_device(ptr) };
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// let ptr = DeviceBox::into_device(x);
+    /// # unsafe { DeviceBox::from_device(ptr) };
     /// ```
     #[allow(clippy::wrong_self_convention)]
     pub fn into_device(mut b: DeviceBox<T>) -> DevicePointer<T> {
@@ -199,7 +199,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let mut x = DBox::new(&5).unwrap();
+    /// let mut x = DeviceBox::new(&5).unwrap();
     /// let ptr = x.as_device_ptr();
     /// println!("{:p}", ptr);
     /// ```
@@ -207,7 +207,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
         self.ptr
     }
 
-    /// Destroy a `DBox`, returning an error.
+    /// Destroy a `DeviceBox`, returning an error.
     ///
     /// Deallocating device memory can return errors from previous asynchronous work. This function
     /// destroys the given box and returns the error and the un-destroyed box on failure.
@@ -217,8 +217,8 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// let x = DBox::new(&5).unwrap();
-    /// match DBox::drop(x) {
+    /// let x = DeviceBox::new(&5).unwrap();
+    /// match DeviceBox::drop(x) {
     ///     Ok(()) => println!("Successfully destroyed"),
     ///     Err((e, dev_box)) => {
     ///         println!("Failed to destroy box: {:?}", e);

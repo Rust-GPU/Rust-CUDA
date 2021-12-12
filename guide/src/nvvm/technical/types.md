@@ -81,7 +81,7 @@ impl<'ll, 'tcx> BaseTypeMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn type_i128(&self) -> &'ll Type {
-        unsafe { llvm::LLVMVectorType(self.type_i64(), 2) }
+        unsafe { llvm::LLVMIntTypeInContext(self.llcx, 128) }
     }
 
     fn type_isize(&self) -> &'ll Type {

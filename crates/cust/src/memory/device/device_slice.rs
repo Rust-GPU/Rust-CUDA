@@ -102,9 +102,14 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// assert_eq!([0u64, 1, 2], left_host);
     /// assert_eq!([3u64, 4, 5], right_host);
     /// ```
-    pub fn split_at(&self, mid: usize) -> (&DSlice<T>, &DSlice<T>) {
+    pub fn split_at(&self, mid: usize) -> (&DeviceSlice<T>, &DeviceSlice<T>) {
         let (left, right) = self.0.split_at(mid);
-        unsafe { (DSlice::from_slice(left), DSlice::from_slice(right)) }
+        unsafe {
+            (
+                DeviceSlice::from_slice(left),
+                DeviceSlice::from_slice(right),
+            )
+        }
     }
 
     /// Divides one mutable DeviceSlice into two at a given index.
@@ -135,9 +140,14 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// buf.copy_to(&mut host_full).unwrap();
     /// assert_eq!([0u64, 1, 2, 3, 4, 5], host_full);
     /// ```
-    pub fn split_at_mut(&mut self, mid: usize) -> (&mut DSlice<T>, &mut DSlice<T>) {
+    pub fn split_at_mut(&mut self, mid: usize) -> (&mut DeviceSlice<T>, &mut DeviceSlice<T>) {
         let (left, right) = self.0.split_at_mut(mid);
-        unsafe { (DSlice::from_slice_mut(left), DSlice::from_slice_mut(right)) }
+        unsafe {
+            (
+                DeviceSlice::from_slice_mut(left),
+                DeviceSlice::from_slice_mut(right),
+            )
+        }
     }
     */
 

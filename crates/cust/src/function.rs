@@ -57,7 +57,7 @@ impl From<(u32, u32, u32)> for GridSize {
 }
 impl<'a> From<&'a GridSize> for GridSize {
     fn from(other: &GridSize) -> GridSize {
-        other.clone()
+        *other
     }
 }
 #[cfg(feature = "vek")]
@@ -137,7 +137,7 @@ impl From<(u32, u32, u32)> for BlockSize {
 }
 impl<'a> From<&'a BlockSize> for BlockSize {
     fn from(other: &BlockSize) -> BlockSize {
-        other.clone()
+        *other
     }
 }
 #[cfg(feature = "vek")]
@@ -226,9 +226,8 @@ impl<'a> Function<'a> {
     /// # use std::ffi::CString;
     /// # let ptx = CString::new(include_str!("../resources/add.ptx"))?;
     /// # let module = Module::load_from_string(&ptx)?;
-    /// # let name = CString::new("sum")?;
     /// use cust::function::FunctionAttribute;
-    /// let function = module.get_function(&name)?;
+    /// let function = module.get_function("sum")?;
     /// let shared_memory = function.get_attribute(FunctionAttribute::SharedMemorySizeBytes)?;
     /// println!("This function uses {} bytes of shared memory", shared_memory);
     /// # Ok(())
@@ -270,9 +269,8 @@ impl<'a> Function<'a> {
     /// # use std::ffi::CString;
     /// # let ptx = CString::new(include_str!("../resources/add.ptx"))?;
     /// # let module = Module::load_from_string(&ptx)?;
-    /// # let name = CString::new("sum")?;
     /// use cust::context::CacheConfig;
-    /// let mut function = module.get_function(&name)?;
+    /// let mut function = module.get_function("sum")?;
     /// function.set_cache_config(CacheConfig::PreferL1)?;
     /// # Ok(())
     /// # }
@@ -298,9 +296,8 @@ impl<'a> Function<'a> {
     /// # use std::ffi::CString;
     /// # let ptx = CString::new(include_str!("../resources/add.ptx"))?;
     /// # let module = Module::load_from_string(&ptx)?;
-    /// # let name = CString::new("sum")?;
     /// use cust::context::SharedMemoryConfig;
-    /// let mut function = module.get_function(&name)?;
+    /// let mut function = module.get_function("sum")?;
     /// function.set_shared_memory_config(SharedMemoryConfig::EightByteBankSize)?;
     /// # Ok(())
     /// # }
@@ -487,8 +484,7 @@ impl<'a> Function<'a> {
 ///     result?;
 ///
 ///     // Launch the kernel again using the `function` form:
-///     let function_name = CString::new("sum")?;
-///     let sum = module.get_function(&function_name)?;
+///     let sum = module.get_function("sum")?;
 ///     // Launch with 1x1x1 (1) blocks of 10x1x1 (10) threads, to show that you can use tuples to
 ///     // configure grid and block size.
 ///     let result = launch!(sum<<<(1, 1, 1), (10, 1, 1), 0, stream>>>(
@@ -517,17 +513,16 @@ impl<'a> Function<'a> {
 ///
 #[macro_export]
 macro_rules! launch {
-    ($module:ident . $function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* )) => {
+    ($module:ident . $function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* $(,)?)) => {
         {
-            let name = std::ffi::CString::new(stringify!($function)).unwrap();
-            let function = $module.get_function(&name);
+            let function = $module.get_function(stringify!($function));
             match function {
                 Ok(f) => launch!(f<<<$grid, $block, $shared, $stream>>>( $($arg),* ) ),
                 Err(e) => Err(e),
             }
         }
     };
-    ($function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* )) => {
+    ($function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* $(,)?)) => {
         {
             fn assert_impl_devicecopy<T: $crate::memory::DeviceCopy>(_val: T) {}
             if false {

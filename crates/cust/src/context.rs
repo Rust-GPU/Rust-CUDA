@@ -256,12 +256,8 @@ impl Context {
             // lifetime guarantees so we create-and-push, then pop, then the programmer has to
             // push again.
             let mut ctx: CUcontext = ptr::null_mut();
-            cuda::cuCtxCreate_v2(
-                &mut ctx as *mut CUcontext,
-                flags.bits(),
-                device.into_inner(),
-            )
-            .to_result()?;
+            cuda::cuCtxCreate_v2(&mut ctx as *mut CUcontext, flags.bits(), device.as_raw())
+                .to_result()?;
             Ok(Context { inner: ctx })
         }
     }

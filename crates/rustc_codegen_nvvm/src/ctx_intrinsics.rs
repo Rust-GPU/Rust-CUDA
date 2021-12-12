@@ -1,8 +1,7 @@
+use crate::context::CodegenCx;
 use crate::llvm::Value;
 use rustc_codegen_ssa::traits::{BaseTypeMethods, DerivedTypeMethods};
 use rustc_session::config::DebugInfo;
-
-use crate::context::CodegenCx;
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub(crate) fn declare_intrinsic(&self, key: &str) -> Option<&'ll Value> {
@@ -14,6 +13,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     #[rustfmt::skip] // stop rustfmt from making this 2k lines
     pub(crate) fn build_intrinsics_map(&mut self) {
         let mut map = self.intrinsics_map.borrow_mut();
+        let mut remapped = self.remapped_integer_args.borrow_mut();
 
         macro_rules! ifn {
             ($map:expr, $($name:literal)|*, fn($($arg:expr),*) -> $ret:expr) => {
@@ -23,6 +23,9 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             };
         }
 
+        let real_t_i128 = self.type_i128();
+        let real_t_i128_i1 = self.type_struct(&[real_t_i128, self.type_i1()], false);
+
         let i8p = self.type_i8p();
         let void = self.type_void();
         let i1 = self.type_i1();
@@ -30,7 +33,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         let t_i16 = self.type_i16();
         let t_i32 = self.type_i32();
         let t_i64 = self.type_i64();
-        let t_i128 = self.type_i128();
+        let t_i128 = self.type_vector(t_i64, 2);
         let t_f32 = self.type_f32();
         let t_f64 = self.type_f64();
 
@@ -46,53 +49,62 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ifn!(map, "llvm.assume", fn(i1) -> void);
         ifn!(map, "llvm.prefetch", fn(i8p, t_i32, t_i32, t_i32) -> void);
 
-        ifn!(map, "llvm.sadd.with.overflow.i8", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "llvm.sadd.with.overflow.i16", fn(t_i16, t_i16) -> t_i16_i1);
         ifn!(map, "llvm.sadd.with.overflow.i32", fn(t_i32, t_i32) -> t_i32_i1);
         ifn!(map, "llvm.sadd.with.overflow.i64", fn(t_i64, t_i64) -> t_i64_i1);
-        ifn!(map, "llvm.sadd.with.overflow.i128", fn(t_i128, t_i128) -> t_i128_i1);
 
-        ifn!(map, "llvm.uadd.with.overflow.i8", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "llvm.uadd.with.overflow.i16", fn(t_i16, t_i16) -> t_i16_i1);
         ifn!(map, "llvm.uadd.with.overflow.i32", fn(t_i32, t_i32) -> t_i32_i1);
         ifn!(map, "llvm.uadd.with.overflow.i64", fn(t_i64, t_i64) -> t_i64_i1);
-        ifn!(map, "llvm.uadd.with.overflow.i128", fn(t_i128, t_i128) -> t_i128_i1);
 
-        ifn!(map, "llvm.ssub.with.overflow.i8", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "llvm.ssub.with.overflow.i16", fn(t_i16, t_i16) -> t_i16_i1);
         ifn!(map, "llvm.ssub.with.overflow.i32", fn(t_i32, t_i32) -> t_i32_i1);
         ifn!(map, "llvm.ssub.with.overflow.i64", fn(t_i64, t_i64) -> t_i64_i1);
-        ifn!(map, "llvm.ssub.with.overflow.i128", fn(t_i128, t_i128) -> t_i128_i1);
 
-        ifn!(map, "llvm.usub.with.overflow.i8", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "llvm.usub.with.overflow.i16", fn(t_i16, t_i16) -> t_i16_i1);
         ifn!(map, "llvm.usub.with.overflow.i32", fn(t_i32, t_i32) -> t_i32_i1);
         ifn!(map, "llvm.usub.with.overflow.i64", fn(t_i64, t_i64) -> t_i64_i1);
-        ifn!(map, "llvm.usub.with.overflow.i128", fn(t_i128, t_i128) -> t_i128_i1);
 
-        ifn!(map, "llvm.smul.with.overflow.i8", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "llvm.smul.with.overflow.i16", fn(t_i16, t_i16) -> t_i16_i1);
         ifn!(map, "llvm.smul.with.overflow.i32", fn(t_i32, t_i32) -> t_i32_i1);
         ifn!(map, "llvm.smul.with.overflow.i64", fn(t_i64, t_i64) -> t_i64_i1);
-        ifn!(map, "llvm.smul.with.overflow.i128", fn(t_i128, t_i128) -> t_i128_i1);
 
-        ifn!(map, "llvm.umul.with.overflow.i8", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "llvm.umul.with.overflow.i16", fn(t_i16, t_i16) -> t_i16_i1);
         ifn!(map, "llvm.umul.with.overflow.i32", fn(t_i32, t_i32) -> t_i32_i1);
         ifn!(map, "llvm.umul.with.overflow.i64", fn(t_i64, t_i64) -> t_i64_i1);
-        ifn!(map, "llvm.umul.with.overflow.i128", fn(t_i128, t_i128) -> t_i128_i1);
 
-        // ifn!(map, "__nvvm_i128_addo", fn(t_i128, t_i128) -> t_i128_i1);
-        // ifn!(map, "__nvvm_u128_addo", fn(t_i128, t_i128) -> t_i128_i1);
-        // ifn!(map, "__nvvm_i128_subo", fn(t_i128, t_i128) -> t_i128_i1);
-        // ifn!(map, "__nvvm_u128_subo", fn(t_i128, t_i128) -> t_i128_i1);
-        // ifn!(map, "__nvvm_i128_mulo", fn(t_i128, t_i128) -> t_i128_i1);
-        // ifn!(map, "__nvvm_u128_mulo", fn(t_i128, t_i128) -> t_i128_i1);
+        let i128_checked_binops = [
+            "__nvvm_i128_addo",
+            "__nvvm_u128_addo",
+            "__nvvm_i128_subo",
+            "__nvvm_u128_subo",
+            "__nvvm_i128_mulo",
+            "__nvvm_u128_mulo"
+        ];
+
+        for binop in i128_checked_binops {
+            map.insert(binop, (vec![t_i128, t_i128], t_i128_i1));
+            let llfn_ty = self.type_func(&[t_i128, t_i128], t_i128_i1);
+            remapped.insert(llfn_ty, (Some(real_t_i128_i1), vec![(0, real_t_i128), (1, real_t_i128)]));
+        }
+
+        let i128_saturating_ops = [
+            "llvm.sadd.sat.i128",
+            "llvm.uadd.sat.i128",
+            "llvm.ssub.sat.i128",
+            "llvm.usub.sat.i128",
+        ];
+
+        for binop in i128_saturating_ops {
+            map.insert(binop, (vec![t_i128, t_i128], t_i128));
+            let llfn_ty = self.type_func(&[t_i128, t_i128], t_i128);
+            remapped.insert(llfn_ty, (Some(real_t_i128), vec![(0, real_t_i128), (1, real_t_i128)]));
+        }
 
         // for some very strange reason, they arent supported for i8 either, but that case
         // is easy to handle and we declare our own functions for that which just
         // zext to i16, use the i16 intrinsic, then trunc back to i8
-        
+
         // these are declared in libintrinsics, see libintrinsics.ll
         ifn!(map, "__nvvm_i8_addo", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "__nvvm_u8_addo", fn(t_i8, t_i8) -> t_i8_i1);
@@ -108,61 +120,55 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ifn!(map, "llvm.sadd.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.sadd.sat.i32", fn(t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.sadd.sat.i64", fn(t_i64, t_i64) -> t_i64);
-        ifn!(map, "llvm.sadd.sat.i128", fn(t_i128, t_i128) -> t_i128);
 
         ifn!(map, "llvm.uadd.sat.i8", fn(t_i8, t_i8) -> t_i8);
         ifn!(map, "llvm.uadd.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.uadd.sat.i32", fn(t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.uadd.sat.i64", fn(t_i64, t_i64) -> t_i64);
-        ifn!(map, "llvm.uadd.sat.i128", fn(t_i128, t_i128) -> t_i128);
 
         ifn!(map, "llvm.ssub.sat.i8", fn(t_i8, t_i8) -> t_i8);
         ifn!(map, "llvm.ssub.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.ssub.sat.i32", fn(t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.ssub.sat.i64", fn(t_i64, t_i64) -> t_i64);
-        ifn!(map, "llvm.ssub.sat.i128", fn(t_i128, t_i128) -> t_i128);
-        
+
         ifn!(map, "llvm.usub.sat.i8", fn(t_i8, t_i8) -> t_i8);
         ifn!(map, "llvm.usub.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.usub.sat.i32", fn(t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.usub.sat.i64", fn(t_i64, t_i64) -> t_i64);
-        ifn!(map, "llvm.usub.sat.i128", fn(t_i128, t_i128) -> t_i128);
 
         ifn!(map, "llvm.fshl.i8", fn(t_i8, t_i8, t_i8) -> t_i8);
         ifn!(map, "llvm.fshl.i16", fn(t_i16, t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.fshl.i32", fn(t_i32, t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.fshl.i64", fn(t_i64, t_i64, t_i64) -> t_i64);
-        ifn!(map, "llvm.fshl.i128", fn(t_i128, t_i128, t_i128) -> t_i128);
 
         ifn!(map, "llvm.fshr.i8", fn(t_i8, t_i8, t_i8) -> t_i8);
         ifn!(map, "llvm.fshr.i16", fn(t_i16, t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.fshr.i32", fn(t_i32, t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.fshr.i64", fn(t_i64, t_i64, t_i64) -> t_i64);
-        ifn!(map, "llvm.fshr.i128", fn(t_i128, t_i128, t_i128) -> t_i128);
 
         ifn!(map, "llvm.ctpop.i8", fn(t_i8) -> t_i8);
         ifn!(map, "llvm.ctpop.i16", fn(t_i16) -> t_i16);
         ifn!(map, "llvm.ctpop.i32", fn(t_i32) -> t_i32);
         ifn!(map, "llvm.ctpop.i64", fn(t_i64) -> t_i64);
-        ifn!(map, "llvm.ctpop.i128", fn(t_i128) -> t_i128);
 
         ifn!(map, "llvm.bitreverse.i8", fn(t_i8) -> t_i8);
         ifn!(map, "llvm.bitreverse.i16", fn(t_i16) -> t_i16);
         ifn!(map, "llvm.bitreverse.i32", fn(t_i32) -> t_i32);
         ifn!(map, "llvm.bitreverse.i64", fn(t_i64) -> t_i64);
-        ifn!(map, "llvm.bitreverse.i128", fn(t_i128) -> t_i128);
+
+        ifn!(map, "llvm.bswap.i16", fn(t_i16) -> t_i16);
+        ifn!(map, "llvm.bswap.i32", fn(t_i32) -> t_i32);
+        ifn!(map, "llvm.bswap.i64", fn(t_i64) -> t_i64);
 
         ifn!(map, "llvm.ctlz.i8", fn(t_i8, i1) -> t_i8);
         ifn!(map, "llvm.ctlz.i16", fn(t_i16, i1) -> t_i16);
         ifn!(map, "llvm.ctlz.i32", fn(t_i32, i1) -> t_i32);
         ifn!(map, "llvm.ctlz.i64", fn(t_i64, i1) -> t_i64);
-        ifn!(map, "llvm.ctlz.i128", fn(t_i128, i1) -> t_i128);
 
         ifn!(map, "llvm.cttz.i8", fn(t_i8, i1) -> t_i8);
         ifn!(map, "llvm.cttz.i16", fn(t_i16, i1) -> t_i16);
         ifn!(map, "llvm.cttz.i32", fn(t_i32, i1) -> t_i32);
         ifn!(map, "llvm.cttz.i64", fn(t_i64, i1) -> t_i64);
-        ifn!(map, "llvm.cttz.i128", fn(t_i128, i1) -> t_i128);
 
         ifn!(map, "llvm.lifetime.start.p0i8", fn(t_i64, i8p) -> void);
         ifn!(map, "llvm.lifetime.end.p0i8", fn(t_i64, i8p) -> void);
@@ -256,8 +262,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgamma" |
             "__nv_trunc" |
             "__nv_y0" |
-            "__nv_y1" |
-            "__nv_yn",
+            "__nv_y1",
             fn(t_f64) -> t_f64
         );
 
@@ -310,8 +315,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgammaf" |
             "__nv_truncf" |
             "__nv_y0f" |
-            "__nv_y1f" |
-            "__nv_ynf",
+            "__nv_y1f",
             fn(t_f32) -> t_f32
         );
 
@@ -378,7 +382,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         );
 
         // other intrinsics
-        
+
         ifn!(
             map,
             "__nv_powi",
@@ -401,6 +405,18 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             map,
             "__nv_fmaf",
             fn(t_f32, t_f32, t_f32) -> t_f32
+        );
+
+        ifn!(
+            map,
+            "__nv_yn",
+            fn(t_i32, t_f64) -> t_f64
+        );
+
+        ifn!(
+            map,
+            "__nv_ynf",
+            fn(t_i32, t_f32) -> t_f32
         );
     }
 }

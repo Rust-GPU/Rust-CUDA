@@ -34,13 +34,16 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         let instance = Instance::mono(self.tcx, def_id);
         let ty = instance.ty(self.tcx, ty::ParamEnv::reveal_all());
         let llty = self.layout_of(ty).llvm_type(self);
+        let addrspace = self.static_addrspace(instance);
 
-        let g = self.define_global(symbol_name, llty).unwrap_or_else(|| {
-            self.sess().span_fatal(
-                self.tcx.def_span(def_id),
-                &format!("symbol `{}` is already defined", symbol_name),
-            )
-        });
+        let g = self
+            .define_global(symbol_name, llty, addrspace)
+            .unwrap_or_else(|| {
+                self.sess().span_fatal(
+                    self.tcx.def_span(def_id),
+                    &format!("symbol `{}` is already defined", symbol_name),
+                )
+            });
 
         unsafe {
             llvm::LLVMRustSetLinkage(g, linkage_to_llvm(linkage));
@@ -67,7 +70,7 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty());
 
-        let lldecl = self.declare_fn(symbol_name, &fn_abi.llvm_type(self));
+        let lldecl = self.declare_fn(symbol_name, fn_abi.llvm_type(self), Some(fn_abi));
 
         unsafe { llvm::LLVMRustSetLinkage(lldecl, linkage_to_llvm(linkage)) };
 
@@ -92,7 +95,7 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         let def_id = instance.def_id();
         let attrs = self.tcx.get_attrs(def_id);
-        let nvvm_attrs = NvvmAttributes::parse(&self, attrs);
+        let nvvm_attrs = NvvmAttributes::parse(self, attrs);
 
         unsafe {
             // if this function is marked as being a kernel, add it
@@ -106,6 +109,17 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                 llvm::LLVMAddNamedMetadataOperand(
                     self.llmod,
                     "nvvm.annotations\0".as_ptr().cast(),
+                    node,
+                );
+            }
+            if nvvm_attrs.used {
+                trace!("Marking function `{:?}` as used", symbol_name);
+                let mdvals = &[lldecl];
+                let node =
+                    llvm::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
+                llvm::LLVMAddNamedMetadataOperand(
+                    self.llmod,
+                    "cg_nvvm_used\0".as_ptr().cast(),
                     node,
                 );
             }

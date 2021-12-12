@@ -61,6 +61,11 @@ static AtomicOrdering fromRust(LLVMAtomicOrdering Ordering)
   report_fatal_error("Invalid LLVMAtomicOrdering value!");
 }
 
+extern "C" LLVMTypeRef LLVMRustGetFunctionType(LLVMValueRef V)
+{
+  return wrap(dyn_cast<llvm::Function>(unwrap<llvm::Value>(V))->getFunctionType());
+}
+
 extern "C" LLVMTypeRef LLVMRustGetFunctionReturnType(LLVMValueRef V)
 {
   return wrap(dyn_cast<llvm::Function>(unwrap<llvm::Value>(V))->getReturnType());
@@ -182,9 +187,20 @@ extern "C" LLVMValueRef LLVMRustGetOrInsertFunction(LLVMModuleRef M,
 }
 
 extern "C" LLVMValueRef
-LLVMRustGetOrInsertGlobal(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty)
+LLVMRustGetOrInsertGlobal(LLVMModuleRef M, const char *Name, size_t NameLen, LLVMTypeRef Ty, unsigned AddressSpace)
 {
-  return wrap(unwrap(M)->getOrInsertGlobal(Name, unwrap(Ty)));
+  Module *Mod = unwrap(M);
+  StringRef NameRef(Name, NameLen);
+
+  // We don't use Module::getOrInsertGlobal because that returns a Constant*,
+  // which may either be the real GlobalVariable*, or a constant bitcast of it
+  // if our type doesn't match the original declaration. We always want the
+  // GlobalVariable* so we can access linkage, visibility, etc.
+  GlobalVariable *GV = Mod->getGlobalVariable(NameRef, true);
+  if (!GV)
+    GV = new GlobalVariable(*Mod, unwrap(Ty), false,
+                            GlobalValue::ExternalLinkage, nullptr, NameRef, nullptr, GlobalValue::NotThreadLocal, AddressSpace);
+  return wrap(GV);
 }
 
 extern "C" LLVMTypeRef LLVMRustMetadataTypeInContext(LLVMContextRef C)

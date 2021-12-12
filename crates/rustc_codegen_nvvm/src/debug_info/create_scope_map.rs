@@ -39,7 +39,7 @@ pub(crate) fn compute_mir_scopes<'ll, 'tcx>(
         make_mir_scope(
             cx,
             instance,
-            &mir,
+            mir,
             fn_dbg_scope,
             &has_variables,
             debug_context,
@@ -103,7 +103,7 @@ fn make_mir_scope<'ll, 'tcx>(
                 callee,
             );
             let callee_fn_abi = cx.fn_abi_of_instance(callee, ty::List::empty());
-            cx.dbg_scope_fn(callee, &callee_fn_abi, None)
+            cx.dbg_scope_fn(callee, callee_fn_abi, None)
         }
         None => unsafe {
             llvm::LLVMRustDIBuilderCreateLexicalBlock(

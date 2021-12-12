@@ -1,9 +1,12 @@
 [package]
 name = "rustc_codegen_nvvm"
-version = "0.1.0"
+version = "0.2.2"
 authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "The Rust Project Developers"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+description = "A codegen backend for Rustc which targets the libnvvm CUDA library"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
 
 [lib]
 crate-type = ["dylib"]
@@ -15,12 +18,17 @@ libc = "0.2.97"
 tar = "0.4.35"
 once_cell = "1.8.0"
 bitflags = "1.3.2"
-tracing = "0.1.29"
-find_cuda_helper = { path = "../find_cuda_helper" }
+tracing = { version = "0.1.29", features = ["release_max_level_debug"] }
+find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
+tracing-subscriber = { version = "0.3.1", features = ["env-filter"] }
+rustc_codegen_nvvm_macros = { version = "0.1", path = "../rustc_codegen_nvvm_macros" }
 
 [build-dependencies]
 build-helper = "0.1.1"
 cc = { version = "1.0", features = ["parallel"] }
+xz = "0.1.0"
+tar = "0.4.37"
+curl = "0.4.40"
 
 [package.metadata.rust-analyzer]
 rustc_private = true

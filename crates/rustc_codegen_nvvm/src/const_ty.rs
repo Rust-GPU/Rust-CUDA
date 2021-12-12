@@ -14,14 +14,6 @@ use rustc_span::Symbol;
 use rustc_target::abi::{self, AddressSpace, HasDataLayout, Size};
 use tracing::trace;
 
-// FIXME(RDambrosio016): fix this when nvidia fixes i128
-fn const_i128<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>) -> &'ll Value {
-    let first = cx.const_u64(0);
-    let second = cx.const_u64(0);
-    let vals = [first, second];
-    unsafe { llvm::LLVMConstVector(vals.as_ptr(), 2) }
-}
-
 impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn const_data_from_alloc(&self, alloc: &Allocation) -> &'ll Value {
         const_alloc_to_llvm(self, alloc)
@@ -36,24 +28,18 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn const_int(&self, t: &'ll Type, i: i64) -> &'ll Value {
-        if t == self.type_i128() {
-            return const_i128(self);
-        }
         unsafe { llvm::LLVMConstInt(t, i as u64, True) }
     }
 
     fn const_uint(&self, t: &'ll Type, i: u64) -> &'ll Value {
-        if t == self.type_i128() {
-            return const_i128(self);
-        }
         unsafe { llvm::LLVMConstInt(t, i, False) }
     }
 
     fn const_uint_big(&self, t: &'ll Type, u: u128) -> &'ll Value {
-        if t == self.type_i128() {
-            return const_i128(self);
+        unsafe {
+            let words = [u as u64, (u >> 64) as u64];
+            llvm::LLVMConstIntOfArbitraryPrecision(t, 2, words.as_ptr())
         }
-        self.const_int(t, u as i64)
     }
 
     fn const_bool(&self, val: bool) -> &'ll Value {
@@ -124,7 +110,12 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         }
     }
 
-    fn scalar_to_backend(&self, cv: Scalar, layout: abi::Scalar, llty: &'ll Type) -> &'ll Value {
+    fn scalar_to_backend(
+        &self,
+        cv: Scalar,
+        layout: abi::Scalar,
+        mut llty: &'ll Type,
+    ) -> &'ll Value {
         trace!("Scalar to backend `{:?}`, `{:?}`, `{:?}`", cv, layout, llty);
         let bitsize = if layout.is_bool() {
             1
@@ -137,14 +128,6 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                 self.const_undef(self.type_ix(0))
             }
             Scalar::Int(int) => {
-                // TODO(RDambrosio016): fix this when nvidia fixes i128
-                if llty == self.type_i128() {
-                    let first = self.const_u64(0);
-                    let second = self.const_u64(0);
-                    let vals = [first, second];
-
-                    return unsafe { llvm::LLVMConstVector(vals.as_ptr(), 2) };
-                }
                 let data = int.assert_bits(layout.value.size(self));
                 let llval = self.const_uint_big(self.type_ix(bitsize), data);
                 if layout.value == Pointer {
@@ -174,7 +157,11 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     GlobalAlloc::Static(def_id) => {
                         assert!(self.tcx.is_static(def_id));
                         assert!(!self.tcx.is_thread_local_static(def_id));
-                        (self.get_static(def_id), AddressSpace::DATA)
+                        let val = self.get_static(def_id);
+                        let addrspace = unsafe {
+                            llvm::LLVMGetPointerAddressSpace(llvm::LLVMRustGetValueType(val))
+                        };
+                        (self.get_static(def_id), AddressSpace(addrspace))
                     }
                 };
                 let llval = unsafe {
@@ -184,15 +171,23 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                         1,
                     )
                 };
+
                 if layout.value != Pointer {
                     unsafe { llvm::LLVMConstPtrToInt(llval, llty) }
                 } else {
+                    if base_addr_space != AddressSpace::DATA {
+                        unsafe {
+                            let element = llvm::LLVMGetElementType(llty);
+                            llty = self.type_ptr_to_ext(element, base_addr_space);
+                        }
+                    }
                     self.const_bitcast(llval, llty)
                 }
             }
         };
 
         trace!("...Scalar to backend: `{:?}`", val);
+        trace!("{:?}", std::backtrace::Backtrace::force_capture());
 
         val
     }

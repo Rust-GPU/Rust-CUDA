@@ -1,154 +1,73 @@
-use crate::builder::{unnamed, Builder};
+use crate::builder::Builder;
 use crate::context::CodegenCx;
-use crate::int_replace::get_transformed_type;
+use crate::int_replace::{get_transformed_type, transmute_llval};
 use crate::llvm::{self, *};
 use crate::ty::LayoutLlvmExt;
-use abi::Primitive::Pointer;
 use libc::c_uint;
 use rustc_codegen_ssa::mir::operand::OperandValue;
 use rustc_codegen_ssa::mir::place::PlaceRef;
 use rustc_codegen_ssa::traits::BaseTypeMethods;
 use rustc_codegen_ssa::{traits::*, MemFlags};
 use rustc_middle::bug;
-use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
-use rustc_middle::ty::layout::{conv_from_spec_abi, FnAbiError, LayoutCx, LayoutOf, TyAndLayout};
+use rustc_middle::ty::layout::LayoutOf;
 pub use rustc_middle::ty::layout::{FAT_PTR_ADDR, FAT_PTR_EXTRA};
-use rustc_middle::ty::{ParamEnv, PolyFnSig, Ty, TyCtxt, TyS};
+use rustc_middle::ty::{Ty, TyCtxt, TyKind};
 pub use rustc_target::abi::call::*;
 use rustc_target::abi::call::{CastTarget, Reg, RegKind};
-use rustc_target::abi::{self, HasDataLayout, Int, PointerKind, Scalar, Size};
+use rustc_target::abi::{self, HasDataLayout, Int};
 pub use rustc_target::spec::abi::Abi;
+use tracing::trace;
 
-// /// Calculates an FnAbi for extern C functions. In our codegen, extern C is overriden
-// /// to mean "pass everything by value" . This is required because otherwise, rustc
-// /// will try to pass stuff indirectly which causes tons of issues, because when a user
-// /// goes to launch the kernel, the call will segfault/yield ub because parameter size/amount mismatches.
-// /// It is probably not possible to override ALL ABIs because rustc relies on rustcall details it can control.
-// /// Therefore, we override extern C instead. This also has better compatability with linking to gpu instrinsics.
-// ///
-// /// We may want to override everything but rustcall in the future.
-// pub(crate) fn fn_abi_for_extern_c_fn<'tcx>(
-//     cx: LayoutCx<'tcx, TyCtxt<'tcx>>,
-//     sig: PolyFnSig<'tcx>,
-//     extra_args: &[Ty<'tcx>],
-//     caller_location: Option<TyS<'tcx>>,
-//     attrs: CodegenFnAttrFlags,
-//     force_thin_self_ptr: bool,
-// ) -> Result<&'tcx FnAbi<'tcx, &'tcx TyS<'tcx>>, FnAbiError<'tcx>> {
-//     // this code is derived from fn_abi_new_uncached in LayoutCx
-//     assert_eq!(sig.abi(), Abi::C { unwind: false });
+pub(crate) fn readjust_fn_abi<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    fn_abi: &'tcx FnAbi<'tcx, Ty<'tcx>>,
+) -> &'tcx FnAbi<'tcx, Ty<'tcx>> {
+    // dont override anything in the rust abi for now
+    if fn_abi.conv == Conv::Rust {
+        return fn_abi;
+    }
+    let readjust_arg_abi = |arg: &ArgAbi<'tcx, Ty<'tcx>>| {
+        let mut arg = ArgAbi {
+            layout: arg.layout,
+            mode: arg.mode,
+            pad: arg.pad,
+        };
 
-//     let sig = cx
-//         .tcx
-//         .normalize_erasing_late_bound_regions(cx.param_env, sig);
-//     let conv = conv_from_spec_abi(cx.tcx, sig.abi);
+        // ignore zsts
+        if arg.layout.is_zst() {
+            arg.mode = PassMode::Ignore;
+        }
 
-//     let mut extra = {
-//         assert!(sig.c_variadic || extra_args.is_empty());
-//         extra_args.to_vec()
-//     };
+        if let TyKind::Ref(_, ty, _) = arg.layout.ty.kind() {
+            if matches!(ty.kind(), TyKind::Slice(_)) {
+                let mut ptr_attrs = ArgAttributes::new();
+                if let PassMode::Indirect { attrs, .. } = arg.mode {
+                    ptr_attrs.regular = attrs.regular;
+                }
+                arg.mode = PassMode::Pair(ptr_attrs, ArgAttributes::new());
+            }
+        }
 
-//     let adjust_for_rust_scalar = |attrs: &mut ArgAttributes,
-//                                   scalar: Scalar,
-//                                   layout: TyAndLayout<'tcx>,
-//                                   offset: Size,
-//                                   is_return: bool| {
-//         // Booleans are always an i1 that needs to be zero-extended.
-//         if scalar.is_bool() {
-//             attrs.ext(ArgExtension::Zext);
-//             return;
-//         }
+        if arg.layout.ty.is_array() && !matches!(arg.mode, PassMode::Direct { .. }) {
+            arg.mode = PassMode::Direct(ArgAttributes::new());
+        }
 
-//         // Only pointer types handled below.
-//         if scalar.value != Pointer {
-//             return;
-//         }
-
-//         if !scalar.valid_range.contains(0) {
-//             attrs.set(ArgAttribute::NonNull);
-//         }
-
-//         if let Some(pointee) = layout.pointee_info_at(self, offset) {
-//             if let Some(kind) = pointee.safe {
-//                 attrs.pointee_align = Some(pointee.align);
-
-//                 // `Box` (`UniqueBorrowed`) are not necessarily dereferenceable
-//                 // for the entire duration of the function as they can be deallocated
-//                 // at any time. Set their valid size to 0.
-//                 attrs.pointee_size = match kind {
-//                     PointerKind::UniqueOwned => Size::ZERO,
-//                     _ => pointee.size,
-//                 };
-
-//                 // `Box` pointer parameters never alias because ownership is transferred
-//                 // `&mut` pointer parameters never alias other parameters,
-//                 // or mutable global data
-//                 //
-//                 // `&T` where `T` contains no `UnsafeCell<U>` is immutable,
-//                 // and can be marked as both `readonly` and `noalias`, as
-//                 // LLVM's definition of `noalias` is based solely on memory
-//                 // dependencies rather than pointer equality
-//                 //
-//                 // Due to miscompiles in LLVM < 12, we apply a separate NoAliasMutRef attribute
-//                 // for UniqueBorrowed arguments, so that the codegen backend can decide
-//                 // whether or not to actually emit the attribute.
-//                 let no_alias = match kind {
-//                     PointerKind::Shared | PointerKind::UniqueBorrowed => false,
-//                     PointerKind::UniqueOwned => true,
-//                     PointerKind::Frozen => !is_return,
-//                 };
-//                 if no_alias {
-//                     attrs.set(ArgAttribute::NoAlias);
-//                 }
-
-//                 if kind == PointerKind::Frozen && !is_return {
-//                     attrs.set(ArgAttribute::ReadOnly);
-//                 }
-
-//                 if kind == PointerKind::UniqueBorrowed && !is_return {
-//                     attrs.set(ArgAttribute::NoAliasMutRef);
-//                 }
-//             }
-//         }
-//     };
-
-//     let arg_of = |ty: Ty<'tcx>, arg_idx: Option<usize>| -> Result<_, FnAbiError<'tcx>> {
-//         let is_return = arg_idx.is_none();
-
-//         let layout = cx.layout_of(ty)?;
-//         let layout = if force_thin_self_ptr && arg_idx == Some(0) {
-//             // Don't pass the vtable, it's not an argument of the virtual fn.
-//             // Instead, pass just the data pointer, but give it the type `*const/mut dyn Trait`
-//             // or `&/&mut dyn Trait` because this is special-cased elsewhere in codegen
-//             make_thin_self_ptr(cx, layout)
-//         } else {
-//             layout
-//         };
-
-//         let mut arg = ArgAbi::new(cx, layout, |layout, scalar, offset| {
-//             let mut attrs = ArgAttributes::new();
-//             adjust_for_rust_scalar(&mut attrs, scalar, *layout, offset, is_return);
-//             attrs
-//         });
-
-//         if arg.layout.is_zst() {
-//             // For some forsaken reason, x86_64-pc-windows-gnu
-//             // doesn't ignore zero-sized struct arguments.
-//             // The same is true for {s390x,sparc64,powerpc}-unknown-linux-{gnu,musl}.
-//             if is_return
-//                 || rust_abi
-//                 || (!win_x64_gnu
-//                     && !linux_s390x_gnu_like
-//                     && !linux_sparc64_gnu_like
-//                     && !linux_powerpc_gnu_like)
-//             {
-//                 arg.mode = PassMode::Ignore;
-//             }
-//         }
-
-//         Ok(arg)
-//     };
-// }
+        // pass all adts directly as values, ptx wants them to be passed all by value, but rustc's
+        // ptx-kernel abi seems to be wrong, and it's unstable.
+        if arg.layout.ty.is_adt() && !matches!(arg.mode, PassMode::Direct { .. }) {
+            arg.mode = PassMode::Direct(ArgAttributes::new());
+        }
+        arg
+    };
+    tcx.arena.alloc(FnAbi {
+        args: fn_abi.args.iter().map(readjust_arg_abi).collect(),
+        ret: readjust_arg_abi(&fn_abi.ret),
+        c_variadic: fn_abi.c_variadic,
+        fixed_count: fn_abi.fixed_count,
+        conv: fn_abi.conv,
+        can_unwind: fn_abi.can_unwind,
+    })
+}
 
 macro_rules! for_each_kind {
     ($flags: ident, $f: ident, $($kind: ident),+) => ({
@@ -299,15 +218,7 @@ impl LlvmType for CastTarget {
         let mut args: Vec<_> = self
             .prefix
             .iter()
-            .flat_map(|option_kind| {
-                option_kind.map(|kind| {
-                    Reg {
-                        kind,
-                        size: self.prefix_chunk_size,
-                    }
-                    .llvm_type(cx)
-                })
-            })
+            .flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)))
             .chain((0..rest_count).map(|_| rest_ll_unit))
             .collect();
 
@@ -357,6 +268,11 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             if arg.pad.is_some() { 1 } else { 0 } +
             if let PassMode::Pair(_, _) = arg.mode { 2 } else { 1 }
         ).sum();
+
+        // the current index of each parameter in the function. Cant use enumerate on args because
+        // some pass modes pass args as multiple params, such as scalar pairs.
+        let mut idx = 0;
+
         let mut llargument_tys = Vec::with_capacity(
             if let PassMode::Indirect { .. } = self.ret.mode {
                 1
@@ -370,16 +286,25 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.immediate_llvm_type(cx),
             PassMode::Cast(cast) => cast.llvm_type(cx),
             PassMode::Indirect { .. } => {
+                idx += 1;
                 llargument_tys.push(cx.type_ptr_to(self.ret.memory_ty(cx)));
                 cx.type_void()
             }
         };
 
-        llreturn_ty = get_transformed_type(cx, llreturn_ty).0;
+        let mut transformed_types = Vec::new();
+        let mut old_ret_ty = Some(llreturn_ty);
 
-        for arg in &self.args {
+        let (new_ret, changed) = get_transformed_type(cx, llreturn_ty);
+        llreturn_ty = new_ret;
+        if !changed {
+            old_ret_ty = None;
+        }
+
+        for arg in self.args.iter() {
             // add padding
             if let Some(ty) = arg.pad {
+                idx += 1;
                 llargument_tys.push(ty.llvm_type(cx));
             }
 
@@ -389,6 +314,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                 PassMode::Pair(..) => {
                     llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 0, true));
                     llargument_tys.push(arg.layout.scalar_pair_element_llvm_type(cx, 1, true));
+                    idx += 2;
                     continue;
                 }
                 PassMode::Indirect {
@@ -400,6 +326,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     let ptr_layout = cx.layout_of(ptr_ty);
                     llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 0, true));
                     llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 1, true));
+                    idx += 2;
                     continue;
                 }
                 PassMode::Cast(cast) => cast.llvm_type(cx),
@@ -409,14 +336,25 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     on_stack: _,
                 } => cx.type_ptr_to(arg.memory_ty(cx)),
             };
-            llargument_tys.push(get_transformed_type(cx, llarg_ty).0);
+            let (new, changed) = get_transformed_type(cx, llarg_ty);
+            if changed {
+                transformed_types.push((idx, llarg_ty));
+            }
+            llargument_tys.push(new);
+            idx += 1;
         }
 
-        if self.c_variadic {
+        let ty = if self.c_variadic {
             cx.type_variadic_func(&llargument_tys, llreturn_ty)
         } else {
             cx.type_func(&llargument_tys, llreturn_ty)
+        };
+        if !transformed_types.is_empty() || old_ret_ty.is_some() {
+            cx.remapped_integer_args
+                .borrow_mut()
+                .insert(ty, (old_ret_ty, transformed_types));
         }
+        ty
     }
 
     fn ptr_to_llvm_type(&self, cx: &CodegenCx<'ll, 'tcx>) -> &'ll Type {
@@ -505,7 +443,15 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
         }
     }
 
-    fn apply_attrs_callsite<'a>(&self, bx: &mut Builder<'a, 'll, 'tcx>, callsite: &'ll Value) {
+    fn apply_attrs_callsite<'a>(&self, bx: &mut Builder<'a, 'll, 'tcx>, mut callsite: &'ll Value) {
+        // HACK(RDambrosio016): We sometimes lie to rustc with return values and give it a bitcast
+        // instead of a call. This is because we sometimes have to bitcast return types like <2 x i64> to i128.
+        // So we just check if the last call was remapped.
+        if let Some(old) = bx.cx.last_call_llfn.get() {
+            callsite = old;
+            bx.cx.last_call_llfn.set(None);
+        }
+
         let mut i = 0;
         let mut apply = |cx: &CodegenCx<'_, '_>, attrs: &ArgAttributes| {
             attrs.apply_attrs_to_callsite(llvm::AttributePlace::Argument(i), cx, callsite);
@@ -514,7 +460,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
         };
         match self.ret.mode {
             PassMode::Direct(ref attrs) => {
-                attrs.apply_attrs_to_callsite(llvm::AttributePlace::ReturnValue, &bx.cx, callsite);
+                attrs.apply_attrs_to_callsite(llvm::AttributePlace::ReturnValue, bx.cx, callsite);
             }
             PassMode::Indirect {
                 ref attrs,
@@ -582,17 +528,21 @@ impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         fn_abi.apply_attrs_callsite(self, callsite)
     }
 
-    fn get_param(&self, index: usize) -> Self::Value {
+    fn get_param(&mut self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
+        trace!("Get param `{:?}`", val);
         unsafe {
-            let ty = LLVMRustGetValueType(val);
-            let (new, changed) = crate::int_replace::get_transformed_type(self.cx, ty);
-            if changed {
-                let llbuilder = self.llbuilder.lock().unwrap();
-                LLVMBuildBitCast(&llbuilder, val, new, unnamed())
-            } else {
-                val
+            let llfnty = LLVMRustGetFunctionType(self.llfn());
+            // destructure so rustc doesnt complain in the call to transmute_llval
+            let Self { cx, llbuilder } = self;
+            let map = cx.remapped_integer_args.borrow();
+            if let Some((_, key)) = map.get(llfnty) {
+                if let Some((_, new_ty)) = key.iter().find(|t| t.0 == index) {
+                    trace!("Casting irregular param {:?} to {:?}", val, new_ty);
+                    return transmute_llval(llbuilder, cx, val, *new_ty);
+                }
             }
+            val
         }
     }
 }

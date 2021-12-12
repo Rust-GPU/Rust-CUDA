@@ -173,19 +173,20 @@ impl Module {
     ///
     /// let ptx = CString::new(include_str!("../resources/add.ptx"))?;
     /// let module = Module::load_from_string(&ptx)?;
-    /// let name = CString::new("sum")?;
-    /// let function = module.get_function(&name)?;
+    /// let function = module.get_function("sum")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_function<'a>(&'a self, name: &CStr) -> CudaResult<Function<'a>> {
+    pub fn get_function<T: AsRef<str>>(&'_ self, name: T) -> CudaResult<Function<'_>> {
         unsafe {
+            let name = name.as_ref();
+            let cstr = CString::new(name).expect("Argument to get_function had a nul");
             let mut func: cuda::CUfunction = ptr::null_mut();
 
             cuda::cuModuleGetFunction(
                 &mut func as *mut cuda::CUfunction,
                 self.inner,
-                name.as_ptr(),
+                cstr.as_ptr(),
             )
             .to_result()?;
             Ok(Function::new(func, self))

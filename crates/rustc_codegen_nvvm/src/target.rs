@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 static TARGET_32_BIT: AtomicBool = AtomicBool::new(false);
 
 /// The data layouts of NVVM targets
-/// https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#data-layout
+/// <https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#data-layout>
 pub fn data_layout() -> &'static str {
     if TARGET_32_BIT.load(Ordering::SeqCst) {
         "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"
@@ -25,7 +25,7 @@ pub fn data_layout() -> &'static str {
 }
 
 /// The target triples of NVVM targets
-/// https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#target-triple
+/// <https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#target-triple>
 pub fn target_triple() -> &'static str {
     if TARGET_32_BIT.load(Ordering::SeqCst) {
         "nvptx-nvidia-cuda"
@@ -35,7 +35,7 @@ pub fn target_triple() -> &'static str {
 }
 
 /// The pointer width of the current target
-pub(crate) unsafe fn usize_ty<'ll>(llcx: &'ll llvm::Context) -> &'ll Type {
+pub(crate) unsafe fn usize_ty(llcx: &'_ llvm::Context) -> &'_ Type {
     if TARGET_32_BIT.load(Ordering::SeqCst) {
         llvm::LLVMInt32TypeInContext(llcx)
     } else {
