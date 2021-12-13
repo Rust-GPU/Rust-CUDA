@@ -151,30 +151,6 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     }
     */
 
-    /// Returns a `DevicePointer<T>` to the buffer.
-    ///
-    /// The caller must ensure that the buffer outlives the returned pointer, or it will end up
-    /// pointing to garbage.
-    ///
-    /// Modifying `DeviceBuffer` is guaranteed not to cause its buffer to be reallocated, so pointers
-    /// cannot be invalidated in that manner, but other types may be added in the future which can
-    /// reallocate.
-    pub fn as_ptr(&self) -> DevicePointer<T> {
-        self.ptr
-    }
-
-    /// Returns a `DevicePointer<T>` to the buffer.
-    ///
-    /// The caller must ensure that the buffer outlives the returned pointer, or it will end up
-    /// pointing to garbage.
-    ///
-    /// Modifying `DeviceBuffer` is guaranteed not to cause its buffer to be reallocated, so pointers
-    /// cannot be invalidated in that manner, but other types may be added in the future which can
-    /// reallocate.
-    pub fn as_mut_ptr(&mut self) -> DevicePointer<T> {
-        self.ptr
-    }
-
     /// Forms a slice from a `DevicePointer` and a length.
     ///
     /// The `len` argument is the number of _elements_, not the number of bytes.
