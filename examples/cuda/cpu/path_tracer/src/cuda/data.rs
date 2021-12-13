@@ -1,7 +1,7 @@
 use crate::common::Camera;
 use cust::{
     error::CudaResult,
-    memory::{DBuffer, DeviceCopy, UnifiedBuffer},
+    memory::{DeviceBuffer, DeviceCopy, UnifiedBuffer},
     util::SliceExt,
     vek::{num_traits::Zero, Vec2, Vec3},
 };
@@ -15,13 +15,13 @@ use super::SEED;
 /// You could put these in the CUDA renderer but we separate them out for code readability.
 pub struct CudaRendererBuffers {
     /// The buffer of accumulated colors, every sample/render call adds its color to this buffer.
-    pub accumulated_buffer: DBuffer<Vec3<f32>>,
+    pub accumulated_buffer: DeviceBuffer<Vec3<f32>>,
     /// The scaled buffer of colors, this is just the accumulated colors divided by sample count.
-    pub scaled_buffer: DBuffer<Vec3<f32>>,
+    pub scaled_buffer: DeviceBuffer<Vec3<f32>>,
     /// The final image buffer after denoising and postprocessing.
-    pub out_buffer: DBuffer<Vec3<u8>>,
+    pub out_buffer: DeviceBuffer<Vec3<u8>>,
     /// The scaled buffer but denoised. In the future we will use the same buffer for this.
-    pub denoised_buffer: DBuffer<Vec3<f32>>,
+    pub denoised_buffer: DeviceBuffer<Vec3<f32>>,
 
     /// The viewport used by the render kernel to emit rays.
     pub viewport: Viewport,
@@ -75,7 +75,7 @@ impl CudaRendererBuffers {
     /// Reset the renderer's view, in the buffer's case this means clearing accumulated buffers from previous samples.
     /// As well as changing the viewport.
     pub fn update_camera(&mut self, new_camera: &Camera) -> CudaResult<()> {
-        self.accumulated_buffer = unsafe { DBuffer::zeroed(self.accumulated_buffer.len())? };
+        self.accumulated_buffer = unsafe { DeviceBuffer::zeroed(self.accumulated_buffer.len())? };
         new_camera.as_viewport(&mut self.viewport);
         Ok(())
     }
@@ -104,7 +104,9 @@ impl CudaRendererBuffers {
     }
 
     // could also use the convenience method on optix::denoiser::Image for this
-    fn image_buffer<T: DeviceCopy + Zero>(dimensions: Vec2<usize>) -> CudaResult<DBuffer<Vec3<T>>> {
-        unsafe { DBuffer::zeroed(dimensions.product()) }
+    fn image_buffer<T: DeviceCopy + Zero>(
+        dimensions: Vec2<usize>,
+    ) -> CudaResult<DeviceBuffer<Vec3<T>>> {
+        unsafe { DeviceBuffer::zeroed(dimensions.product()) }
     }
 }

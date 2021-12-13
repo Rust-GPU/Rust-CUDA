@@ -1,14 +1,14 @@
 use crate::llvm::{self, AttributePlace::*, Value};
-use rustc_ast::Attribute;
+use rustc_ast::{Attribute, Lit, LitKind};
 use rustc_attr::{InlineAttr, OptimizeAttr};
 use rustc_middle::{middle::codegen_fn_attrs::CodegenFnAttrFlags, ty};
 use rustc_session::{config::OptLevel, Session};
-use rustc_span::Symbol;
+use rustc_span::{sym, Symbol};
 
 use crate::context::CodegenCx;
 
 #[inline] // so meta
-fn inline<'ll>(val: &'ll Value, inline: InlineAttr) {
+fn inline(val: &'_ Value, inline: InlineAttr) {
     use InlineAttr::*;
     match inline {
         Hint => llvm::Attribute::InlineHint.apply_llfn(Function, val),
@@ -18,7 +18,7 @@ fn inline<'ll>(val: &'ll Value, inline: InlineAttr) {
     }
 }
 
-pub(crate) fn default_optimisation_attrs<'ll>(sess: &Session, llfn: &'ll Value) {
+pub(crate) fn default_optimisation_attrs(sess: &Session, llfn: &'_ Value) {
     match sess.opts.optimize {
         OptLevel::Size => {
             llvm::Attribute::MinSize.unapply_llfn(Function, llfn);
@@ -93,12 +93,15 @@ pub(crate) fn from_fn_attrs<'ll, 'tcx>(
 pub struct Symbols {
     pub nvvm_internal: Symbol,
     pub kernel: Symbol,
+    pub addrspace: Symbol,
 }
 
 // inspired by rust-gpu's attribute handling
 #[derive(Default, Clone, PartialEq)]
 pub(crate) struct NvvmAttributes {
     pub kernel: bool,
+    pub used: bool,
+    pub addrspace: Option<u8>,
 }
 
 impl NvvmAttributes {
@@ -108,13 +111,28 @@ impl NvvmAttributes {
         for attr in attrs {
             if attr.has_name(cx.symbols.nvvm_internal) {
                 let args = attr.meta_item_list().unwrap_or_default();
-                match args.first() {
-                    Some(arg) => {
-                        if arg.has_name(cx.symbols.kernel) {
-                            nvvm_attrs.kernel = true;
+                if let Some(arg) = args.first() {
+                    if arg.has_name(cx.symbols.kernel) {
+                        nvvm_attrs.kernel = true;
+                    }
+                    if arg.has_name(sym::used) {
+                        nvvm_attrs.used = true;
+                    }
+                    if arg.has_name(cx.symbols.addrspace) {
+                        let args = arg.meta_item_list().unwrap_or_default();
+                        if let Some(arg) = args.first() {
+                            let lit = arg.literal();
+                            if let Some(Lit {
+                                kind: LitKind::Int(val, _),
+                                ..
+                            }) = lit
+                            {
+                                nvvm_attrs.addrspace = Some(*val as u8);
+                            } else {
+                                panic!();
+                            }
                         }
                     }
-                    _ => {}
                 }
             }
         }

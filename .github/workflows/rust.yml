@@ -1,0 +1,77 @@
+name: Rust CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  push:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - master
+
+env:
+  RUST_LOG: info
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust:
+    name: Rust ${{ matrix.rust }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    env:
+      LLVM_LINK_STATIC: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-20.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install CUDA 
+        uses: Jimver/cuda-toolkit@v0.2.4
+        id: cuda-toolkit
+        with:
+          cuda: '11.2.2'
+
+      # random command that forces rustup to install stuff in rust-toolchain
+      - name: Install rust-toolchain
+        run: cargo version
+        
+      - name: Add rustup components
+        run: rustup component add rustfmt clippy
+
+      - name: Install LLVM 7
+        if: contains(matrix.os, 'ubuntu')
+        run: | 
+            sudo apt-get install llvm-7
+            sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
+
+      - name: Load Rust Cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Rustfmt
+        if: contains(matrix.os, 'ubuntu')
+        run: cargo fmt --all -- --check
+
+      - name: Build
+        run: cargo build --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
+
+      # Don't currently test because many tests rely on the system having a CUDA GPU
+      # - name: Test
+      #   run: cargo test --workspace
+
+      - name: Clippy
+        if: contains(matrix.os, 'ubuntu')
+        env:
+          RUSTFLAGS: -Dwarnings
+        run: cargo clippy --workspace --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"
+
+      - name: Check documentation
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "optix_sys" --exclude "path_tracer" --exclude "denoiser" --exclude "add"

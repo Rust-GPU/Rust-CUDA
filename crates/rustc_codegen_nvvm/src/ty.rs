@@ -327,7 +327,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
                     cx.type_ptr_to(cx.layout_of(self.ty.boxed_ty()).llvm_type(cx))
                 }
                 ty::FnPtr(sig) => {
-                    cx.fn_ptr_backend_type(&cx.fn_abi_of_fn_ptr(sig, ty::List::empty()))
+                    cx.fn_ptr_backend_type(cx.fn_abi_of_fn_ptr(sig, ty::List::empty()))
                 }
                 _ => self.scalar_llvm_type_at(cx, scalar, Size::ZERO),
             };

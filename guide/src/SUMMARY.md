@@ -4,6 +4,8 @@
 - [Supported Features](features.md)
 - [Frequently Asked Questions](faq.md)
 - [Guide](guide/README.md)
+  - [Getting Started](guide/getting_started.md)
+  - [Tips](guide/tips.md)
   - [Kernel ABI](guide/kernel_abi.md)
   - [Safety](guide/safety.md)
 - [The CUDA Toolkit](cuda/README.md)

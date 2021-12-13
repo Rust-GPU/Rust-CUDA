@@ -492,7 +492,7 @@ fn subroutine_type_metadata<'ll, 'tcx>(
     let signature_metadata: Vec<_> = iter::once(
         // return type
         match signature.output().kind() {
-            ty::Tuple(ref tys) if tys.is_empty() => None,
+            ty::Tuple(tys) if tys.is_empty() => None,
             _ => Some(type_metadata(cx, signature.output(), span)),
         },
     )
@@ -691,7 +691,7 @@ pub(crate) fn type_metadata<'ll, 'tcx>(
         ty::Never | ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) => {
             MetadataCreationResult::new(basic_type_metadata(cx, t), false)
         }
-        ty::Tuple(ref elements) if elements.is_empty() => {
+        ty::Tuple(elements) if elements.is_empty() => {
             MetadataCreationResult::new(basic_type_metadata(cx, t), false)
         }
         ty::Array(typ, _) | ty::Slice(typ) => {
@@ -793,7 +793,7 @@ pub(crate) fn type_metadata<'ll, 'tcx>(
                     .finalize(cx)
             }
         },
-        ty::Tuple(ref elements) => {
+        ty::Tuple(elements) => {
             let tys: Vec<_> = elements.iter().map(|k| k.expect_ty()).collect();
             prepare_tuple_metadata(
                 cx,
@@ -910,7 +910,7 @@ fn file_metadata_raw<'ll>(
 fn basic_type_metadata<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, t: Ty<'tcx>) -> &'ll DIType {
     let (name, encoding) = match t.kind() {
         ty::Never => ("!", DW_ATE_unsigned),
-        ty::Tuple(ref elements) if elements.is_empty() => ("()", DW_ATE_unsigned),
+        ty::Tuple(elements) if elements.is_empty() => ("()", DW_ATE_unsigned),
         ty::Bool => ("bool", DW_ATE_boolean),
         ty::Char => ("char", DW_ATE_unsigned_char),
         ty::Int(int_ty) => (int_ty.name_str(), DW_ATE_signed),
@@ -976,7 +976,7 @@ fn param_type_metadata<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, t: Ty<'tcx>) -> &'l
     }
 }
 
-pub fn compile_unit_metadata<'ll, 'tcx>(
+pub fn compile_unit_metadata<'ll>(
     tcx: TyCtxt<'_>,
     _codegen_unit_name: &str,
     debug_context: &CrateDebugContext<'ll, '_>,
@@ -1014,7 +1014,7 @@ pub fn compile_unit_metadata<'ll, 'tcx>(
             work_dir.as_ptr(),
         );
 
-        let unit_metadata = llvm::LLVMRustDIBuilderCreateCompileUnit(
+        llvm::LLVMRustDIBuilderCreateCompileUnit(
             debug_context.builder,
             DW_LANG_RUST,
             file_metadata,
@@ -1023,10 +1023,8 @@ pub fn compile_unit_metadata<'ll, 'tcx>(
             flags.as_ptr() as *const _,
             0,
             split_name.as_ptr() as *const _,
-        );
-
-        return unit_metadata;
-    };
+        )
+    }
 }
 
 struct MetadataCreationResult<'ll> {
@@ -1206,10 +1204,7 @@ fn prepare_struct_metadata<'ll, 'tcx>(
 /// Here are some examples:
 ///  - `name__field1__field2` when the upvar is captured by value.
 ///  - `_ref__name__field` when the upvar is captured by reference.
-fn closure_saved_names_of_captured_variables<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    def_id: DefId,
-) -> Vec<String> {
+fn closure_saved_names_of_captured_variables(tcx: TyCtxt<'_>, def_id: DefId) -> Vec<String> {
     let body = tcx.optimized_mir(def_id);
 
     body.var_debug_info
@@ -1385,11 +1380,11 @@ fn prepare_union_metadata<'ll, 'tcx>(
 
 // FIXME(eddyb) maybe precompute this? Right now it's computed once
 // per generator monomorphization, but it doesn't depend on substs.
-fn generator_layout_and_saved_local_names<'tcx>(
-    tcx: TyCtxt<'tcx>,
+fn generator_layout_and_saved_local_names(
+    tcx: TyCtxt<'_>,
     def_id: DefId,
 ) -> (
-    &'tcx GeneratorLayout<'tcx>,
+    &'_ GeneratorLayout<'_>,
     IndexVec<mir::GeneratorSavedLocal, Option<Symbol>>,
 ) {
     let body = tcx.optimized_mir(def_id);
@@ -1406,8 +1401,7 @@ fn generator_layout_and_saved_local_names<'tcx>(
         if place.local != state_arg {
             continue;
         }
-        match place.projection[..] {
-            [
+        if let [
                 // Deref of the `Pin<&mut Self>` state argument.
                 mir::ProjectionElem::Field(..),
                 mir::ProjectionElem::Deref,
@@ -1415,15 +1409,13 @@ fn generator_layout_and_saved_local_names<'tcx>(
                 // Field of a variant of the state.
                 mir::ProjectionElem::Downcast(_, variant),
                 mir::ProjectionElem::Field(field, _),
-            ] => {
-                let name = &mut generator_saved_local_names[
-                    generator_layout.variant_fields[variant][field]
-                ];
-                if name.is_none() {
-                    name.replace(var.name);
-                }
+            ] = place.projection[..] {
+            let name = &mut generator_saved_local_names[
+                generator_layout.variant_fields[variant][field]
+            ];
+            if name.is_none() {
+                name.replace(var.name);
             }
-            _ => {}
         }
     }
     (generator_layout, generator_saved_local_names)
@@ -1701,27 +1693,25 @@ impl<'tcx> VariantInfo<'_, 'tcx> {
     }
 
     fn source_info<'ll>(&self, cx: &CodegenCx<'ll, 'tcx>) -> Option<SourceInfo<'ll>> {
-        match self {
-            VariantInfo::Generator {
-                def_id,
-                variant_index,
-                ..
-            } => {
-                let span = cx
-                    .tcx
-                    .generator_layout(*def_id)
-                    .unwrap()
-                    .variant_source_info[*variant_index]
-                    .span;
-                if !span.is_dummy() {
-                    let loc = cx.lookup_debug_loc(span.lo());
-                    return Some(SourceInfo {
-                        file: file_metadata(cx, &loc.file),
-                        line: loc.line,
-                    });
-                }
+        if let VariantInfo::Generator {
+            def_id,
+            variant_index,
+            ..
+        } = self
+        {
+            let span = cx
+                .tcx
+                .generator_layout(*def_id)
+                .unwrap()
+                .variant_source_info[*variant_index]
+                .span;
+            if !span.is_dummy() {
+                let loc = cx.lookup_debug_loc(span.lo());
+                return Some(SourceInfo {
+                    file: file_metadata(cx, &loc.file),
+                    line: loc.line,
+                });
             }
-            _ => {}
         }
         None
     }
@@ -1742,11 +1732,11 @@ fn describe_enum_variant<'ll, 'tcx>(
         let unique_type_id = debug_context(cx)
             .type_map
             .borrow_mut()
-            .get_unique_type_id_of_enum_variant(cx, layout.ty, &variant_name);
+            .get_unique_type_id_of_enum_variant(cx, layout.ty, variant_name);
         create_struct_stub(
             cx,
             layout.ty,
-            &variant_name,
+            variant_name,
             unique_type_id,
             Some(containing_scope),
             DIFlags::FlagZero,
@@ -2040,6 +2030,7 @@ fn prepare_enum_metadata<'ll, 'tcx>(
 /// results in a LLVM struct.
 ///
 /// Examples of Rust types to use this are: structs, tuples, boxes, vecs, and enums.
+#[allow(clippy::too_many_arguments)]
 fn composite_type_metadata<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     composite_type: Ty<'tcx>,
@@ -2090,7 +2081,7 @@ fn set_members_of_composite_type<'ll, 'tcx>(
     {
         let mut composite_types_completed =
             debug_context(cx).composite_types_completed.borrow_mut();
-        if !composite_types_completed.insert(&composite_type_metadata) {
+        if !composite_types_completed.insert(composite_type_metadata) {
             bug!(
                 "debuginfo::set_members_of_composite_type() - \
                   Already completed forward declaration re-encountered."

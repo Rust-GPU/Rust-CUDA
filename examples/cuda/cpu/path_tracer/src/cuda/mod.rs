@@ -27,7 +27,7 @@ pub const SEED: u64 = 932174513921034;
 /// This should always be a multiple of warp size (32) to maximize occupancy.
 const THREAD_BLOCK_AXIS_LENGTH: usize = 16;
 
-pub(crate) static PTX: &str = include_str!("../../../../resources/kernels.ptx");
+pub(crate) static PTX: &str = include_str!("../../../../resources/path_tracer.ptx");
 
 pub struct CudaRenderer {
     stream: Stream,

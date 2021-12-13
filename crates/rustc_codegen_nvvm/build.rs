@@ -11,7 +11,7 @@ use tar::Archive;
 use xz::read::XzDecoder;
 
 static PREBUILT_LLVM_URL: &str =
-    "https://github.com/RDambrosio016/rustc_codegen_nvvm-llvm/releases/download/LLVM-7.1.0/";
+    "https://github.com/rust-gpu/rustc_codegen_nvvm-llvm/releases/download/LLVM-7.1.0/";
 
 static REQUIRED_MAJOR_LLVM_VERSION: u8 = 7;
 
@@ -39,20 +39,22 @@ pub fn output(cmd: &mut Command) -> String {
             cmd, e
         )),
     };
-    if !output.status.success() {
-        panic!(
-            "command did not execute successfully: {:?}\n\
-             expected success, got: {}",
-            cmd, output.status
-        );
-    }
+    assert!(
+        output.status.success(),
+        "command did not execute successfully: {:?}\n\
+    expected success, got: {}",
+        cmd,
+        output.status
+    );
+
     String::from_utf8(output.stdout).unwrap()
 }
 
 fn target_to_llvm_prebuilt(target: &str) -> String {
     let base = match target {
         "x86_64-pc-windows-msvc" => "windows-x86_64",
-        "x86_64-unknown-linux-gnu" => "linux-x86_64",
+        // NOTE(RDambrosio016): currently disabled because of weird issues with segfaults and building the C++ shim
+        // "x86_64-unknown-linux-gnu" => "linux-x86_64",
         _ => panic!("Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG", target)
     };
     format!("{}.tar.xz", base)
@@ -77,7 +79,7 @@ fn find_llvm_config(target: &str) -> PathBuf {
     }
 
     // otherwise, download prebuilt LLVM.
-    println!("cargo:warning=LLVM not found, downloading prebuilt LLVM");
+    println!("cargo:warning=Downloading prebuilt LLVM");
     let mut url = tracked_env_var_os("PREBUILT_LLVM_URL")
         .map(|x| x.to_string_lossy().to_string())
         .unwrap_or_else(|| PREBUILT_LLVM_URL.to_string());
@@ -143,9 +145,11 @@ fn rustc_llvm_build() {
     components.retain(|c| required_components.contains(c));
 
     for component in required_components {
-        if !components.contains(component) {
-            panic!("require llvm component {} but wasn't found", component);
-        }
+        assert!(
+            components.contains(component),
+            "require llvm component {} but wasn't found",
+            component
+        );
     }
 
     for component in components.iter() {

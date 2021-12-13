@@ -17,8 +17,7 @@ generates completely invalid PTX for trivial programs, so it is not an acceptabl
 - GPU and CPU codegen is fundamentally different, creating a codegen that is only for the GPU allows us to 
 seamlessly implement features which would have been impossible or very difficult to implement in the existing codegen, such as:
   - Shared memory, this requires some special generation of globals with custom addrspaces, its just not possible to do without backend explicit handling.
-  - Lazy loading of modules, you can find more info in the [technical section](./nvvm/technical/ptxgen.md), TLDR: it allows us to speed up compilation time massively
-    as well as generate smaller and faster PTX files. Just to give you an idea of how much of a difference it makes, no lazy loading with nvvm opts took 9+ minutes on my i9 10850k (10c/20t).
+  - Custom linking logic to do dead code elimination so as to not end up with large PTX files full of dead functions/globals.
   - Stripping away everything we do not need, no complex ABI handling, no shared lib handling, control over how function calls are generated, etc.
 
 So overall, the LLVM PTX backend is fit for smaller kernels/projects/proofs of concept.
@@ -35,10 +34,6 @@ Long answer, there are a couple of things that make this impossible:
 This is well documented and you can find the spec [here](https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html). Not to mention
 many bugs in libnvvm that i have found along the way, the most infuriating of which is nvvm not accepting integer types that arent `i1, i8, i16, i32, or i64`.
 This required special handling in the codegen to convert these "irregular" types into vector types.
-
-Moreover, even if rustc *could* emit valid NVVM IR, NVVM could not be officially supported, that is because rustc has a policy
-that a backend which uses a proprietary library may never be merged into rustc itself. I personally disagree with it, but 
-that is how it is.
 
 ## What is the point of using Rust if a lot of things in kernels are unsafe?
 
@@ -266,28 +261,6 @@ to keep PTX which uses a virtual architecture, or you can compile that to cubin 
 
 Cons for using CUDA over OpenCL:
 - CUDA only works on NVIDIA GPUs.
-
------ Opinion -----
-
-This is just my (Riccardo D'Ambrosio) opinion, but i believe CUDA is the better choice for GPU computing by far for now.
-AMD seems to be all over the place with no clear focus or production ready libraries at the level of something like libnvvm.
-
-For example, CUDA has CUDA C/C++, PTX, then finally cubin (SASS). This very simple pipeline never changes, it only gets better
-with better tools to compile to something like PTX. This is why our project is even possible, because libnvvm (mostly) works
-very well because it is already used in NVCC. And no matter the frontend, the end result is __always__ PTX. This allows CUDA/us
-to write tools which utilize PTX and automatically support every single CUDA frontend out there! (C, C++, Rust, Futhark, Numba).
-
-Meanwhile, AMD's ecosystem seems to be very scattered. One one side they have OpenCL, which has a lot of issues and is
-mostly outdated in terms of features. But then, they introduced HIP, which is supposed to compile to CUDA code for NVIDIA GPUs and
-AMDGPU ISA on AMD. But then, Khronos introduced SPIRV with Vulkan compute shaders, which seems to be the focus. This leaves users
-and developers eternally confused on what they should be using and what is going to be supported in the long run. This is very
-impractical for serious computing applications that want their pipeline to work reliably in the future. Moreover, Platforms
-such as ROCm are plagued with issues. Some of the biggest ones being:
-- ROCm does not currently work on windows unlike CUDA
-- ROCm is not supported on every AMD gpu, it is mostly targeted at HPC GPUs, while CUDA works on basically every single NVIDIA GPU out there.
-
-This is why in my personal opinion, unless something drastic happens, or AMD figures out a way to partner with NVIDIA to run
-CUDA on AMD GPUs, CUDA is simply the best tool for GPU computing by a long shot. 
 
 # What makes cust and RustaCUDA different?
 

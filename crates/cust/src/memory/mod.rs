@@ -7,7 +7,7 @@
 //!
 //! Device memory is just what it sounds like - memory allocated on the device. Device memory
 //! cannot be accessed from the host directly, but data can be copied to and from the device.
-//! cust exposes device memory through the [`DBox`](struct.DBox.html) and
+//! cust exposes device memory through the [`DeviceBox`](struct.DeviceBox.html) and
 //! [`DeviceBuffer`](struct.DeviceBuffer.html) structures. Pointers to device memory are
 //! represented by [`DevicePointer`](struct.DevicePointer.html), while slices in device memory are
 //! represented by [`DeviceSlice`](struct.DeviceSlice.html).
@@ -17,8 +17,7 @@
 //! Unified memory is a memory allocation which can be read from and written to by both the host
 //! and the device. When the host (or device) attempts to access a page of unified memory, it is
 //! seamlessly transferred from host RAM to device RAM or vice versa. The programmer may also
-//! choose to explicitly prefetch data to one side or another (though this is not currently exposed
-//! through cust). cust exposes unified memory through the
+//! choose to explicitly prefetch data to one side or another. cust exposes unified memory through the
 //! [`UnifiedBox`](struct.UnifiedBox.html) and [`UnifiedBuffer`](struct.UnifiedBuffer.html)
 //! structures, and pointers to unified memory are represented by
 //! [`UnifiedPointer`](struct.UnifiedPointer.html). Since unified memory is accessible to the host,
@@ -92,22 +91,16 @@ use core::marker::PhantomData;
 use core::num::*;
 
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
-/// or a regular [`DBuffer`].
+/// or a regular [`DeviceBuffer`].
+#[allow(clippy::len_without_is_empty)]
 pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
-    /// Obtains a device pointer to this buffer, not requiring `&mut self`. This means
-    /// the buffer must be used only for immutable reads, and must not be written to.
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T>;
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
+    fn as_device_ptr(&self) -> DevicePointer<T>;
     fn len(&self) -> usize;
 }
 
-impl<T: DeviceCopy> GpuBuffer<T> for DBuffer<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap((**self).as_ptr() as *mut _)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        (**self).as_device_ptr()
+impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
+    fn as_device_ptr(&self) -> DevicePointer<T> {
+        unsafe { DevicePointer::wrap((**self).as_ptr() as *mut _) }
     }
 
     fn len(&self) -> usize {
@@ -116,12 +109,7 @@ impl<T: DeviceCopy> GpuBuffer<T> for DBuffer<T> {
 }
 
 impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap(self.as_ptr() as *mut _)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        // SAFETY: unified pointers can be dereferenced from the gpu.
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         unsafe { DevicePointer::wrap(self.as_ptr() as *mut _) }
     }
 
@@ -131,43 +119,31 @@ impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
 }
 
 /// A trait describing a generic pointer that can be accessed from the GPU. This could be either a [`UnifiedBox`]
-/// or a regular [`DBox`].
+/// or a regular [`DeviceBox`].
 pub trait GpuBox<T: DeviceCopy>: private::Sealed {
-    /// Obtains a device pointer to this value, not requiring `&mut self`. This means
-    /// the value must be used only for immutable reads, and must not be written to.
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T>;
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T>;
+    fn as_device_ptr(&self) -> DevicePointer<T>;
 }
 
-impl<T: DeviceCopy> GpuBox<T> for DBox<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
+impl<T: DeviceCopy> GpuBox<T> for DeviceBox<T> {
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        DBox::as_device_ptr(self)
     }
 }
 
 impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::wrap(self.ptr.as_raw() as *mut _)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        // SAFETY: unified pointers can be dereferenced from the gpu.
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         unsafe { DevicePointer::wrap(self.ptr.as_raw() as *mut _) }
     }
 }
 
 mod private {
-    use super::{DBox, DBuffer, DeviceCopy, UnifiedBox, UnifiedBuffer};
+    use super::{DeviceBox, DeviceBuffer, DeviceCopy, UnifiedBox, UnifiedBuffer};
 
     pub trait Sealed {}
     impl<T: DeviceCopy> Sealed for UnifiedBuffer<T> {}
-    impl<T: DeviceCopy> Sealed for DBuffer<T> {}
+    impl<T: DeviceCopy> Sealed for DeviceBuffer<T> {}
     impl<T: DeviceCopy> Sealed for UnifiedBox<T> {}
-    impl<T: DeviceCopy> Sealed for DBox<T> {}
+    impl<T: DeviceCopy> Sealed for DeviceBox<T> {}
 }
 
 /// Marker trait for types which can safely be copied to or from a CUDA device.
@@ -183,7 +159,7 @@ mod private {
 /// ```
 /// use cust::DeviceCopy;
 ///
-/// #[derive(Clone, DeviceCopy)]
+/// #[derive(Clone, Copy, DeviceCopy)]
 /// struct MyStruct(u64);
 ///
 /// # fn main () {}
@@ -206,7 +182,7 @@ mod private {
 /// ```
 /// use cust::memory::DeviceCopy;
 ///
-/// #[derive(Clone)]
+/// #[derive(Clone, Copy)]
 /// struct MyStruct(u64);
 ///
 /// unsafe impl DeviceCopy for MyStruct { }
@@ -227,6 +203,7 @@ mod private {
 /// invalid reference on the device which would segfault if dereferenced. Generalizing this, any
 /// type implementing `Drop` cannot be `DeviceCopy` since it is responsible for some resource that
 /// would not be available on the device.
+#[allow(clippy::missing_safety_doc)] // explained in the doc already
 pub unsafe trait DeviceCopy: Copy {}
 
 macro_rules! impl_device_copy {
@@ -303,8 +280,11 @@ use vek::*;
 
 #[cfg(feature = "vek")]
 impl_device_copy_vek! {
-    Vec2, Vec3, Vec4, Extent2, Extent3, Rgb, Rgba,
+    Vec2, Vec3, Vec4, Extent2, Extent3,
     Mat2, Mat3, Mat4,
     CubicBezier2, CubicBezier3,
     Quaternion,
 }
+
+#[cfg(feature = "num-complex")]
+unsafe impl<T: DeviceCopy> DeviceCopy for num_complex::Complex<T> {}

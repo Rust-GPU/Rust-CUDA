@@ -8,7 +8,9 @@ use std::{
 
 use cust::{
     error::CudaResult,
-    memory::{DBox, DBuffer, DeviceCopy, DevicePointer, GpuBox, GpuBuffer, UnifiedBuffer},
+    memory::{
+        DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, GpuBox, GpuBuffer, UnifiedBuffer,
+    },
     prelude::Stream,
 };
 
@@ -98,13 +100,13 @@ impl DenoiserSizes {
 // we keep track of state we allocated to safety-check invocations of the denoiser.
 #[derive(Debug)]
 struct InternalDenoiserState {
-    state: DBuffer<u8>,
+    state: DeviceBuffer<u8>,
     width: u32,
     height: u32,
     _tiled: bool,
     // we handle scratch memory internally currently, so its fine
     // to drop it when we are done.
-    scratch: DBuffer<u8>,
+    scratch: DeviceBuffer<u8>,
 }
 
 /// High level wrapper for OptiX's GPU-accelerated AI image denoiser.
@@ -175,7 +177,7 @@ impl Denoiser {
     /// `width` and `height` are the __max__ expected dimensions of the image layers in a denoiser launch. Launches may be smaller than `width` and `height`, but
     /// they must not be larger, or the launch will panic.
     ///
-    /// OptiX requires scratch memory for carrying out denoising, of a certain size obtained with [`required_gpu_memory`]. This method will handle
+    /// OptiX requires scratch memory for carrying out denoising, of a certain size obtained with [`Self::required_gpu_memory`]. This method will handle
     /// the management of the scratch memory automatically. It will reuse allocated scratch memory across denoiser invocations, but not across
     /// state setups, calling setup_state will always reallocate the scratch memory.
     ///
@@ -208,12 +210,12 @@ impl Denoiser {
         };
 
         // SAFETY: OptiX will write to this and we never read it or expose the buffer.
-        let scratch = unsafe { DBuffer::<u8>::uninitialized(scratch_size) }?;
+        let scratch = unsafe { DeviceBuffer::<u8>::uninitialized(scratch_size) }?;
 
         let state_size = sizes.state_size_in_bytes;
 
         // SAFETY: OptiX will write into this, its just temporary alloc.
-        let state = unsafe { DBuffer::<u8>::uninitialized(state_size) }?;
+        let state = unsafe { DeviceBuffer::<u8>::uninitialized(state_size) }?;
 
         unsafe {
             optix_call!(optixDenoiserSetup(
@@ -372,7 +374,7 @@ impl Denoiser {
         let raw_params = parameters.to_raw();
 
         let mut out = input_image.to_raw();
-        out.data = out_buffer.as_device_ptr_mut().as_raw_mut() as u64;
+        out.data = out_buffer.as_device_ptr().as_raw_mut() as u64;
 
         let layer = sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
@@ -410,13 +412,13 @@ pub struct DenoiserParams<'a> {
     pub denoise_alpha: bool,
     /// Average log intensity of the input image. If `None`, then denoised results will not be
     /// optimal for very dark or bright input images.
-    pub hdr_intensity: Option<&'a DBox<f32>>,
+    pub hdr_intensity: Option<&'a DeviceBox<f32>>,
     /// How much of the denoised image to blend into the final image. If set to `1.0`, then the output
     /// image will be composed of 100% the noisy output. If set to `0.0`, the output will be 100% of the denoised input.
     /// Linearly interpolates for other values.
     pub blend_factor: f32,
     /// Used for AOV models, the average log color of the input image, separate for RGB channels.
-    pub hdr_average_color: Option<&'a DBox<[f32; 3]>>,
+    pub hdr_average_color: Option<&'a DeviceBox<[f32; 3]>>,
 }
 
 impl DenoiserParams<'_> {
@@ -425,11 +427,11 @@ impl DenoiserParams<'_> {
             denoiseAlpha: self.denoise_alpha as u32,
             hdrIntensity: self
                 .hdr_intensity
-                .map(|x| unsafe { x.as_device_ptr().as_raw() as u64 })
+                .map(|x| x.as_device_ptr().as_raw() as u64)
                 .unwrap_or_default(),
             hdrAverageColor: self
                 .hdr_average_color
-                .map(|x| unsafe { x.as_device_ptr().as_raw() as u64 })
+                .map(|x| x.as_device_ptr().as_raw() as u64)
                 .unwrap_or_default(),
             blendFactor: self.blend_factor,
         }
@@ -461,15 +463,15 @@ impl DenoiserGuideImages<'_> {
             albedo: self
                 .albedo
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
             normal: self
                 .normal
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
             flow: self
                 .flow
                 .map(|i| i.to_raw())
-                .unwrap_or_else(|| null_optix_image()),
+                .unwrap_or_else(null_optix_image),
         }
     }
 }

@@ -342,7 +342,7 @@ pub struct ResourceDescriptor {
 }
 
 impl ResourceDescriptor {
-    pub fn to_raw(self) -> CUDA_RESOURCE_DESC {
+    pub fn into_raw(self) -> CUDA_RESOURCE_DESC {
         let ty = match self.ty {
             ResourceType::Array { .. } => CUresourcetype::CU_RESOURCE_TYPE_ARRAY,
             // ResourceType::Linear { .. } => CUresourcetype::CU_RESOURCE_TYPE_LINEAR,
@@ -431,7 +431,7 @@ impl Texture {
                     ptr::null_mut()
                 };
 
-            let resource_desc = &resource_desc.to_raw();
+            let resource_desc = &resource_desc.into_raw();
             let texture_desc = &texture_desc.to_raw();
 
             cuTexObjectCreate(

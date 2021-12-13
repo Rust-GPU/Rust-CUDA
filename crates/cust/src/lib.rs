@@ -59,14 +59,17 @@ pub mod device;
 pub mod error;
 pub mod event;
 pub mod function;
-pub mod graph;
+// WIP
+#[allow(warnings)]
+mod graph;
 pub mod link;
 pub mod memory;
 pub mod module;
 pub mod prelude;
 pub mod stream;
-pub mod surface;
-pub mod texture;
+// WIP
+mod surface;
+mod texture;
 pub mod util;
 
 pub use cust_raw as sys;

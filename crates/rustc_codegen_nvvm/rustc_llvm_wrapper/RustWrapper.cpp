@@ -187,22 +187,20 @@ extern "C" LLVMValueRef LLVMRustGetOrInsertFunction(LLVMModuleRef M,
 }
 
 extern "C" LLVMValueRef
-LLVMRustGetOrInsertGlobal(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty, unsigned AddressSpace)
+LLVMRustGetOrInsertGlobal(LLVMModuleRef M, const char *Name, size_t NameLen, LLVMTypeRef Ty, unsigned AddressSpace)
 {
-  // Module *Mod = unwrap(M);
-  // GlobalVariable *GV = dyn_cast_or_null<GlobalVariable>(Mod->getNamedValue(Name));
-  // if (!GV)
-  // {
-  //   GV = new GlobalVariable(unwrap(Ty), false, GlobalValue::ExternalLinkage,
-  //                           nullptr, Name, GlobalValue::NotThreadLocal, AddressSpace);
-  // }
-  // Type *GVTy = GV->getType();
-  // PointerType *PTy = PointerType::get(unwrap(Ty), GVTy->getPointerAddressSpace());
-  // if (GVTy != PTy)
-  //   return wrap(ConstantExpr::getBitCast(GV, PTy));
+  Module *Mod = unwrap(M);
+  StringRef NameRef(Name, NameLen);
 
-  return wrap(unwrap(M)->getOrInsertGlobal(Name, unwrap(Ty)));
-  // return wrap(GV);
+  // We don't use Module::getOrInsertGlobal because that returns a Constant*,
+  // which may either be the real GlobalVariable*, or a constant bitcast of it
+  // if our type doesn't match the original declaration. We always want the
+  // GlobalVariable* so we can access linkage, visibility, etc.
+  GlobalVariable *GV = Mod->getGlobalVariable(NameRef, true);
+  if (!GV)
+    GV = new GlobalVariable(*Mod, unwrap(Ty), false,
+                            GlobalValue::ExternalLinkage, nullptr, NameRef, nullptr, GlobalValue::NotThreadLocal, AddressSpace);
+  return wrap(GV);
 }
 
 extern "C" LLVMTypeRef LLVMRustMetadataTypeInContext(LLVMContextRef C)

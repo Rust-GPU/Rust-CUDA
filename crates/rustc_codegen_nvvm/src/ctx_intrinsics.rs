@@ -1,7 +1,7 @@
+use crate::context::CodegenCx;
 use crate::llvm::Value;
 use rustc_codegen_ssa::traits::{BaseTypeMethods, DerivedTypeMethods};
 use rustc_session::config::DebugInfo;
-use crate::context::CodegenCx;
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub(crate) fn declare_intrinsic(&self, key: &str) -> Option<&'ll Value> {
@@ -104,7 +104,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         // for some very strange reason, they arent supported for i8 either, but that case
         // is easy to handle and we declare our own functions for that which just
         // zext to i16, use the i16 intrinsic, then trunc back to i8
-        
+
         // these are declared in libintrinsics, see libintrinsics.ll
         ifn!(map, "__nvvm_i8_addo", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "__nvvm_u8_addo", fn(t_i8, t_i8) -> t_i8_i1);
@@ -130,7 +130,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ifn!(map, "llvm.ssub.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.ssub.sat.i32", fn(t_i32, t_i32) -> t_i32);
         ifn!(map, "llvm.ssub.sat.i64", fn(t_i64, t_i64) -> t_i64);
-        
+
         ifn!(map, "llvm.usub.sat.i8", fn(t_i8, t_i8) -> t_i8);
         ifn!(map, "llvm.usub.sat.i16", fn(t_i16, t_i16) -> t_i16);
         ifn!(map, "llvm.usub.sat.i32", fn(t_i32, t_i32) -> t_i32);
@@ -155,6 +155,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         ifn!(map, "llvm.bitreverse.i16", fn(t_i16) -> t_i16);
         ifn!(map, "llvm.bitreverse.i32", fn(t_i32) -> t_i32);
         ifn!(map, "llvm.bitreverse.i64", fn(t_i64) -> t_i64);
+
+        ifn!(map, "llvm.bswap.i16", fn(t_i16) -> t_i16);
+        ifn!(map, "llvm.bswap.i32", fn(t_i32) -> t_i32);
+        ifn!(map, "llvm.bswap.i64", fn(t_i64) -> t_i64);
 
         ifn!(map, "llvm.ctlz.i8", fn(t_i8, i1) -> t_i8);
         ifn!(map, "llvm.ctlz.i16", fn(t_i16, i1) -> t_i16);
@@ -258,8 +262,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgamma" |
             "__nv_trunc" |
             "__nv_y0" |
-            "__nv_y1" |
-            "__nv_yn",
+            "__nv_y1",
             fn(t_f64) -> t_f64
         );
 
@@ -312,8 +315,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             "__nv_tgammaf" |
             "__nv_truncf" |
             "__nv_y0f" |
-            "__nv_y1f" |
-            "__nv_ynf",
+            "__nv_y1f",
             fn(t_f32) -> t_f32
         );
 
@@ -380,7 +382,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         );
 
         // other intrinsics
-        
+
         ifn!(
             map,
             "__nv_powi",
@@ -403,6 +405,18 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             map,
             "__nv_fmaf",
             fn(t_f32, t_f32, t_f32) -> t_f32
+        );
+
+        ifn!(
+            map,
+            "__nv_yn",
+            fn(t_i32, t_f64) -> t_f64
+        );
+
+        ifn!(
+            map,
+            "__nv_ynf",
+            fn(t_i32, t_f32) -> t_f32
         );
     }
 }
