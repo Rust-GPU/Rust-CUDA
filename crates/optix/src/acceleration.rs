@@ -1180,23 +1180,23 @@ pub trait Vertex: cust::memory::DeviceCopy {
     const STRIDE: u32 = 0;
 }
 
-#[cfg(feature = "half")]
+#[cfg(feature = "impl_half")]
 impl Vertex for [half::f16; 2] {
     const FORMAT: VertexFormat = VertexFormat::Half2;
 }
 
-#[cfg(feature = "half")]
+#[cfg(feature = "impl_half")]
 impl Vertex for [half::f16; 3] {
     const FORMAT: VertexFormat = VertexFormat::Half3;
 }
 
-#[cfg(feature = "half")]
-impl Vertex for mint::Vector2<f16> {
+#[cfg(feature = "impl_half")]
+impl Vertex for mint::Vector2<half::f16> {
     const FORMAT: VertexFormat = VertexFormat::Half2;
 }
 
-#[cfg(feature = "half")]
-impl Vertex for mint::Vector3<f16> {
+#[cfg(feature = "impl_half")]
+impl Vertex for mint::Vector3<half::f16> {
     const FORMAT: VertexFormat = VertexFormat::Half3;
 }
 

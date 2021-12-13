@@ -13,6 +13,7 @@ optix72 = []
 optix73 = []
 default=["optix73", "impl_glam"]
 impl_glam=["cust/impl_glam", "glam"]
+impl_half=["cust/impl_half", "half"]
 
 [dependencies]
 cust = { version = "0.2", path = "../cust", features=["impl_mint"] }

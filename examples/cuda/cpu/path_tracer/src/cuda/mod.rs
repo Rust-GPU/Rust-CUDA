@@ -11,13 +11,13 @@ use cust::{
     event::{Event, EventFlags},
     function::{BlockSize, GridSize},
     prelude::*,
-    vek::{Vec2, Vec3},
 };
 use optix::{
-    context::OptixContext,
+    context::DeviceContext,
     denoiser::{Denoiser, DenoiserModelKind, Image, ImageFormat},
 };
 use path_tracer_gpu::scene::Scene;
+use vek::{Vec2, Vec3};
 
 /// Seed for the random states
 pub const SEED: u64 = 932174513921034;
@@ -33,7 +33,7 @@ pub struct CudaRenderer {
     stream: Stream,
     module: Module,
     denoiser: Denoiser,
-    _optix_context: OptixContext,
+    _optix_context: DeviceContext,
     _context: Context,
 
     buffers: CudaRendererBuffers,
@@ -45,7 +45,7 @@ impl CudaRenderer {
         let context = cust::quick_init()?;
         optix::init().unwrap();
 
-        let optix_context = OptixContext::new(&context).unwrap();
+        let optix_context = DeviceContext::new(&context, false).unwrap();
 
         let module = Module::from_str(PTX)?;
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
@@ -93,7 +93,8 @@ impl CudaRenderer {
 
         Ok(self
             .denoiser
-            .setup_state(&self.stream, new_size.x as u32, new_size.y as u32, false)?)
+            .setup_state(&self.stream, new_size.x as u32, new_size.y as u32, false)
+            .unwrap())
     }
 
     /// calculate an optimal launch configuration for an image kernel
@@ -144,13 +145,15 @@ impl CudaRenderer {
                 height,
             );
 
-            self.denoiser.invoke(
-                stream,
-                Default::default(),
-                input_image,
-                Default::default(),
-                &mut self.buffers.denoised_buffer,
-            )?;
+            self.denoiser
+                .invoke(
+                    stream,
+                    Default::default(),
+                    input_image,
+                    Default::default(),
+                    &mut self.buffers.denoised_buffer,
+                )
+                .unwrap();
 
             self.buffers.denoised_buffer.as_device_ptr()
         } else {

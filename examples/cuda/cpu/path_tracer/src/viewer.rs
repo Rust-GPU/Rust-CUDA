@@ -1,4 +1,3 @@
-use cust::vek::Vec2;
 use glium::{
     implement_vertex,
     index::{NoIndices, PrimitiveType},
@@ -16,6 +15,7 @@ use imgui::Condition;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use path_tracer_gpu::scene::Scene;
 use std::time::Instant;
+use vek::Vec2;
 
 use crate::{common::Camera, renderer::Renderer, HEIGHT, WIDTH};
 

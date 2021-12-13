@@ -102,12 +102,8 @@ pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
 }
 
 impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         self.as_ptr()
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        self.as_mut_ptr()
     }
 
     fn len(&self) -> usize {
@@ -116,12 +112,7 @@ impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
 }
 
 impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::from_raw(self.as_ptr() as u64)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        // SAFETY: unified pointers can be dereferenced from the gpu.
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         DevicePointer::from_raw(self.as_ptr() as u64)
     }
 
@@ -137,22 +128,13 @@ pub trait GpuBox<T: DeviceCopy>: private::Sealed {
 }
 
 impl<T: DeviceCopy> GpuBox<T> for DeviceBox<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        DeviceBox::as_device_ptr(self)
     }
 }
 
 impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
-    unsafe fn as_device_ptr(&self) -> DevicePointer<T> {
-        DevicePointer::from_raw(self.ptr.as_raw() as u64)
-    }
-
-    fn as_device_ptr_mut(&mut self) -> DevicePointer<T> {
-        // SAFETY: unified pointers can be dereferenced from the gpu.
+    fn as_device_ptr(&self) -> DevicePointer<T> {
         DevicePointer::from_raw(self.ptr.as_raw() as u64)
     }
 }
@@ -189,7 +171,7 @@ impl<T: DeviceCopy> DeviceMemory for DeviceVariable<T> {
 
 impl<T: DeviceCopy> DeviceMemory for DeviceBuffer<T> {
     fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
-        unsafe { self.as_device_ptr().as_raw() }
+        self.as_device_ptr().as_raw()
     }
 
     fn size_in_bytes(&self) -> usize {
@@ -218,6 +200,7 @@ mod private {
 }
 
 /// Simple wrapper over cuMemcpyHtoD_v2
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn memcpy_htod(
     d_ptr: cust_raw::CUdeviceptr,
     src_ptr: *const c_void,

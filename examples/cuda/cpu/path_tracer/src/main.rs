@@ -5,7 +5,6 @@ pub mod renderer;
 pub mod viewer;
 
 use common::Camera;
-use cust::vek::Vec3;
 use path_tracer_gpu::{
     material::{DiffuseMaterial, MaterialKind, MetallicMaterial},
     scene::Scene,
@@ -13,6 +12,7 @@ use path_tracer_gpu::{
     Object,
 };
 use std::error::Error;
+use vek::Vec3;
 
 pub const WIDTH: u32 = 1920;
 pub const HEIGHT: u32 = 1080;

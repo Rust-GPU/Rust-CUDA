@@ -20,10 +20,12 @@ num-complex = { version = "0.4", optional = true }
 vek = { version = "0.15.1", optional = true, default-features = false }
 
 [features]
-default-features = ["vek", "impl_glam", "impl_mint"]
+default= ["vek", "impl_glam", "impl_mint"]
 impl_glam = ["cust_core/glam", "glam"]
 impl_mint = ["cust_core/mint", "mint"]
 impl_vek = ["cust_core/vek", "vek"]
+impl_half = ["cust_core/half"]
+impl_num_complex = ["cust_core/num-complex", "num-complex"]
 
 [build-dependencies]
 find_cuda_helper = { path = "../find_cuda_helper", version = "0.2" }

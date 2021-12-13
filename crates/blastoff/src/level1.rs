@@ -46,9 +46,9 @@ impl CublasContext {
             Ok(T::amin(
                 ctx.raw,
                 x.len() as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 stride.unwrap_or(1) as i32,
-                result.as_device_ptr().as_raw_mut(),
+                result.as_device_ptr().as_mut_ptr(),
             )
             .to_result()?)
         })
@@ -108,9 +108,9 @@ impl CublasContext {
             Ok(T::amax(
                 ctx.raw,
                 x.len() as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 stride.unwrap_or(1) as i32,
-                result.as_device_ptr().as_raw_mut(),
+                result.as_device_ptr().as_mut_ptr(),
             )
             .to_result()?)
         })

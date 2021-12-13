@@ -102,7 +102,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// assert_eq!(0, value);
     /// ```
     pub unsafe fn zeroed() -> CudaResult<Self> {
-        let mut new_box = DeviceBox::uninitialized()?;
+        let new_box = DeviceBox::uninitialized()?;
         if mem::size_of::<T>() != 0 {
             cuda::cuMemsetD8_v2(new_box.as_device_ptr().as_raw(), 0, mem::size_of::<T>())
                 .to_result()?;
@@ -406,8 +406,8 @@ mod test_device_box {
     #[test]
     fn test_device_pointer_implements_traits_safely() {
         let _context = crate::quick_init().unwrap();
-        let mut x = DeviceBox::new(&5u64).unwrap();
-        let mut y = DeviceBox::new(&0u64).unwrap();
+        let x = DeviceBox::new(&5u64).unwrap();
+        let y = DeviceBox::new(&0u64).unwrap();
 
         // If the impls dereference the pointer, this should segfault.
         let _ = Ord::cmp(&x.as_device_ptr(), &y.as_device_ptr());

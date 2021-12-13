@@ -38,6 +38,18 @@ impl<T: DeviceCopy> Pointer for DevicePointer<T> {
 }
 
 impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
+    /// Returns a rust [`pointer`] created from this pointer, meant for FFI purposes.
+    /// **The pointer is not dereferenceable from the CPU!**
+    pub fn as_ptr(&self) -> *const T {
+        self.ptr as *const T
+    }
+
+    /// Returns a rust [`pointer`] created from this pointer, meant for FFI purposes.
+    /// **The pointer is not dereferenceable from the CPU!**
+    pub fn as_mut_ptr(&self) -> *mut T {
+        self.ptr as *mut T
+    }
+
     /// Returns the contained CUdeviceptr.
     pub fn as_raw(&self) -> CUdeviceptr {
         self.ptr

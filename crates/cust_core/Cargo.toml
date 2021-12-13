@@ -7,8 +7,8 @@ edition = "2021"
 vek = { version = "0.15.1", default-features=false, features=["libm"], optional = true }
 glam = { git = "https://github.com/anderslanglands/glam-rs", branch = "cuda", features=["cuda", "libm"], default-features=false, optional=true }
 mint = { version = "^0.5", optional = true }
+half = { version = "1.8", optional = true }
+num-complex = { version = "0.4", optional = true }
 
 [features]
-default-features = ["vek", "glam", "mint"]
-
-
+default = ["vek", "glam", "mint"]

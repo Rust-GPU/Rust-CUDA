@@ -123,15 +123,15 @@ unsafe impl<
 {
 }
 
-macro_rules! impl_device_copy_vek {
-    ($($strukt:ident),* $(,)?) => {
+macro_rules! impl_device_copy_generic {
+    ($($($strukt:ident)::+),* $(,)?) => {
         $(
-            unsafe impl<T: DeviceCopy> DeviceCopy for $strukt<T> {}
+            unsafe impl<T: DeviceCopy> DeviceCopy for $($strukt)::+<T> {}
         )*
     }
 }
 
-macro_rules! impl_device_copy_glam {
+macro_rules! impl_device_copy {
     ($($strukt:ty),* $(,)?) => {
         $(
             unsafe impl DeviceCopy for $strukt {}
@@ -143,7 +143,7 @@ macro_rules! impl_device_copy_glam {
 use vek::*;
 
 #[cfg(feature = "vek")]
-impl_device_copy_vek! {
+impl_device_copy_generic! {
     Vec2, Vec3, Vec4, Extent2, Extent3, Rgb, Rgba,
     Mat2, Mat3, Mat4,
     CubicBezier2, CubicBezier3,
@@ -151,15 +151,23 @@ impl_device_copy_vek! {
 }
 
 #[cfg(feature = "glam")]
-impl_device_copy_glam! {
+impl_device_copy! {
     glam::Vec2, glam::Vec3, glam::Vec4, glam::IVec2, glam::IVec3, glam::IVec4,
 }
 
 #[cfg(feature = "mint")]
-impl_device_copy_glam! {
-    mint::Vector2<i16>, mint::Vector2<i32>, mint::Vector2<f32>,
-    mint::Vector3<u16>, mint::Vector3<u32>, mint::Vector3<i16>, mint::Vector3<i32>, mint::Vector3<f32>,
-    mint::Vector4<i16>, mint::Vector4<i32>, mint::Vector4<f32>,
-    mint::ColumnMatrix2<f32>, mint::ColumnMatrix3<f32>, mint::ColumnMatrix4<f32>, mint::ColumnMatrix3x4<f32>,
-    mint::RowMatrix2<f32>, mint::RowMatrix3<f32>, mint::RowMatrix4<f32>, mint::RowMatrix3x4<f32>,
+impl_device_copy_generic! {
+    mint::Vector2, mint::Vector3, mint::Vector4,
+    mint::ColumnMatrix2, mint::ColumnMatrix3, mint::ColumnMatrix4, mint::ColumnMatrix3x4,
+    mint::RowMatrix2, mint::RowMatrix3, mint::RowMatrix4, mint::RowMatrix3x4,
+}
+
+#[cfg(feature = "half")]
+unsafe impl DeviceCopy for half::f16 {}
+#[cfg(feature = "half")]
+unsafe impl DeviceCopy for half::bf16 {}
+
+#[cfg(feature = "num-complex")]
+impl_device_copy_generic! {
+    num_complex::Complex
 }

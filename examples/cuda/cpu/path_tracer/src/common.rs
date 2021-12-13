@@ -1,8 +1,8 @@
-use cust::vek::{Vec2, Vec3};
 use glutin::event::{
     ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
 use path_tracer_gpu::Viewport;
+use vek::{Vec2, Vec3};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Camera {

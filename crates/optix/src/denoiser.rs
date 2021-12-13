@@ -375,7 +375,7 @@ impl Denoiser {
         let raw_params = parameters.to_raw();
 
         let mut out = input_image.to_raw();
-        out.data = out_buffer.as_device_ptr().as_raw_mut() as u64;
+        out.data = out_buffer.as_device_ptr().as_raw() as u64;
 
         let layer = sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
