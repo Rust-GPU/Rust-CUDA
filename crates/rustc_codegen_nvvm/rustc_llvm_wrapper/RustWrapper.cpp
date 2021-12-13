@@ -187,9 +187,22 @@ extern "C" LLVMValueRef LLVMRustGetOrInsertFunction(LLVMModuleRef M,
 }
 
 extern "C" LLVMValueRef
-LLVMRustGetOrInsertGlobal(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty)
+LLVMRustGetOrInsertGlobal(LLVMModuleRef M, const char *Name, LLVMTypeRef Ty, unsigned AddressSpace)
 {
+  // Module *Mod = unwrap(M);
+  // GlobalVariable *GV = dyn_cast_or_null<GlobalVariable>(Mod->getNamedValue(Name));
+  // if (!GV)
+  // {
+  //   GV = new GlobalVariable(unwrap(Ty), false, GlobalValue::ExternalLinkage,
+  //                           nullptr, Name, GlobalValue::NotThreadLocal, AddressSpace);
+  // }
+  // Type *GVTy = GV->getType();
+  // PointerType *PTy = PointerType::get(unwrap(Ty), GVTy->getPointerAddressSpace());
+  // if (GVTy != PTy)
+  //   return wrap(ConstantExpr::getBitCast(GV, PTy));
+
   return wrap(unwrap(M)->getOrInsertGlobal(Name, unwrap(Ty)));
+  // return wrap(GV);
 }
 
 extern "C" LLVMTypeRef LLVMRustMetadataTypeInContext(LLVMContextRef C)

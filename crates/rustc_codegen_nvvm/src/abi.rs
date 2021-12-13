@@ -11,7 +11,7 @@ use rustc_codegen_ssa::{traits::*, MemFlags};
 use rustc_middle::bug;
 use rustc_middle::ty::layout::LayoutOf;
 pub use rustc_middle::ty::layout::{FAT_PTR_ADDR, FAT_PTR_EXTRA};
-use rustc_middle::ty::{Ty, TyCtxt};
+use rustc_middle::ty::{Ty, TyCtxt, TyKind};
 pub use rustc_target::abi::call::*;
 use rustc_target::abi::call::{CastTarget, Reg, RegKind};
 use rustc_target::abi::{self, HasDataLayout, Int};
@@ -27,20 +27,27 @@ pub(crate) fn readjust_fn_abi<'tcx>(
         return fn_abi;
     }
     let readjust_arg_abi = |arg: &ArgAbi<'tcx, Ty<'tcx>>| {
-        let mut arg = ArgAbi::new(&tcx, arg.layout, |_, _, _| ArgAttributes::new());
+        let mut arg = ArgAbi {
+            layout: arg.layout,
+            mode: arg.mode,
+            pad: arg.pad,
+        };
 
         // ignore zsts
         if arg.layout.is_zst() {
             arg.mode = PassMode::Ignore;
         }
 
-        // this should never happen since rustc has always passed slices as pairs for years but we override it just to make sure.
-        // if rustc suddenly changes this we are in for a world of segfaults so if you are a rustc dev reading this, please dont, thanks :)
-        if arg.layout.ty.is_slice() && !matches!(arg.mode, PassMode::Pair { .. }) {
-            arg.mode = PassMode::Pair(ArgAttributes::new(), ArgAttributes::new());
+        if let TyKind::Ref(_, ty, _) = arg.layout.ty.kind() {
+            if matches!(ty.kind(), TyKind::Slice(_)) {
+                let mut ptr_attrs = ArgAttributes::new();
+                if let PassMode::Indirect { attrs, .. } = arg.mode {
+                    ptr_attrs.regular = attrs.regular;
+                }
+                arg.mode = PassMode::Pair(ptr_attrs, ArgAttributes::new());
+            }
         }
 
-        // same as in slice's case
         if arg.layout.ty.is_array() && !matches!(arg.mode, PassMode::Direct { .. }) {
             arg.mode = PassMode::Direct(ArgAttributes::new());
         }

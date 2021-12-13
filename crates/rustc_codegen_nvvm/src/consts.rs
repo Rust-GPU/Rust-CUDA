@@ -58,7 +58,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             );
             let sym = self.generate_local_symbol_name("str");
             let g = self
-                .define_global(&sym[..], self.val_ty(sc))
+                .define_global(&sym[..], self.val_ty(sc), AddressSpace::DATA)
                 .unwrap_or_else(|| {
                     bug!("symbol `{}` is already defined", sym);
                 });
@@ -239,7 +239,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
         };
         unsafe {
             // Declare a symbol `foo` with the desired linkage.
-            let g1 = cx.declare_global(&sym, llty2);
+            let g1 = cx.declare_global(&sym, llty2, AddressSpace::DATA);
             llvm::LLVMRustSetLinkage(g1, linkage_to_llvm(linkage));
 
             // Declare an internal global `extern_with_linkage_foo` which
@@ -250,18 +250,20 @@ fn check_and_apply_linkage<'ll, 'tcx>(
             // zero.
             let mut real_name = "_rust_extern_with_linkage_".to_string();
             real_name.push_str(&sym);
-            let g2 = cx.define_global(&real_name, llty).unwrap_or_else(|| {
-                cx.sess().span_fatal(
-                    cx.tcx.def_span(span_def_id),
-                    &format!("symbol `{}` is already defined", &sym),
-                )
-            });
+            let g2 = cx
+                .define_global(&real_name, llty, AddressSpace::DATA)
+                .unwrap_or_else(|| {
+                    cx.sess().span_fatal(
+                        cx.tcx.def_span(span_def_id),
+                        &format!("symbol `{}` is already defined", &sym),
+                    )
+                });
             llvm::LLVMRustSetLinkage(g2, llvm::Linkage::InternalLinkage);
             llvm::LLVMSetInitializer(g2, g1);
             g2
         }
     } else {
-        cx.declare_global(&sym, llty)
+        cx.declare_global(&sym, llty, AddressSpace::DATA)
     }
 }
 
@@ -281,7 +283,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             // TODO(RDambrosio016): replace this with latest rustc's handling when we use llvm 13
             let name = self.generate_local_symbol_name(kind.unwrap_or("private"));
             let gv = self
-                .define_global(&name[..], self.val_ty(cv))
+                .define_global(&name[..], self.val_ty(cv), AddressSpace::DATA)
                 .unwrap_or_else(|| bug!("symbol `{}` is already defined", name));
             llvm::LLVMRustSetLinkage(gv, llvm::Linkage::PrivateLinkage);
             llvm::LLVMSetInitializer(gv, cv);
@@ -320,7 +322,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 }
             }
 
-            let g = self.declare_global(sym, llty);
+            let g = self.declare_global(sym, llty, AddressSpace::DATA);
 
             if !self.tcx.is_reachable_non_generic(def_id) {
                 unsafe {
@@ -389,6 +391,12 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
             let g = if val_llty == llty {
                 g
             } else {
+                trace!(
+                    "Making new RAUW global: from ty `{:?}` to `{:?}`, initializer: `{:?}`",
+                    llty,
+                    val_llty,
+                    v
+                );
                 // If we created the global with the wrong type,
                 // correct the type.
                 let name = llvm::get_value_name(g).to_vec();
@@ -403,6 +411,7 @@ impl<'ll, 'tcx> StaticMethods for CodegenCx<'ll, 'tcx> {
                     name.as_ptr().cast(),
                     name.len(),
                     val_llty,
+                    AddressSpace::DATA.0,
                 );
 
                 llvm::LLVMRustSetLinkage(new_g, linkage);

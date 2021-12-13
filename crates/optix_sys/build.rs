@@ -12,6 +12,7 @@ fn main() {
         "Unable to find the OptiX SDK, make sure you installed it and
     that OPTIX_ROOT or OPTIX_ROOT_DIR are set",
     );
+
     optix_include = optix_include.join("include");
 
     let mut cuda_include = find_cuda_root().expect(

@@ -23,7 +23,9 @@ use rustc_session::config::DebugInfo;
 use rustc_session::Session;
 use rustc_span::{Span, Symbol};
 use rustc_target::abi::call::FnAbi;
-use rustc_target::abi::{HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx};
+use rustc_target::abi::{
+    AddressSpace, HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx,
+};
 use rustc_target::spec::{HasTargetSpec, Target};
 use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
@@ -265,17 +267,35 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     /// Declare a global value, returns the existing value if it was already declared.
-    pub fn declare_global(&self, name: &str, ty: &'ll Type) -> &'ll Value {
+    pub fn declare_global(
+        &self,
+        name: &str,
+        ty: &'ll Type,
+        address_space: AddressSpace,
+    ) -> &'ll Value {
         // NVVM doesnt allow `.` inside of globals, this should be sound, at worst it should result in an nvvm error if something goes wrong.
         let name = sanitize_global_ident(name);
         trace!("Declaring global `{}`", name);
-        unsafe { llvm::LLVMRustGetOrInsertGlobal(self.llmod, name.as_ptr().cast(), name.len(), ty) }
+        unsafe {
+            llvm::LLVMRustGetOrInsertGlobal(
+                self.llmod,
+                name.as_ptr().cast(),
+                name.len(),
+                ty,
+                address_space.0,
+            )
+        }
     }
 
     /// Declare a function. All functions use the default ABI, NVVM ignores any calling convention markers.
     /// All functions calls are generated according to the PTX calling convention.
     /// https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#calling-conventions
-    pub fn declare_fn(&self, name: &str, ty: &'ll Type) -> &'ll Value {
+    pub fn declare_fn(
+        &self,
+        name: &str,
+        ty: &'ll Type,
+        fn_abi: Option<&FnAbi<'tcx, Ty<'tcx>>>,
+    ) -> &'ll Value {
         let llfn = unsafe {
             llvm::LLVMRustGetOrInsertFunction(self.llmod, name.as_ptr().cast(), name.len(), ty)
         };
@@ -285,8 +305,9 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         // TODO(RDambrosio016): we should probably still generate accurate calling conv for functions
         // just to make it easier to debug IR and/or make it more compatible with compiling using llvm
         llvm::SetUnnamedAddress(llfn, llvm::UnnamedAddr::Global);
-        // nvvm doesnt support noredzone and nonlazybind so dont generate it
-
+        if let Some(abi) = fn_abi {
+            abi.apply_attrs_llfn(self, llfn);
+        }
         attributes::default_optimisation_attrs(self.tcx.sess, llfn);
         llfn
     }
@@ -297,11 +318,16 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     /// return `None` if the name already has a definition associated with it. In that
     /// case an error should be reported to the user, because it usually happens due
     /// to user’s fault (e.g., misuse of `#[no_mangle]` or `#[export_name]` attributes).
-    pub fn define_global(&self, name: &str, ty: &'ll Type) -> Option<&'ll Value> {
+    pub fn define_global(
+        &self,
+        name: &str,
+        ty: &'ll Type,
+        address_space: AddressSpace,
+    ) -> Option<&'ll Value> {
         if self.get_defined_value(&name).is_some() {
             None
         } else {
-            Some(self.declare_global(&name, ty))
+            Some(self.declare_global(&name, ty, address_space))
         }
     }
 
@@ -358,7 +384,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         } else {
             self.type_variadic_func(&[], ret)
         };
-        let f = self.declare_fn(&name, fn_ty);
+        let f = self.declare_fn(&name, fn_ty, None);
         llvm::SetUnnamedAddress(f, llvm::UnnamedAddr::No);
         self.intrinsics.borrow_mut().insert(name, f);
         f
@@ -405,7 +431,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 llfn
             }
         } else {
-            let llfn = self.declare_fn(&sym, abi.llvm_type(self));
+            let llfn = self.declare_fn(&sym, abi.llvm_type(self), Some(abi));
             attributes::from_fn_attrs(self, llfn, instance);
             let def_id = instance.def_id();
 
