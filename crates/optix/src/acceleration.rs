@@ -574,9 +574,9 @@ pub unsafe fn accel_build<I: BuildInput>(
         accel_options.as_ptr() as *const _,
         build_sys.as_ptr(),
         build_sys.len() as u32,
-        temp_buffer.as_device_ptr(),
+        temp_buffer.as_device_ptr().as_raw(),
         temp_buffer.len(),
-        output_buffer.as_device_ptr(),
+        output_buffer.as_device_ptr().as_raw(),
         output_buffer.len(),
         &mut traversable_handle as *mut _ as *mut _,
         properties.as_ptr() as *const _,
@@ -670,7 +670,7 @@ pub unsafe fn accel_compact(
         ctx.raw,
         stream.as_inner(),
         input_handle.inner,
-        output_buffer.as_device_ptr(),
+        output_buffer.as_device_ptr().as_raw(),
         output_buffer.len(),
         &mut traversable_handle as *mut _ as *mut _,
     ))
@@ -1019,10 +1019,10 @@ impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
     ) -> Result<CurveArray<'v, 'w, 'i>> {
         // TODO (AL): Do some sanity checking on the values here
         let num_vertices = vertex_buffers[0].len() as u32;
-        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr()).collect();
+        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
 
         let num_width_buffers = width_buffers.len() as u32;
-        let d_width_buffers: Vec<_> = width_buffers.iter().map(|b| b.as_device_ptr()).collect();
+        let d_width_buffers: Vec<_> = width_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
 
         Ok(CurveArray {
             curve_type,
@@ -1093,7 +1093,7 @@ impl<'v, 'w, 'i> BuildInput for CurveArray<'v, 'w, 'i> {
                     widthStrideInBytes: self.width_stride_in_bytes,
                     normalBuffers: std::ptr::null(),
                     normalStrideInBytes: 0,
-                    indexBuffer: self.index_buffer.as_device_ptr(),
+                    indexBuffer: self.index_buffer.as_device_ptr().as_raw(),
                     indexStrideInBytes: self.index_stride_in_bytes,
                     flag: self.flags as u32,
                     primitiveIndexOffset: self.primitive_index_offset,
@@ -1270,7 +1270,7 @@ impl<'v, 'g, V: Vertex> TriangleArray<'v, 'g, V> {
     pub fn new(vertex_buffers: &[&'v DeviceSlice<V>], geometry_flags: &'g [GeometryFlags]) -> Self {
         // TODO (AL): do some sanity checking on the slice lengths here
         let num_vertices = vertex_buffers[0].len() as u32;
-        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr()).collect();
+        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
         TriangleArray {
             vertex_buffers: PhantomData,
             num_vertices,
@@ -1349,7 +1349,7 @@ impl<'v, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'i, V, I> {
         geometry_flags: &[GeometryFlags],
     ) -> Self {
         let num_vertices = vertex_buffers[0].len() as u32;
-        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr()).collect();
+        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
         IndexedTriangleArray {
             vertex_buffers: PhantomData,
             num_vertices,
@@ -1385,7 +1385,7 @@ impl<'v, 'i, V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'v, 
                     numVertices: self.num_vertices,
                     vertexFormat: V::FORMAT as _,
                     vertexStrideInBytes: V::STRIDE,
-                    indexBuffer: self.index_buffer.as_device_ptr(),
+                    indexBuffer: self.index_buffer.as_device_ptr().as_raw(),
                     numIndexTriplets: self.index_buffer.len() as u32,
                     indexFormat: I::FORMAT as _,
                     indexStrideInBytes: I::STRIDE,
@@ -1446,7 +1446,7 @@ impl<'a, 's> CustomPrimitiveArray<'a, 's> {
         flags: &[GeometryFlags],
     ) -> Result<CustomPrimitiveArray<'a, 's>> {
         let num_primitives = aabb_buffers.len() as u32;
-        let aabb_buffers: Vec<_> = aabb_buffers.iter().map(|b| b.as_device_ptr()).collect();
+        let aabb_buffers: Vec<_> = aabb_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
 
         Ok(CustomPrimitiveArray {
             aabb_buffers,
@@ -1505,7 +1505,7 @@ impl<'a, 's> BuildInput for CustomPrimitiveArray<'a, 's> {
                         sbtIndexOffsetBuffer: if let Some(sbt_index_offset_buffer) =
                             self.sbt_index_offset_buffer
                         {
-                            sbt_index_offset_buffer.as_device_ptr()
+                            sbt_index_offset_buffer.as_device_ptr().as_raw()
                         } else {
                             0
                         },
@@ -1632,7 +1632,7 @@ impl<'i, 'a> BuildInput for InstanceArray<'i, 'a> {
                     type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
                     input: sys::OptixBuildInputUnion {
                         instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
-                            instances: self.instances.as_device_ptr(),
+                            instances: self.instances.as_device_ptr().as_raw(),
                             numInstances: self.instances.len() as u32,
                         })
                     }
@@ -1679,7 +1679,7 @@ impl<'i> BuildInput for InstancePointerArray<'i> {
                     type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
                     input: sys::OptixBuildInputUnion {
                         instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
-                            instances: self.instances.as_device_ptr(),
+                            instances: self.instances.as_device_ptr().as_raw(),
                             numInstances: self.instances.len() as u32,
                         })
                     }
@@ -1819,7 +1819,7 @@ impl MatrixMotionTransform {
 
             // get the offset of the matrix data from the base of the struct
             let transform_ptr = buf
-                .as_ptr()
+                .as_device_ptr()
                 .add(offset_of!(sys::OptixMatrixMotionTransform, transform));
 
             // copy the transform data.
@@ -1827,7 +1827,7 @@ impl MatrixMotionTransform {
             // we'll just overwrite on the next line, but it's probably more
             // efficient to do that than to write each field individually
             cust::memory::memcpy_htod(
-                buf.as_device_ptr(),
+                buf.as_device_ptr().as_raw(),
                 &mmt as *const _ as *const c_void,
                 size_of::<sys::OptixMatrixMotionTransform>(),
             )?;
@@ -1841,7 +1841,7 @@ impl MatrixMotionTransform {
 
             let hnd = convert_pointer_to_traversable_handle(
                 ctx,
-                buf.as_device_ptr(),
+                buf.as_device_ptr().as_raw(),
                 TraversableType::MatrixMotionTransform,
             )?;
 
@@ -1966,7 +1966,7 @@ impl SrtMotionTransform {
 
             // get the offset of the matrix data from the base of the struct
             let transform_ptr = buf
-                .as_ptr()
+                .as_device_ptr()
                 .add(offset_of!(sys::OptixSRTMotionTransform, srtData));
 
             // copy the transform data.
@@ -1974,7 +1974,7 @@ impl SrtMotionTransform {
             // we'll just overwrite on the next line, but it's probably more
             // efficient to do that than to write each field individually
             cust::memory::memcpy_htod(
-                buf.as_device_ptr(),
+                buf.as_device_ptr().as_raw(),
                 &mmt as *const _ as *const c_void,
                 size_of::<sys::OptixSRTMotionTransform>(),
             )?;
@@ -1988,7 +1988,7 @@ impl SrtMotionTransform {
 
             let hnd = convert_pointer_to_traversable_handle(
                 ctx,
-                buf.as_device_ptr(),
+                buf.as_device_ptr().as_raw(),
                 TraversableType::SrtMotionTransform,
             )?;
 

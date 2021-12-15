@@ -144,7 +144,7 @@ impl Renderer {
 
         let launch_params = DeviceVariable::new(LaunchParams {
             frame_id: 0,
-            color_buffer: color_buffer.as_ptr(),
+            color_buffer: color_buffer.as_device_ptr(),
             fb_size: Point2i {
                 x: width as i32,
                 y: height as i32,
@@ -169,7 +169,7 @@ impl Renderer {
         self.color_buffer = unsafe { DeviceBuffer::uninitialized((width * height) as usize)? };
         self.launch_params.fb_size.x = width as i32;
         self.launch_params.fb_size.y = height as i32;
-        self.launch_params.color_buffer = self.color_buffer.as_ptr();
+        self.launch_params.color_buffer = self.color_buffer.as_device_ptr();
         Ok(())
     }
 

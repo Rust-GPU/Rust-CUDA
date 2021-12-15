@@ -1,5 +1,3 @@
-use cuda::CUdeviceptr;
-
 use crate::error::{CudaResult, ToResult};
 use crate::memory::device::AsyncCopyDestination;
 use crate::memory::device::{CopyDestination, DeviceBuffer};
@@ -74,8 +72,8 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// let a = DeviceBuffer::from_slice(&[1, 2, 3]).unwrap();
     /// println!("{:p}", a.as_ptr());
     /// ```
-    pub fn as_device_ptr(&self) -> CUdeviceptr {
-        self.ptr.as_raw()
+    pub fn as_device_ptr(&self) -> DevicePointer<T> {
+        self.ptr
     }
 
     /* TODO (AL): keep these?
@@ -150,30 +148,6 @@ impl<T: DeviceCopy> DeviceSlice<T> {
         }
     }
     */
-
-    /// Returns a `DevicePointer<T>` to the buffer.
-    ///
-    /// The caller must ensure that the buffer outlives the returned pointer, or it will end up
-    /// pointing to garbage.
-    ///
-    /// Modifying `DeviceBuffer` is guaranteed not to cause its buffer to be reallocated, so pointers
-    /// cannot be invalidated in that manner, but other types may be added in the future which can
-    /// reallocate.
-    pub fn as_ptr(&self) -> DevicePointer<T> {
-        self.ptr
-    }
-
-    /// Returns a `DevicePointer<T>` to the buffer.
-    ///
-    /// The caller must ensure that the buffer outlives the returned pointer, or it will end up
-    /// pointing to garbage.
-    ///
-    /// Modifying `DeviceBuffer` is guaranteed not to cause its buffer to be reallocated, so pointers
-    /// cannot be invalidated in that manner, but other types may be added in the future which can
-    /// reallocate.
-    pub fn as_mut_ptr(&mut self) -> DevicePointer<T> {
-        self.ptr
-    }
 
     /// Forms a slice from a `DevicePointer` and a length.
     ///
@@ -256,8 +230,12 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> CopyDestination<I> for 
         let size = mem::size_of::<T>() * self.len();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyDtoH_v2(val.as_mut_ptr() as *mut c_void, self.as_device_ptr(), size)
-                    .to_result()?
+                cuda::cuMemcpyDtoH_v2(
+                    val.as_mut_ptr() as *mut c_void,
+                    self.as_device_ptr().as_raw(),
+                    size,
+                )
+                .to_result()?
             }
         }
         Ok(())
@@ -272,7 +250,8 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         let size = mem::size_of::<T>() * self.len();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyDtoD_v2(self.ptr.as_raw(), val.as_device_ptr(), size).to_result()?
+                cuda::cuMemcpyDtoD_v2(self.ptr.as_raw(), val.as_device_ptr().as_raw(), size)
+                    .to_result()?
             }
         }
         Ok(())
@@ -286,8 +265,12 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         let size = mem::size_of::<T>() * self.len();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyDtoD_v2(val.as_device_ptr(), self.as_device_ptr(), size)
-                    .to_result()?
+                cuda::cuMemcpyDtoD_v2(
+                    val.as_device_ptr().as_raw(),
+                    self.as_device_ptr().as_raw(),
+                    size,
+                )
+                .to_result()?
             }
         }
         Ok(())
@@ -334,7 +317,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> AsyncCopyDestination<I>
         if size != 0 {
             cuda::cuMemcpyDtoHAsync_v2(
                 val.as_mut_ptr() as *mut c_void,
-                self.as_device_ptr(),
+                self.as_device_ptr().as_raw(),
                 size,
                 stream.as_inner(),
             )
@@ -352,8 +335,8 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         let size = mem::size_of::<T>() * self.len();
         if size != 0 {
             cuda::cuMemcpyDtoDAsync_v2(
-                self.as_device_ptr(),
-                val.as_device_ptr(),
+                self.as_device_ptr().as_raw(),
+                val.as_device_ptr().as_raw(),
                 size,
                 stream.as_inner(),
             )
@@ -370,8 +353,8 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         let size = mem::size_of::<T>() * self.len();
         if size != 0 {
             cuda::cuMemcpyDtoDAsync_v2(
-                val.as_device_ptr(),
-                self.as_device_ptr(),
+                val.as_device_ptr().as_raw(),
+                self.as_device_ptr().as_raw(),
                 size,
                 stream.as_inner(),
             )

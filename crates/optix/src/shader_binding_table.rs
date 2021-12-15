@@ -47,7 +47,7 @@ pub struct ShaderBindingTable(pub(crate) sys::OptixShaderBindingTable);
 
 impl ShaderBindingTable {
     pub fn new<RG: DeviceCopy>(buf_raygen_record: &DeviceSlice<SbtRecord<RG>>) -> Self {
-        let raygen_record = buf_raygen_record.as_device_ptr();
+        let raygen_record = buf_raygen_record.as_device_ptr().as_raw();
         ShaderBindingTable(sys::OptixShaderBindingTable {
             raygenRecord: raygen_record,
             exceptionRecord: 0,
@@ -70,7 +70,7 @@ impl ShaderBindingTable {
         if buf_exception_record.len() != 1 {
             panic!("SBT not passed single exception record",);
         }
-        self.0.exceptionRecord = buf_exception_record.as_device_ptr();
+        self.0.exceptionRecord = buf_exception_record.as_device_ptr().as_raw();
         self
     }
 
@@ -78,7 +78,7 @@ impl ShaderBindingTable {
         if buf_miss_records.len() == 0 {
             panic!("SBT passed empty miss records");
         }
-        self.0.missRecordBase = buf_miss_records.as_device_ptr();
+        self.0.missRecordBase = buf_miss_records.as_device_ptr().as_raw();
         self.0.missRecordStrideInBytes = std::mem::size_of::<SbtRecord<MS>>() as u32;
         self.0.missRecordCount = buf_miss_records.len() as u32;
         self
@@ -91,7 +91,7 @@ impl ShaderBindingTable {
         if buf_hitgroup_records.len() == 0 {
             panic!("SBT passed empty hitgroup records");
         }
-        self.0.hitgroupRecordBase = buf_hitgroup_records.as_device_ptr();
+        self.0.hitgroupRecordBase = buf_hitgroup_records.as_device_ptr().as_raw();
         self.0.hitgroupRecordStrideInBytes = std::mem::size_of::<SbtRecord<HG>>() as u32;
         self.0.hitgroupRecordCount = buf_hitgroup_records.len() as u32;
         self
@@ -104,7 +104,7 @@ impl ShaderBindingTable {
         if buf_callables_records.len() == 0 {
             panic!("SBT passed empty callables records");
         }
-        self.0.callablesRecordBase = buf_callables_records.as_device_ptr();
+        self.0.callablesRecordBase = buf_callables_records.as_device_ptr().as_raw();
         self.0.callablesRecordStrideInBytes = std::mem::size_of::<SbtRecord<CL>>() as u32;
         self.0.callablesRecordCount = buf_callables_records.len() as u32;
         self

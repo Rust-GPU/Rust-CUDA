@@ -103,7 +103,7 @@ pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
 
 impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
     fn as_device_ptr(&self) -> DevicePointer<T> {
-        self.as_ptr()
+        self.as_slice().as_device_ptr()
     }
 
     fn len(&self) -> usize {
@@ -181,7 +181,7 @@ impl<T: DeviceCopy> DeviceMemory for DeviceBuffer<T> {
 
 impl<T: DeviceCopy> DeviceMemory for DeviceSlice<T> {
     fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
-        self.as_device_ptr()
+        self.as_device_ptr().as_raw()
     }
 
     fn size_in_bytes(&self) -> usize {

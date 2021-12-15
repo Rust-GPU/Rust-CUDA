@@ -226,6 +226,11 @@ impl<T: DeviceCopy> DeviceBuffer<T> {
         uninit.async_copy_from(slice, stream)?;
         Ok(uninit)
     }
+
+    /// Explicitly creates a [`DeviceSlice`] from this buffer.
+    pub fn as_slice(&self) -> &DeviceSlice<T> {
+        self
+    }
 }
 
 impl<T: DeviceCopy> Deref for DeviceBuffer<T> {
