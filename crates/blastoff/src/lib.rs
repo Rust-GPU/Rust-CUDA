@@ -5,7 +5,7 @@
 //!
 //! **blastoff uses 1-based indexing, reflecting cuBLAS' behavior. This means
 //! you will likely need to do some math to any returned indices. For example,
-//! [`min`](crate::context::CublasContext::min) returns a 1-based index.
+//! [`amin`](crate::context::CublasContext::amin) returns a 1-based index.
 
 pub use cublas_sys as sys;
 use num_complex::{Complex32, Complex64};
