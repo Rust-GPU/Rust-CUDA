@@ -1,0 +1,8 @@
+[package]
+authors = ["frjnn <f.iannelli.francesco229@gmail.com>"]
+edition = "2021"
+name = "cudnn"
+version = "0.1.0"
+
+[dependencies]
+cust = "0.2.2"
