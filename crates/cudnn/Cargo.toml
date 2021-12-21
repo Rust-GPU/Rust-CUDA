@@ -5,4 +5,4 @@ name = "cudnn"
 version = "0.1.0"
 
 [dependencies]
-cust = "0.2.2"
+cust = {version = "0.2.2", path = "../cust"}

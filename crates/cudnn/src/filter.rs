@@ -1,39 +1,39 @@
 use crate::{
     data_type::DataType,
     error::CudnnError,
-    tensor_descriptor::TensorDescriptor,
+    filter_descriptor::FilterDescriptor,
     tensor_format::{SupportedType, TensorFormat},
 };
 use cust::memory::{DeviceBuffer, DeviceCopy, GpuBox, GpuBuffer, UnifiedBuffer};
 
-/// A cuDNN tensor generic over both unified and device memory.
-pub struct Tensor<T, F, V, const D: usize>
+/// A cuDNN filter generic over both unified and device memory.
+pub struct Filter<T, F, V, const D: usize>
 where
     T: DataType,
     F: TensorFormat + SupportedType<T>,
     V: GpuBuffer<T>,
 {
     data: V,
-    descriptor: TensorDescriptor<T, F, D>,
+    descriptor: FilterDescriptor<T, F, D>,
 }
 
-impl<T, F, V, const D: usize> Tensor<T, F, V, D>
+impl<T, F, V, const D: usize> Filter<T, F, V, D>
 where
     T: DataType,
     F: TensorFormat + SupportedType<T>,
     V: GpuBuffer<T>,
 {
-    /// Returns a reference to the tensor's underlying data.
+    /// Returns a reference to the filter's underlying data.
     pub fn data(&self) -> &V {
         &self.data
     }
 
-    /// Returns a reference to the tensor's descriptor.
-    pub fn descriptor(&self) -> &TensorDescriptor<T, F, D> {
+    /// Returns a reference to the filter's descriptor.
+    pub fn descriptor(&self) -> &FilterDescriptor<T, F, D> {
         &self.descriptor
     }
 
-    /// Creates a new cuDNN tensor.
+    /// Creates a new cuDNN filter.
     ///
     /// **Do note** that the minimum number of dimensions supported by cuDNN is equal to 3.
     ///
@@ -41,13 +41,17 @@ where
     ///
     /// * `data` - underlying data.
     ///
-    /// * `shape` - array that contain the size of the tensor for every dimension. The size along
-    /// unused dimensions should be set to 1.
+    /// * `shape` - array that contain the size of the filter for every dimension.
     ///
-    /// * `format` - tensor format.
+    /// * `format` - tensor format. If set to [`NCHW`](TensorFormat::NCHW), then the layout of the
+    /// filter is as follows: for D = 4, a 4D filter descriptor, the filter layout is in the form of
+    /// KCRS, i.e. K represents the number of output feature maps, C is the number of input feature
+    /// maps, R is the number of rows per filter, S is the number of columns per filter. For N = 3,
+    /// a 3D filter descriptor, the number S (number of columns per filter) is omitted. For N = 5
+    /// and greater, the layout of the higher dimensions immediately follows RS.
     ///
     /// **Do note** that you should always initialize a [`CudnnContext`](crate::CudnnContext) before
-    /// allocating memory and creating tensors.
+    /// allocating memory and creating filters.
     ///
     /// # Examples
     ///
@@ -59,7 +63,7 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, Tensor, NCHW};
+    /// use cudnn::{CudnnContext, Filter, NCHW};
     /// use cust::memory::DeviceBuffer;
     ///
     /// let ctx = CudnnContext::new()?;
@@ -70,7 +74,7 @@ where
     /// let shape =  [2, 2, 25, 25];
     /// let format = NCHW;
     ///
-    /// let t = Tensor::new(data, shape, NCHW)?;
+    /// let t = Filter::new(data, shape, NCHW)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -81,7 +85,7 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, Tensor, NCHW};
+    /// use cudnn::{CudnnContext, Filter, NCHW};
     /// use cust::memory::UnifiedBuffer;
     ///
     /// let ctx = CudnnContext::new()?;
@@ -91,12 +95,12 @@ where
     /// let shape =  [2, 2, 25, 25];
     /// let format = NCHW;
     ///
-    /// let t = Tensor::new(data, shape, NCHW)?;
+    /// let t = Filter::new(data, shape, NCHW)?;
     /// # Ok(())
     /// # }
     /// ```
     pub fn new(data: V, shape: [i32; D], format: F) -> Result<Self, CudnnError> {
-        let descriptor = TensorDescriptor::new(shape, format)?;
+        let descriptor = FilterDescriptor::new(shape, format)?;
 
         assert_eq!(
             shape.iter().product::<i32>() as usize,

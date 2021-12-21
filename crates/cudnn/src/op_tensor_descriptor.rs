@@ -24,10 +24,10 @@ pub enum OpTensorOp {
     Not,
 }
 
-impl OpTensorOp {
+impl From<OpTensorOp> for sys::cudnnOpTensorOp_t {
     /// Returns the corresponding raw cuDNNN type.
-    pub fn into_raw(self) -> sys::cudnnOpTensorOp_t {
-        match self {
+    fn from(op: OpTensorOp) -> sys::cudnnOpTensorOp_t {
+        match op {
             OpTensorOp::Add => sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_ADD,
             OpTensorOp::Mul => sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_MUL,
             OpTensorOp::Min => sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_MIN,
@@ -84,7 +84,7 @@ where
             sys::cudnnCreateOpTensorDescriptor(raw.as_mut_ptr()).into_result()?;
             let mut raw = raw.assume_init();
 
-            sys::cudnnSetOpTensorDescriptor(raw, op.into_raw(), T::into_raw(), nan_opt.into_raw())
+            sys::cudnnSetOpTensorDescriptor(raw, op.into(), T::into_raw(), nan_opt.into())
                 .into_result()?;
 
             Ok(Self {
@@ -112,12 +112,12 @@ impl<T: DataType> Drop for OpTensorDescriptor<T> {
 /// | f64      | f64      | f64      | f64      |
 /// | f32      | i8       | i8       | i8       |
 /// | f32      | f32      | f32      | i8       |
-pub trait SupportedOp<Atype, Btype, Ctype>
+pub trait SupportedOp<AType, BType, CType>
 where
     Self: DataType,
-    Atype: DataType,
-    Btype: DataType,
-    Ctype: DataType,
+    AType: DataType,
+    BType: DataType,
+    CType: DataType,
 {
 }
 
