@@ -61,12 +61,12 @@ impl CublasContext {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _a = blastoff::__doctest_setup();
-    /// use blastoff::context::CublasContext;
-    /// use cust::prelude::*;
-    /// use cust::memory::DeviceBox;
-    /// use cust::util::SliceExt;
-    /// let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::context::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
     /// let mut ctx = CublasContext::new()?;
     /// let data = [0.0f32, 1.0, 0.5, 5.0].as_dbuf()?;
     /// let mut result = DeviceBox::new(&0)?;
@@ -116,19 +116,19 @@ impl CublasContext {
         })
     }
 
-    /// Finds the index of the smallest element inside of the GPU buffer, writing the resulting
+    /// Finds the index of the smallest element inside of the GPU buffer by absolute value, writing the resulting
     /// index into `result`. The index is 1-based, not 0-based.
     ///
     /// # Example
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _a = blastoff::__doctest_setup();
-    /// use blastoff::context::CublasContext;
-    /// use cust::prelude::*;
-    /// use cust::memory::DeviceBox;
-    /// use cust::util::SliceExt;
-    /// let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::context::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
     /// let mut ctx = CublasContext::new()?;
     /// let data = [0.0f32, 1.0, 0.5, 5.0].as_dbuf()?;
     /// let mut result = DeviceBox::new(&0)?;
@@ -148,5 +148,79 @@ impl CublasContext {
         result: &mut impl GpuBox<i32>,
     ) -> Result {
         self.amax_strided(stream, x, x.len(), None, result)
+    }
+
+    /// Same as [`CublasContext::axpy`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn axpy_strided<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        alpha: &impl GpuBox<T>,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &mut impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::axpy(
+                ctx.raw,
+                x.len() as i32,
+                alpha.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_raw(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_raw_mut(),
+                y_stride.unwrap_or(1) as i32,
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Multiplies `n` elements in `x` by `alpha`, then adds the result to `y`, overwriting
+    /// `y` with the result.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` are not long enough for the requested length `n`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::context::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut ctx = CublasContext::new()?;
+    /// let alpha = DeviceBox::new(&2.0)?;
+    /// let x = [1.0, 2.0, 3.0, 4.0].as_dbuf()?;
+    /// let mut y = [1.0; 4].as_dbuf()?;
+    ///
+    /// ctx.axpy(&stream, &alpha, x.len(), &x, &mut y)?;
+    ///
+    /// stream.synchronize()?;
+    ///
+    /// let result = y.as_host_vec()?;
+    /// assert_eq!(&result, &[3.0, 5.0, 7.0, 9.0]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn axpy<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        alpha: &impl GpuBox<T>,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        y: &mut impl GpuBuffer<T>,
+    ) -> Result {
+        self.axpy_strided(stream, alpha, n, x, None, y, None)
     }
 }

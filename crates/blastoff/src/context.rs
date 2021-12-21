@@ -45,6 +45,13 @@ bitflags::bitflags! {
 /// cuBLAS contexts hold internal memory allocations required by the library, and will free those allocations on drop. They will
 /// also synchronize the entire device when dropping the context. Therefore, you should minimize both the amount of contexts, and the
 /// amount of context drops. You should generally allocate all the contexts at once, and drop them all at once.
+///
+/// # Methods
+///
+/// ## Level 1 Methods (Scalar/Vector-based operations)
+/// - [Index of smallest element by absolute value <span style="float:right;">`amin`</span>](CublasContext::amin)
+/// - [Index of largest element by absolute value <span style="float:right;">`amax`</span>](CublasContext::amax)
+/// - [$\alpha \boldsymbol{x} + \boldsymbol{y}$ <span style="float:right;">`axpy`</span>](CublasContext::axpy)
 #[derive(Debug)]
 pub struct CublasContext {
     pub(crate) raw: sys::v2::cublasHandle_t,
