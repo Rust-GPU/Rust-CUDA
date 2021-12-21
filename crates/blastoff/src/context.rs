@@ -52,6 +52,7 @@ bitflags::bitflags! {
 /// - [Index of smallest element by absolute value <span style="float:right;">`amin`</span>](CublasContext::amin)
 /// - [Index of largest element by absolute value <span style="float:right;">`amax`</span>](CublasContext::amax)
 /// - [$\alpha \boldsymbol{x} + \boldsymbol{y}$ <span style="float:right;">`axpy`</span>](CublasContext::axpy)
+/// - [Copy $n$ elements from $\boldsymbol{x}$ into $\boldsymbol{y}$ <span style="float:right;">`copy`</span>](CublasContext::copy)
 #[derive(Debug)]
 pub struct CublasContext {
     pub(crate) raw: sys::v2::cublasHandle_t,

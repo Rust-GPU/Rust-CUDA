@@ -62,7 +62,7 @@ impl CublasContext {
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let _a = cust::quick_init()?;
-    /// # use blastoff::context::CublasContext;
+    /// # use blastoff::CublasContext;
     /// # use cust::prelude::*;
     /// # use cust::memory::DeviceBox;
     /// # use cust::util::SliceExt;
@@ -124,7 +124,7 @@ impl CublasContext {
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let _a = cust::quick_init()?;
-    /// # use blastoff::context::CublasContext;
+    /// # use blastoff::CublasContext;
     /// # use cust::prelude::*;
     /// # use cust::memory::DeviceBox;
     /// # use cust::util::SliceExt;
@@ -194,7 +194,7 @@ impl CublasContext {
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let _a = cust::quick_init()?;
-    /// # use blastoff::context::CublasContext;
+    /// # use blastoff::CublasContext;
     /// # use cust::prelude::*;
     /// # use cust::memory::DeviceBox;
     /// # use cust::util::SliceExt;
@@ -222,5 +222,73 @@ impl CublasContext {
         y: &mut impl GpuBuffer<T>,
     ) -> Result {
         self.axpy_strided(stream, alpha, n, x, None, y, None)
+    }
+
+    /// Same as [`CublasContext::copy`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn copy_strided<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &mut impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::copy(
+                ctx.raw,
+                x.len() as i32,
+                x.as_device_ptr().as_raw(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_raw_mut(),
+                y_stride.unwrap_or(1) as i32,
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Copies `n` elements from `x` into `y`, overriding any previous data inside `y`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` or `y` are not large enough for the requested amount of elements.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut ctx = CublasContext::new()?;
+    /// let x = [1.0f32, 2.0, 3.0, 4.0].as_dbuf()?;
+    /// let mut y = [0.0; 4].as_dbuf()?;
+    ///
+    /// ctx.copy(&stream, x.len(), &x, &mut y)?;
+    ///
+    /// stream.synchronize()?;
+    ///
+    /// assert_eq!(x.as_host_vec()?, y.as_host_vec()?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn copy<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        y: &mut impl GpuBuffer<T>,
+    ) -> Result {
+        self.copy_strided(stream, n, x, None, y, None)
     }
 }

@@ -7,6 +7,8 @@
 //! you will likely need to do some math to any returned indices. For example,
 //! [`amin`](crate::context::CublasContext::amin) returns a 1-based index.**
 
+#![allow(clippy::too_many_arguments)]
+
 pub use cublas_sys as sys;
 use num_complex::{Complex32, Complex64};
 
