@@ -1,6 +1,9 @@
 use crate::{
+    convolution_descriptor::ConvolutionDescriptor,
+    convolution_fwd_algo::{BestHeuristic, ConvolutionFwdAlgo, SupportedConvFwd},
     data_type::*,
     error::{CudnnError, IntoResult},
+    filter_descriptor::FilterDescriptor,
     nan_propagation::*,
     op_tensor_descriptor::*,
     sys,
@@ -547,6 +550,249 @@ impl CudnnContext {
                 c_data as *mut std::ffi::c_void,
             )
             .into_result()
+        }
+    }
+
+    /// This function serves as a heuristic for obtaining the best suited algorithm for
+    /// `cudnnConvolutionForward()` for the given layer specifications.
+    ///
+    /// It will return the best algorithm according to an internal heuristic.
+    ///
+    /// # Arguments
+    ///
+    /// * `x_desc` - previously initialized tensor descriptor for the input map.
+    ///
+    /// * `w_desc` - previously initialized tensor descriptor for the filter map.
+    ///
+    /// * `y_desc` - previously initialized tensor descriptor for the output map.
+    ///
+    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///
+    /// **Do note** that the best found algorithm `MathType` and the one supplied to the convolution
+    /// descriptor's at its creation may differ, for this reason you should always manually set the
+    /// math type of the convolution descriptor according to the one of the returned algorithm, as
+    /// pictured in the following example.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{
+    ///     ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor, MathType,
+    ///     TensorDescriptor, NCHW,
+    /// };
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let padding = [0, 0];
+    /// let stride = [1, 1];
+    /// let dilation = [1, 1];
+    /// let groups = 1;
+    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let math_type = MathType::Default;
+    ///
+    /// // 2-dimensional convolution.
+    /// let mut conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, groups, mode, math_type)?;
+    ///
+    /// let input_desc = TensorDescriptor::<f32, _, 4>::new([3, 2, 5, 5,], NCHW)?;
+    /// let filter_desc = FilterDescriptor::<f32, _, 4>::new([3, 2, 2, 2], NCHW)?;
+    /// let output_desc = TensorDescriptor::<f32, _, 4>::new([3, 3, 4, 4], NCHW)?;
+    ///
+    /// let algo = ctx.get_convolution_forward_algorithm(&input_desc, &filter_desc, &output_desc, &conv_desc)?;
+    ///
+    /// conv_desc.set_math_type(algo.math_type())?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_convolution_forward_algorithm<
+        InType,
+        InFmt,
+        FilterType,
+        FilterFmt,
+        CompType,
+        OutType,
+        OutFmt,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        x_desc: &TensorDescriptor<InType, InFmt, D>,
+        w_desc: &FilterDescriptor<FilterType, FilterFmt, D>,
+        y_desc: &TensorDescriptor<OutType, OutFmt, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+    ) -> Result<BestHeuristic, CudnnError>
+    where
+        InType: DataType,
+        InFmt: TensorFormat + SupportedType<InType>,
+        FilterType: DataType,
+        FilterFmt: TensorFormat + SupportedType<FilterType>,
+        CompType: DataType,
+        OutType: DataType,
+        OutFmt: TensorFormat + SupportedType<OutType>,
+        BestHeuristic:
+            SupportedConvFwd<InType, InFmt, FilterType, FilterFmt, CompType, OutType, OutFmt, D, N>,
+    {
+        let mut returned_algo_count = MaybeUninit::uninit();
+        let mut perf_results = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetConvolutionForwardAlgorithm_v7(
+                self.raw,
+                x_desc.raw,
+                w_desc.raw,
+                conv_desc.raw,
+                y_desc.raw,
+                1,
+                returned_algo_count.as_mut_ptr(),
+                perf_results.as_mut_ptr(),
+            )
+            .into_result()?;
+
+            let returned_algo_count = returned_algo_count.assume_init();
+
+            match returned_algo_count {
+                // This is general enough so that in the future it can be expanded to be more
+                // complex.
+                1 => {
+                    let results: Vec<BestHeuristic> = {
+                        let raw_results = std::slice::from_raw_parts(
+                            perf_results.as_ptr(),
+                            returned_algo_count as usize,
+                        );
+
+                        raw_results
+                            .iter()
+                            .copied()
+                            .map(BestHeuristic::try_from)
+                            .filter_map(Result::ok)
+                            .collect()
+                    };
+
+                    let algo = results[0];
+
+                    Ok(algo)
+                }
+                _ => return Err(CudnnError::BadParam),
+            }
+        }
+    }
+
+    /// This function returns the amount of GPU memory workspace the user needs to allocate to be
+    /// able to call `cudnnConvolutionForward()` with the specified algorithm. The workspace
+    /// allocated will then be passed to the routine `cudnnConvolutionForward()`.
+    ///
+    /// The specified algorithm can be the result of the call to
+    /// [`get_convolution_forward_algorithm`](crate::CudnnContext::get_convolution_forward_algorithm)
+    /// or can be chosen arbitrarily by the user. In the latter case workspace size can be directly
+    /// obtained by calling [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
+    /// algorithm.
+    ///
+    /// **Do note** that not every algorithm is available for every configuration of the input
+    /// tensor and/or every configuration of the convolution descriptor.
+    ///
+    /// # Arguments
+    ///
+    /// * `x_desc` - previously initialized tensor descriptor for the input map.
+    ///
+    /// * `w_desc` - previously initialized tensor descriptor for the filter map.
+    ///
+    /// * `y_desc` - previously initialized tensor descriptor for the output map.
+    ///
+    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///
+    /// * `algo` - chosen convolution algorithm.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{
+    ///    ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor,
+    ///    ImplicitPrecompGemm, MathType, TensorDescriptor, NCHW,
+    /// };
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let padding = [0, 0];
+    /// let stride = [1, 1];
+    /// let dilation = [1, 1];
+    /// let groups = 1;
+    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let math_type = MathType::Default;
+    ///
+    /// // 2-dimensional convolution.
+    /// let mut conv_desc =
+    ///     ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, groups, mode, math_type)?;
+    ///
+    /// let input_desc = TensorDescriptor::<f32, _, 4>::new([3, 2, 5, 5], NCHW)?;
+    /// let filter_desc = FilterDescriptor::<f32, _, 4>::new([3, 2, 2, 2], NCHW)?;
+    /// let output_desc = TensorDescriptor::<f32, _, 4>::new([3, 3, 4, 4], NCHW)?;
+    ///
+    /// let algo = ImplicitPrecompGemm;
+    ///
+    /// let size = ctx.get_convolution_forward_workspace_size(
+    ///     &input_desc,
+    ///     &filter_desc,
+    ///     &output_desc,
+    ///     &conv_desc,
+    ///     &algo,
+    /// )?;
+    ///
+    /// let workspace: DeviceBuffer<f32> = unsafe { DeviceBuffer::uninitialized(size)? };
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_convolution_forward_workspace_size<
+        InType,
+        InFmt,
+        FilterType,
+        FilterFmt,
+        CompType,
+        OutType,
+        OutFmt,
+        Algo,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        x_desc: &TensorDescriptor<InType, InFmt, D>,
+        w_desc: &FilterDescriptor<FilterType, FilterFmt, D>,
+        y_desc: &TensorDescriptor<OutType, OutFmt, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+        algo: &Algo,
+    ) -> Result<usize, CudnnError>
+    where
+        InType: DataType,
+        InFmt: TensorFormat + SupportedType<InType>,
+        FilterType: DataType,
+        FilterFmt: TensorFormat + SupportedType<FilterType>,
+        CompType: DataType,
+        OutType: DataType,
+        OutFmt: TensorFormat + SupportedType<OutType>,
+        Algo: ConvolutionFwdAlgo
+            + SupportedConvFwd<InType, InFmt, FilterType, FilterFmt, CompType, OutType, OutFmt, D, N>,
+    {
+        let mut size = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetConvolutionForwardWorkspaceSize(
+                self.raw,
+                x_desc.raw,
+                w_desc.raw,
+                conv_desc.raw,
+                y_desc.raw,
+                algo.into_raw(),
+                size.as_mut_ptr(),
+            )
+            .into_result()?;
+
+            Ok(size.assume_init())
         }
     }
 }
