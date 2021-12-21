@@ -362,36 +362,6 @@ mod test {
     }
 
     #[test]
-    fn test_record_with_wrong_context() -> Result<(), Box<dyn Error>> {
-        let _context = quick_init()?;
-        let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
-        let _new_context = quick_init()?;
-        let event = Event::new(EventFlags::DEFAULT)?;
-        let result = event.record(&stream);
-        assert_eq!(result, Err(CudaError::InvalidHandle));
-        Ok(())
-    }
-
-    #[test]
-    fn test_elapsed_time_f32_with_wrong_context() -> Result<(), Box<dyn Error>> {
-        let _context = quick_init()?;
-        let fst_stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
-        let fst_event = Event::new(EventFlags::DEFAULT)?;
-        fst_event.record(&fst_stream)?;
-
-        let _context = quick_init()?;
-        let snd_stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
-        let snd_event = Event::new(EventFlags::DEFAULT)?;
-        snd_event.record(&snd_stream)?;
-
-        fst_event.synchronize()?;
-        snd_event.synchronize()?;
-        let result = snd_event.elapsed_time_f32(&fst_event);
-        assert_eq!(result, Err(CudaError::InvalidHandle));
-        Ok(())
-    }
-
-    #[test]
     fn test_elapsed_time_f32_with_different_streams() -> Result<(), Box<dyn Error>> {
         let _context = quick_init()?;
         let fst_stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;

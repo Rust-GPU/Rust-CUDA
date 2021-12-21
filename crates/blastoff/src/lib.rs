@@ -5,22 +5,19 @@
 //!
 //! **blastoff uses 1-based indexing, reflecting cuBLAS' behavior. This means
 //! you will likely need to do some math to any returned indices. For example,
-//! [`amin`](crate::context::CublasContext::amin) returns a 1-based index.
+//! [`amin`](crate::context::CublasContext::amin) returns a 1-based index.**
+
+#![allow(clippy::too_many_arguments)]
 
 pub use cublas_sys as sys;
 use num_complex::{Complex32, Complex64};
 
-pub mod context;
+pub use context::*;
+
+mod context;
 pub mod error;
 mod level1;
 pub mod raw;
-
-#[doc(hidden)]
-pub fn __doctest_setup() -> (cust::context::Context, cust::stream::Stream) {
-    let ctx = cust::quick_init().unwrap();
-    let stream = cust::stream::Stream::new(cust::stream::StreamFlags::DEFAULT, None).unwrap();
-    (ctx, stream)
-}
 
 pub trait BlasDatatype: private::Sealed + cust::memory::DeviceCopy {
     /// The corresponding float type. For complex numbers this means their backing

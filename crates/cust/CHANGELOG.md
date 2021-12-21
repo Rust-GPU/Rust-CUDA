@@ -4,6 +4,19 @@ Notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Context handling overhaul
+
+The way that contexts are handled in cust has been completely overhauled, it now
+uses primary context handling instead of the normal driver API context APIs. This 
+is aimed at future-proofing cust for libraries such as cuBLAS and cuFFT, as well as
+overall simplifying the context handling APIs. This does mean that the API changed a bit:
+- `create_and_push` is now `new` and it only takes a device, not a device and flags.
+- `set_flags` is now used for setting context flags.
+- `ContextStack`, `UnownedContext`, and other legacy APIs are gone.
+
+The old context handling is fully present in `cust::context::legacy` for anyone who needs it for specific reasons. If you use `quick_init` you don't need to worry about
+any breaking changes, the API is the same.
+
 ## 0.2.2 - 12/5/21
 
 - Update find_cuda_helper to 0.2
