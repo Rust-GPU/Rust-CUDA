@@ -103,21 +103,6 @@ impl Stream {
     }
 
     /// Return the flags which were used to create this stream.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use cust::*;
-    /// # use std::error::Error;
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # let _ctx = quick_init()?;
-    /// use cust::stream::{Stream, StreamFlags};
-    ///
-    /// let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
-    /// assert_eq!(StreamFlags::NON_BLOCKING, stream.get_flags().unwrap());
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn get_flags(&self) -> CudaResult<StreamFlags> {
         unsafe {
             let mut bits = 0u32;

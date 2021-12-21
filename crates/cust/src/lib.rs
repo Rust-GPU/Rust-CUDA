@@ -54,19 +54,18 @@
 //! Cust will try to find the CUDA libraries automatically, if it is unable to find it, you can set
 //! `CUDA_LIBRARY_PATH` to some path manually.
 
-pub mod context;
 pub mod device;
 pub mod error;
 pub mod event;
 pub mod function;
 // WIP
+pub mod context;
 #[allow(warnings)]
 mod graph;
 pub mod link;
 pub mod memory;
 pub mod module;
 pub mod prelude;
-pub mod primary;
 pub mod stream;
 // WIP
 mod surface;
@@ -121,7 +120,9 @@ pub fn init(flags: CudaFlags) -> CudaResult<()> {
 pub fn quick_init() -> CudaResult<Context> {
     init(CudaFlags::empty())?;
     let device = Device::get_device(0)?;
-    Context::create_and_push(ContextFlags::MAP_HOST | ContextFlags::SCHED_AUTO, device)
+    let ctx = Context::new(device)?;
+    ctx.set_flags(ContextFlags::SCHED_AUTO)?;
+    Ok(ctx)
 }
 
 /// Struct representing the CUDA API version number.
