@@ -66,6 +66,7 @@ pub mod link;
 pub mod memory;
 pub mod module;
 pub mod prelude;
+pub mod primary;
 pub mod stream;
 // WIP
 mod surface;
