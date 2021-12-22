@@ -57,6 +57,7 @@ bitflags::bitflags! {
 /// - [Unconjugated Complex Dot Product <span style="float:right;">`dotu`</span>](CublasContext::dotu)
 /// - [Conjugated Complex Dot Product <span style="float:right;">`dotc`</span>](CublasContext::dotc)
 /// - [Euclidian Norm <span style="float:right;">`nrm2`</span>](CublasContext::nrm2)
+/// - [Rotate points in the xy-plane using a Givens rotation matrix <span style="float:right;">`rot`</span>](CublasContext::rot)
 #[derive(Debug)]
 pub struct CublasContext {
     pub(crate) raw: sys::v2::cublasHandle_t,

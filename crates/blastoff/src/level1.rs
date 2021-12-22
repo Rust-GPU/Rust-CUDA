@@ -535,4 +535,110 @@ impl CublasContext {
     ) -> Result {
         self.nrm2_strided(stream, n, x, None, result)
     }
+
+    /// Same as [`CublasContext::rot`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn rot_strided<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &mut impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+        c: &impl GpuBox<T::FloatTy>,
+        s: &impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::rot(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_raw_mut(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_raw_mut(),
+                y_stride.unwrap_or(1) as i32,
+                c.as_device_ptr().as_raw(),
+                s.as_device_ptr().as_raw(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Rotates points in the xy-plane using a Givens rotation matrix.
+    ///
+    /// Rotation matrix:
+    ///
+    /// <p>
+    /// $$
+    /// \begin{pmatrix}
+    ///    c & s \\
+    ///    -s & c
+    /// \end{pmatrix}
+    /// $$
+    /// </p>
+    ///
+    /// Therefore:
+    ///
+    /// $$
+    /// \boldsymbol{x}_i = \boldsymbol{x}_ic + \boldsymbol{y}_is
+    /// $$
+    ///
+    /// And:
+    ///
+    /// $$
+    /// \boldsymbol{y}_i = -\boldsymbol{x}_is + \boldsymbol{y}_ic
+    /// $$
+    ///
+    /// Where $c$ and $s$ are usually
+    ///
+    /// <p>
+    /// $$
+    /// c = cos(\theta) \\
+    /// s = sin(\theta)
+    /// $$
+    /// </p>
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut ctx = CublasContext::new()?;
+    /// let mut x = [1.0f32].as_dbuf()?;
+    /// let mut y = [0.0].as_dbuf()?;
+    /// let c = DeviceBox::new(&1.0)?;
+    /// let s = DeviceBox::new(&0.0)?;
+    ///
+    /// ctx.rot(&stream, x.len(), &mut x, &mut y, &c, &s)?;
+    ///
+    /// stream.synchronize()?;
+    ///
+    /// // identity matrix
+    /// assert_eq!(&x.as_host_vec()?, &[1.0]);
+    /// assert_eq!(&y.as_host_vec()?, &[0.0]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn rot<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        y: &mut impl GpuBuffer<T>,
+        c: &impl GpuBox<T::FloatTy>,
+        s: &impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        self.rot_strided(stream, n, x, None, y, None, c, s)
+    }
 }

@@ -50,7 +50,7 @@ pub trait Level1: BlasDatatype {
         y: *mut Self,
         incy: c_int,
         c: *const Self::FloatTy,
-        s: *const Self,
+        s: *const Self::FloatTy,
     ) -> cublasStatus_t;
     unsafe fn rotg(
         handle: cublasHandle_t,
@@ -315,9 +315,9 @@ impl Level1 for Complex32 {
         y: *mut Self,
         incy: c_int,
         c: *const Self::FloatTy,
-        s: *const Self,
+        s: *const Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasCrot_v2(handle, n, x.cast(), incx, y.cast(), incy, c, s.cast())
+        cublasCsrot_v2(handle, n, x.cast(), incx, y.cast(), incy, c, s)
     }
     unsafe fn rotg(
         handle: cublasHandle_t,
@@ -406,9 +406,9 @@ impl Level1 for Complex64 {
         y: *mut Self,
         incy: c_int,
         c: *const Self::FloatTy,
-        s: *const Self,
+        s: *const Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasZrot_v2(handle, n, x.cast(), incx, y.cast(), incy, c, s.cast())
+        cublasZdrot_v2(handle, n, x.cast(), incx, y.cast(), incy, c, s)
     }
     unsafe fn rotg(
         handle: cublasHandle_t,
