@@ -53,6 +53,10 @@ bitflags::bitflags! {
 /// - [Index of largest element by absolute value <span style="float:right;">`amax`</span>](CublasContext::amax)
 /// - [$\alpha \boldsymbol{x} + \boldsymbol{y}$ <span style="float:right;">`axpy`</span>](CublasContext::axpy)
 /// - [Copy $n$ elements from $\boldsymbol{x}$ into $\boldsymbol{y}$ <span style="float:right;">`copy`</span>](CublasContext::copy)
+/// - [Dot Product <span style="float:right;">`dot`</span>](CublasContext::dot)
+/// - [Unconjugated Complex Dot Product <span style="float:right;">`dotu`</span>](CublasContext::dotu)
+/// - [Conjugated Complex Dot Product <span style="float:right;">`dotc`</span>](CublasContext::dotc)
+/// - [Euclidian Norm <span style="float:right;">`nrm2`</span>](CublasContext::nrm2)
 #[derive(Debug)]
 pub struct CublasContext {
     pub(crate) raw: sys::v2::cublasHandle_t,
@@ -65,8 +69,8 @@ impl CublasContext {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _ctx = blastoff::__doctest_setup();
-    /// use blastoff::context::CublasContext;
+    /// # let _ctx = cust::quick_init()?;
+    /// use blastoff::CublasContext;
     /// let ctx = CublasContext::new()?;
     /// # Ok(())
     /// # }
@@ -151,8 +155,8 @@ impl CublasContext {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _ctx = blastoff::__doctest_setup();
-    /// use blastoff::context::CublasContext;
+    /// # let _ctx = cust::quick_init()?;
+    /// use blastoff::CublasContext;
     /// let ctx = CublasContext::new()?;
     /// // allows cuBLAS to use atomics to speed up functions at the cost of determinism.
     /// ctx.set_atomics_mode(true)?;
@@ -180,8 +184,8 @@ impl CublasContext {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _ctx = blastoff::__doctest_setup();
-    /// use blastoff::context::CublasContext;
+    /// # let _ctx = cust::quick_init()?;
+    /// use blastoff::CublasContext;
     /// let ctx = CublasContext::new()?;
     /// ctx.set_atomics_mode(true)?;
     /// assert!(ctx.get_atomics_mode()?);
@@ -205,8 +209,8 @@ impl CublasContext {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _ctx = blastoff::__doctest_setup();
-    /// use blastoff::context::{CublasContext, MathMode};
+    /// # let _ctx = cust::quick_init()?;
+    /// use blastoff::{CublasContext, MathMode};
     /// let ctx = CublasContext::new()?;
     /// ctx.set_math_mode(MathMode::DEFAULT | MathMode::DISALLOW_REDUCED_PRECISION_REDUCTION)?;
     /// # Ok(())
@@ -227,8 +231,8 @@ impl CublasContext {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _ctx = blastoff::__doctest_setup();
-    /// use blastoff::context::{CublasContext, MathMode};
+    /// # let _ctx = cust::quick_init()?;
+    /// use blastoff::{CublasContext, MathMode};
     /// let ctx = CublasContext::new()?;
     /// ctx.set_math_mode(MathMode::DEFAULT | MathMode::DISALLOW_REDUCED_PRECISION_REDUCTION)?;
     /// assert_eq!(ctx.get_math_mode()?, MathMode::DEFAULT | MathMode::DISALLOW_REDUCED_PRECISION_REDUCTION);
@@ -255,8 +259,8 @@ impl CublasContext {
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let _ctx = blastoff::__doctest_setup();
-    /// use blastoff::context::{CublasContext, MathMode};
+    /// # let _ctx = cust::quick_init()?;
+    /// use blastoff::{CublasContext, MathMode};
     /// let ctx = CublasContext::new()?;
     /// // turn off logging completely
     /// ctx.configure_logger(false, false, false, None);

@@ -439,3 +439,116 @@ impl Level1 for Complex64 {
         cublasZswap_v2(handle, n, x.cast(), incx, y.cast(), incy)
     }
 }
+
+/// Level-1 Methods exclusive to complex numbers.
+pub trait ComplexLevel1: BlasDatatype {
+    unsafe fn dotu(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t;
+    unsafe fn dotc(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t;
+}
+
+impl ComplexLevel1 for Complex32 {
+    unsafe fn dotu(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t {
+        cublasCdotu_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+    }
+    unsafe fn dotc(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t {
+        cublasCdotc_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+    }
+}
+
+impl ComplexLevel1 for Complex64 {
+    unsafe fn dotu(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t {
+        cublasZdotu_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+    }
+    unsafe fn dotc(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t {
+        cublasZdotc_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+    }
+}
+
+/// Level-1 Methods exclusive to floats.
+pub trait FloatLevel1: BlasDatatype {
+    unsafe fn dot(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t;
+}
+
+impl FloatLevel1 for f32 {
+    unsafe fn dot(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t {
+        cublasSdot_v2(handle, n, x, incx, y, incy, result)
+    }
+}
+
+impl FloatLevel1 for f64 {
+    unsafe fn dot(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *const Self,
+        incx: c_int,
+        y: *const Self,
+        incy: c_int,
+        result: *mut Self,
+    ) -> cublasStatus_t {
+        cublasDdot_v2(handle, n, x, incx, y, incy, result)
+    }
+}
