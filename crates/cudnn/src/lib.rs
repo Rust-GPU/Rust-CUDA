@@ -2,8 +2,8 @@
 mod sys;
 
 mod context;
+mod convolution_algo;
 mod convolution_descriptor;
-mod convolution_fwd_algo;
 mod convolution_mode;
 mod data_type;
 mod determinism;
@@ -13,13 +13,14 @@ mod filter_descriptor;
 mod math_type;
 mod nan_propagation;
 mod op_tensor_descriptor;
+mod rnn_descriptor;
 mod tensor;
 mod tensor_descriptor;
 mod tensor_format;
 
 pub use context::*;
+pub use convolution_algo::*;
 pub use convolution_descriptor::*;
-pub use convolution_fwd_algo::*;
 pub use convolution_mode::*;
 pub use data_type::*;
 pub use determinism::*;

@@ -11,7 +11,9 @@ use std::{marker::PhantomData, mem::MaybeUninit};
 
 /// A generic description of an n-dimensional convolution.
 ///
-/// *Do note* that N can be either 2 or 3, respectively for a 2-d or a 3-d convolution.
+/// **Do note** that N can be either 2 or 3, respectively for a 2-d or a 3-d convolution and that
+/// the same convolution descriptor can be reused in the backward path provided it corresponds to
+/// the same layer.
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct ConvolutionDescriptor<T: DataType, const N: usize> {
     pub(crate) raw: sys::cudnnConvolutionDescriptor_t,

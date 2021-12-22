@@ -1,8 +1,12 @@
 use crate::{
+    convolution_algo::{
+        BestHeuristic, ConvolutionBwdDataAlgo, ConvolutionBwdFilterAlgo, ConvolutionFwdAlgo,
+        SupportedConvBwdData, SupportedConvBwdFilter, SupportedConvFwd,
+    },
     convolution_descriptor::ConvolutionDescriptor,
-    convolution_fwd_algo::{BestHeuristic, ConvolutionFwdAlgo, SupportedConvFwd},
     data_type::*,
     error::{CudnnError, IntoResult},
+    filter::*,
     filter_descriptor::FilterDescriptor,
     nan_propagation::*,
     op_tensor_descriptor::*,
@@ -11,7 +15,7 @@ use crate::{
     tensor_descriptor::TensorDescriptor,
     tensor_format::*,
 };
-use cust::memory::GpuBuffer;
+use cust::memory::{GpuBox, GpuBuffer};
 use std::mem::{self, MaybeUninit};
 
 /// cuDNN library context. It's the central structure required to interact with cuDNN.
@@ -554,7 +558,7 @@ impl CudnnContext {
     }
 
     /// This function serves as a heuristic for obtaining the best suited algorithm for
-    /// `cudnnConvolutionForward()` for the given layer specifications.
+    /// `convolution_forward()` for the given layer specifications.
     ///
     /// It will return the best algorithm according to an internal heuristic.
     ///
@@ -570,8 +574,8 @@ impl CudnnContext {
     ///
     /// **Do note** that the best found algorithm `MathType` and the one supplied to the convolution
     /// descriptor's at its creation may differ, for this reason you should always manually set the
-    /// math type of the convolution descriptor according to the one of the returned algorithm, as
-    /// pictured in the following example.
+    /// math type of the convolution descriptor according to the one of the returned algorithm to
+    /// get the best possible performance.
     ///
     /// # Examples
     ///
@@ -602,37 +606,37 @@ impl CudnnContext {
     ///
     /// let algo = ctx.get_convolution_forward_algorithm(&input_desc, &filter_desc, &output_desc, &conv_desc)?;
     ///
-    /// conv_desc.set_math_type(algo.math_type())?;
+    /// conv_desc.set_math_type(algo.math_type())?; // Set math type.
     /// # Ok(())
     /// # }
     /// ```
     pub fn get_convolution_forward_algorithm<
-        InType,
-        InFmt,
-        FilterType,
-        FilterFmt,
+        T1,
+        F1,
+        T2,
+        F2,
         CompType,
-        OutType,
-        OutFmt,
+        T3,
+        F3,
         const D: usize,
         const N: usize,
     >(
         &self,
-        x_desc: &TensorDescriptor<InType, InFmt, D>,
-        w_desc: &FilterDescriptor<FilterType, FilterFmt, D>,
-        y_desc: &TensorDescriptor<OutType, OutFmt, D>,
+        x_desc: &TensorDescriptor<T1, F1, D>,
+        w_desc: &FilterDescriptor<T2, F2, D>,
+        y_desc: &TensorDescriptor<T3, F3, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
-    ) -> Result<BestHeuristic, CudnnError>
+    ) -> Result<BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, CudnnError>
     where
-        InType: DataType,
-        InFmt: TensorFormat + SupportedType<InType>,
-        FilterType: DataType,
-        FilterFmt: TensorFormat + SupportedType<FilterType>,
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
-        OutType: DataType,
-        OutFmt: TensorFormat + SupportedType<OutType>,
-        BestHeuristic:
-            SupportedConvFwd<InType, InFmt, FilterType, FilterFmt, CompType, OutType, OutFmt, D, N>,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>:
+            SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
         let mut perf_results = MaybeUninit::uninit();
@@ -656,7 +660,7 @@ impl CudnnContext {
                 // This is general enough so that in the future it can be expanded to be more
                 // complex.
                 1 => {
-                    let results: Vec<BestHeuristic> = {
+                    let results: Vec<BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>> = {
                         let raw_results = std::slice::from_raw_parts(
                             perf_results.as_ptr(),
                             returned_algo_count as usize,
@@ -665,7 +669,191 @@ impl CudnnContext {
                         raw_results
                             .iter()
                             .copied()
-                            .map(BestHeuristic::try_from)
+                            .map(BestHeuristic::<sys::cudnnConvolutionFwdAlgo_t>::try_from)
+                            .filter_map(Result::ok)
+                            .collect()
+                    };
+
+                    let algo = results[0];
+
+                    Ok(algo)
+                }
+                _ => return Err(CudnnError::BadParam),
+            }
+        }
+    }
+
+    /// This function serves as a heuristic for obtaining the best suited algorithm for
+    /// `convolution_backward_data()` for the given layer specifications.
+    ///
+    /// It will return the best algorithm according to an internal heuristic.
+    ///
+    /// # Arguments
+    ///
+    /// * `w_desc` - previously initialized filter descriptor.
+    ///
+    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
+    ///
+    /// * `dx_desc` - previously initialized differential tensor descriptor for the input map.
+    ///
+    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///
+    /// **Do note** that the best found algorithm `MathType` and the one supplied to the convolution
+    /// descriptor's at its creation may differ, for this reason you should always manually set the
+    /// math type of the convolution descriptor according to the one of the returned algorithm to
+    /// get the best possible performance.
+    pub fn get_convolution_backward_data_algorithm<
+        T1,
+        F1,
+        T2,
+        F2,
+        CompType,
+        T3,
+        F3,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        w_desc: &FilterDescriptor<T1, F1, D>,
+        dy_desc: &TensorDescriptor<T2, F2, D>,
+        dx_desc: &TensorDescriptor<T3, F3, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+    ) -> Result<BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, CudnnError>
+    where
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+        CompType: DataType,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>:
+            SupportedConvBwdData<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+    {
+        let mut returned_algo_count = MaybeUninit::uninit();
+        let mut perf_results = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetConvolutionBackwardDataAlgorithm_v7(
+                self.raw,
+                w_desc.raw,
+                dy_desc.raw,
+                conv_desc.raw,
+                dx_desc.raw,
+                1,
+                returned_algo_count.as_mut_ptr(),
+                perf_results.as_mut_ptr(),
+            )
+            .into_result()?;
+
+            let returned_algo_count = returned_algo_count.assume_init();
+
+            match returned_algo_count {
+                // This is general enough so that in the future it can be expanded to be more
+                // complex.
+                1 => {
+                    let results: Vec<BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>> = {
+                        let raw_results = std::slice::from_raw_parts(
+                            perf_results.as_ptr(),
+                            returned_algo_count as usize,
+                        );
+
+                        raw_results
+                            .iter()
+                            .copied()
+                            .map(BestHeuristic::<sys::cudnnConvolutionBwdDataAlgo_t>::try_from)
+                            .filter_map(Result::ok)
+                            .collect()
+                    };
+
+                    let algo = results[0];
+
+                    Ok(algo)
+                }
+                _ => return Err(CudnnError::BadParam),
+            }
+        }
+    }
+
+    /// This function serves as a heuristic for obtaining the best suited algorithm for
+    /// `convolution_backward_filter()` for the given layer specifications.
+    ///
+    /// It will return the best algorithm according to an internal heuristic.
+    ///
+    /// # Arguments
+    ///
+    /// * `x_desc` -  previously initialized tensor descriptor for the input map.
+    ///
+    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
+    ///
+    /// * `dw_desc` - previously initialized differential tensor descriptor for the filter.
+    ///
+    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///
+    /// **Do note** that the best found algorithm `MathType` and the one supplied to the convolution
+    /// descriptor's at its creation may differ, for this reason you should always manually set the
+    /// math type of the convolution descriptor according to the one of the returned algorithm to
+    /// get the best possible performance.
+    pub fn get_convolution_backward_filter_algorithm<
+        T1,
+        F1,
+        T2,
+        F2,
+        CompType,
+        T3,
+        F3,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        x_desc: &TensorDescriptor<T1, F1, D>,
+        dy_desc: &TensorDescriptor<T2, F2, D>,
+        dw_desc: &FilterDescriptor<T3, F3, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+    ) -> Result<BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, CudnnError>
+    where
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+        CompType: DataType,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>:
+            SupportedConvBwdFilter<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+    {
+        let mut returned_algo_count = MaybeUninit::uninit();
+        let mut perf_results = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetConvolutionBackwardFilterAlgorithm_v7(
+                self.raw,
+                x_desc.raw,
+                dy_desc.raw,
+                conv_desc.raw,
+                dw_desc.raw,
+                1,
+                returned_algo_count.as_mut_ptr(),
+                perf_results.as_mut_ptr(),
+            )
+            .into_result()?;
+
+            let returned_algo_count = returned_algo_count.assume_init();
+
+            match returned_algo_count {
+                // This is general enough so that in the future it can be expanded to be more
+                // complex.
+                1 => {
+                    let results: Vec<BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>> = {
+                        let raw_results = std::slice::from_raw_parts(
+                            perf_results.as_ptr(),
+                            returned_algo_count as usize,
+                        );
+
+                        raw_results
+                            .iter()
+                            .copied()
+                            .map(BestHeuristic::<sys::cudnnConvolutionBwdFilterAlgo_t>::try_from)
                             .filter_map(Result::ok)
                             .collect()
                     };
@@ -680,17 +868,14 @@ impl CudnnContext {
     }
 
     /// This function returns the amount of GPU memory workspace the user needs to allocate to be
-    /// able to call `cudnnConvolutionForward()` with the specified algorithm. The workspace
-    /// allocated will then be passed to the routine `cudnnConvolutionForward()`.
+    /// able to call `convolution_forward()` with the specified algorithm. The workspace
+    /// allocated will then be passed to the routine `convolution_forward()`.
     ///
     /// The specified algorithm can be the result of the call to
     /// [`get_convolution_forward_algorithm`](crate::CudnnContext::get_convolution_forward_algorithm)
-    /// or can be chosen arbitrarily by the user. In the latter case workspace size can be directly
+    /// or can be chosen arbitrarily by the user. In the former case workspace size can be directly
     /// obtained by calling [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
     /// algorithm.
-    ///
-    /// **Do note** that not every algorithm is available for every configuration of the input
-    /// tensor and/or every configuration of the convolution descriptor.
     ///
     /// # Arguments
     ///
@@ -703,6 +888,9 @@ impl CudnnContext {
     /// * `conv_desc` - previously initialized convolution descriptor.
     ///
     /// * `algo` - chosen convolution algorithm.
+    ///
+    /// **Do note** that not every algorithm is available for every configuration of the input
+    /// tensor and/or every configuration of the convolution descriptor.
     ///
     /// # Examples
     ///
@@ -743,40 +931,38 @@ impl CudnnContext {
     ///     &algo,
     /// )?;
     ///
-    /// let workspace: DeviceBuffer<f32> = unsafe { DeviceBuffer::uninitialized(size)? };
-    ///
+    /// let workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
     /// # Ok(())
     /// # }
     /// ```
     pub fn get_convolution_forward_workspace_size<
-        InType,
-        InFmt,
-        FilterType,
-        FilterFmt,
+        T1,
+        F1,
+        T2,
+        F2,
         CompType,
-        OutType,
-        OutFmt,
-        Algo,
+        T3,
+        F3,
+        A,
         const D: usize,
         const N: usize,
     >(
         &self,
-        x_desc: &TensorDescriptor<InType, InFmt, D>,
-        w_desc: &FilterDescriptor<FilterType, FilterFmt, D>,
-        y_desc: &TensorDescriptor<OutType, OutFmt, D>,
+        x_desc: &TensorDescriptor<T1, F1, D>,
+        w_desc: &FilterDescriptor<T2, F2, D>,
+        y_desc: &TensorDescriptor<T3, F3, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
-        algo: &Algo,
-    ) -> Result<usize, CudnnError>
+        algo: &A,
+    ) -> Result<Option<usize>, CudnnError>
     where
-        InType: DataType,
-        InFmt: TensorFormat + SupportedType<InType>,
-        FilterType: DataType,
-        FilterFmt: TensorFormat + SupportedType<FilterType>,
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
-        OutType: DataType,
-        OutFmt: TensorFormat + SupportedType<OutType>,
-        Algo: ConvolutionFwdAlgo
-            + SupportedConvFwd<InType, InFmt, FilterType, FilterFmt, CompType, OutType, OutFmt, D, N>,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -792,7 +978,459 @@ impl CudnnContext {
             )
             .into_result()?;
 
-            Ok(size.assume_init())
+            Ok(match size.assume_init() {
+                0 => None,
+                size @ _ => Some(size),
+            })
+        }
+    }
+
+    /// This function returns the amount of GPU memory workspace the user needs to allocate to be
+    /// able to call `convolution_backward_data()` with the specified algorithm. The workspace
+    /// allocated will then be passed to the routine `convolution_backward_data()`.
+    ///
+    /// The specified algorithm can be the result of the call to
+    /// [`get_convolution_backward_data_algorithm`](crate::CudnnContext::get_convolution_backward_data_algorithm)
+    /// or can be chosen arbitrarily by the user. In the former case workspace size can be directly
+    /// obtained by calling [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
+    /// algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `w_desc` - previously initialized filter descriptor.
+    ///
+    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
+    ///
+    /// * `dx_desc` - previously initialized differential tensor descriptor for the input map.
+    ///
+    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///
+    /// * `algo` - chosen convolution algorithm.
+    ///
+    ///  **Do note** that not every algorithm is available for every configuration of the input
+    /// tensor and/or every configuration of the convolution descriptor.
+    pub fn get_convolution_backward_data_workspace_size<
+        T1,
+        F1,
+        T2,
+        F2,
+        CompType,
+        T3,
+        F3,
+        A,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        w_desc: &FilterDescriptor<T1, F1, D>,
+        dy_desc: &TensorDescriptor<T2, F2, D>,
+        dx_desc: &TensorDescriptor<T3, F3, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+        algo: &A,
+    ) -> Result<Option<usize>, CudnnError>
+    where
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+        CompType: DataType,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        A: ConvolutionBwdDataAlgo + SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+    {
+        let mut size = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetConvolutionBackwardDataWorkspaceSize(
+                self.raw,
+                w_desc.raw,
+                dy_desc.raw,
+                conv_desc.raw,
+                dx_desc.raw,
+                ConvolutionBwdDataAlgo::into_raw(algo),
+                size.as_mut_ptr(),
+            )
+            .into_result()?;
+
+            Ok(match size.assume_init() {
+                0 => None,
+                size @ _ => Some(size),
+            })
+        }
+    }
+
+    /// This function returns the amount of GPU memory workspace the user needs to allocate to be
+    /// able to call `convolution_backward_filter()` with the specified algorithm. The workspace
+    /// allocated will then be passed to the routine `convolution_backward_filter()`.
+    ///
+    /// The specified algorithm can be the result of the call to
+    /// [`get_convolution_backward_filter_algorithm`](crate::CudnnContext::get_convolution_backward_filter_algorithm)
+    /// or can be chosen arbitrarily by the user. In the former case workspace size can be directly
+    /// obtained by calling [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
+    /// algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `x_desc` -  previously initialized tensor descriptor for the input map.
+    ///
+    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
+    ///
+    /// * `dw_desc` - previously initialized differential tensor descriptor for the filter.
+    ///
+    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///
+    /// * `algo` - chosen convolution algorithm.
+    ///
+    /// **Do note** that not every algorithm is available for every configuration of the input
+    /// tensor and/or every configuration of the convolution descriptor.
+    pub fn get_convolution_filter_workspace_size<
+        T1,
+        F1,
+        T2,
+        F2,
+        CompType,
+        T3,
+        F3,
+        A,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        x_desc: &TensorDescriptor<T1, F1, D>,
+        dy_desc: &TensorDescriptor<T2, F2, D>,
+        dw_desc: &FilterDescriptor<T3, F3, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+        algo: &A,
+    ) -> Result<Option<usize>, CudnnError>
+    where
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+        CompType: DataType,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        A: ConvolutionBwdFilterAlgo
+            + SupportedConvBwdFilter<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+    {
+        let mut size = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetConvolutionBackwardFilterWorkspaceSize(
+                self.raw,
+                x_desc.raw,
+                dy_desc.raw,
+                conv_desc.raw,
+                dw_desc.raw,
+                ConvolutionBwdFilterAlgo::into_raw(algo),
+                size.as_mut_ptr(),
+            )
+            .into_result()?;
+
+            Ok(match size.assume_init() {
+                0 => None,
+                size @ _ => Some(size),
+            })
+        }
+    }
+
+    /// This function executes convolutions or cross-correlations over `x` using a filter specified
+    /// with `w`, returning results in `y`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - scaling parameter.
+    ///
+    /// * `x` - input map.
+    ///
+    /// * `w` - filter.
+    ///
+    /// * `conv_desc` - convolution descriptor.
+    ///
+    /// * `algo` - convolution algorithm that should be used to compute the result.
+    ///
+    /// * `workspace` -  a buffer to GPU memory to a workspace needed to be able to execute the
+    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
+    /// dimension can be obtained with [`get_convolution_forward_workspace_size`].
+    ///
+    /// * `beta` - scaling parameter.
+    ///
+    /// * `y` - output map. It carries the result of the convolution.
+    ///
+    /// Scaling factors `alpha` and `beta` can be used to scale the input tensor and the output
+    /// tensor respectively. They are used to blend the computation result with prior value in the
+    /// output layer as follows: y = alpha * result + beta * y.
+    ///
+    /// **Do note** than not all possible configurations of layouts and data types for the operands
+    /// are supported by cuDNN. Refer to the following link for the
+    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionForward).
+    pub fn convolution_forward<
+        T1,
+        F1,
+        T2,
+        F2,
+        CompType,
+        T3,
+        F3,
+        A,
+        W,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        alpha: CompType,
+        x: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
+        w: &Filter<T2, F2, impl GpuBuffer<T2>, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+        algo: &A,
+        workspace: &Option<W>,
+        beta: CompType,
+        y: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
+    ) -> Result<(), CudnnError>
+    where
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+        CompType: DataType,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        W: GpuBuffer<u8>,
+    {
+        let x_data = x.data().as_device_ptr().as_raw();
+        let x_desc = x.descriptor();
+
+        let w_data = w.data().as_device_ptr().as_raw();
+        let w_desc = w.descriptor();
+
+        let y_data = y.data().as_device_ptr().as_raw_mut();
+        let y_desc = y.descriptor();
+
+        // If the workspace size is 0 then the algorithm can work in-place and cuDNN expects a null
+        // pointer.
+        let (workspace_ptr, workspace_size): (*mut u8, usize) = {
+            workspace
+                .as_ref()
+                .map_or((std::ptr::null_mut(), 0), |workspace| {
+                    (workspace.as_device_ptr().as_raw_mut(), workspace.len())
+                })
+        };
+
+        unsafe {
+            sys::cudnnConvolutionForward(
+                self.raw,
+                &alpha as *const CompType as *const std::ffi::c_void,
+                x_desc.raw,
+                x_data as *const std::ffi::c_void,
+                w_desc.raw,
+                w_data as *const std::ffi::c_void,
+                conv_desc.raw,
+                algo.into_raw(),
+                workspace_ptr as *mut std::ffi::c_void,
+                workspace_size,
+                &beta as *const CompType as *const std::ffi::c_void,
+                y_desc.raw,
+                y_data as *mut std::ffi::c_void,
+            )
+            .into_result()
+        }
+    }
+
+    /// This function computes the convolution data gradient of the tensor `dy`, where `y` is the
+    /// output of the forward convolution in `convolution_forward`.
+    ///
+    /// It uses the specified algo, and returns the results in the output tensor `dx`. Scaling
+    /// factors `alpha` and `beta` can be used to scale the computed result or accumulate with the
+    /// current `dx`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - scaling parameter.
+    ///
+    /// * `w` - filter.
+    ///
+    /// * `dy` - output map gradient.
+    ///
+    /// * `conv_desc` - previously initialized convolution description. The one defined for the
+    /// forward pass in suitable to be used here provided that it refers to the same layer.
+    ///
+    /// * `algo` - convolution algorithm that should be used to compute the result.
+    ///
+    /// * `workspace` -  a buffer to GPU memory to a workspace needed to be able to execute the
+    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
+    /// dimension can be obtained with [`get_convolution_forward_workspace_size`].
+    ///
+    /// * `beta` - scaling parameter.
+    ///
+    /// * `dx` - input map gradient.
+    pub fn convolution_backward_data<
+        T1,
+        F1,
+        T2,
+        F2,
+        CompType,
+        T3,
+        F3,
+        A,
+        W,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        alpha: CompType,
+        w: &Filter<T1, F1, impl GpuBuffer<T1>, D>,
+        dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+        algo: &A,
+        workspace: &Option<W>,
+        beta: CompType,
+        dx: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
+    ) -> Result<(), CudnnError>
+    where
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+        CompType: DataType,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        A: ConvolutionBwdDataAlgo + SupportedConvBwdData<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        W: GpuBuffer<u8>,
+    {
+        let w_data = w.data().as_device_ptr().as_raw();
+        let w_desc = w.descriptor();
+
+        let dy_data = dy.data().as_device_ptr().as_raw();
+        let dy_desc = dy.descriptor();
+
+        let dx_data = dx.data().as_device_ptr().as_raw_mut();
+        let dx_desc = dx.descriptor();
+
+        let (workspace_ptr, workspace_size): (*mut u8, usize) = {
+            workspace
+                .as_ref()
+                .map_or((std::ptr::null_mut(), 0), |workspace| {
+                    (workspace.as_device_ptr().as_raw_mut(), workspace.len())
+                })
+        };
+
+        unsafe {
+            sys::cudnnConvolutionBackwardData(
+                self.raw,
+                &alpha as *const CompType as *const std::ffi::c_void,
+                w_desc.raw,
+                w_data as *const std::ffi::c_void,
+                dy_desc.raw,
+                dy_data as *const std::ffi::c_void,
+                conv_desc.raw,
+                algo.into_raw(),
+                workspace_ptr as *mut std::ffi::c_void,
+                workspace_size,
+                &beta as *const CompType as *const std::ffi::c_void,
+                dx_desc.raw,
+                dx_data as *mut std::ffi::c_void,
+            )
+            .into_result()
+        }
+    }
+
+    /// This function computes the convolution weight (filter) gradient of the tensor `dy`, where
+    /// `y` is the output of the forward convolution in `convolution_forward()`.
+    ///
+    /// It uses the specified `algo`, and returns the results in the output tensor `dw`. Scaling
+    /// factors `alpha` and `beta` can be used to scale the computed result or accumulate with the
+    /// current `dw`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - scaling parameter.
+    ///
+    /// * `x` - input map.
+    ///
+    /// * `dy` - output map gradient.
+    ///
+    /// * `conv_desc` - previously initialized convolution description. The one defined for the
+    /// forward pass in suitable to be used here provided that it refers to the same layer.
+    ///
+    /// * `algo` - convolution algorithm that should be used to compute the result.
+    ///
+    /// * `workspace` -  a buffer to GPU memory to a workspace needed to be able to execute the
+    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
+    /// dimension can be obtained with [`get_convolution_forward_workspace_size`].
+    ///
+    /// * `beta` - scaling parameter.
+    ///
+    /// * `dw` - filter gradient.
+    pub fn convolution_backward_filter<
+        T1,
+        F1,
+        T2,
+        F2,
+        CompType,
+        T3,
+        F3,
+        A,
+        W,
+        const D: usize,
+        const N: usize,
+    >(
+        &self,
+        alpha: CompType,
+        x: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
+        dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+        conv_desc: &ConvolutionDescriptor<CompType, N>,
+        algo: &A,
+        workspace: &Option<W>,
+        beta: CompType,
+        dw: &mut Filter<T3, F3, impl GpuBuffer<T3>, D>,
+    ) -> Result<(), CudnnError>
+    where
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+        CompType: DataType,
+        T3: DataType,
+        F3: TensorFormat + SupportedType<T3>,
+        A: ConvolutionBwdFilterAlgo
+            + SupportedConvBwdFilter<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        W: GpuBuffer<u8>,
+    {
+        let x_data = x.data().as_device_ptr().as_raw();
+        let x_desc = x.descriptor();
+
+        let dy_data = dy.data().as_device_ptr().as_raw();
+        let dy_desc = dy.descriptor();
+
+        let dw_data = dw.data().as_device_ptr().as_raw_mut();
+        let dw_desc = dw.descriptor();
+
+        let (workspace_ptr, workspace_size): (*mut u8, usize) = {
+            workspace
+                .as_ref()
+                .map_or((std::ptr::null_mut(), 0), |workspace| {
+                    (workspace.as_device_ptr().as_raw_mut(), workspace.len())
+                })
+        };
+
+        unsafe {
+            sys::cudnnConvolutionBackwardFilter(
+                self.raw,
+                &alpha as *const CompType as *const std::ffi::c_void,
+                x_desc.raw,
+                x_data as *const std::ffi::c_void,
+                dy_desc.raw,
+                dy_data as *const std::ffi::c_void,
+                conv_desc.raw,
+                algo.into_raw(),
+                workspace_ptr as *mut std::ffi::c_void,
+                workspace_size,
+                &beta as *const CompType as *const std::ffi::c_void,
+                dw_desc.raw,
+                dw_data as *mut std::ffi::c_void,
+            )
+            .into_result()
         }
     }
 }
