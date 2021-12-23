@@ -1,2 +1,2 @@
 # cudnn crate
-./crates/cudnn/* @frjnn
+/crates/cudnn/ @frjnn
