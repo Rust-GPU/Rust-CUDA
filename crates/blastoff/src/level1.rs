@@ -3,7 +3,7 @@
 use crate::{
     context::CublasContext,
     error::{Error, ToResult},
-    raw::Level1,
+    raw::{ComplexLevel1, FloatLevel1, Level1},
     BlasDatatype,
 };
 use cust::memory::{GpuBox, GpuBuffer};
@@ -45,7 +45,7 @@ impl CublasContext {
         self.with_stream(stream, |ctx| unsafe {
             Ok(T::amin(
                 ctx.raw,
-                x.len() as i32,
+                n as i32,
                 x.as_device_ptr().as_raw(),
                 stride.unwrap_or(1) as i32,
                 result.as_device_ptr().as_raw_mut(),
@@ -107,7 +107,7 @@ impl CublasContext {
         self.with_stream(stream, |ctx| unsafe {
             Ok(T::amax(
                 ctx.raw,
-                x.len() as i32,
+                n as i32,
                 x.as_device_ptr().as_raw(),
                 stride.unwrap_or(1) as i32,
                 result.as_device_ptr().as_raw_mut(),
@@ -171,7 +171,7 @@ impl CublasContext {
         self.with_stream(stream, |ctx| unsafe {
             Ok(T::axpy(
                 ctx.raw,
-                x.len() as i32,
+                n as i32,
                 alpha.as_device_ptr().as_raw(),
                 x.as_device_ptr().as_raw(),
                 x_stride.unwrap_or(1) as i32,
@@ -244,7 +244,7 @@ impl CublasContext {
         self.with_stream(stream, |ctx| unsafe {
             Ok(T::copy(
                 ctx.raw,
-                x.len() as i32,
+                n as i32,
                 x.as_device_ptr().as_raw(),
                 x_stride.unwrap_or(1) as i32,
                 y.as_device_ptr().as_raw_mut(),
@@ -290,5 +290,355 @@ impl CublasContext {
         y: &mut impl GpuBuffer<T>,
     ) -> Result {
         self.copy_strided(stream, n, x, None, y, None)
+    }
+
+    /// Same as [`CublasContext::dot`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn dot_strided<T: FloatLevel1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+        result: &mut impl GpuBox<T>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::dot(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_raw(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_raw(),
+                y_stride.unwrap_or(1) as i32,
+                result.as_device_ptr().as_raw_mut(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Computes the dot product of two vectors:
+    ///
+    /// $$
+    /// \sum^n_{i=1} \boldsymbol{x}_i * \boldsymbol{y}_i
+    /// $$
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the length requested.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut ctx = CublasContext::new()?;
+    /// let x = [1.0f32, 2.0, 3.0, 4.0].as_dbuf()?;
+    /// let y = [1.0f32, 2.0, 3.0, 4.0].as_dbuf()?;
+    /// let mut result = DeviceBox::new(&0.0)?;
+    ///
+    /// ctx.dot(&stream, x.len(), &x, &y, &mut result)?;
+    ///
+    /// stream.synchronize()?;
+    ///
+    /// assert_eq!(result.as_host_value()?, 30.0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn dot<T: FloatLevel1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        y: &impl GpuBuffer<T>,
+        result: &mut impl GpuBox<T>,
+    ) -> Result {
+        self.dot_strided(stream, n, x, None, y, None, result)
+    }
+
+    /// Same as [`CublasContext::dotu`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn dotu_strided<T: ComplexLevel1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+        result: &mut impl GpuBox<T>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::dotu(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_raw(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_raw(),
+                y_stride.unwrap_or(1) as i32,
+                result.as_device_ptr().as_raw_mut(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Computes the unconjugated dot product of two vectors of complex numbers.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the length requested.
+    pub fn dotu<T: ComplexLevel1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        y: &impl GpuBuffer<T>,
+        result: &mut impl GpuBox<T>,
+    ) -> Result {
+        self.dotu_strided(stream, n, x, None, y, None, result)
+    }
+
+    /// Same as [`CublasContext::dotc`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn dotc_strided<T: ComplexLevel1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+        result: &mut impl GpuBox<T>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::dotc(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_raw(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_raw(),
+                y_stride.unwrap_or(1) as i32,
+                result.as_device_ptr().as_raw_mut(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Computes the conjugated dot product of two vectors of complex numbers.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the length requested.
+    pub fn dotc<T: ComplexLevel1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        y: &impl GpuBuffer<T>,
+        result: &mut impl GpuBox<T>,
+    ) -> Result {
+        self.dotc_strided(stream, n, x, None, y, None, result)
+    }
+
+    /// Same as [`CublasContext::nrm2`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn nrm2_strided<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        result: &mut impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::nrm2(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_raw(),
+                x_stride.unwrap_or(1) as i32,
+                result.as_device_ptr().as_raw_mut(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Computes the euclidian norm of a vector, in other words, the square root of
+    /// the sum of the squares of each element in `x`:
+    ///
+    /// $$
+    /// \sqrt{\sum_{i=1}^n (\boldsymbol{x}_i^2)}
+    /// $$
+    ///
+    /// # Panics
+    ///
+    /// Panics if `x` is not large enough for the requested length `n`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut ctx = CublasContext::new()?;
+    /// let x = [2.0f32; 4].as_dbuf()?;
+    /// let mut result = DeviceBox::new(&0.0f32)?;
+    ///
+    /// ctx.nrm2(&stream, x.len(), &x, &mut result)?;
+    ///
+    /// stream.synchronize()?;
+    ///
+    /// let result = result.as_host_value()?;
+    /// // float weirdness
+    /// assert!(result >= 3.9 && result <= 4.0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn nrm2<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &impl GpuBuffer<T>,
+        result: &mut impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        self.nrm2_strided(stream, n, x, None, result)
+    }
+
+    /// Same as [`CublasContext::rot`] but with an explicit stride.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffers are not long enough for the stride and length requested.
+    pub fn rot_strided<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &mut impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+        c: &impl GpuBox<T::FloatTy>,
+        s: &impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::rot(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_raw_mut(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_raw_mut(),
+                y_stride.unwrap_or(1) as i32,
+                c.as_device_ptr().as_raw(),
+                s.as_device_ptr().as_raw(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Rotates points in the xy-plane using a Givens rotation matrix.
+    ///
+    /// Rotation matrix:
+    ///
+    /// <p>
+    /// $$
+    /// \begin{pmatrix}
+    ///    c & s \\
+    ///    -s & c
+    /// \end{pmatrix}
+    /// $$
+    /// </p>
+    ///
+    /// Therefore:
+    ///
+    /// $$
+    /// \boldsymbol{x}_i = \boldsymbol{x}_ic + \boldsymbol{y}_is
+    /// $$
+    ///
+    /// And:
+    ///
+    /// $$
+    /// \boldsymbol{y}_i = -\boldsymbol{x}_is + \boldsymbol{y}_ic
+    /// $$
+    ///
+    /// Where $c$ and $s$ are usually
+    ///
+    /// <p>
+    /// $$
+    /// c = cos(\theta) \\
+    /// s = sin(\theta)
+    /// $$
+    /// </p>
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _a = cust::quick_init()?;
+    /// # use blastoff::CublasContext;
+    /// # use cust::prelude::*;
+    /// # use cust::memory::DeviceBox;
+    /// # use cust::util::SliceExt;
+    /// # let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut ctx = CublasContext::new()?;
+    /// let mut x = [1.0f32].as_dbuf()?;
+    /// let mut y = [0.0].as_dbuf()?;
+    /// let c = DeviceBox::new(&1.0)?;
+    /// let s = DeviceBox::new(&0.0)?;
+    ///
+    /// ctx.rot(&stream, x.len(), &mut x, &mut y, &c, &s)?;
+    ///
+    /// stream.synchronize()?;
+    ///
+    /// // identity matrix
+    /// assert_eq!(&x.as_host_vec()?, &[1.0]);
+    /// assert_eq!(&y.as_host_vec()?, &[0.0]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn rot<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        y: &mut impl GpuBuffer<T>,
+        c: &impl GpuBox<T::FloatTy>,
+        s: &impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        self.rot_strided(stream, n, x, None, y, None, c, s)
     }
 }
