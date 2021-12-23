@@ -188,3 +188,18 @@ static PTX: &str = include_str!("some/path.ptx");
 ```
 
 Then execute it using cust.
+
+## Docker
+
+There is also a [Dockerfile](Dockerfile) prepared as a quickstart with all the necessary libraries for base cuda development.
+
+You can use it as follows (assuming your clone of Rust-CUDA is at the absolute path `RUST_CUDA`):
+
+ - Build `docker build -t rust-cuda $RUST_CUDA`
+ - Run `docker run -it -v $RUST_CUDA:/root/rust-cuda --entrypoint /bin/b
+ash rust-cuda`
+
+Running will drop you into the container
+s shell and you will find the project at `~/rust-cuda`
+
+Note: refer to [rust-toolchain][#rust-toolchain] to ensure you are using the correct toolchain in your project.
