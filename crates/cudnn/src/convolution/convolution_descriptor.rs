@@ -1,18 +1,20 @@
 use crate::{
-    convolution_mode::ConvolutionMode,
+    convolution::ConvolutionMode,
     data_type::DataType,
     error::{CudnnError, IntoResult},
     math_type::MathType,
     sys,
-    tensor_format::TensorFormat,
+    tensor::TensorFormat,
 };
 
 use std::{marker::PhantomData, mem::MaybeUninit};
 
 /// A generic description of an n-dimensional convolution.
 ///
-/// *Do note* that N can be either 2 or 3, respectively for a 2-d or a 3-d convolution.
-#[derive(Debug, Clone, PartialEq, Hash)]
+/// **Do note** that N can be either 2 or 3, respectively for a 2-d or a 3-d convolution, and that
+/// the same convolution descriptor can be reused in the backward path provided it corresponds to
+/// the same layer.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConvolutionDescriptor<T: DataType, const N: usize> {
     pub(crate) raw: sys::cudnnConvolutionDescriptor_t,
     comp_type: PhantomData<T>,
@@ -131,6 +133,12 @@ impl<T: DataType, const N: usize> ConvolutionDescriptor<T, N> {
     }
 
     /// Sets the `MathType` for this convolution descriptor instance.
+    ///
+    /// # Arguments
+    ///
+    /// `math_type` - the provided math type.
+    ///
+    /// **Do note** that tensor core operations may not be available on all device architectures.
     pub fn set_math_type(&mut self, math_type: MathType) -> Result<(), CudnnError> {
         unsafe { sys::cudnnSetConvolutionMathType(self.raw, math_type.into()).into_result() }
     }

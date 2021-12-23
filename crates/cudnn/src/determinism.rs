@@ -1,4 +1,4 @@
-use crate::sys::{self, cudnnDeterminism_t};
+use crate::sys;
 
 /// Enum stating whether or not the computed results are deterministic (reproducible).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -9,8 +9,8 @@ pub enum Determinism {
     NonDeterministic,
 }
 
-impl From<cudnnDeterminism_t> for Determinism {
-    fn from(raw: cudnnDeterminism_t) -> Self {
+impl From<sys::cudnnDeterminism_t> for Determinism {
+    fn from(raw: sys::cudnnDeterminism_t) -> Self {
         match raw {
             sys::cudnnDeterminism_t::CUDNN_DETERMINISTIC => Self::Deterministic,
             sys::cudnnDeterminism_t::CUDNN_NON_DETERMINISTIC => Self::NonDeterministic,

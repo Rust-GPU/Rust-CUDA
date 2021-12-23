@@ -1,8 +1,10 @@
+mod filter_descriptor;
+pub use filter_descriptor::*;
+
 use crate::{
     data_type::DataType,
     error::CudnnError,
-    filter_descriptor::FilterDescriptor,
-    tensor_format::{SupportedType, TensorFormat},
+    tensor::{SupportedType, TensorFormat},
 };
 use cust::memory::{DeviceBuffer, DeviceCopy, GpuBox, GpuBuffer, UnifiedBuffer};
 
