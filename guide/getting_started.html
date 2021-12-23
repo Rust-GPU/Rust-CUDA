@@ -288,6 +288,16 @@ from scratch, but after the first compile, incremental will make it much faster.
 <pre><code class="language-rs">static PTX: &amp;str = include_str!(&quot;some/path.ptx&quot;);
 </code></pre>
 <p>Then execute it using cust.</p>
+<h2 id="docker"><a class="header" href="#docker">Docker</a></h2>
+<p>There is also a <a href="Dockerfile">Dockerfile</a> prepared as a quickstart with all the necessary libraries for base cuda development.</p>
+<p>You can use it as follows (assuming your clone of Rust-CUDA is at the absolute path <code>RUST_CUDA</code>):</p>
+<ul>
+<li>Build <code>docker build -t rust-cuda $RUST_CUDA</code></li>
+<li>Run <code>docker run -it -v $RUST_CUDA:/root/rust-cuda --entrypoint /bin/b ash rust-cuda</code></li>
+</ul>
+<p>Running will drop you into the container
+s shell and you will find the project at <code>~/rust-cuda</code></p>
+<p>Note: refer to [rust-toolchain][#rust-toolchain] to ensure you are using the correct toolchain in your project.</p>
 
                     </main>
 
