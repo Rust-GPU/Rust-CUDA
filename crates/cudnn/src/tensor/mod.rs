@@ -1,9 +1,10 @@
-use crate::{
-    data_type::DataType,
-    error::CudnnError,
-    tensor_descriptor::TensorDescriptor,
-    tensor_format::{SupportedType, TensorFormat},
-};
+mod tensor_descriptor;
+pub use tensor_descriptor::*;
+
+mod tensor_format;
+pub use tensor_format::*;
+
+use crate::{data_type::DataType, error::CudnnError};
 use cust::memory::{DeviceBuffer, DeviceCopy, GpuBox, GpuBuffer, UnifiedBuffer};
 
 /// A cuDNN tensor generic over both unified and device memory.

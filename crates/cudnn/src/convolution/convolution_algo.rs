@@ -4,7 +4,7 @@ use crate::{
     error::{CudnnError, IntoResult},
     math_type::MathType,
     private, sys,
-    tensor_format::{NCHWVectC8x32, NCHWVectC8x4, TensorFormat, NCHW, NHWC},
+    tensor::{NCHWVectC8x32, NCHWVectC8x4, TensorFormat, NCHW, NHWC},
 };
 
 /// The best suited algorithm according to the layer specifications obtained through a heuristic.
@@ -83,6 +83,7 @@ pub struct Winograd;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WinogradNonFused;
 
+/// BestHeuristic for the forward convolution algorithm.
 impl TryFrom<sys::cudnnConvolutionFwdAlgoPerf_t> for BestHeuristic<sys::cudnnConvolutionFwdAlgo_t> {
     type Error = CudnnError;
 
@@ -120,6 +121,7 @@ pub struct DataAlgo0;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DataAlgo1;
 
+/// BestHeuristic for the backward data convolution algorithm.
 impl TryFrom<sys::cudnnConvolutionBwdDataAlgoPerf_t>
     for BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>
 {
@@ -164,6 +166,7 @@ pub struct FilterAlgo1;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FilterAlgo3;
 
+/// BestHeuristic for the backward filter convolution algorithm.
 impl TryFrom<sys::cudnnConvolutionBwdFilterAlgoPerf_t>
     for BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>
 {
@@ -401,6 +404,11 @@ mod impl_convolution_algo {
 #[rustfmt::skip]
 mod supported_conv_fwd_impls {
 
+    // The macro arguments are to be interpreted as follows, from left to right:
+    // <algo. name> <input ty> <input fmt> <filter ty> <filter fmt> <comp. ty> <out ty> <out fmt>
+    //
+    // The last two integers are indicative of the convolution type.
+
     use super::*;
     /// ImplicitGemm supported configurations for 2-d convolutions and filter format equal to NCHW.
     impl_supported_conv_fwd!(ImplicitGemm, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
@@ -535,6 +543,11 @@ mod supported_conv_fwd_impls {
 mod supported_conv_bwd_data_impls {
     use super::*;
 
+    // The macro arguments are to be interpreted as follows, from left to right:
+    // <algo. name> <filter ty> <filter fmt> <diff. ty> <diff. fmt> <comp. ty> <in. diff ty> <in. diff fmt>
+    //
+    // The last two integers are indicative of the convolution type.
+
     /// DataAlgo0 supported configurations for 2-d convolutions and filter format equal to NCHW.
     impl_supported_conv_bwd_data!(DataAlgo0, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
     impl_supported_conv_bwd_data!(DataAlgo0, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
@@ -602,6 +615,11 @@ mod supported_conv_bwd_data_impls {
 #[rustfmt::skip]
 mod supported_conv_bwd_filter_impls {
     use super::*;
+
+    // The macro arguments are to be interpreted as follows, from left to right:
+    // <algo. name> <in. ty> <in. fmt> <diff. ty> <diff. fmt> <comp. ty> <filter diff ty> <filter diff fmt>
+    //
+    // The last two integers are indicative of the convolution type.
 
     /// FilterAlgo0 supported configurations for 2-d convolutions and filter gradient format equal 
     /// to NCHW.

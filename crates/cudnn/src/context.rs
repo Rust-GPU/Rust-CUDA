@@ -1,19 +1,15 @@
 use crate::{
-    convolution_algo::{
-        BestHeuristic, ConvolutionBwdDataAlgo, ConvolutionBwdFilterAlgo, ConvolutionFwdAlgo,
-        SupportedConvBwdData, SupportedConvBwdFilter, SupportedConvFwd,
+    convolution::{
+        BestHeuristic, ConvolutionBwdDataAlgo, ConvolutionBwdFilterAlgo, ConvolutionDescriptor,
+        ConvolutionFwdAlgo, Filter, FilterDescriptor, SupportedConvBwdData, SupportedConvBwdFilter,
+        SupportedConvFwd,
     },
-    convolution_descriptor::ConvolutionDescriptor,
     data_type::*,
     error::{CudnnError, IntoResult},
-    filter::*,
-    filter_descriptor::FilterDescriptor,
     nan_propagation::*,
-    op_tensor_descriptor::*,
+    op_tensor::*,
     sys,
     tensor::*,
-    tensor_descriptor::TensorDescriptor,
-    tensor_format::*,
 };
 use cust::memory::{GpuBox, GpuBuffer};
 use std::mem::{self, MaybeUninit};
@@ -38,7 +34,7 @@ use std::mem::{self, MaybeUninit};
 /// cuDNN contexts hold the internal memory allocations required by the library, and will free those
 /// resources on drop. They will also synchronize the entire device when dropping the context.
 /// Therefore, you should minimize both the amount of contexts, and the amount of context drops.
-/// You should generally allocate and drop context outside of performance critical code paths.
+/// You should generally create and drop context outside of performance critical code paths.
 pub struct CudnnContext {
     raw: sys::cudnnHandle_t,
 }
@@ -96,7 +92,30 @@ impl CudnnContext {
         }
     }
 
-    /// This function implements the equation:
+    /// This function sets the user's CUDA stream in the cuDNN handle.
+    ///
+    /// The new stream will be used to launch cuDNN GPU kernels or to synchronize to this stream
+    /// when cuDNN kernels are launched in the internal streams.
+    ///
+    /// If the cuDNN library stream is not set, all kernels use the default (NULL) stream.
+    /// Setting the user stream in the cuDNN handle guarantees the issue-order execution of cuDNN
+    /// calls and other GPU kernels launched in the same stream.
+    ///
+    /// # Arguments
+    ///
+    /// `stream` - the CUDA stream to be written to the cuDNN handle.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the supplied stream in invalid or a mismatch if found between the user
+    /// stream and the cuDNN handle context.
+    pub fn set_stream(&mut self, stream: &cust::stream::Stream) -> Result<(), CudnnError> {
+        unsafe {
+            sys::cudnnSetStream(self.raw, stream.as_inner() as sys::cudaStream_t).into_result()
+        }
+    }
+
+    /// This function adds two tensors according to the following equation:
     ///
     /// C = alpha * A + beta * B + gamma * C
     ///
@@ -167,7 +186,7 @@ impl CudnnContext {
         }
     }
 
-    /// This function implements the equation:
+    /// This function adds to tensors in-place according to the following equation:
     ///
     /// C = alpha * A + gamma * C
     ///
@@ -220,7 +239,7 @@ impl CudnnContext {
         }
     }
 
-    /// This function implements the equation:
+    /// This function multiplies two tensors according to the following equation:
     ///
     /// C = alpha * A * beta * B + gamma * C
     ///
@@ -291,7 +310,8 @@ impl CudnnContext {
         }
     }
 
-    /// This function implements the equation:
+    /// This function computes the elements wise minimum between two tensors according to the
+    /// following equation:
     ///
     /// C = min (alpha * A, beta * B) + gamma * C
     ///
@@ -362,7 +382,8 @@ impl CudnnContext {
         }
     }
 
-    /// This function implements the equation:
+    /// This function computes the elements wise maximum between two tensors according to the
+    /// following equation:
     ///
     /// C = max (alpha * A, beta * B) + gamma * C
     ///
@@ -433,7 +454,7 @@ impl CudnnContext {
         }
     }
 
-    /// This function implements the equation:
+    /// This function computes the square root of a tensor according to the following equation:
     ///
     /// C = sqrt (alpha * A) + gamma * C
     ///
@@ -495,7 +516,7 @@ impl CudnnContext {
         }
     }
 
-    /// This function implements the equation:
+    /// This function computes the logical not of a tensor according to the following equation:
     ///
     /// C = NOT (alpha * A) + gamma * C
     ///
@@ -1083,7 +1104,7 @@ impl CudnnContext {
     ///
     /// **Do note** that not every algorithm is available for every configuration of the input
     /// tensor and/or every configuration of the convolution descriptor.
-    pub fn get_convolution_filter_workspace_size<
+    pub fn get_convolution_backward_filter_workspace_size<
         T1,
         F1,
         T2,
@@ -1264,6 +1285,10 @@ impl CudnnContext {
     /// * `beta` - scaling parameter.
     ///
     /// * `dx` - input map gradient.
+    ///
+    /// **Do note** than not all possible configurations of layouts and data types for the operands
+    /// are supported by cuDNN. Refer to the following link for the
+    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardData).
     pub fn convolution_backward_data<
         T1,
         F1,
@@ -1362,6 +1387,10 @@ impl CudnnContext {
     /// * `beta` - scaling parameter.
     ///
     /// * `dw` - filter gradient.
+    ///
+    /// **Do note** than not all possible configurations of layouts and data types for the operands
+    /// are supported by cuDNN. Refer to the following link for the
+    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardFilter).
     pub fn convolution_backward_filter<
         T1,
         F1,

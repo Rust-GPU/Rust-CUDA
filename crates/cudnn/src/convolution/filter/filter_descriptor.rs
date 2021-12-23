@@ -2,7 +2,7 @@ use crate::{
     data_type::DataType,
     error::{CudnnError, IntoResult},
     sys,
-    tensor_format::{SupportedType, TensorFormat},
+    tensor::{SupportedType, TensorFormat},
 };
 use std::{
     marker::PhantomData,
