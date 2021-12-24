@@ -50,6 +50,10 @@ where
     /// **Do note** that you should always initialize a [`CudnnContext`](crate::CudnnContext) before
     /// allocating memory and creating tensors.
     ///
+    /// # Panics
+    ///
+    /// If `shape` is not compatible with the number of elements inside data.
+    ///
     /// # Examples
     ///
     /// The underlying data can be allocated either in device memory or in unified memory.

@@ -5,6 +5,7 @@ use crate::{
         SupportedConvFwd,
     },
     data_type::*,
+    dropout_descriptor::*,
     error::{CudnnError, IntoResult},
     nan_propagation::*,
     op_tensor::*,
@@ -115,13 +116,22 @@ impl CudnnContext {
         }
     }
 
-    /// This function adds two tensors according to the following equation:
+    /// This function computes a binary element-wise tensor core operations according to the
+    /// following equation:
     ///
-    /// C = alpha * A + beta * B + gamma * C
+    /// C = OP( alpha * A , beta * B ) + gamma * C
     ///
     /// given the tensors A, B and C, and the scaling parameters alpha, beta and gamma.
     ///
+    /// Each dimension of the input tensor A must match the corresponding dimension of the
+    /// destination tensor C, and each dimension of the input tensor B must match the
+    /// corresponding dimension of the destination tensor C or must be equal to 1.
+    /// In the latter case, the same value from the input tensor B for those dimensions will be
+    /// used to blend into the C tensor.
+    ///
     /// # Arguments
+    ///
+    /// * `op_desc` - handle to a previously initialized op tensor descriptor.
     ///
     /// * `alpha` - scaling factor for the left operand.
     ///
@@ -138,8 +148,9 @@ impl CudnnContext {
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
-    pub fn add<CompT, T1, F1, T2, F2, T3, F3, const D: usize>(
+    pub fn binary_tensor_op<CompT, Op, T1, F1, T2, F2, T3, F3, const D: usize>(
         &self,
+        op_desc: &OpTensorDescriptor<CompT, Op>,
         alpha: CompT,
         a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
         beta: CompT,
@@ -149,6 +160,7 @@ impl CudnnContext {
     ) -> Result<(), CudnnError>
     where
         CompT: DataType + SupportedOp<T1, T2, T3>,
+        Op: OpTensorOp + BinaryOp,
         T1: DataType,
         F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
@@ -165,13 +177,10 @@ impl CudnnContext {
         let c_data = c.data().as_device_ptr().as_raw();
         let c_desc = c.descriptor();
 
-        let add_op_desc =
-            OpTensorDescriptor::<CompT>::new(OpTensorOp::Add, NanPropagation::PropagateNaN)?;
-
         unsafe {
             sys::cudnnOpTensor(
                 self.raw,
-                add_op_desc.raw,
+                op_desc.raw,
                 &alpha as *const CompT as *const std::ffi::c_void,
                 a_desc.raw,
                 a_data as *const std::ffi::c_void,
@@ -186,7 +195,74 @@ impl CudnnContext {
         }
     }
 
-    /// This function adds to tensors in-place according to the following equation:
+    /// This function computes an unary element wise tensor core operation according to the
+    /// following equation:
+    ///
+    /// C = OP ( alpha * A ) + gamma * C
+    ///
+    /// given the tensors A and C, and the scaling parameters alpha and gamma.
+    ///
+    /// Each dimension of the input tensor A must match the corresponding dimension of the
+    /// destination tensor C
+    ///
+    /// # Arguments
+    ///
+    /// * `op_desc` - handle to a previously initialized op tensor descriptor.
+    ///
+    /// * `alpha` - scaling factor for the operand.
+    ///
+    /// * `a` - operand.
+    ///
+    /// * `gamma` - scaling factor for the destination tensor.
+    ///
+    /// * `c` - destination tensor. This tensor is written after being read.
+    ///
+    /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
+    /// to dimension five (5) are supported. This routine does not support tensor formats beyond
+    /// these dimensions.
+    pub fn unary_tensor_op<CompT, Op, T1, F1, T2, F2, const D: usize>(
+        &self,
+        op_desc: &OpTensorDescriptor<CompT, Op>,
+        alpha: CompT,
+        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
+        gamma: CompT,
+        c: &mut Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+    ) -> Result<(), CudnnError>
+    where
+        CompT: DataType + SupportedOp<T1, T1, T2>,
+        Op: OpTensorOp + UnaryOp,
+        T1: DataType,
+        F1: TensorFormat + SupportedType<T1>,
+        T2: DataType,
+        F2: TensorFormat + SupportedType<T2>,
+    {
+        let a_data = a.data().as_device_ptr().as_raw();
+        let a_desc = a.descriptor();
+
+        let c_data = c.data().as_device_ptr().as_raw();
+        let c_desc = c.descriptor();
+
+        unsafe {
+            // The second tensor and the second scaling factors here are ignored.
+            // We use the left operand twice to make cuDNN happy, as it won't accept a null pointer.
+            sys::cudnnOpTensor(
+                self.raw,
+                op_desc.raw,
+                &alpha as *const CompT as *const std::ffi::c_void,
+                a_desc.raw,
+                a_data as *const std::ffi::c_void,
+                &alpha as *const CompT as *const std::ffi::c_void,
+                a_desc.raw,
+                a_data as *const std::ffi::c_void,
+                &gamma as *const CompT as *const std::ffi::c_void,
+                c_desc.raw,
+                c_data as *mut std::ffi::c_void,
+            )
+            .into_result()
+        }
+    }
+
+    /// This function adds two tensors in-place according to the following equation:
     ///
     /// C = alpha * A + gamma * C
     ///
@@ -239,342 +315,224 @@ impl CudnnContext {
         }
     }
 
-    /// This function multiplies two tensors according to the following equation:
+    /// This function is used to query the amount of space required to store the states of the
+    /// random number generators
+    pub fn get_dropout_states_size(&self) -> Result<usize, CudnnError> {
+        let mut size = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnDropoutGetStatesSize(self.raw, size.as_mut_ptr()).into_result()?;
+
+            Ok(size.assume_init())
+        }
+    }
+
+    /// This function is used to query the amount of reserve needed to run dropout with the input
+    /// dimensions given by `x_desc`.
     ///
-    /// C = alpha * A * beta * B + gamma * C
-    ///
-    /// given the tensors A, B and C, and the scaling parameters alpha, beta and gamma.
+    /// The same reserve space is expected to be passed to `dropout_forward()` and
+    /// `dropout_backward()`, and its contents is expected to remain unchanged between
+    /// `dropout_forward()` and `dropout_backward` calls.
     ///
     /// # Arguments
     ///
-    /// * `alpha` - scaling factor for the left operand.
-    ///
-    /// * `a` - left operand.
-    ///
-    /// * `beta` - scaling factor for the right operand.
-    ///
-    /// * `b` - right operand.
-    ///
-    /// * `gamma` - scaling factor for the destination tensor.
-    ///
-    /// * `c` - destination tensor. This tensor is written after being read.
-    ///
-    /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
-    /// to dimension five (5) are supported. This routine does not support tensor formats beyond
-    /// these dimensions.
-    pub fn mul<CompT, T1, F1, T2, F2, T3, F3, const D: usize>(
+    /// `x_desc` - a previously initialized tensor descriptor, describing input to a dropout
+    /// operation.
+    pub fn get_dropout_reserved_space_size<T, F, const D: usize>(
         &self,
-        alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
-        beta: CompT,
-        b: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
-        gamma: CompT,
-        c: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
-    ) -> Result<(), CudnnError>
+        x_desc: &TensorDescriptor<T, F, D>,
+    ) -> Result<usize, CudnnError>
     where
-        CompT: DataType + SupportedOp<T1, T2, T3>,
-        T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
-        T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
-        T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
+        T: DataType,
+        F: TensorFormat + SupportedType<T>,
     {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
-
-        let b_data = b.data().as_device_ptr().as_raw();
-        let b_desc = b.descriptor();
-
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
-
-        let mul_op_desc =
-            OpTensorDescriptor::<CompT>::new(OpTensorOp::Mul, NanPropagation::PropagateNaN)?;
+        let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnOpTensor(
+            sys::cudnnDropoutGetStatesSize(self.raw, size.as_mut_ptr()).into_result()?;
+
+            Ok(size.assume_init())
+        }
+    }
+
+    /// This function performs forward dropout operation over `x` returning results in `y`.
+    ///
+    /// The approximate dropout fraction of x values will be replaced by a 0, and the rest will be
+    /// scaled by 1 / (1 - dropout), i.e. the value configured in `dropout_desc`.
+    ///
+    /// This function should not be running concurrently with another `dropout_forward()` function
+    /// using the same states, as defined in the `DropoutDescriptor`.
+    ///
+    /// # Arguments
+    ///
+    /// * `dropout_descriptor` - previously created dropout descriptor.
+    ///
+    /// * `x` - input tensor.
+    ///
+    /// * `y` - destination tensor.
+    ///
+    /// * `reserve_space` - user-allocated GPU memory used by this function. It is expected that the
+    /// contents of reserveSpace does not change between `dropout_forward()` and
+    /// `dropout_backward()` calls.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the number of elements in `x` and `y` differs and if `reserve_space` is
+    /// less than the value returned by `get_dropout_reserve_space_size`.
+    pub fn dropout_forward<T, F1, F2, const D: usize>(
+        &self,
+        dropout_desc: &DropoutDescriptor<impl GpuBuffer<u8>>,
+        x: &Tensor<T, F1, impl GpuBuffer<T>, D>,
+        y: &mut Tensor<T, F2, impl GpuBuffer<T>, D>,
+        reserve_space: &mut impl GpuBuffer<u8>,
+    ) -> Result<(), CudnnError>
+    where
+        T: DataType,
+        F1: TensorFormat + SupportedType<T>,
+        F2: TensorFormat + SupportedType<T>,
+    {
+        let x_desc = x.descriptor();
+        let x_data = x.data().as_device_ptr().as_raw();
+
+        let y_desc = y.descriptor();
+        let y_data = y.data().as_device_ptr().as_raw_mut();
+
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
+
+        unsafe {
+            sys::cudnnDropoutForward(
                 self.raw,
-                mul_op_desc.raw,
-                &alpha as *const CompT as *const std::ffi::c_void,
-                a_desc.raw,
-                a_data as *const std::ffi::c_void,
-                &beta as *const CompT as *const std::ffi::c_void,
-                b_desc.raw,
-                b_data as *const std::ffi::c_void,
-                &gamma as *const CompT as *const std::ffi::c_void,
-                c_desc.raw,
-                c_data as *mut std::ffi::c_void,
+                dropout_desc.raw,
+                x_desc.raw,
+                x_data as *const std::ffi::c_void,
+                y_desc.raw,
+                y_data as *mut std::ffi::c_void,
+                reserve_space_ptr as *mut std::ffi::c_void,
+                reserve_space.len(),
             )
             .into_result()
         }
     }
 
-    /// This function computes the elements wise minimum between two tensors according to the
-    /// following equation:
+    /// This function performs backward dropout operation over `dy` returning results in `dx`.
     ///
-    /// C = min (alpha * A, beta * B) + gamma * C
-    ///
-    /// given the tensors A, B and C, and the scaling parameters alpha, beta and gamma.
+    /// If during forward dropout operation value from `x` was propagated to `y` then
+    /// during backward operation value from `dy` will be propagated to `dx`, otherwise, `dx`
+    /// value will be set to 0.
     ///
     /// # Arguments
     ///
-    /// * `alpha` - scaling factor for the left operand.
+    /// * `dropout_descriptor` - previously created dropout descriptor.
     ///
-    /// * `a` - left operand.
+    /// * `dy` - input tensor.
     ///
-    /// * `beta` - scaling factor for the right operand.
+    /// * `dx` - destination tensor.
     ///
-    /// * `b` - right operand.
+    /// * `reserve_space` - user-allocated GPU memory used by this function. It is expected that the
+    /// contents of reserveSpace does not change between `dropout_forward()` and
+    /// `dropout_backward()` calls.
     ///
-    /// * `gamma` - scaling factor for the destination tensor.
+    /// # Errors
     ///
-    /// * `c` - destination tensor. This tensor is written after being read.
-    ///
-    /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
-    /// to dimension five (5) are supported. This routine does not support tensor formats beyond
-    /// these dimensions.
-    pub fn min<CompT, T1, F1, T2, F2, T3, F3, const D: usize>(
+    /// Returns an error if the number of elements in `dx` and `dy` differs and if `reserve_space`
+    /// is less than the value returned by `get_dropout_reserve_space_size`.
+    pub fn dropout_backward<T, F1, F2, const D: usize>(
         &self,
-        alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
-        beta: CompT,
-        b: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
-        gamma: CompT,
-        c: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
+        dropout_desc: &DropoutDescriptor<impl GpuBuffer<u8>>,
+        dy: &Tensor<T, F1, impl GpuBuffer<T>, D>,
+        dx: &mut Tensor<T, F2, impl GpuBuffer<T>, D>,
+        reserve_space: &mut impl GpuBuffer<u8>,
     ) -> Result<(), CudnnError>
     where
-        CompT: DataType + SupportedOp<T1, T2, T3>,
-        T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
-        T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
-        T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
+        T: DataType,
+        F1: TensorFormat + SupportedType<T>,
+        F2: TensorFormat + SupportedType<T>,
     {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
+        let dy_desc = dy.descriptor();
+        let dy_data = dy.data().as_device_ptr().as_raw();
 
-        let b_data = b.data().as_device_ptr().as_raw();
-        let b_desc = b.descriptor();
+        let dx_desc = dx.descriptor();
+        let dx_data = dx.data().as_device_ptr().as_raw_mut();
 
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
-
-        let min_op_desc =
-            OpTensorDescriptor::<CompT>::new(OpTensorOp::Min, NanPropagation::PropagateNaN)?;
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
 
         unsafe {
-            sys::cudnnOpTensor(
+            sys::cudnnDropoutBackward(
                 self.raw,
-                min_op_desc.raw,
-                &alpha as *const CompT as *const std::ffi::c_void,
-                a_desc.raw,
-                a_data as *const std::ffi::c_void,
-                &beta as *const CompT as *const std::ffi::c_void,
-                b_desc.raw,
-                b_data as *const std::ffi::c_void,
-                &gamma as *const CompT as *const std::ffi::c_void,
-                c_desc.raw,
-                c_data as *mut std::ffi::c_void,
+                dropout_desc.raw,
+                dy_desc.raw,
+                dy_data as *const std::ffi::c_void,
+                dx_desc.raw,
+                dx_data as *mut std::ffi::c_void,
+                reserve_space_ptr as *mut std::ffi::c_void,
+                reserve_space.len(),
             )
             .into_result()
         }
     }
 
-    /// This function computes the elements wise maximum between two tensors according to the
-    /// following equation:
-    ///
-    /// C = max (alpha * A, beta * B) + gamma * C
-    ///
-    /// given the tensors A, B and C, and the scaling parameters alpha, beta and gamma.
+    /// Creates and initializes a generic dropout descriptor.
     ///
     /// # Arguments
     ///
-    /// * `alpha` - scaling factor for the left operand.
+    /// * `dropout` - probability with which the value from input is set to zero during the dropout
+    /// layer.
     ///
-    /// * `a` - left operand.
+    /// * `states` - user-allocated GPU memory that will hold random number generator states.
     ///
-    /// * `beta` - scaling factor for the right operand.
+    /// * `seed` - seed used to initialize random number generator states.
     ///
-    /// * `b` - right operand.
+    /// **Do note** that the exact amount of memory can be obtained with `get_dropout_states_size`.
     ///
-    /// * `gamma` - scaling factor for the destination tensor.
+    /// # Errors
     ///
-    /// * `c` - destination tensor. This tensor is written after being read.
+    /// Return errors if `states` size is less than that returned by `get_dropout_states_size`.
     ///
-    /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
-    /// to dimension five (5) are supported. This routine does not support tensor formats beyond
-    /// these dimensions.
-    pub fn max<CompT, T1, F1, T2, F2, T3, F3, const D: usize>(
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{CudnnContext};
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let size = ctx.get_dropout_states_size()?;
+    /// let states = unsafe { DeviceBuffer::uninitialized(size)? };
+    ///
+    /// let dropout = 0.5;
+    /// let seed = 123;
+    ///
+    /// let dropout_desc = ctx.create_dropout_descriptor(dropout, states, seed)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn create_dropout_descriptor<T: GpuBuffer<u8>>(
         &self,
-        alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
-        beta: CompT,
-        b: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
-        gamma: CompT,
-        c: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
-    ) -> Result<(), CudnnError>
-    where
-        CompT: DataType + SupportedOp<T1, T2, T3>,
-        T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
-        T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
-        T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-    {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
-
-        let b_data = b.data().as_device_ptr().as_raw();
-        let b_desc = b.descriptor();
-
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
-
-        let max_op_desc =
-            OpTensorDescriptor::<CompT>::new(OpTensorOp::Max, NanPropagation::PropagateNaN)?;
+        dropout: f32,
+        states: T,
+        seed: u64,
+    ) -> Result<DropoutDescriptor<T>, CudnnError> {
+        let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnOpTensor(
+            sys::cudnnCreateDropoutDescriptor(raw.as_mut_ptr()).into_result()?;
+
+            let mut raw = raw.assume_init();
+
+            sys::cudnnSetDropoutDescriptor(
+                raw,
                 self.raw,
-                max_op_desc.raw,
-                &alpha as *const CompT as *const std::ffi::c_void,
-                a_desc.raw,
-                a_data as *const std::ffi::c_void,
-                &beta as *const CompT as *const std::ffi::c_void,
-                b_desc.raw,
-                b_data as *const std::ffi::c_void,
-                &gamma as *const CompT as *const std::ffi::c_void,
-                c_desc.raw,
-                c_data as *mut std::ffi::c_void,
+                dropout,
+                states.as_device_ptr().as_raw_mut() as *mut std::ffi::c_void,
+                states.len(),
+                seed,
             )
-            .into_result()
-        }
-    }
+            .into_result()?;
 
-    /// This function computes the square root of a tensor according to the following equation:
-    ///
-    /// C = sqrt (alpha * A) + gamma * C
-    ///
-    /// given the tensors A and C, and the scaling parameters alpha and gamma.
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - scaling factor for the operand.
-    ///
-    /// * `a` - operand.
-    ///
-    /// * `gamma` - scaling factor for the destination tensor.
-    ///
-    /// * `c` - destination tensor. This tensor is written after being read.
-    ///
-    /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
-    /// to dimension five (5) are supported. This routine does not support tensor formats beyond
-    /// these dimensions.
-    pub fn sqrt<CompT, T1, F1, T2, F2, const D: usize>(
-        &self,
-        alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
-        gamma: CompT,
-        c: &mut Tensor<T2, F2, impl GpuBuffer<T2>, D>,
-    ) -> Result<(), CudnnError>
-    where
-        CompT: DataType + SupportedOp<T1, T1, T2>,
-        T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
-        T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
-    {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
-
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
-
-        let sqrt_op_desc =
-            OpTensorDescriptor::<CompT>::new(OpTensorOp::Sqrt, NanPropagation::PropagateNaN)?;
-
-        unsafe {
-            // The second tensor and the second scaling factors here are ignored.
-            // We use the left operand twice to make cuDNN happy, as it won't accept a null pointer.
-            sys::cudnnOpTensor(
-                self.raw,
-                sqrt_op_desc.raw,
-                &alpha as *const CompT as *const std::ffi::c_void,
-                a_desc.raw,
-                a_data as *const std::ffi::c_void,
-                &alpha as *const CompT as *const std::ffi::c_void,
-                a_desc.raw,
-                a_data as *const std::ffi::c_void,
-                &gamma as *const CompT as *const std::ffi::c_void,
-                c_desc.raw,
-                c_data as *mut std::ffi::c_void,
-            )
-            .into_result()
-        }
-    }
-
-    /// This function computes the logical not of a tensor according to the following equation:
-    ///
-    /// C = NOT (alpha * A) + gamma * C
-    ///
-    /// given the tensors A and C, and the scaling parameters alpha and gamma.
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - scaling factor for the operand.
-    ///
-    /// * `a` - operand.
-    ///
-    /// * `gamma` - scaling factor for the destination tensor.
-    ///
-    /// * `c` - destination tensor. This tensor is written after being read.
-    ///
-    /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
-    /// to dimension five (5) are supported. This routine does not support tensor formats beyond
-    /// these dimensions.
-    pub fn not<CompT, T1, F1, T2, F2, const D: usize>(
-        &self,
-        alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
-        gamma: CompT,
-        c: &mut Tensor<T2, F2, impl GpuBuffer<T2>, D>,
-    ) -> Result<(), CudnnError>
-    where
-        CompT: DataType + SupportedOp<T1, T1, T2>,
-        T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
-        T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
-    {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
-
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
-
-        let not_op_desc =
-            OpTensorDescriptor::<CompT>::new(OpTensorOp::Not, NanPropagation::PropagateNaN)?;
-
-        unsafe {
-            // The second tensor and the second scaling factors here are ignored.
-            // We use the left operand twice to make cuDNN happy, as it won't accept a null pointer.
-            sys::cudnnOpTensor(
-                self.raw,
-                not_op_desc.raw,
-                &alpha as *const CompT as *const std::ffi::c_void,
-                a_desc.raw,
-                a_data as *const std::ffi::c_void,
-                &alpha as *const CompT as *const std::ffi::c_void,
-                a_desc.raw,
-                a_data as *const std::ffi::c_void,
-                &gamma as *const CompT as *const std::ffi::c_void,
-                c_desc.raw,
-                c_data as *mut std::ffi::c_void,
-            )
-            .into_result()
+            Ok(DropoutDescriptor::new(raw, states))
         }
     }
 
