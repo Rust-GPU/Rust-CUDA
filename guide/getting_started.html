@@ -140,7 +140,7 @@
 <p>Before you can use the project to write GPU crates, you will need a couple of prerequisites:</p>
 <ul>
 <li>
-<p><a href="https://developer.nvidia.com/cuda-downloads">The CUDA SDK</a>, version <code>11.2</code> or higher. This is only for building
+<p><a href="https://developer.nvidia.com/cuda-downloads">The CUDA SDK</a>, version <code>11.2</code> or higher (and the appropriate driver - <a href="https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html">see cuda release notes</a>) . This is only for building
 GPU crates, to execute built PTX you only need CUDA 9+.</p>
 </li>
 <li>
@@ -157,6 +157,9 @@ works on Windows however.</li>
 </li>
 <li>
 <p>You may also need to add <code>libnvvm</code> to PATH, the builder should do it for you but in case it does not work, add libnvvm to PATH, it should be somewhere like <code>CUDA_ROOT/nvvm/bin</code>,</p>
+</li>
+<li>
+<p>You may wish to use or consult the bundled <a href="#docker">Dockerfile</a> to assist in your local config</p>
 </li>
 </ul>
 <h2 id="rust-toolchain"><a class="header" href="#rust-toolchain">rust-toolchain</a></h2>
@@ -292,12 +295,26 @@ from scratch, but after the first compile, incremental will make it much faster.
 <p>There is also a <a href="Dockerfile">Dockerfile</a> prepared as a quickstart with all the necessary libraries for base cuda development.</p>
 <p>You can use it as follows (assuming your clone of Rust-CUDA is at the absolute path <code>RUST_CUDA</code>):</p>
 <ul>
+<li>Ensure you have Docker setup to <a href="https://docs.docker.com/config/containers/resource_constraints/#gpu">use gpus</a></li>
 <li>Build <code>docker build -t rust-cuda $RUST_CUDA</code></li>
-<li>Run <code>docker run -it -v $RUST_CUDA:/root/rust-cuda --entrypoint /bin/b ash rust-cuda</code></li>
+<li>Run <code>docker run -it --gpus all -v $RUST_CUDA:/root/rust-cuda --entrypoint /bin/bash rust-cuda</code>
+<ul>
+<li>Running will drop you into the container's shell and you will find the project at <code>~/rust-cuda</code></li>
 </ul>
-<p>Running will drop you into the container
-s shell and you will find the project at <code>~/rust-cuda</code></p>
-<p>Note: refer to [rust-toolchain][#rust-toolchain] to ensure you are using the correct toolchain in your project.</p>
+</li>
+<li>If all is well, you'll be able to <code>cargo run</code> in <code>~/rust-cuda/examples/cuda/cpu/add</code></li>
+</ul>
+<p><strong>Notes:</strong></p>
+<ol>
+<li>refer to <a href="#rust-toolchain">rust-toolchain</a> to ensure you are using the correct toolchain in your project.</li>
+<li>despite using Docker, your machine will still need to be running a compatible driver, in this case for Cuda 11.4.1 it is &gt;=470.57.02</li>
+<li>if you have issues within the container, it can help to start ensuring your gpu is recognized
+<ul>
+<li>ensure <code>nvidia-smi</code> provides meaningful output in the container</li>
+<li>NVidia provides a number of samples https://github.com/NVIDIA/cuda-samples. In particular, you may want to try <code>make</code>ing and running the <a href="https://github.com/NVIDIA/cuda-samples/tree/ba04faaf7328dbcc87bfc9acaf17f951ee5ddcf3/Samples/deviceQuery"><code>deviceQuery</code></a> sample. If all is well you should see many details about your gpu</li>
+</ul>
+</li>
+</ol>
 
                     </main>
 
