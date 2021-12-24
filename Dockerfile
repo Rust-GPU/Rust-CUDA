@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-cudnn8-devel-ubuntu18.04
+FROM nvidia/cuda:11.4.1-cudnn8-devel-ubuntu18.04
 
 # Update default packages
 RUN apt-get update
@@ -16,7 +16,6 @@ RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 
 
 # get prebuilt llvm
-# COPY clang+llvm-7.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz .
 RUN curl -O https://releases.llvm.org/7.0.1/clang+llvm-7.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz &&\
     xz -d /clang+llvm-7.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz &&\
     tar xf /clang+llvm-7.0.1-x86_64-linux-gnu-ubuntu-18.04.tar &&\
@@ -24,10 +23,15 @@ RUN curl -O https://releases.llvm.org/7.0.1/clang+llvm-7.0.1-x86_64-linux-gnu-ub
     mv /clang+llvm-7.0.1-x86_64-linux-gnu-ubuntu-18.04 /root/llvm
 
 # set env
-ENV LLVM_CONFIG="/root/llvm/bin/llvm-config"
-ENV CUDA_ROOT="/usr/local/cuda"
+ENV LLVM_CONFIG=/root/llvm/bin/llvm-config
+ENV CUDA_ROOT=/usr/local/cuda
 ENV CUDA_PATH=$CUDA_ROOT
 ENV LLVM_LINK_STATIC=1
 ENV RUST_LOG=info
-ENV PATH="$CUDA_ROOT/nvvm/lib64:/root/.cargo/bin:$PATH"
-ENV LD_LIBRARY_PATH=$PATH
+ENV PATH=$CUDA_ROOT/nvvm/lib64:/root/.cargo/bin:$PATH
+
+# make ld aware of necessary *.so libraries
+RUN echo $CUDA_ROOT/lib64 >> /etc/ld.so.conf &&\
+    echo $CUDA_ROOT/compat >> /etc/ld.so.conf &&\
+    echo $CUDA_ROOT/nvvm/lib64 >> /etc/ld.so.conf &&\
+    ldconfig
