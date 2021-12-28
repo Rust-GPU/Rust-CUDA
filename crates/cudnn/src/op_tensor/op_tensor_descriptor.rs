@@ -13,14 +13,16 @@ use std::{marker::PhantomData, mem::MaybeUninit};
 /// As specified in the cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#scaling-parameters),
 /// admissible types for scaling parameters are `f32` and `f64` for `f32` and `f64` tensors
 /// respectively.
-pub struct OpTensorDescriptor<T: DataType> {
+pub struct OpTensorDescriptor<T: DataType, Op: OpTensorOp> {
     pub(crate) raw: sys::cudnnOpTensorDescriptor_t,
     comp_type: PhantomData<T>,
+    op: Op,
 }
 
-impl<T> OpTensorDescriptor<T>
+impl<T, Op> OpTensorDescriptor<T, Op>
 where
     T: DataType,
+    Op: OpTensorOp,
 {
     /// Creates a tensor point-wise math descriptor.
     ///
@@ -36,35 +38,36 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{OpTensorOp, NanPropagation, OpTensorDescriptor};
+    /// use cudnn::{Add, NanPropagation, OpTensorDescriptor};
     ///
-    /// let op = OpTensorOp::Add;
+    /// let op = Add;
     /// let nan_policy = NanPropagation::PropagateNaN;
     ///
     /// // We are stating that the computation must be done in f32.
-    /// let desc = OpTensorDescriptor::<f32>::new(op, nan_policy)?;
+    /// let desc = OpTensorDescriptor::<f32, _>::new(op, nan_policy)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(op: OpTensorOp, nan_opt: NanPropagation) -> Result<Self, CudnnError> {
+    pub fn new(op: Op, nan_opt: NanPropagation) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
             sys::cudnnCreateOpTensorDescriptor(raw.as_mut_ptr()).into_result()?;
             let mut raw = raw.assume_init();
 
-            sys::cudnnSetOpTensorDescriptor(raw, op.into(), T::into_raw(), nan_opt.into())
+            sys::cudnnSetOpTensorDescriptor(raw, Op::into_raw(), T::into_raw(), nan_opt.into())
                 .into_result()?;
 
             Ok(Self {
                 raw,
                 comp_type: PhantomData,
+                op,
             })
         }
     }
 }
 
-impl<T: DataType> Drop for OpTensorDescriptor<T> {
+impl<T: DataType, Op: OpTensorOp> Drop for OpTensorDescriptor<T, Op> {
     fn drop(&mut self) {
         unsafe {
             sys::cudnnDestroyOpTensorDescriptor(self.raw);
