@@ -1,6 +1,8 @@
 use crate::sys;
 
 /// A recurrent neural network algorithm.
+///
+/// **Do note** that double precision is only supported by `RnnAlgo::AlgoStandard`.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RnnAlgo {

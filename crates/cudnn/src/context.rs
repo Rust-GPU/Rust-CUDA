@@ -12,7 +12,7 @@ use crate::{
     rnn::{RnnDataDescriptor, RnnDataLayout, RnnDataType, RnnDescriptor, RnnMode, SupportedPrec},
     sys,
     tensor::*,
-    ForwardMode,
+    ForwardMode, WGradMode,
 };
 use cust::memory::{GpuBox, GpuBuffer};
 use std::mem::{self, MaybeUninit};
@@ -1130,7 +1130,7 @@ impl CudnnContext {
     ///
     /// * `algo` - convolution algorithm that should be used to compute the result.
     ///
-    /// * `workspace` -  a buffer to GPU memory to a workspace needed to be able to execute the
+    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
     /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
     /// dimension can be obtained with [`get_convolution_forward_workspace_size`].
     ///
@@ -1164,7 +1164,7 @@ impl CudnnContext {
         w: &Filter<T2, F2, impl GpuBuffer<T2>, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
-        workspace: Option<&mut W>,
+        work_space: Option<&mut W>,
         beta: CompType,
         y: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
     ) -> Result<(), CudnnError>
@@ -1188,14 +1188,12 @@ impl CudnnContext {
         let y_data = y.data().as_device_ptr().as_raw_mut();
         let y_desc = y.descriptor();
 
-        // If the workspace size is 0 then the algorithm can work in-place and cuDNN expects a null
+        // If the _ size is 0 then the algorithm can work in-place and cuDNN expects a null
         // pointer.
-        let (workspace_ptr, workspace_size): (*mut u8, usize) = {
-            workspace
-                .as_ref()
-                .map_or((std::ptr::null_mut(), 0), |workspace| {
-                    (workspace.as_device_ptr().as_raw_mut(), workspace.len())
-                })
+        let (work_space_ptr, work_space_size): (*mut u8, usize) = {
+            work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
+                (work_space.as_device_ptr().as_raw_mut(), work_space.len())
+            })
         };
 
         unsafe {
@@ -1208,8 +1206,8 @@ impl CudnnContext {
                 w_data as *const std::ffi::c_void,
                 conv_desc.raw,
                 algo.into_raw(),
-                workspace_ptr as *mut std::ffi::c_void,
-                workspace_size,
+                work_space_ptr as *mut std::ffi::c_void,
+                work_space_size,
                 &beta as *const CompType as *const std::ffi::c_void,
                 y_desc.raw,
                 y_data as *mut std::ffi::c_void,
@@ -1238,7 +1236,7 @@ impl CudnnContext {
     ///
     /// * `algo` - convolution algorithm that should be used to compute the result.
     ///
-    /// * `workspace` -  a buffer to GPU memory to a workspace needed to be able to execute the
+    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
     /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
     /// dimension can be obtained with [`get_convolution_forward_workspace_size`].
     ///
@@ -1268,7 +1266,7 @@ impl CudnnContext {
         dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
-        workspace: Option<&mut W>,
+        work_space: Option<&mut W>,
         beta: CompType,
         dx: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
     ) -> Result<(), CudnnError>
@@ -1292,12 +1290,10 @@ impl CudnnContext {
         let dx_data = dx.data().as_device_ptr().as_raw_mut();
         let dx_desc = dx.descriptor();
 
-        let (workspace_ptr, workspace_size): (*mut u8, usize) = {
-            workspace
-                .as_ref()
-                .map_or((std::ptr::null_mut(), 0), |workspace| {
-                    (workspace.as_device_ptr().as_raw_mut(), workspace.len())
-                })
+        let (work_space_ptr, work_space_size): (*mut u8, usize) = {
+            work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
+                (work_space.as_device_ptr().as_raw_mut(), work_space.len())
+            })
         };
 
         unsafe {
@@ -1310,8 +1306,8 @@ impl CudnnContext {
                 dy_data as *const std::ffi::c_void,
                 conv_desc.raw,
                 algo.into_raw(),
-                workspace_ptr as *mut std::ffi::c_void,
-                workspace_size,
+                work_space_ptr as *mut std::ffi::c_void,
+                work_space_size,
                 &beta as *const CompType as *const std::ffi::c_void,
                 dx_desc.raw,
                 dx_data as *mut std::ffi::c_void,
@@ -1320,7 +1316,7 @@ impl CudnnContext {
         }
     }
 
-    /// This function computes the convolution weight (filter) gradient of the tensor `dy`, where
+    /// This function computes the convolution reserve (filter) gradient of the tensor `dy`, where
     /// `y` is the output of the forward convolution in `convolution_forward()`.
     ///
     /// It uses the specified `algo`, and returns the results in the output tensor `dw`. Scaling
@@ -1340,7 +1336,7 @@ impl CudnnContext {
     ///
     /// * `algo` - convolution algorithm that should be used to compute the result.
     ///
-    /// * `workspace` -  a buffer to GPU memory to a workspace needed to be able to execute the
+    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
     /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
     /// dimension can be obtained with [`get_convolution_forward_workspace_size`].
     ///
@@ -1370,7 +1366,7 @@ impl CudnnContext {
         dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
-        workspace: Option<&mut W>,
+        work_space: Option<&mut W>,
         beta: CompType,
         dw: &mut Filter<T3, F3, impl GpuBuffer<T3>, D>,
     ) -> Result<(), CudnnError>
@@ -1395,12 +1391,10 @@ impl CudnnContext {
         let dw_data = dw.data().as_device_ptr().as_raw_mut();
         let dw_desc = dw.descriptor();
 
-        let (workspace_ptr, workspace_size): (*mut u8, usize) = {
-            workspace
-                .as_ref()
-                .map_or((std::ptr::null_mut(), 0), |workspace| {
-                    (workspace.as_device_ptr().as_raw_mut(), workspace.len())
-                })
+        let (work_space_ptr, work_space_size): (*mut u8, usize) = {
+            work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
+                (work_space.as_device_ptr().as_raw_mut(), work_space.len())
+            })
         };
 
         unsafe {
@@ -1413,8 +1407,8 @@ impl CudnnContext {
                 dy_data as *const std::ffi::c_void,
                 conv_desc.raw,
                 algo.into_raw(),
-                workspace_ptr as *mut std::ffi::c_void,
-                workspace_size,
+                work_space_ptr as *mut std::ffi::c_void,
+                work_space_size,
                 &beta as *const CompType as *const std::ffi::c_void,
                 dw_desc.raw,
                 dw_data as *mut std::ffi::c_void,
@@ -1447,7 +1441,7 @@ impl CudnnContext {
     pub fn get_rnn_temp_space_sizes<T1, T2, L>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
-        mode: ForwardMode,
+        forward_mode: ForwardMode,
         x_desc: &RnnDataDescriptor<T1, L>,
     ) -> Result<(usize, Option<usize>), CudnnError>
     where
@@ -1462,7 +1456,7 @@ impl CudnnContext {
             sys::cudnnGetRNNTempSpaceSizes(
                 self.raw,
                 rnn_desc.raw,
-                mode.into(),
+                forward_mode.into(),
                 x_desc.raw,
                 workspace_size.as_mut_ptr(),
                 reserve_space_size.as_mut_ptr(),
@@ -1503,6 +1497,99 @@ impl CudnnContext {
         }
     }
 
+    /// This routine computes the forward response of the recurrent neural network described by
+    /// `rnn_desc` with inputs in `x`, `hx`, `cx`, and weights / biases in the `weight_space`
+    /// buffer. RNN outputs are written to `y`, `hy`, and `cy` buffers.
+    ///
+    /// Note that internal RNN signals between time-steps and between layers are not exposed to the
+    /// user.
+    ///
+    /// When the `forward_mode` parameter is set to `ForwardMode::Training`, this function stores
+    /// intermediate data required to compute first order derivatives in the reserve space buffer.
+    /// Work and reserve space buffer sizes should be computed by the `get_rnn_temp_space_sizes`
+    /// function with the same `forward_mode` setting as used in the `rnn_forward()` call.
+    ///
+    /// The same layout type must be specified in `x_desc` and `y_desc` descriptors. The same
+    /// sequence lengths must be configured in `x_desc`, `y_desc` and in the device array
+    /// `device_seq_lengths`. The `rnn_forward()` function does not verify that sequence lengths
+    /// stored in `device_seq_lengths` in GPU memory are the same as in `x_desc` and `y_desc`
+    /// descriptors in CPU memory.
+    ///
+    /// Sequence length arrays from `x_desc` and `y_desc` descriptors are checked for consistency,
+    /// however.
+    ///
+    /// # Arguments
+    ///
+    /// * `rnn_desc` - a RNN descriptor.
+    ///
+    /// * `forward_mode` - specifies inference or training mode. In the training mode, additional
+    /// data is stored in the reserve space buffer. This information is used in the backward pass
+    /// to compute derivatives.
+    ///
+    /// * `device_seq_lengths` - a copy of `seq_lengths` from `x_desc` or `y_desc` RNN data
+    /// descriptors. The `device_seq_lengths`  must be stored in GPU memory as it is accessed
+    /// asynchronously by GPU kernels, possibly after the `rnn_forward()` function exists.
+    ///
+    /// * `x_desc` -  a descriptor corresponding to the RNN model primary input.
+    ///
+    /// * `x` - GPU memory associated with the RNN data descriptor `x_desc`.
+    ///
+    /// * `y_desc` - a RNN data descriptor. The data type, layout, maximum sequence length, batch
+    /// size, and sequence lengths array must match that of `x_desc`. The parameter `vector_size` of
+    /// `y_desc`  depends on whether LSTM projection is enabled (only for LSTM) and whether the
+    /// network is bidirectional. Specifically: for unidirectional models, the parameter
+    /// `vector_size` must match the `hidden_size` argument passed to the RNN descriptor
+    /// constructor. If the LSTM projection is enabled, the `vector_size` must be the same as the
+    /// `projection_size` argument passed to the RNN descriptor constructor. For bidirectional
+    /// models, if the RNN `cell_mode` is `RnnMode::Lstm` and the projection feature is enabled,
+    /// the parameter `vector_size` must be double the `projection_size` argument passed to the
+    /// RNN descriptor constructor. Otherwise, it should be double the `hidden_size` value.
+    ///
+    /// * `y` - GPU memory associated with the RNN data descriptor `y_desc`.
+    ///
+    /// * `h_desc` - tensor descriptor describing the initial or final hidden state of RNN. The
+    /// first dimension of the tensor depends on the `dir_mode` argument passed to the descriptor
+    /// constructor function. If `dir_mode` is `RnnDirectionMode::Unidirectional`, then the first
+    /// dimension should match the `num_layers` argument passed to the RNN descriptor constructor.
+    /// If `dir_mode` is `RnnDirectionMode::Bidirectional`, then the first dimension should
+    /// match double the `num_layers` argument passed to the RNN descriptor constructor.
+    /// The second dimension must match the `bath_size` parameter described in `x_desc`. The third
+    /// dimension depends on whether RNN mode is `RnnMode::Lstm` and whether the LSTM projection is
+    /// enabled. Specifically: if RNN mode is `RnnMode::Lstm` and LSTM projection is enabled, the
+    /// third dimension must match the `projection_size` argument passed to the RNN descriptor
+    /// constructor. Otherwise, the third dimension must match the `hidden_size` argument passed
+    /// to the RNN descriptor constructor.
+    ///
+    /// * `hx` - GPU buffer with the RNN initial hidden state. Data dimensions are described by the
+    /// `h_desc` tensor descriptor. If `None` is passed, the initial hidden state of the network
+    /// will be initialized to zero.
+    ///
+    /// * `hy` - GPU buffer where the final RNN hidden state should be stored. Data dimensions are
+    /// described by the `h_desc` tensor descriptor. If `None` is passed, the final hidden state of
+    /// the network will not be saved.
+    ///
+    /// * `c_desc` - for LSTM networks only. A tensor descriptor describing the initial or final
+    /// cell state for LSTM networks only. The first dimension of the tensor depends on the
+    /// `dir_mode` argument passed to the RNN descriptor constructor call.
+    ///
+    /// * `cx` -  For LSTM networks only. GPU buffer with the initial LSTM state data. Data
+    /// dimensions are described by the `c_desc` tensor descriptor. If `None` is passed, the
+    /// initial cell state of the network will be initialized to zero.
+    ///
+    /// * `cy` - For LSTM networks only. GPU buffer where final LSTM state data should be stored.
+    /// Data dimensions are described by the `c_desc` tensor descriptor. If `None` is passed, the
+    /// final LSTM cell state will not be saved.
+    ///
+    /// * `weight_space` - weight space buffer in GPU memory.
+    ///
+    /// * `work_space` - buffer in GPU memory to store temporary data.
+    ///
+    /// * `reserve_space` - reserve-space buffer in GPU memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors is an unsupported arguments combination is detected or if the supplied
+    /// buffers are too small.
     pub fn rnn_forward<T1, T2, L>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -1513,13 +1600,212 @@ impl CudnnContext {
         y_desc: &RnnDataDescriptor<T1, L>,
         y: &impl GpuBuffer<T1>,
         h_desc: &TensorDescriptor<T1, NCHW, 3>,
-        hx: &impl GpuBuffer<T1>,
-        hy: &mut impl GpuBuffer<T1>,
+        hx: Option<&impl GpuBuffer<T1>>,
+        hy: Option<&mut impl GpuBuffer<T1>>,
         c_desc: Option<&TensorDescriptor<T1, NCHW, 3>>,
         cx: Option<&impl GpuBuffer<T1>>,
         cy: Option<&mut impl GpuBuffer<T1>>,
-        work_space: &mut impl GpuBuffer<u8>,
         weight_space: &mut impl GpuBuffer<u8>,
+        work_space: &mut impl GpuBuffer<u8>,
+        reserve_space: Option<&mut impl GpuBuffer<u8>>,
+    ) -> Result<(), CudnnError>
+    where
+        T1: DataType + RnnDataType,
+        T2: DataType + SupportedPrec<T1>,
+        L: RnnDataLayout,
+        NCHW: SupportedType<T1>,
+    {
+        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_raw();
+
+        let x_ptr = x.as_device_ptr().as_raw();
+        let y_ptr = y.as_device_ptr().as_raw_mut();
+
+        let hx_ptr = hx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let hy_ptr = hy.map_or(std::ptr::null_mut(), |buff| {
+            buff.as_device_ptr().as_raw_mut()
+        });
+
+        let c_desc = c_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
+
+        let cx_ptr = cx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let cy_ptr = cy.map_or(std::ptr::null_mut(), |buff| {
+            buff.as_device_ptr().as_raw_mut()
+        });
+
+        let weight_space_ptr = weight_space.as_device_ptr().as_raw_mut();
+        let work_space_ptr = work_space.as_device_ptr().as_raw_mut();
+        let (reserve_space_ptr, reserve_space_size) = reserve_space
+            .map_or((std::ptr::null_mut(), 0), |buff| {
+                (buff.as_device_ptr().as_raw_mut(), buff.len())
+            });
+
+        unsafe {
+            sys::cudnnRNNForward(
+                self.raw,
+                rnn_desc.raw,
+                forward_mode.into(),
+                device_sequence_lengths_ptr,
+                x_desc.raw,
+                x_ptr as *const std::ffi::c_void,
+                y_desc.raw,
+                y_ptr as *mut std::ffi::c_void,
+                h_desc.raw,
+                hx_ptr as *const std::ffi::c_void,
+                hy_ptr as *mut std::ffi::c_void,
+                c_desc,
+                cx_ptr as *const std::ffi::c_void,
+                cy_ptr as *mut std::ffi::c_void,
+                weight_space.len(),
+                weight_space_ptr as *const std::ffi::c_void,
+                work_space.len(),
+                work_space_ptr as *mut std::ffi::c_void,
+                reserve_space_size,
+                reserve_space_ptr as *mut std::ffi::c_void,
+            )
+            .into_result()
+        }
+    }
+
+    /// This function computes exact, first-order derivatives of the RNN model with respect to its
+    /// inputs: `x`, `hx` and for the LSTM cell type also `cx`.
+    ///
+    /// The following buffers should contain to the same data as in the preceding `rnn_forward()`
+    /// call: `y`, the initial hidden state `hx`, and the initial cell state `cx` (for LSTM only).
+    ///
+    /// This function accepts any combination of `dhy`, `dhx`, `dcy`, `dcx` being `None`; when
+    /// `dhy` or `dcy` are `None`, it is assumed that those inputs are zero. When `dhx` or `dcx` are
+    /// `None` then the corresponding results are not written by this function.
+    ///
+    /// When all `hx`, `dhy`, `dhx` are `None`, then the corresponding tensor descriptor `h_desc`
+    /// can be `None` too. The same rule applies to the `cx`, `dcy`, `dcx` pointers and the `c_desc`
+    /// tensor descriptor.
+    ///
+    /// This function allows the user to use padded layouts for inputs `y`, `dy`, and output `dx`.
+    /// In padded or unpacked layouts (`RnnDataLayout::SeqMajorUnpacked`,
+    /// `RnnDataLayout::BatchMajorUnpacked`) each sequence of vectors in a mini-batch has a fixed
+    /// length defined by the `max_seq_length` argument in the `RnnDataDescriptor` constructor
+    /// function. The term *"unpacked"* refers here to the presence of padding vectors. Each padded,
+    /// fixed-length sequence starts from a segment of valid vectors. The valid vector count is
+    /// stored in `seq_lengths`, such that 0 < `seq_lengths[i]` <= `max_seq_length` for all
+    /// sequences in a mini-batch, i.e., for i in 0..`batch_size` - 1. The remaining padding vectors
+    /// make the combined sequence length equal to `max_seq_length`. Both sequence-major and
+    /// batch-major padded layouts are supported.
+    ///
+    /// In addition, a packed sequence-major layout: `RnnDataLayout::SeqMajorPacked` can be selected
+    /// by the user. In the latter layout, sequences of vectors in a mini-batch are sorted in the
+    /// descending order according to the sequence lengths. First, all vectors for time step zero
+    /// are stored. They are followed by vectors for time step one, and so on. This layout uses no
+    /// padding vectors.
+    ///
+    /// **Do note** that the same layout type must be specified in `x_desc` and `y_desc`
+    /// descriptors.
+    ///
+    /// Two host arrays named `seq_lengths` in `x_desc` and `y_desc` RNN data descriptors must be
+    /// the same. In addition, a copy of `seq_lengths` in the device memory must be passed via the
+    /// `device_seq_lengths` argument. This array is supplied directly to GPU kernels. This function
+    /// does not verify that sequence lengths stored in `device_seq_lengths` in GPU memory are the
+    /// same as in `x_desc` and `y_desc` descriptors in CPU memory.
+    ///
+    /// Sequence length arrays from `x_desc` and `y_desc` descriptors are checked for consistency,
+    /// however.
+    ///
+    /// This function must be called after `rnn_forward()`. The latter function should be invoked
+    /// with the `forward_mode` argument of type `ForwardMode::Training`.
+    ///
+    /// # Arguments
+    ///
+    /// * `rnn_desc` - RNN descriptor.
+    ///
+    /// * `device_seq_lengths` -  a copy of `seq_lengths` from `x_desc` or `y_desc` RNN data
+    /// descriptors. The `device_seq_lengths` array must be stored in GPU memory as it is accessed
+    /// asynchronously by GPU kernels, possibly after this function exists.
+    ///
+    /// * `y_desc` - previously initialized descriptor corresponding to the RNN model primary
+    /// output. The data type, layout, `max_seq_length`, `batch_size`, and `seq_lengths` need to
+    /// match that of `x_desc`.
+    ///
+    /// * `y` - GPU buffer holding the model's primary output.
+    ///
+    /// * `dy` - GPU buffer holding the gradient of the loss w.r.t. `y`. The `y` output should be
+    /// produced by the preceding `rnn_forward()` call. The `y` and `dy` vectors are expected to
+    /// be laid out in memory according to the layout specified by `y_desc`.
+    ///
+    /// * `x_desc` - RNN data descriptor corresponding to the gradient of the loss function with
+    /// respect to the RNN primary model input.
+    ///
+    /// * `x` -  GPU buffer where back-propagated gradients of the loss function with respect to the
+    /// RNN primary input x should be stored.
+    ///
+    /// * `h_desc` - tensor descriptor describing the initial or final hidden state of RNN. The
+    /// first dimension of the tensor depends on the `dir_mode` argument passed to the descriptor
+    /// constructor function. If `dir_mode` is `RnnDirectionMode::Unidirectional`, then the first
+    /// dimension should match the `num_layers` argument passed to the RNN descriptor constructor.
+    /// If `dir_mode` is `RnnDirectionMode::Bidirectional`, then the first dimension should
+    /// match double the `num_layers` argument passed to the RNN descriptor constructor.
+    /// The second dimension must match the `bath_size` parameter described in `x_desc`. The third
+    /// dimension depends on whether RNN mode is `RnnMode::Lstm` and whether the LSTM projection is
+    /// enabled. Specifically: if RNN mode is `RnnMode::Lstm` and LSTM projection is enabled, the
+    /// third dimension must match the `projection_size` argument passed to the RNN descriptor
+    /// constructor. Otherwise, the third dimension must match the `hidden_size` argument passed
+    /// to the RNN descriptor constructor.
+    ///
+    /// * `hx` - GPU buffer with the RNN initial hidden state. Data dimensions are described by the
+    /// `h_desc` tensor descriptor. If `None` is passed in `hx` the corresponding buffer is assumed
+    /// to contain all zeros.
+    ///
+    /// * `dhy` - GPU buffer with the RNN gradient deltas for the hidden state. Data dimensions are
+    /// described by the `h_desc` tensor descriptor. If `None` is passed in `dhy` the corresponding
+    /// buffer is assumed to contain all zeros.
+    ///
+    /// * `dhx` -  GPU buffer where first-order derivatives corresponding to initial hidden state
+    /// variables should be stored. Data dimensions are described by the `h_desc` tensor descriptor.
+    /// If `None`  is passed as `dhx`, the back-propagated derivatives are not saved.
+    ///
+    /// * `c_desc` - for LSTM networks only. A tensor descriptor describing the initial or final
+    /// cell state for LSTM networks only. The first dimension of the tensor depends on the
+    /// `dir_mode` argument passed to the RNN descriptor constructor call.
+    ///
+    /// * `cx` -  For LSTM networks only. GPU buffer with the initial LSTM state data. Data
+    /// dimensions are described by the `c_desc` tensor descriptor. If `None` is passed, the
+    /// initial cell state of the network is assumed to contain all zeros.
+    ///
+    /// * `dcy` -  For LSTM networks only. GPU buffer with the gradient deltas for the LSTM state.
+    /// Data  dimensions are described by the `c_desc` tensor descriptor. If `None` is passed, the
+    /// buffer is assumed to contain all zeros.
+    ///
+    /// * `dcx` -  For LSTM networks only. GPU buffer where first-order derivatives corresponding to
+    /// initial LSTM state variables should be stored. Data dimensions are described by the `c_desc`
+    /// tensor descriptor. If `None` is assigned to `dcx`, the back-propagated derivatives are not
+    /// saved.
+    ///
+    /// * `weight_space` - weight space buffer in GPU memory.
+    ///
+    /// * `work_space` - workspace buffer in GPU memory to store temporary data.
+    ///
+    /// * `reserve_space` - reserve-space buffer in GPU memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors if an invalid or incompatible input argument was encountered.
+    pub fn rnn_backward_data<T1, T2, L>(
+        &self,
+        rnn_desc: &RnnDescriptor<T1, T2>,
+        device_seq_lengths: &impl GpuBuffer<i32>,
+        y_desc: &RnnDataDescriptor<T1, L>,
+        y: &impl GpuBuffer<T1>,
+        dy: &impl GpuBuffer<T1>,
+        x_desc: &RnnDataDescriptor<T1, L>,
+        dx: &mut impl GpuBuffer<T1>,
+        h_desc: Option<&TensorDescriptor<T1, NCHW, 3>>,
+        hx: Option<&impl GpuBuffer<T1>>,
+        dhy: Option<&impl GpuBuffer<T1>>,
+        dhx: Option<&mut impl GpuBuffer<T1>>,
+        c_desc: Option<&TensorDescriptor<T1, NCHW, 3>>,
+        cx: Option<&impl GpuBuffer<T1>>,
+        dcy: Option<&impl GpuBuffer<T1>>,
+        dcx: Option<&mut impl GpuBuffer<T1>>,
+        weight_space: &mut impl GpuBuffer<u8>,
+        work_space: &mut impl GpuBuffer<u8>,
         reserve_space: &mut impl GpuBuffer<u8>,
     ) -> Result<(), CudnnError>
     where
@@ -1528,7 +1814,170 @@ impl CudnnContext {
         L: RnnDataLayout,
         NCHW: SupportedType<T1>,
     {
-        todo!()
+        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_raw();
+
+        let y_ptr = y.as_device_ptr().as_raw();
+        let dy_ptr = dy.as_device_ptr().as_raw();
+
+        let dx_ptr = dx.as_device_ptr().as_raw_mut();
+
+        let h_desc = h_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
+
+        let hx_ptr = hx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let dhy_ptr = dhy.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let dhx_ptr = dhx.map_or(std::ptr::null_mut(), |buff| {
+            buff.as_device_ptr().as_raw_mut()
+        });
+
+        let c_desc = c_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
+
+        let cx_ptr = cx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let dcy_ptr = dcy.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let dcx_ptr = dcx.map_or(std::ptr::null_mut(), |buff| {
+            buff.as_device_ptr().as_raw_mut()
+        });
+
+        let weight_space_ptr = weight_space.as_device_ptr().as_raw_mut();
+        let work_space_ptr = work_space.as_device_ptr().as_raw_mut();
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
+
+        unsafe {
+            sys::cudnnRNNBackwardData_v8(
+                self.raw,
+                rnn_desc.raw,
+                device_sequence_lengths_ptr,
+                y_desc.raw,
+                y_ptr as *const std::ffi::c_void,
+                dy_ptr as *const std::ffi::c_void,
+                x_desc.raw,
+                dx_ptr as *mut std::ffi::c_void,
+                h_desc,
+                hx_ptr as *const std::ffi::c_void,
+                dhy_ptr as *const std::ffi::c_void,
+                dhx_ptr as *mut std::ffi::c_void,
+                c_desc,
+                cx_ptr as *const std::ffi::c_void,
+                dcy_ptr as *const std::ffi::c_void,
+                dcx_ptr as *mut std::ffi::c_void,
+                weight_space.len(),
+                weight_space_ptr as *mut std::ffi::c_void,
+                work_space.len(),
+                work_space_ptr as *mut std::ffi::c_void,
+                reserve_space.len(),
+                reserve_space_ptr as *mut std::ffi::c_void,
+            )
+            .into_result()
+        }
+    }
+
+    /// This function computes exact, first-order derivatives of the RNN model with respect to all
+    /// trainable parameters: weights and biases.
+    ///
+    /// This function should ne called after `rnn_forward()`.
+    ///
+    /// Gradient of the loss function with respect to weights and biases is typically computed over
+    /// multiple mini-batches. In such a case, partial results computed for each mini-batch should
+    /// be aggregated. The `add_grad` argument specifies if gradients from the current mini-batch
+    /// should be added to previously computed results (`WGradMode::Add`) or the `dweight_space`
+    /// buffer should be overwritten with the new results (`WGradMode::Set`).
+    ///
+    /// All gradient results with respect to weights and biases are written to the `d_weight_space`
+    /// buffer. The size and the organization of the `d_weight_space` buffer is the same as the
+    /// `weight_space` buffer that holds RNN weights and biases.
+    ///
+    /// **Do note that** currently, this function supports the `WGradMode::Add` mode only so the
+    /// `d_weight_space` buffer should be zeroed by the user before invoking the routine for the
+    /// first time. The same sequence lengths must be specified in the `x_desc` descriptor and in
+    /// the device array `device_seq_lengths`.
+    ///
+    /// # Arguments
+    ///
+    /// * `rnn_desc` - RNN descriptor.
+    ///
+    /// * `add_grad` -  weight gradient output mode. Only `WGradMode::Add` is supported.
+    ///
+    /// * `device_seq_lengths` -  a copy of `seq_lengths` from `x_desc` or `y_desc` RNN data
+    /// descriptors. The `device_seq_lengths` array must be stored in GPU memory as it is accessed
+    /// asynchronously by GPU kernels, possibly after this function exists.
+    ///
+    /// * `x_desc` -  a descriptor corresponding to the RNN model primary input.
+    ///
+    /// * `x` - GPU memory associated with the RNN data descriptor `x_desc`.
+    ///
+    /// * `h_desc` - a tensor descriptor describing the initial RNN hidden state. This is the same
+    /// tensor descriptor as used in prior `rnn_forward()` and `rnn_backward_data()` calls.
+    ///
+    /// * `hx` -  GPU buffer with the RNN initial hidden state. The same buffer `hx` should be
+    /// provided in prior `rnn_forward()` and `rnn_backward_data()` calls.
+    ///
+    /// * `y_desc` - previously initialized descriptor corresponding to the RNN model primary
+    /// output. The data type, layout, `max_seq_length`, `batch_size`, and `seq_lengths` need to
+    /// match that of `x_desc`. This is the same RNN data descriptor as used in prior
+    /// `rnn_forward()` and `rnn_backward_data()` calls.
+    ///
+    /// * `y` - GPU buffer holding the model's primary output.
+    ///
+    /// * `dweight_space` - weights gradient space buffer in GPU memory.
+    ///
+    /// * `work_space` - workspace buffer in GPU memory to store temporary data.
+    ///
+    /// * `reserve_space` - reserve-space buffer in GPU memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors if an invalid or incompatible input argument combinations was encountered.
+    pub fn rnn_backward_weights<T1, T2, L>(
+        &self,
+        rnn_desc: &RnnDescriptor<T1, T2>,
+        add_grad: WGradMode,
+        device_seq_lengths: &impl GpuBuffer<i32>,
+        x_desc: &RnnDataDescriptor<T1, L>,
+        x: &impl GpuBuffer<T1>,
+        h_desc: &TensorDescriptor<T1, NCHW, 3>,
+        hx: &impl GpuBuffer<T1>,
+        y_desc: &RnnDataDescriptor<T1, L>,
+        y: &impl GpuBuffer<T1>,
+        dweight_space: &mut impl GpuBuffer<u8>,
+        work_space: &mut impl GpuBuffer<u8>,
+        reserve_space: &mut impl GpuBuffer<u8>,
+    ) -> Result<(), CudnnError>
+    where
+        T1: DataType + RnnDataType,
+        T2: DataType + SupportedPrec<T1>,
+        L: RnnDataLayout,
+        NCHW: SupportedType<T1>,
+    {
+        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_raw();
+
+        let x_ptr = x.as_device_ptr().as_raw();
+        let hx_ptr = x.as_device_ptr().as_raw();
+        let y_ptr = y.as_device_ptr().as_raw();
+
+        let dweight_space_ptr = dweight_space.as_device_ptr().as_raw_mut();
+        let work_space_ptr = work_space.as_device_ptr().as_raw_mut();
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
+
+        unsafe {
+            sys::cudnnRNNBackwardWeights_v8(
+                self.raw,
+                rnn_desc.raw,
+                add_grad.into(),
+                device_sequence_lengths_ptr,
+                x_desc.raw,
+                x_ptr as *const std::ffi::c_void,
+                h_desc.raw,
+                hx_ptr as *const std::ffi::c_void,
+                y_desc.raw,
+                y_ptr as *const std::ffi::c_void,
+                work_space.len(),
+                work_space_ptr as *mut std::ffi::c_void,
+                dweight_space.len(),
+                dweight_space_ptr as *mut std::ffi::c_void,
+                reserve_space.len(),
+                reserve_space_ptr as *mut std::ffi::c_void,
+            )
+            .into_result()
+        }
     }
 }
 

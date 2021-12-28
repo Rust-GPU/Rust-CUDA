@@ -120,7 +120,7 @@ where
     /// let hidden_size = 25;
     /// let projection_size = 10;
     /// let num_layers = 3;
-    /// let dropout_desc: Option<DropoutDescriptor<DeviceBuffer<u8>>> = None;
+    /// let dropout_desc: Option<&DropoutDescriptor<DeviceBuffer<u8>>> = None;
     /// let aux_flags = RnnAuxFlags::PADDED_IO_ENABLED;
     ///
     /// let rnn_desc = RnnDescriptor::<f32, f32>::new(
@@ -134,7 +134,7 @@ where
     ///     hidden_size,
     ///     projection_size,
     ///     num_layers,
-    ///     &dropout_desc,
+    ///     dropout_desc,
     ///     aux_flags,
     /// )?;
     /// # Ok(())
@@ -151,7 +151,7 @@ where
         hidden_size: i32,
         projection_size: impl Into<Option<i32>>,
         num_layers: i32,
-        dropout_desc: &Option<DropoutDescriptor<S>>,
+        dropout_desc: Option<&DropoutDescriptor<S>>,
         aux_flags: RnnAuxFlags,
     ) -> Result<Self, CudnnError>
     where
@@ -165,9 +165,7 @@ where
             let mut raw = raw.assume_init();
 
             let proj_size = projection_size.into().unwrap_or(0);
-            let dropout_desc = dropout_desc
-                .as_ref()
-                .map_or(std::ptr::null_mut(), |desc| desc.raw);
+            let dropout_desc = dropout_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
 
             sys::cudnnSetRNNDescriptor_v8(
                 raw,
@@ -214,10 +212,13 @@ where
     ///
     /// * `right_clip` - right bound of the clipping range.
     ///
+    /// **Do note** that cell clipping is only available if the cell mode associated to this
+    /// descriptor is `RnnMode::Lstm`.
+    ///
     /// # Errors
     ///
     /// Returns errors if either `left_clip` or `right_clip` is NaN or if `right_clip` <
-    /// `left_clip`.
+    /// `left_clip` or if the associated cell mode is not `RnnMode::Lstm`.
     pub fn set_clip(
         &mut self,
         clip_mode: RnnClipMode,
