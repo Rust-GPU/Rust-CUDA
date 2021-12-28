@@ -9,8 +9,10 @@ use crate::{
     error::{CudnnError, IntoResult},
     nan_propagation::*,
     op_tensor::*,
+    rnn::{RnnDataDescriptor, RnnDataLayout, RnnDataType, RnnDescriptor, RnnMode, SupportedPrec},
     sys,
     tensor::*,
+    ForwardMode,
 };
 use cust::memory::{GpuBox, GpuBuffer};
 use std::mem::{self, MaybeUninit};
@@ -1162,7 +1164,7 @@ impl CudnnContext {
         w: &Filter<T2, F2, impl GpuBuffer<T2>, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
-        workspace: &Option<W>,
+        workspace: Option<&mut W>,
         beta: CompType,
         y: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
     ) -> Result<(), CudnnError>
@@ -1266,7 +1268,7 @@ impl CudnnContext {
         dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
-        workspace: &Option<W>,
+        workspace: Option<&mut W>,
         beta: CompType,
         dx: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
     ) -> Result<(), CudnnError>
@@ -1368,7 +1370,7 @@ impl CudnnContext {
         dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
-        workspace: &Option<W>,
+        workspace: Option<&mut W>,
         beta: CompType,
         dw: &mut Filter<T3, F3, impl GpuBuffer<T3>, D>,
     ) -> Result<(), CudnnError>
@@ -1419,6 +1421,114 @@ impl CudnnContext {
             )
             .into_result()
         }
+    }
+
+    /// Computes the work and reserve space buffer sizes based on the RNN network geometry stored
+    /// in `rnn_desc`, designated usage (inference or training) defined by the `mode` argument, and
+    /// the current RNN data dimensions are retrieved from `x_desc`.
+    ///
+    /// When RNN data dimensions change, this function must be called again because the RNN
+    /// temporary buffer sizes are not monotonic.
+    ///
+    /// # Arguments
+    ///
+    /// * `rnn_desc` - a RNN descriptor.
+    ///
+    /// * `mode` - specifies whether the temporary buffers are used in inference or training mode.
+    /// The reserve-space buffer is not used during inference. Therefore, the returned size of the
+    /// reserve space buffer will be `None` when the `mode` argument is `ForwardMode::Inference`.
+    ///
+    /// * `x_desc` - a RNN data descriptor.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error is an incompatible or unsupported combination of input arguments was
+    /// detected.
+    pub fn get_rnn_temp_space_sizes<T1, T2, L>(
+        &self,
+        rnn_desc: &RnnDescriptor<T1, T2>,
+        mode: ForwardMode,
+        x_desc: &RnnDataDescriptor<T1, L>,
+    ) -> Result<(usize, Option<usize>), CudnnError>
+    where
+        T1: DataType + RnnDataType,
+        T2: DataType + SupportedPrec<T1>,
+        L: RnnDataLayout,
+    {
+        let mut workspace_size = MaybeUninit::uninit();
+        let mut reserve_space_size = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetRNNTempSpaceSizes(
+                self.raw,
+                rnn_desc.raw,
+                mode.into(),
+                x_desc.raw,
+                workspace_size.as_mut_ptr(),
+                reserve_space_size.as_mut_ptr(),
+            )
+            .into_result()?;
+
+            Ok((
+                workspace_size.assume_init(),
+                match reserve_space_size.assume_init() {
+                    0 => None,
+                    size @ _ => Some(size),
+                },
+            ))
+        }
+    }
+
+    /// This function returns the required size of the weight space buffer in bytes.
+    /// The weight space buffer holds all RNN weight matrices and bias vectors.
+    ///
+    /// # Arguments
+    ///
+    /// `rnn_desc` - an RNN descriptor.
+    pub fn get_rnn_weight_space_size<T1, T2>(
+        &self,
+        rnn_desc: &RnnDescriptor<T1, T2>,
+    ) -> Result<usize, CudnnError>
+    where
+        T1: DataType + RnnDataType,
+        T2: DataType + SupportedPrec<T1>,
+    {
+        let mut size = MaybeUninit::uninit();
+
+        unsafe {
+            sys::cudnnGetRNNWeightSpaceSize(self.raw, rnn_desc.raw, size.as_mut_ptr())
+                .into_result()?;
+
+            Ok(size.assume_init())
+        }
+    }
+
+    pub fn rnn_forward<T1, T2, L>(
+        &self,
+        rnn_desc: &RnnDescriptor<T1, T2>,
+        forward_mode: ForwardMode,
+        device_seq_lengths: &impl GpuBuffer<i32>,
+        x_desc: &RnnDataDescriptor<T1, L>,
+        x: &impl GpuBuffer<T1>,
+        y_desc: &RnnDataDescriptor<T1, L>,
+        y: &impl GpuBuffer<T1>,
+        h_desc: &TensorDescriptor<T1, NCHW, 3>,
+        hx: &impl GpuBuffer<T1>,
+        hy: &mut impl GpuBuffer<T1>,
+        c_desc: Option<&TensorDescriptor<T1, NCHW, 3>>,
+        cx: Option<&impl GpuBuffer<T1>>,
+        cy: Option<&mut impl GpuBuffer<T1>>,
+        work_space: &mut impl GpuBuffer<u8>,
+        weight_space: &mut impl GpuBuffer<u8>,
+        reserve_space: &mut impl GpuBuffer<u8>,
+    ) -> Result<(), CudnnError>
+    where
+        T1: DataType + RnnDataType,
+        T2: DataType + SupportedPrec<T1>,
+        L: RnnDataLayout,
+        NCHW: SupportedType<T1>,
+    {
+        todo!()
     }
 }
 

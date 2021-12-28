@@ -1,5 +1,6 @@
 mod rnn_algo;
 mod rnn_bias_mode;
+mod rnn_clip_mode;
 mod rnn_data_descriptor;
 mod rnn_data_layout;
 mod rnn_descriptor;
@@ -9,6 +10,7 @@ mod rnn_mode;
 
 pub use rnn_algo::*;
 pub use rnn_bias_mode::*;
+pub use rnn_clip_mode::*;
 pub use rnn_data_descriptor::*;
 pub use rnn_data_layout::*;
 pub use rnn_descriptor::*;

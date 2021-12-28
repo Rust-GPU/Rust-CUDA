@@ -1,8 +1,8 @@
 use crate::{
     data_type::DataType,
     error::{CudnnError, IntoResult},
-    sys, DropoutDescriptor, MathType, RnnAlgo, RnnBiasMode, RnnDirectionMode, RnnInputMode,
-    RnnMode,
+    sys, DropoutDescriptor, MathType, NanPropagation, RnnAlgo, RnnBiasMode, RnnClipMode,
+    RnnDirectionMode, RnnInputMode, RnnMode,
 };
 use cust::memory::GpuBuffer;
 use std::{marker::PhantomData, mem::MaybeUninit};
@@ -21,15 +21,15 @@ bitflags::bitflags! {
 
 /// A description of an recurrent neural network operation.
 ///
-/// This descriptor is generic over the data type of the parameters and the data type of the
-/// computation respectively.
+/// This descriptor is generic over the data type of the parameters and the inputs, and the one of
+/// the computation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RnnDescriptor<T, U>
 where
     T: DataType,
     U: DataType + SupportedPrec<T>,
 {
-    raw: sys::cudnnRNNDescriptor_t,
+    pub(crate) raw: sys::cudnnRNNDescriptor_t,
     data_type: PhantomData<T>,
     math_prec: PhantomData<U>,
 }
@@ -193,6 +193,47 @@ where
                 data_type: PhantomData,
                 math_prec: PhantomData,
             })
+        }
+    }
+
+    /// Sets the LSTM cell clipping mode. The LSTM clipping is disabled by default. When enabled,
+    /// clipping is applied to all layers. This function does not affect the work, reserve, and
+    /// weight-space buffer sizes and may be called multiple times.
+    ///
+    /// # Arguments
+    ///
+    /// * `clip_mode` - enables or disables the LSTM cell clipping. When `clip_mode` is set to
+    /// `RnnClipMode::ClipNone` no LSTM cell state clipping is performed. When `clip_mode` is
+    /// `RnnClipMode::ClipMinMax` the cell state activation to other units is clipped.
+    ///
+    /// * `nan_opt` - when set to `NanPropagation::PropagateNan`, NaN is propagated from the
+    /// LSTM cell, or it can be set to one of the clipping range boundary values, instead of
+    /// propagating.
+    ///
+    /// * `left_clip` - left bound of the clipping range.
+    ///
+    /// * `right_clip` - right bound of the clipping range.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors if either `left_clip` or `right_clip` is NaN or if `right_clip` <
+    /// `left_clip`.
+    pub fn set_clip(
+        &mut self,
+        clip_mode: RnnClipMode,
+        nan_opt: NanPropagation,
+        left_clip: f64,
+        right_clip: f64,
+    ) -> Result<(), CudnnError> {
+        unsafe {
+            sys::cudnnRNNSetClip_v8(
+                self.raw,
+                clip_mode.into(),
+                nan_opt.into(),
+                left_clip,
+                right_clip,
+            )
+            .into_result()
         }
     }
 }

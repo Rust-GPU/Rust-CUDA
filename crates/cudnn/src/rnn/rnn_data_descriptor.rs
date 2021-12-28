@@ -4,6 +4,7 @@ use crate::{
 };
 use std::{marker::PhantomData, mem::MaybeUninit};
 
+/// Specifies the allowed types for the recurrent neural network inputs and outputs.
 pub trait RnnDataType: DataType {}
 
 impl RnnDataType for f32 {}
@@ -14,7 +15,7 @@ where
     T: DataType + RnnDataType,
     L: RnnDataLayout,
 {
-    raw: sys::cudnnRNNDataDescriptor_t,
+    pub(crate) raw: sys::cudnnRNNDataDescriptor_t,
     data_type: PhantomData<T>,
     layout: L,
 }
