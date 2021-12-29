@@ -30,6 +30,7 @@ use rustc_target::spec::{HasTargetSpec, Target};
 use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
 use std::hash::BuildHasherDefault;
+use std::os::raw::c_char;
 use std::ptr::null;
 use std::str::FromStr;
 use tracing::{debug, trace};
@@ -177,7 +178,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         self.fatal(&format!("{} is unsupported", thing))
     }
 
-    fn create_used_variable_impl(&self, name: *const i8, values: &[&'ll Value]) {
+    fn create_used_variable_impl(&self, name: *const c_char, values: &[&'ll Value]) {
         let section = "llvm.metadata\0".as_ptr().cast();
         let array = self.const_array(self.type_ptr_to(self.type_i8()), values);
 
