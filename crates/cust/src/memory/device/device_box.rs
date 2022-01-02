@@ -169,6 +169,13 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
     ///
+    /// # Safety
+    ///
+    /// This method enqueues two operations on the stream: An async allocation
+    /// and an async memset. Because of this, you must ensure that:
+    /// - The memory is not used in any way before it is actually allocated on the stream. You
+    /// can ensure this happens by synchronizing the stream explicitly or using events.
+    ///
     /// # Examples
     ///
     /// ```
@@ -180,7 +187,7 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     /// unsafe {
     ///     let mut zero = DeviceBox::zeroed_async(&stream)?;
     ///     zero.async_copy_to(&mut value, &stream)?;
-    ///     zero.free_async(&stream)?;
+    ///     zero.drop_async(&stream)?;
     /// }
     /// stream.synchronize()?;
     /// assert_eq!(value, 0);

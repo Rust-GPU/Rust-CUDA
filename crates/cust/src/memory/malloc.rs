@@ -55,6 +55,11 @@ pub unsafe fn cuda_malloc<T>(count: usize) -> CudaResult<DevicePointer<T>> {
 /// Retains all of the unsafe semantics of [`cuda_malloc`] with the extra requirement that the memory
 /// must not be used until it is allocated on the stream. Therefore, proper stream ordering semantics must be
 /// respected.
+///
+/// # Safety
+///
+/// The memory behind the returned pointer must not be used in any way until the
+/// allocation actually takes place in the stream.
 pub unsafe fn cuda_malloc_async<T>(stream: &Stream, count: usize) -> CudaResult<DevicePointer<T>> {
     let size = count.checked_mul(mem::size_of::<T>()).unwrap_or(0);
     if size == 0 {
@@ -76,6 +81,10 @@ pub unsafe fn cuda_malloc_async<T>(stream: &Stream, count: usize) -> CudaResult<
 /// Retains all of the unsafe semantics of [`cuda_free`] with the extra requirement that the memory
 /// must not be used after it is dropped. Therefore, proper stream ordering semantics must be
 /// respected.
+///
+/// # Safety
+///
+/// The pointer must be valid.
 pub unsafe fn cuda_free_async<T>(stream: &Stream, mut p: DevicePointer<T>) -> CudaResult<()> {
     if mem::size_of::<T>() == 0 {
         return Err(CudaError::InvalidMemoryAllocation);
