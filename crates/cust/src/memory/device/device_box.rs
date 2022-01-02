@@ -2,12 +2,12 @@ use crate::error::{CudaResult, DropResult, ToResult};
 use crate::memory::device::AsyncCopyDestination;
 use crate::memory::device::CopyDestination;
 use crate::memory::malloc::{cuda_free, cuda_malloc};
-use crate::memory::DeviceCopy;
 use crate::memory::DevicePointer;
+use crate::memory::{cuda_free_async, cuda_malloc_async, DeviceCopy};
 use crate::stream::Stream;
 use crate::sys as cuda;
 use std::fmt::{self, Pointer};
-use std::mem;
+use std::mem::{self, ManuallyDrop};
 
 use std::os::raw::c_void;
 
@@ -39,6 +39,89 @@ impl<T: DeviceCopy> DeviceBox<T> {
         dev_box.copy_from(val)?;
         Ok(dev_box)
     }
+
+    /// Allocates device memory asynchronously and asynchronously copies `val` into it.
+    ///
+    /// This doesn't actually allocate if `T` is zero-sized.
+    ///
+    /// If the memory behind `val` is not page-locked (pinned), a staging buffer
+    /// will be allocated using a worker thread. If you are going to be making
+    /// many asynchronous copies, it is generally a good idea to keep the data as a [`cust::memory::LockedBuffer`]
+    /// or [`cust::memory::LockedBox`]. This will ensure the driver does not have to allocate a staging buffer
+    /// on its own.
+    ///
+    /// However, don't keep all of your data as page-locked, doing so might slow down
+    /// the OS because it is unable to page out that memory to disk.
+    ///
+    /// # Safety
+    ///
+    /// This method enqueues two operations on the stream: An async allocation
+    /// and an async memcpy. Because of this, you must ensure that:
+    /// - The memory is not used in any way before it is actually allocated on the stream. You
+    /// can ensure this happens by synchronizing the stream explicitly or using events.
+    /// - `val` is still valid when the memory copy actually takes place.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _context = cust::quick_init().unwrap();
+    /// use cust::{memory::*, stream::*};
+    /// let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut host_val = 0;
+    /// unsafe {
+    ///     let mut allocated = DeviceBox::new_async(&5u8, &stream)?;
+    ///     allocated.async_copy_to(&mut host_val, &stream)?;
+    ///     allocated.drop_async(&stream)?;
+    /// }
+    /// // ensure all async ops are done before trying to access the value
+    /// stream.synchronize()?;
+    /// assert_eq!(host_val, 5);
+    /// # Ok(())
+    /// # }
+    pub unsafe fn new_async(val: &T, stream: &Stream) -> CudaResult<Self> {
+        let mut dev_box = DeviceBox::uninitialized()?;
+        dev_box.async_copy_from(val, stream)?;
+        Ok(dev_box)
+    }
+
+    /// Enqueues an operation to free the memory backed by this [`DeviceBox`] on a
+    /// particular stream. The stream will free the allocation as soon as it reaches
+    /// the operation in the stream. You can ensure the memory is freed by synchronizing
+    /// the stream.
+    ///
+    /// This function uses internal memory pool semantics. Async allocations will reserve memory
+    /// in the default memory pool in the stream, and async frees will release the memory back to the pool
+    /// for further use by async allocations.
+    ///
+    /// The memory inside of the pool is all freed back to the OS once the stream is synchronized unless
+    /// a custom pool is configured to not do so.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _context = cust::quick_init().unwrap();
+    /// use cust::{memory::*, stream::*};
+    /// let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut host_val = 0;
+    /// unsafe {
+    ///     let mut allocated = DeviceBox::new_async(&5u8, &stream)?;
+    ///     allocated.async_copy_to(&mut host_val, &stream)?;
+    ///     allocated.drop_async(&stream)?;
+    /// }
+    /// // ensure all async ops are done before trying to access the value
+    /// stream.synchronize()?;
+    /// assert_eq!(host_val, 5);
+    /// # Ok(())
+    /// # }
+    pub fn drop_async(self, stream: &Stream) -> CudaResult<()> {
+        // make sure we dont run the normal destructor, otherwise a double drop will happen
+        let me = ManuallyDrop::new(self);
+        // SAFETY: we consume the box so its not possible to use the box past its drop point unless
+        // you keep around a pointer, but in that case, we cannot guarantee safety.
+        unsafe { cuda_free_async(stream, me.ptr) }
+    }
 }
 
 impl<T: DeviceCopy + Default> DeviceBox<T> {
@@ -47,6 +130,76 @@ impl<T: DeviceCopy + Default> DeviceBox<T> {
         let mut val = T::default();
         self.copy_to(&mut val)?;
         Ok(val)
+    }
+}
+
+#[cfg(feature = "bytemuck")]
+impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
+    /// Allocate device memory and fill it with zeroes (`0u8`).
+    ///
+    /// This doesn't actually allocate if `T` is zero-sized.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # let _context = cust::quick_init().unwrap();
+    /// use cust::memory::*;
+    /// let mut zero = DeviceBox::zeroed().unwrap();
+    /// let mut value = 5u64;
+    /// zero.copy_to(&mut value).unwrap();
+    /// assert_eq!(0, value);
+    /// ```
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub fn zeroed() -> CudaResult<Self> {
+        unsafe {
+            let mut new_box = DeviceBox::uninitialized()?;
+            if mem::size_of::<T>() != 0 {
+                cuda::cuMemsetD8_v2(
+                    new_box.as_device_ptr().as_raw_mut() as u64,
+                    0,
+                    mem::size_of::<T>(),
+                )
+                .to_result()?;
+            }
+            Ok(new_box)
+        }
+    }
+
+    /// Allocate device memory asynchronously and asynchronously fills it with zeroes (`0u8`).
+    ///
+    /// This doesn't actually allocate if `T` is zero-sized.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let _context = cust::quick_init().unwrap();
+    /// use cust::{memory::*, stream::*};
+    /// let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+    /// let mut value = 5u64;
+    /// unsafe {
+    ///     let mut zero = DeviceBox::zeroed_async(&stream)?;
+    ///     zero.async_copy_to(&mut value, &stream)?;
+    ///     zero.free_async(&stream)?;
+    /// }
+    /// stream.synchronize()?;
+    /// assert_eq!(value, 0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub unsafe fn zeroed_async(stream: &Stream) -> CudaResult<Self> {
+        let mut new_box = DeviceBox::uninitialized_async(stream)?;
+        if mem::size_of::<T>() != 0 {
+            cuda::cuMemsetD8Async(
+                new_box.as_device_ptr().as_raw_mut() as u64,
+                0,
+                mem::size_of::<T>(),
+                stream.as_inner(),
+            )
+            .to_result()?;
+        }
+        Ok(new_box)
     }
 }
 
@@ -80,37 +233,27 @@ impl<T> DeviceBox<T> {
         }
     }
 
-    /// Allocate device memory and fill it with zeroes (`0u8`).
+    /// Allocates device memory asynchronously on a stream, without initializing it.
     ///
-    /// This doesn't actually allocate if `T` is zero-sized.
+    /// This doesn't actually allocate if `T` is zero sized.
     ///
     /// # Safety
     ///
-    /// The backing memory is zeroed, which may not be a valid bit-pattern for type `T`. The caller
-    /// must ensure either that all-zeroes is a valid bit-pattern for type `T` or that the backing
-    /// memory is set to a valid value before it is read.
+    /// The allocated memory retains all of the unsafety of [`DeviceBox::uninitialized`], with
+    /// the additional consideration that the memory cannot be used until it is actually allocated
+    /// on the stream. This means proper stream ordering semantics must be followed, such as
+    /// only enqueing kernel launches that use the memory AFTER the allocation call.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # let _context = cust::quick_init().unwrap();
-    /// use cust::memory::*;
-    /// let mut zero = unsafe { DeviceBox::zeroed().unwrap() };
-    /// let mut value = 5u64;
-    /// zero.copy_to(&mut value).unwrap();
-    /// assert_eq!(0, value);
-    /// ```
-    pub unsafe fn zeroed() -> CudaResult<Self> {
-        let mut new_box = DeviceBox::uninitialized()?;
-        if mem::size_of::<T>() != 0 {
-            cuda::cuMemsetD8_v2(
-                new_box.as_device_ptr().as_raw_mut() as u64,
-                0,
-                mem::size_of::<T>(),
-            )
-            .to_result()?;
+    /// You can synchronize the stream to ensure the memory allocation operation is complete.
+    pub unsafe fn uninitialized_async(stream: &Stream) -> CudaResult<Self> {
+        if mem::size_of::<T>() == 0 {
+            Ok(DeviceBox {
+                ptr: DevicePointer::null(),
+            })
+        } else {
+            let ptr = cuda_malloc_async(stream, 1)?;
+            Ok(DeviceBox { ptr })
         }
-        Ok(new_box)
     }
 
     /// Constructs a DeviceBox from a raw pointer.
@@ -314,6 +457,35 @@ impl<T: DeviceCopy> CopyDestination<DeviceBox<T>> for DeviceBox<T> {
                 cuda::cuMemcpyDtoD_v2(val.ptr.as_raw_mut() as u64, self.ptr.as_raw() as u64, size)
                     .to_result()?
             }
+        }
+        Ok(())
+    }
+}
+impl<T: DeviceCopy> AsyncCopyDestination<T> for DeviceBox<T> {
+    unsafe fn async_copy_from(&mut self, val: &T, stream: &Stream) -> CudaResult<()> {
+        let size = mem::size_of::<T>();
+        if size != 0 {
+            cuda::cuMemcpyHtoDAsync_v2(
+                self.ptr.as_raw_mut() as u64,
+                val as *const _ as *const c_void,
+                size,
+                stream.as_inner(),
+            )
+            .to_result()?
+        }
+        Ok(())
+    }
+
+    unsafe fn async_copy_to(&self, val: &mut T, stream: &Stream) -> CudaResult<()> {
+        let size = mem::size_of::<T>();
+        if size != 0 {
+            cuda::cuMemcpyDtoHAsync_v2(
+                val as *mut _ as *mut c_void,
+                self.ptr.as_raw() as u64,
+                size,
+                stream.as_inner(),
+            )
+            .to_result()?
         }
         Ok(())
     }

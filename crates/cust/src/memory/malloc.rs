@@ -2,6 +2,7 @@ use super::DeviceCopy;
 use crate::error::*;
 use crate::memory::DevicePointer;
 use crate::memory::UnifiedPointer;
+use crate::prelude::Stream;
 use crate::sys as cuda;
 use std::mem;
 use std::os::raw::c_void;
@@ -48,6 +49,39 @@ pub unsafe fn cuda_malloc<T>(count: usize) -> CudaResult<DevicePointer<T>> {
     cuda::cuMemAlloc_v2(&mut ptr as *mut *mut c_void as *mut u64, size).to_result()?;
     let ptr = ptr as *mut T;
     Ok(DevicePointer::wrap(ptr as *mut T))
+}
+
+/// Unsafe wrapper around `cuMemAllocAsync` which queues a memory allocation operation on a stream.
+/// Retains all of the unsafe semantics of [`cuda_malloc`] with the extra requirement that the memory
+/// must not be used until it is allocated on the stream. Therefore, proper stream ordering semantics must be
+/// respected.
+pub unsafe fn cuda_malloc_async<T>(stream: &Stream, count: usize) -> CudaResult<DevicePointer<T>> {
+    let size = count.checked_mul(mem::size_of::<T>()).unwrap_or(0);
+    if size == 0 {
+        return Err(CudaError::InvalidMemoryAllocation);
+    }
+
+    let mut ptr: *mut c_void = ptr::null_mut();
+    cuda::cuMemAllocAsync(
+        &mut ptr as *mut *mut c_void as *mut u64,
+        size,
+        stream.as_inner(),
+    )
+    .to_result()?;
+    let ptr = ptr as *mut T;
+    Ok(DevicePointer::wrap(ptr as *mut T))
+}
+
+/// Unsafe wrapper around `cuMemFreeAsync` which queues a memory allocation free operation on a stream.
+/// Retains all of the unsafe semantics of [`cuda_free`] with the extra requirement that the memory
+/// must not be used after it is dropped. Therefore, proper stream ordering semantics must be
+/// respected.
+pub unsafe fn cuda_free_async<T>(stream: &Stream, mut p: DevicePointer<T>) -> CudaResult<()> {
+    if mem::size_of::<T>() == 0 {
+        return Err(CudaError::InvalidMemoryAllocation);
+    }
+
+    cuda::cuMemFreeAsync(p.as_raw_mut() as u64, stream.as_inner()).to_result()
 }
 
 /// Unsafe wrapper around the `cuMemAllocManaged` function, which allocates some unified memory and

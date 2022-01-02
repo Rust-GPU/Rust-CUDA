@@ -38,9 +38,9 @@ pub trait CopyDestination<O: ?Sized>: crate::private::Sealed {
 /// buffer resulting in a data race and undefined behavior.
 ///
 /// Thus to enforce safety, the following invariants must be upheld:
-/// * The source and destination are not deallocated
-/// * The source is not modified
-/// * The destination is not written or read by any other operation
+/// - The source and destination are not deallocated
+/// - The source is not modified
+/// - The destination is not written or read by any other operation
 ///
 /// These invariants must be preserved until the stream is synchronized or an event queued after
 /// the copy is triggered.

@@ -54,6 +54,8 @@
 //! Cust will try to find the CUDA libraries automatically, if it is unable to find it, you can set
 //! `CUDA_LIBRARY_PATH` to some path manually.
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 pub mod device;
 pub mod error;
 pub mod event;

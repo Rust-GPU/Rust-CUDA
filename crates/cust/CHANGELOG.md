@@ -17,6 +17,16 @@ overall simplifying the context handling APIs. This does mean that the API chang
 The old context handling is fully present in `cust::context::legacy` for anyone who needs it for specific reasons. If you use `quick_init` you don't need to worry about
 any breaking changes, the API is the same.
 
+- Added `cust::memory::LockedBox`, same as `LockedBuffer` except for single elements.
+- Added `cust::memory::cuda_malloc_async`.
+- Added `cust::memory::cuda_free_async`.
+- Added `impl AsyncCopyDestination<LockedBox<T>> for DeviceBox<T>` for async HtoD memcpy.
+- Added the `bytemuck` feature which is enabled by default.
+- `zeroed` functions on `DeviceBox` and others are no longer unsafe and instead now require `T: Zeroable`. The functions are only available with the `bytemuck` feature.
+- Added `zeroed_async` to `DeviceBox`.
+- Added `drop_async` to `DeviceBox`.
+- Added `new_async` to `DeviceBox`.
+
 ## 0.2.2 - 12/5/21
 
 - Update find_cuda_helper to 0.2
