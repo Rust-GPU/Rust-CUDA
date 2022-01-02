@@ -5,6 +5,7 @@ use crate::ty::LayoutLlvmExt;
 use crate::{builder::Builder, context::CodegenCx};
 use rustc_codegen_ssa::common::span_invalid_monomorphization_error;
 use rustc_codegen_ssa::mir::place::PlaceRef;
+use rustc_codegen_ssa::traits::DerivedTypeMethods;
 use rustc_codegen_ssa::traits::{BaseTypeMethods, BuilderMethods, ConstMethods, OverflowOp};
 use rustc_codegen_ssa::{mir::operand::OperandRef, traits::IntrinsicCallMethods};
 use rustc_middle::ty::layout::{HasTyCtxt, LayoutOf};
@@ -423,6 +424,44 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                         }
                         _ => unreachable!(),
                     }
+                }
+            }
+            sym::raw_eq => {
+                use abi::Abi::*;
+                use rustc_codegen_ssa::common::IntPredicate;
+                let tp_ty = substs.type_at(0);
+                let layout = self.layout_of(tp_ty).layout;
+                let use_integer_compare = match layout.abi {
+                    Scalar(_) | ScalarPair(_, _) => true,
+                    Uninhabited | Vector { .. } => false,
+                    Aggregate { .. } => {
+                        // For rusty ABIs, small aggregates are actually passed
+                        // as `RegKind::Integer` (see `FnAbi::adjust_for_abi`),
+                        // so we re-use that same threshold here.
+                        layout.size <= self.data_layout().pointer_size * 2
+                    }
+                };
+
+                let a = args[0].immediate();
+                let b = args[1].immediate();
+                if layout.size.bytes() == 0 {
+                    self.const_bool(true)
+                } else if use_integer_compare {
+                    let integer_ty = self.type_ix(layout.size.bits());
+                    let ptr_ty = self.type_ptr_to(integer_ty);
+                    let a_ptr = self.bitcast(a, ptr_ty);
+                    let a_val = self.load(integer_ty, a_ptr, layout.align.abi);
+                    let b_ptr = self.bitcast(b, ptr_ty);
+                    let b_val = self.load(integer_ty, b_ptr, layout.align.abi);
+                    self.icmp(IntPredicate::IntEQ, a_val, b_val)
+                } else {
+                    let i8p_ty = self.type_i8p();
+                    let a_ptr = self.bitcast(a, i8p_ty);
+                    let b_ptr = self.bitcast(b, i8p_ty);
+                    let n = self.const_usize(layout.size.bytes());
+                    let intrinsic = self.get_intrinsic("memcmp");
+                    let cmp = self.call(self.type_i1(), intrinsic, &[a_ptr, b_ptr, n], None);
+                    self.icmp(IntPredicate::IntEQ, cmp, self.const_i32(0))
                 }
             }
             // is this even supported by nvvm? i did not find a definitive answer
