@@ -1,7 +1,10 @@
 [package]
 name = "rustc_codegen_nvvm"
-version = "0.2.2"
-authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "The Rust Project Developers"]
+version = "0.2.3"
+authors = [
+    "Riccardo D'Ambrosio <rdambrosio016@gmail.com>",
+    "The Rust Project Developers",
+]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "A codegen backend for Rustc which targets the libnvvm CUDA library"
