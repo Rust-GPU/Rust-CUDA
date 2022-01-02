@@ -17,6 +17,7 @@ overall simplifying the context handling APIs. This does mean that the API chang
 The old context handling is fully present in `cust::context::legacy` for anyone who needs it for specific reasons. If you use `quick_init` you don't need to worry about
 any breaking changes, the API is the same.
 
+- `Stream::add_callback` now internally uses `cuLaunchHostFunc` anticipating the deprecation and removal of `cuStreamAddCallback` per the driver docs. This does however mean that the function no longer takes a device status as a parameter and does not execute on context error.
 - Added `cust::memory::LockedBox`, same as `LockedBuffer` except for single elements.
 - Added `cust::memory::cuda_malloc_async`.
 - Added `cust::memory::cuda_free_async`.

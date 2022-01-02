@@ -13,7 +13,7 @@
 use crate::error::{CudaResult, DropResult, ToResult};
 use crate::event::Event;
 use crate::function::{BlockSize, Function, GridSize};
-use crate::sys::{self as cuda, cudaError_enum, CUstream};
+use crate::sys::{self as cuda, CUstream};
 use std::ffi::c_void;
 use std::mem;
 use std::panic;
@@ -147,9 +147,6 @@ impl Stream {
     ///
     /// Callbacks must not make any CUDA API calls.
     ///
-    /// The callback will be passed a `CudaResult<()>` indicating the
-    /// current state of the device with `Ok(())` denoting normal operation.
-    ///
     /// # Examples
     ///
     /// ```
@@ -163,8 +160,8 @@ impl Stream {
     ///
     /// // ... queue up some work on the stream
     ///
-    /// stream.add_callback(Box::new(|status| {
-    ///     println!("Device status is {:?}", status);
+    /// stream.add_callback(Box::new(|| {
+    ///     println!("Work is done!");
     /// }));
     ///
     /// // ... queue up some more work on the stream
@@ -172,14 +169,13 @@ impl Stream {
     /// # }
     pub fn add_callback<T>(&self, callback: Box<T>) -> CudaResult<()>
     where
-        T: FnOnce(CudaResult<()>) + Send,
+        T: FnOnce() + Send,
     {
         unsafe {
-            cuda::cuStreamAddCallback(
+            cuda::cuLaunchHostFunc(
                 self.inner,
                 Some(callback_wrapper::<T>),
                 Box::into_raw(callback) as *mut c_void,
-                0,
             )
             .to_result()
         }
@@ -339,16 +335,13 @@ impl Drop for Stream {
         }
     }
 }
-unsafe extern "C" fn callback_wrapper<T>(
-    _stream: CUstream,
-    status: cudaError_enum,
-    callback: *mut c_void,
-) where
-    T: FnOnce(CudaResult<()>) + Send,
+unsafe extern "C" fn callback_wrapper<T>(callback: *mut c_void)
+where
+    T: FnOnce() + Send,
 {
     // Stop panics from unwinding across the FFI
     let _ = panic::catch_unwind(|| {
         let callback: Box<T> = Box::from_raw(callback as *mut T);
-        callback(status.to_result());
+        callback();
     });
 }
