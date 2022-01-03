@@ -4,6 +4,8 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Thread/Block/Grid index/dim intrinsics now hint to llvm that their range is in some bound declared by CUDA. Hopefully allowing for more optimizations.
+
 ## 0.2.1 - 12/8/21
 
 - Fixed `shared_array!` not using fully qualified MaybeUninit.
