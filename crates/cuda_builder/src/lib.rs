@@ -117,6 +117,7 @@ pub struct CudaBuilder {
     ///
     /// `true` by default.
     pub override_libm: bool,
+    pub debug: bool,
 }
 
 impl CudaBuilder {
@@ -136,7 +137,13 @@ impl CudaBuilder {
             emit: None,
             optix: false,
             override_libm: true,
+            debug: false,
         }
+    }
+
+    pub fn debug(mut self, debug: bool) -> Self {
+        self.debug = debug;
+        self
     }
 
     /// Whether to compile the gpu crate for release.
@@ -376,6 +383,11 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
 
     if builder.override_libm {
         llvm_args.push("--override-libm".to_string());
+    }
+
+    if builder.debug {
+        rustflags.push("-Cdebuginfo=1".to_string());
+        llvm_args.push("-generate-line-info".to_string());
     }
 
     let llvm_args = llvm_args.join(" ");

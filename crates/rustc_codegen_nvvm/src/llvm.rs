@@ -17,7 +17,7 @@
 // in case we need them in the future for things like debug info or LTO.
 #![allow(dead_code)]
 
-use libc::{c_char, c_uint, size_t};
+use libc::{c_char, c_uint, c_void, size_t};
 use libc::{c_int, c_ulonglong};
 use std::ffi::{CStr, CString};
 use std::fmt;
@@ -1849,6 +1849,12 @@ extern "C" {
         len: usize,
         out_len: &mut usize,
     ) -> *const u8;
+    pub(crate) fn LLVMRustThinLTOGetDICompileUnit(
+        M: &Module,
+        CU1: &mut *mut c_void,
+        CU2: &mut *mut c_void,
+    );
+    pub(crate) fn LLVMRustThinLTOPatchDICompileUnit(M: &Module, CU: *mut c_void);
 
     pub(crate) fn LLVMRustAddDereferenceableAttr(Fn: &Value, index: c_uint, bytes: u64);
     pub(crate) fn LLVMRustAddDereferenceableOrNullAttr(Fn: &Value, index: c_uint, bytes: u64);
