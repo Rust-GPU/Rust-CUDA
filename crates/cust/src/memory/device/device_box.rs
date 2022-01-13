@@ -46,8 +46,8 @@ impl<T: DeviceCopy> DeviceBox<T> {
     ///
     /// If the memory behind `val` is not page-locked (pinned), a staging buffer
     /// will be allocated using a worker thread. If you are going to be making
-    /// many asynchronous copies, it is generally a good idea to keep the data as a [`cust::memory::LockedBuffer`]
-    /// or [`cust::memory::LockedBox`]. This will ensure the driver does not have to allocate a staging buffer
+    /// many asynchronous copies, it is generally a good idea to keep the data as a [`crate::memory::LockedBuffer`]
+    /// or [`crate::memory::LockedBox`]. This will ensure the driver does not have to allocate a staging buffer
     /// on its own.
     ///
     /// However, don't keep all of your data as page-locked, doing so might slow down

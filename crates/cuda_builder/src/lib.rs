@@ -449,6 +449,9 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         }
     }
 
+    let arch = format!("{:?}0", builder.arch);
+    cargo.env("CUDA_ARCH", arch.strip_prefix("Compute").unwrap());
+
     let cargo_encoded_rustflags = join_checking_for_separators(rustflags, "\x1f");
 
     let build = cargo
