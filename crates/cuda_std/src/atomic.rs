@@ -89,6 +89,11 @@ macro_rules! atomic_float {
                     }
                 }
 
+                /// Consumes the atomic and returns the contained value.
+                pub fn into_inner(self) -> $float_ty {
+                    self.v.into_inner()
+                }
+
                 #[cfg(not(target_os = "cuda"))]
                 fn as_atomic_bits(&self) -> &core::sync::atomic::[<AtomicU $width>] {
                     // SAFETY: AtomicU32/U64 pointers are compatible with UnsafeCell<u32/u64>.
@@ -118,6 +123,60 @@ macro_rules! atomic_float {
                     }
                     #[cfg(not(target_os = "cuda"))]
                     self.update_with(order, |v| v + val)
+                }
+
+                /// Subtracts from the current value, returning the previous value **before** the subtraction.
+                ///
+                /// Note, this is actually implemented as `old + (-new)`, CUDA does not have a specialized sub instruction.
+                ///
+                $(#[doc = safety_doc!($unsafety)])?
+                pub $($unsafety)? fn fetch_sub(&self, val: $float_ty, order: Ordering) -> $float_ty {
+                    #[cfg(target_os = "cuda")]
+                    // SAFETY: data races are prevented by atomic intrinsics and the pointer we get is valid.
+                    unsafe {
+                        mid::[<atomic_fetch_sub_ $float_ty _ $scope>](self.v.get(), order, val)
+                    }
+                    #[cfg(not(target_os = "cuda"))]
+                    self.update_with(order, |v| v - val)
+                }
+
+                /// Bitwise "and" with the current value. Returns the value **before** the "and".
+                ///
+                $(#[doc = safety_doc!($unsafety)])?
+                pub $($unsafety)? fn fetch_and(&self, val: $float_ty, order: Ordering) -> $float_ty {
+                    #[cfg(target_os = "cuda")]
+                    // SAFETY: data races are prevented by atomic intrinsics and the pointer we get is valid.
+                    unsafe {
+                        mid::[<atomic_fetch_and_ $float_ty _ $scope>](self.v.get(), order, val)
+                    }
+                    #[cfg(not(target_os = "cuda"))]
+                    self.update_with(order, |v| $float_ty::from_bits(v.to_bits() & val.to_bits()))
+                }
+
+                /// Bitwise "or" with the current value. Returns the value **before** the "or".
+                ///
+                $(#[doc = safety_doc!($unsafety)])?
+                pub $($unsafety)? fn fetch_or(&self, val: $float_ty, order: Ordering) -> $float_ty {
+                    #[cfg(target_os = "cuda")]
+                    // SAFETY: data races are prevented by atomic intrinsics and the pointer we get is valid.
+                    unsafe {
+                        mid::[<atomic_fetch_or_ $float_ty _ $scope>](self.v.get(), order, val)
+                    }
+                    #[cfg(not(target_os = "cuda"))]
+                    self.update_with(order, |v| $float_ty::from_bits(v.to_bits() | val.to_bits()))
+                }
+
+                /// Bitwise "xor" with the current value. Returns the value **before** the "xor".
+                ///
+                $(#[doc = safety_doc!($unsafety)])?
+                pub $($unsafety)? fn fetch_xor(&self, val: $float_ty, order: Ordering) -> $float_ty {
+                    #[cfg(target_os = "cuda")]
+                    // SAFETY: data races are prevented by atomic intrinsics and the pointer we get is valid.
+                    unsafe {
+                        mid::[<atomic_fetch_xor_ $float_ty _ $scope>](self.v.get(), order, val)
+                    }
+                    #[cfg(not(target_os = "cuda"))]
+                    self.update_with(order, |v| $float_ty::from_bits(v.to_bits() ^ val.to_bits()))
                 }
 
                 /// Atomically loads the value behind this atomic.

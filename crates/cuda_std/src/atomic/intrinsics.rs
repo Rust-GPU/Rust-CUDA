@@ -6,47 +6,56 @@ use paste::paste;
 
 #[gpu_only]
 pub unsafe fn membar_device() {
-    asm!("membar.gl");
+    asm!("membar.gl;");
 }
 
 #[gpu_only]
 pub unsafe fn membar_block() {
-    asm!("membar.cta");
+    asm!("membar.cta;");
 }
 
 #[gpu_only]
 pub unsafe fn membar_system() {
-    asm!("membar.sys");
+    asm!("membar.sys;");
 }
 
 #[gpu_only]
 pub unsafe fn fence_sc_device() {
-    asm!("fence.sc.gl");
+    asm!("fence.sc.gl;");
 }
 
 #[gpu_only]
 pub unsafe fn fence_sc_block() {
-    asm!("fence.sc.cta");
+    asm!("fence.sc.cta;");
 }
 
 #[gpu_only]
 pub unsafe fn fence_sc_system() {
-    asm!("fence.sc.sys");
+    asm!("fence.sc.sys;");
 }
 
 #[gpu_only]
 pub unsafe fn fence_acqrel_device() {
-    asm!("fence.acq_rel.gl");
+    asm!("fence.acq_rel.gl;");
 }
 
 #[gpu_only]
 pub unsafe fn fence_acqrel_block() {
-    asm!("fence.acq_rel.sys");
+    asm!("fence.acq_rel.sys;");
 }
 
 #[gpu_only]
 pub unsafe fn fence_acqrel_system() {
-    asm!("fence.acq_rel.sys");
+    asm!("fence.acq_rel.sys;");
+}
+
+macro_rules! load_scope {
+    (volatile, $scope:ident) => {
+        ""
+    };
+    ($ordering:ident, $scope:ident) => {
+        concat!(".", stringify!($scope))
+    };
 }
 
 macro_rules! load {
@@ -59,7 +68,7 @@ macro_rules! load {
                 pub unsafe fn [<atomic_load_ $ordering _ $width _ $scope>](ptr: *const [<u $width>]) -> [<u $width>] {
                     let mut out;
                     asm!(
-                        concat!("ld.", stringify!($ordering), ".", stringify!($scope_asm), ".", stringify!([<u $width>]), "{}, [{}]"),
+                        concat!("ld.", stringify!($ordering), load_scope!($ordering, $scope), ".", stringify!([<u $width>]), " {}, [{}];"),
                         out([<reg $width>]) out,
                         in(reg64) ptr
                     );
@@ -105,7 +114,7 @@ macro_rules! store {
                 #[doc = concat!("Performs a ", stringify!($ordering), " atomic store at the ", stringify!($scope), " level with a width of ", stringify!($width), " bits")]
                 pub unsafe fn [<atomic_store_ $ordering _ $width _ $scope>](ptr: *mut [<u $width>], val: [<u $width>]) {
                     asm!(
-                        concat!("st.", stringify!($ordering), ".", stringify!($scope_asm), ".", stringify!([<u $width>]), "[{}], {}"),
+                        concat!("st.", stringify!($ordering), load_scope!($ordering, $scope), ".", stringify!([<u $width>]), " [{}], {};"),
                         in(reg64) ptr,
                         in([<reg $width>]) val,
                     );
@@ -142,6 +151,19 @@ store! {
 }
 
 #[allow(unused_macros)]
+macro_rules! ptx_type {
+    (i32) => {
+        "s32"
+    };
+    (i64) => {
+        "s64"
+    };
+    ($ty:ident) => {
+        stringify!($ty)
+    };
+}
+
+#[allow(unused_macros)]
 macro_rules! ordering {
     (volatile) => {
         ""
@@ -172,7 +194,8 @@ macro_rules! atomic_fetch_op_2_reg {
                             ".",
                             stringify!($op),
                             ".",
-                            "{}, [{}]"
+                            ptx_type!($type),
+                            " {}, [{}];"
                         ),
                         out([<reg $width>]) out,
                         in(reg64) ptr,
@@ -359,7 +382,8 @@ macro_rules! atomic_fetch_op_3_reg {
                             ".",
                             stringify!($op),
                             ".",
-                            "{}, [{}], {}"
+                            ptx_type!($type),
+                            " {}, [{}], {};"
                         ),
                         out([<reg $width>]) out,
                         in(reg64) ptr,
@@ -1101,7 +1125,8 @@ macro_rules! atomic_fetch_op_4_reg {
                             ".",
                             stringify!($op),
                             ".",
-                            "{}, [{}], {}, {}"
+                            ptx_type!($type),
+                            " {}, [{}], {}, {};"
                         ),
                         out([<reg $width>]) out,
                         in(reg64) ptr,
@@ -1227,6 +1252,19 @@ atomic_fetch_op_4_reg! {
     volatile, cas, 64, f64, system, sys,
 }
 
+#[allow(unused_macros)]
+macro_rules! negation {
+    (u32, $val:ident) => {{
+        -($val as i32)
+    }};
+    (u64, $val:ident) => {{
+        -($val as i64)
+    }};
+    ($type:ty, $val:ident) => {{
+        -$val
+    }};
+}
+
 // atomic sub is a little special, nvcc implements it as an atomic add with a negated operand. PTX
 // does not have atom.sub.
 macro_rules! atomic_sub {
@@ -1246,11 +1284,12 @@ macro_rules! atomic_sub {
                             ".",
                             "add",
                             ".",
-                            "{}, [{}], {}"
+                            ptx_type!($type),
+                            " {}, [{}], {};"
                         ),
                         out([<reg $width>]) out,
                         in(reg64) ptr,
-                        in([<reg $width>]) -(val as [<i $width>]),
+                        in([<reg $width>]) negation!($type, val),
                     );
                     out
                 }
