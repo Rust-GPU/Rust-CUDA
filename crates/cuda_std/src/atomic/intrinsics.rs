@@ -49,6 +49,7 @@ pub unsafe fn fence_acqrel_system() {
     asm!("fence.acq_rel.sys;");
 }
 
+#[allow(unused_macros)]
 macro_rules! load_scope {
     (volatile, $scope:ident) => {
         ""

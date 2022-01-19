@@ -19,6 +19,7 @@ cust_derive = { path = "../cust_derive", version = "0.1" }
 num-complex = { version = "0.4", optional = true }
 vek = { version = "0.15.1", optional = true, default-features = false }
 bytemuck = { version = "1.7.3", optional = true }
+goblin = { version = "0.4.3", default-features = false, features = ["elf32", "elf64", "std", "endian_fd"] }
 
 [features]
 default = ["bytemuck"]
