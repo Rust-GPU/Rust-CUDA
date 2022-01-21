@@ -28,6 +28,8 @@ any breaking changes, the API is the same.
 - Added `drop_async` to `DeviceBox`.
 - Added `new_async` to `DeviceBox`.
 - `Linker::complete` now only returns the built cubin, and not the cubin and a duration.
+- `Stream`, `Module`, `Linker`, `Function`, `Event`, `UnifiedBox`, `ArrayObject`, `LockedBuffer`, `LockedBox`, `DeviceSlice`, `DeviceBuffer`, and `DeviceBox` all now impl `Send` and `Sync`, this makes
+it much easier to write multigpu code. The CUDA API is fully thread-safe except for graph objects.
 
 ## 0.2.2 - 12/5/21
 

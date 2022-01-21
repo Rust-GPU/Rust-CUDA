@@ -15,6 +15,9 @@ pub struct Linker {
     raw: cuda::CUlinkState,
 }
 
+unsafe impl Send for Linker {}
+unsafe impl Sync for Linker {}
+
 impl Linker {
     /// Creates a new linker.
     pub fn new() -> CudaResult<Self> {

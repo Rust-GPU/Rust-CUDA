@@ -30,6 +30,9 @@ pub struct LockedBox<T: DeviceCopy> {
     pub(crate) ptr: *mut T,
 }
 
+unsafe impl<T: Send + DeviceCopy> Send for LockedBox<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for LockedBox<T> {}
+
 impl<T: DeviceCopy> LockedBox<T> {
     /// Creates an uninitialized [`LockedBox`]. The contents must
     /// not be read until the box is written to.

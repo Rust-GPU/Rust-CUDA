@@ -16,6 +16,10 @@ pub struct DeviceBuffer<T> {
     buf: DevicePointer<T>,
     capacity: usize,
 }
+
+unsafe impl<T: Send> Send for DeviceBuffer<T> {}
+unsafe impl<T: Sync> Sync for DeviceBuffer<T> {}
+
 impl<T> DeviceBuffer<T> {
     /// Allocate a new device buffer large enough to hold `size` `T`'s, but without
     /// initializing the contents.

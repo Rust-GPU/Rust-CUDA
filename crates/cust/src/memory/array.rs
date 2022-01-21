@@ -305,6 +305,9 @@ pub struct ArrayObject {
     pub(crate) handle: CUarray,
 }
 
+unsafe impl Send for ArrayObject {}
+unsafe impl Sync for ArrayObject {}
+
 impl ArrayObject {
     pub(crate) fn into_raw(self) -> CUarray {
         ManuallyDrop::new(self).handle

@@ -18,6 +18,10 @@ use std::os::raw::c_void;
 pub struct DeviceBox<T> {
     pub(crate) ptr: DevicePointer<T>,
 }
+
+unsafe impl<T: Send> Send for DeviceBox<T> {}
+unsafe impl<T: Sync> Sync for DeviceBox<T> {}
+
 impl<T: DeviceCopy> DeviceBox<T> {
     /// Allocate device memory and place val into it.
     ///

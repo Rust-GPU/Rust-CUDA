@@ -15,6 +15,10 @@ pub struct LockedBuffer<T: DeviceCopy> {
     buf: *mut T,
     capacity: usize,
 }
+
+unsafe impl<T: Send + DeviceCopy> Send for LockedBuffer<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for LockedBuffer<T> {}
+
 impl<T: DeviceCopy + Clone> LockedBuffer<T> {
     /// Allocate a new page-locked buffer large enough to hold `size` `T`'s and initialized with
     /// clones of `value`.

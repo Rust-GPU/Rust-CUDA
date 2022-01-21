@@ -18,6 +18,9 @@ pub struct Module {
     inner: cuda::CUmodule,
 }
 
+unsafe impl Send for Module {}
+unsafe impl Sync for Module {}
+
 /// The possible optimization levels when JIT compiling a PTX module. `O4` by default (most optimized).
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq)]

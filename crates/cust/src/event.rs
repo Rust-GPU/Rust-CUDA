@@ -67,6 +67,9 @@ pub enum EventStatus {
 #[derive(Debug)]
 pub struct Event(CUevent);
 
+unsafe impl Send for Event {}
+unsafe impl Sync for Event {}
+
 impl Event {
     /// Create a new event with the specified flags.
     ///

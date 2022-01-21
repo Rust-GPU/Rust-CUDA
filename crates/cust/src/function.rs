@@ -205,6 +205,10 @@ pub struct Function<'a> {
     inner: CUfunction,
     module: PhantomData<&'a Module>,
 }
+
+unsafe impl Send for Function<'_> {}
+unsafe impl Sync for Function<'_> {}
+
 impl<'a> Function<'a> {
     pub(crate) fn new(inner: CUfunction, _module: &Module) -> Function {
         Function {

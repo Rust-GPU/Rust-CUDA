@@ -166,6 +166,9 @@ pub struct Context {
     device: cuda::CUdevice,
 }
 
+unsafe impl Send for Context {}
+unsafe impl Sync for Context {}
+
 impl Clone for Context {
     fn clone(&self) -> Self {
         // because we already retained a context on this device successfully (self), it is
