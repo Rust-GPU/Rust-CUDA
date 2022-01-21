@@ -36,18 +36,44 @@ it much easier to write multigpu code. The CUDA API is fully thread-safe except 
 - Added mint integration behind `impl_mint`.
 - Added half integration behind `impl_half`.
 - Added glam integration behind `impl_glam`.
+- `num-complex` integration is now behind `impl_num_complex`, not `num-complex`.
 - Added experimental linux external memory import APIs through `cust::external::ExternalMemory`.
 - `vek` is no longer re-exported.
 - `DeviceBox` now requires `T: DeviceCopy` (previously it didn't but almost all its methods did).
 - `DeviceBox::from_raw` now takes a `CUdeviceptr` instead of a `*mut T`.
 - `DeviceBox::as_device_ptr` now requires `&self` instead of `&mut self`.
+- Deleted `DeviceBox::wrap`, use `DeviceBox::from_raw`.
 - `DeviceBuffer` now requires `T: DeviceCopy`.
+- `DeviceBuffer` is now `repr(C)` and is represented by a `DevicePointer<T>` and a `usize`.
+- Added `DeviceBuffer::as_slice`.
 - `DeviceSlice` now requires `T: DeviceCopy`.
-- `DeviceSlice` is now represented by a ptr and a len instead of `[T]` which was likely unsound.
+- `DeviceSlice` is now represented as a `DevicePointer<T>` and a `usize` (and is repr(C)) instead of `[T]` which was definitely unsound.
 - `DeviceSlice::as_ptr` and `DeviceSlice::as_ptr_mut` now both return a `DevicePointer<T>`.
-- Added `DeviceSlice::as_device_ptr`.
-- `DeviceSlice::chunks` and `DeviceSlice::chunks_mut` have been deleted.
-- `DeviceSlice::from_slice` and `DeviceSlice::from_slice_mut` have been deleted.
+- Deleted `DeviceSlice::as_ptr` and `DeviceSlice::as_mut_ptr`. Use `DeviceSlice::as_device_ptr` then `DevicePointer::as_(mut)_ptr`.
+- Deleted `DeviceSlice::chunks` and consequently `DeviceChunks`.
+- Deleted `DeviceSlice::chunks_mut` and consequently `DeviceChunksMut`.
+- Deleted `DeviceSlice::from_slice` and `DeviceSlice::from_slice_mut` because it was unsound.
+- `DeviceSlice` no longer implements `Index` and `IndexMut`, switching away from `[T]` made this impossible to implement.
+Instead you can now use `DeviceSlice::index` which behaves the same.
+- `DeviceSlice` is now `Clone` and `Copy`.
+- Added `DeviceVariable`, a simple wrapper around `DeviceBox<T>` and `T` which allows easy management of a CPU and GPU version of a type.
+- Added `DeviceMemory`, a trait describing any region of GPU memory that can be described with a pointer + a length.
+- Added `memcpy_htod`, a wrapper around `cuMemcpyHtoD_v2`.
+- Added `mem_get_info` to query the amount of free and total memory.
+- `DevicePointer::as_raw` now returns a `CUdeviceptr`, not a `*const T` (use `DevicePointer::as_ptr`).
+- Deleted `DevicePointer::as_raw_mut` (use `DevicePointer::as_mut_ptr`).
+- Added `DevicePointer::as_ptr` and `DevicePointer::as_mut_ptr` for `*const T` and `*mut T`.
+- Added `DevicePointer::from_raw` for `CUdeviceptr -> DevicePointer<T>` with a safe function.
+- Deleted `DevicePointer::wrap` (use `DevicePointer::from_raw`).
+- Added dependency on `cust_core` for `DeviceCopy`.
+- Added dependency on `goblin` for verifying cubins and fatbins (impossible to implement safe module loading without it).
+- Deprecated `Module::from_str`, use `Module::from_ptx` and pass `&[]` for options.
+- Added `ModuleJitOption`, `JitFallback`, `JitTarget`, and `OptLevel` for specifying options when loading a module. Note that
+`ModuleJitOption::MaxRegisters` does not seem to work currently, but NVIDIA is looking into it.
+- Added `Module::from_fatbin` and `Module::from_fatbin_unchecked`.
+- Added `Module::from_cubin` and `Module::from_cubin_unchecked`.
+- Added `Module::from_ptr` and `Module::from_ptx_cstr`.
+- Deprecated `Module::load_from_string`, use `Module::from_ptx_cstr`.
 
 ## 0.2.2 - 12/5/21
 

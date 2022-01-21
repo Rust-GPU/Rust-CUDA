@@ -25,12 +25,13 @@ bytemuck = { version = "1.7.3", optional = true }
 goblin = { version = "0.4.3", default-features = false, features = ["elf32", "elf64", "std", "endian_fd"] }
 
 [features]
-default= ["vek", "impl_glam", "impl_mint", "bytemuck"]
+default= ["bytemuck"]
 impl_glam = ["cust_core/glam", "glam"]
 impl_mint = ["cust_core/mint", "mint"]
 impl_vek = ["cust_core/vek", "vek"]
 impl_half = ["cust_core/half"]
 impl_num_complex = ["cust_core/num-complex", "num-complex"]
+
 [build-dependencies]
 find_cuda_helper = { path = "../find_cuda_helper", version = "0.2" }
 

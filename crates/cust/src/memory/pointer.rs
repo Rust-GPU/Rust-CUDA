@@ -22,7 +22,7 @@ use std::mem::size_of;
 /// the other side of that boundary does not attempt to dereference the pointer on the CPU. It is
 /// thus possible to pass a `DevicePointer` to a CUDA kernel written in C.
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct DevicePointer<T: ?Sized + DeviceCopy> {
     ptr: CUdeviceptr,
     marker: PhantomData<*mut T>,

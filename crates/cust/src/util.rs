@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub trait DeviceCopyExt: DeviceCopy {
-    /// Makes a new [`DBox`] from this value.
+    /// Makes a new [`DeviceBox`] from this value.
     fn as_dbox(&self) -> CudaResult<DeviceBox<Self>> {
         DeviceBox::new(self)
     }

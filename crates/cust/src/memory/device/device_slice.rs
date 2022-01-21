@@ -7,10 +7,11 @@ use crate::stream::Stream;
 use crate::sys as cuda;
 use std::mem;
 
+use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 use std::os::raw::c_void;
 
 /// Fixed-size device-side slice.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct DeviceSlice<T: DeviceCopy> {
     ptr: DevicePointer<T>,
@@ -203,6 +204,133 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// See the documentation of `from_raw_parts` for more details.
     pub unsafe fn from_raw_parts_mut(ptr: DevicePointer<T>, len: usize) -> DeviceSlice<T> {
         DeviceSlice { ptr, len }
+    }
+}
+
+pub trait DeviceSliceIndex<T: DeviceCopy> {
+    /// Indexes into this slice without checking if it is in-bounds.
+    ///
+    /// # Safety
+    ///
+    /// The range must be in-bounds of the slice.
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T>;
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T>;
+}
+
+#[inline(never)]
+#[cold]
+#[track_caller]
+fn slice_start_index_len_fail(index: usize, len: usize) -> ! {
+    panic!(
+        "range start index {} out of range for slice of length {}",
+        index, len
+    );
+}
+
+#[inline(never)]
+#[cold]
+#[track_caller]
+fn slice_end_index_len_fail(index: usize, len: usize) -> ! {
+    panic!(
+        "range end index {} out of range for slice of length {}",
+        index, len
+    );
+}
+
+#[inline(never)]
+#[cold]
+#[track_caller]
+fn slice_index_order_fail(index: usize, end: usize) -> ! {
+    panic!("slice index starts at {} but ends at {}", index, end);
+}
+
+#[inline(never)]
+#[cold]
+#[track_caller]
+fn slice_end_index_overflow_fail() -> ! {
+    panic!("attempted to index slice up to maximum usize");
+}
+
+impl<T: DeviceCopy> DeviceSliceIndex<T> for Range<usize> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        DeviceSlice::from_raw_parts(slice.as_device_ptr().add(self.start), self.end - self.start)
+    }
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        if self.start > self.end {
+            slice_index_order_fail(self.start, self.end);
+        } else if self.end > slice.len() {
+            slice_end_index_len_fail(self.end, slice.len());
+        }
+        // SAFETY: `self` is checked to be valid and in bounds above.
+        unsafe { self.get_unchecked(slice) }
+    }
+}
+
+impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeTo<usize> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        (0..self.end).get_unchecked(slice)
+    }
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        (0..self.end).index(slice)
+    }
+}
+
+impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeFrom<usize> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        (self.start..slice.len()).get_unchecked(slice)
+    }
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        if self.start > slice.len() {
+            slice_start_index_len_fail(self.start, slice.len());
+        }
+        // SAFETY: `self` is checked to be valid and in bounds above.
+        unsafe { self.get_unchecked(slice) }
+    }
+}
+
+impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeFull {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        *slice
+    }
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        *slice
+    }
+}
+
+fn into_slice_range(range: RangeInclusive<usize>) -> Range<usize> {
+    let exclusive_end = range.end() + 1;
+    let start = if range.is_empty() {
+        exclusive_end
+    } else {
+        *range.start()
+    };
+    start..exclusive_end
+}
+
+impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeInclusive<usize> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        into_slice_range(self).get_unchecked(slice)
+    }
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        if *self.end() == usize::MAX {
+            slice_end_index_overflow_fail();
+        }
+        into_slice_range(self).index(slice)
+    }
+}
+
+impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeToInclusive<usize> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        (0..=self.end).get_unchecked(slice)
+    }
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        (0..=self.end).index(slice)
+    }
+}
+
+impl<T: DeviceCopy> DeviceSlice<T> {
+    pub fn index<Idx: DeviceSliceIndex<T>>(&self, idx: Idx) -> DeviceSlice<T> {
+        idx.index(self)
     }
 }
 

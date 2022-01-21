@@ -7,12 +7,12 @@ edition = "2021"
 
 [dependencies]
 optix = {path = "../../"}
-cust = {path = "../../../cust", features=["glam"]}
+cust = {path = "../../../cust", features=["impl_glam"]}
 anyhow = "1.0.44"
 glfw = "0.42.0"
 gl = "0.14.0"
 num-traits = "0.2.14"
-glam = { git = "https://github.com/anderslanglands/glam-rs", branch = "cuda", features=["cuda"] }
+glam = { version = "0.20", features=["cuda"] }
 
 [build-dependencies]
 find_cuda_helper = { version = "0.2", path = "../../../find_cuda_helper" }
