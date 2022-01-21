@@ -576,6 +576,30 @@ impl CurrentContext {
         unsafe { cuda::cuCtxSetSharedMemConfig(transmute(cfg)).to_result() }
     }
 
+    /// Set the given context as the current context for this thread.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use cust::device::Device;
+    /// # use cust::context::{ Context, ContextFlags, CurrentContext };
+    /// # use std::error::Error;
+    /// #
+    /// # fn main () -> Result<(), Box<dyn Error>> {
+    /// # cust::init(cust::CudaFlags::empty())?;
+    /// # let device = Device::get_device(0)?;
+    /// let context = Context::new(device)?;
+    /// CurrentContext::set_current(&context)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_current<C: ContextHandle>(c: &C) -> CudaResult<()> {
+        unsafe {
+            cuda::cuCtxSetCurrent(c.get_inner()).to_result()?;
+            Ok(())
+        }
+    }
+
     /// Block to wait for a context's tasks to complete.
     pub fn synchronize() -> CudaResult<()> {
         unsafe {

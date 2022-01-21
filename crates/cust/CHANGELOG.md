@@ -27,6 +27,7 @@ any breaking changes, the API is the same.
 - Added `zeroed_async` to `DeviceBox`.
 - Added `drop_async` to `DeviceBox`.
 - Added `new_async` to `DeviceBox`.
+- `Linker::complete` now only returns the built cubin, and not the cubin and a duration.
 
 ## 0.2.2 - 12/5/21
 

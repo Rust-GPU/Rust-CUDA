@@ -1,6 +1,7 @@
 //! Functions for linking together multiple PTX files into a module.
 
-use std::{mem::MaybeUninit, time::Duration};
+use std::mem::MaybeUninit;
+use std::ptr::null_mut;
 
 use crate::sys as cuda;
 
@@ -12,7 +13,6 @@ static UNNAMED: &str = "\0";
 #[derive(Debug)]
 pub struct Linker {
     raw: cuda::CUlinkState,
-    duration_ptr: *mut *mut f32,
 }
 
 impl Linker {
@@ -22,19 +22,11 @@ impl Linker {
         // Therefore we use box to alloc the memory for us, then into_raw it so we now have ownership
         // of the memory (and dont have any aliasing requirements attached either).
 
-        // technically it should be fine to alloc as Box<*mut f32> then dealloc with Box<Box<f32>> but
-        // in the future rust may make this guarantee untrue so just alloc as Box<Box<f32>> then cast.
-        let ptr = Box::into_raw(Box::new(Box::new(0.0f32))) as *mut *mut f32;
-
-        // cuda shouldnt be modifying this but trust the bindings in that it wants a *mut ptr.
-        let options = &mut [cuda::CUjit_option_enum::CU_JIT_WALL_TIME];
         unsafe {
             let mut raw = MaybeUninit::uninit();
-            cuda::cuLinkCreate_v2(1, options.as_mut_ptr(), ptr.cast(), raw.as_mut_ptr())
-                .to_result()?;
+            cuda::cuLinkCreate_v2(0, null_mut(), null_mut(), raw.as_mut_ptr()).to_result()?;
             Ok(Self {
                 raw: raw.assume_init(),
-                duration_ptr: ptr,
             })
         }
     }
@@ -121,7 +113,7 @@ impl Linker {
 
     /// Runs the linker to generate the final cubin bytes. Also returns a duration
     /// for how long it took to run the linker.
-    pub fn complete(self) -> CudaResult<(Vec<u8>, Duration)> {
+    pub fn complete(self) -> CudaResult<Vec<u8>> {
         let mut cubin = MaybeUninit::uninit();
         let mut size = MaybeUninit::uninit();
 
@@ -134,16 +126,7 @@ impl Linker {
             let mut vec = Vec::with_capacity(size);
             vec.extend_from_slice(slice);
 
-            // now that duration has been written to, retrieve it and deallocate it.
-            let duration = **self.duration_ptr;
-            // recreate a box from our pointer, which will take ownership
-            // of it and then drop it immediately. This is sound because
-            // complete consumes self.
-            Box::from_raw(self.duration_ptr as *mut Box<f32>);
-
-            // convert to nanos so we dont lose the decimal millisecs.
-            let duration = Duration::from_nanos((duration * 1e6) as u64);
-            Ok((vec, duration))
+            Ok(vec)
         }
     }
 }

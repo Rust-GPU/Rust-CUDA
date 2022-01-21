@@ -175,70 +175,72 @@ impl Module {
         }
     }
 
-    /// Creates a new module by loading a fatbin (fat binary) file.
-    ///
-    /// Fatbinary files are files that contain multiple ptx or cubin files. The driver will choose already-built
-    /// cubin if it is present, and otherwise JIT compile any PTX in the file to cubin.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use cust::*;
-    /// # use std::error::Error;
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # let _ctx = quick_init()?;
-    /// use cust::module::Module;
-    /// let fatbin_bytes = std::fs::read("./resources/add.cubin")?;
-    /// assert!(fatbin_bytes.contains(&0));
-    /// let module = Module::from_cubin(&fatbin_bytes, &[])?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn from_fatbin<T: AsRef<[u8]>>(
-        bytes: T,
-        options: &[ModuleJitOption],
-    ) -> CudaResult<Module> {
-        let mut bytes = bytes.as_ref().to_vec();
-        bytes.push(0);
-        // fatbins are just ELF files like cubins, and cuModuleLoadDataEx accepts ptx, cubin, and fatbin.
-        // We just make the distinction in case we want to do anything extra in the future. As well
-        // as keep things explicit to anyone reading the code.
-        Self::from_cubin(bytes, options)
-    }
+    // TODO(RDambrosio016): figure out why the heck cuda rejects cubins literally made by nvcc and loaded by fs::read
 
-    pub unsafe fn from_fatbin_unchecked<T: AsRef<[u8]>>(
-        bytes: T,
-        options: &[ModuleJitOption],
-    ) -> CudaResult<Module> {
-        Self::from_cubin_unchecked(bytes, options)
-    }
+    // /// Creates a new module by loading a fatbin (fat binary) file.
+    // ///
+    // /// Fatbinary files are files that contain multiple ptx or cubin files. The driver will choose already-built
+    // /// cubin if it is present, and otherwise JIT compile any PTX in the file to cubin.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```
+    // /// # use cust::*;
+    // /// # use std::error::Error;
+    // /// # fn main() -> Result<(), Box<dyn Error>> {
+    // /// # let _ctx = quick_init()?;
+    // /// use cust::module::Module;
+    // /// let fatbin_bytes = std::fs::read("./resources/add.cubin")?;
+    // /// assert!(fatbin_bytes.contains(&0));
+    // /// let module = Module::from_cubin(&fatbin_bytes, &[])?;
+    // /// # Ok(())
+    // /// # }
+    // /// ```
+    // pub fn from_fatbin<T: AsRef<[u8]>>(
+    //     bytes: T,
+    //     options: &[ModuleJitOption],
+    // ) -> CudaResult<Module> {
+    //     let mut bytes = bytes.as_ref().to_vec();
+    //     bytes.push(0);
+    //     // fatbins are just ELF files like cubins, and cuModuleLoadDataEx accepts ptx, cubin, and fatbin.
+    //     // We just make the distinction in case we want to do anything extra in the future. As well
+    //     // as keep things explicit to anyone reading the code.
+    //     Self::from_cubin(bytes, options)
+    // }
 
-    pub fn from_cubin<T: AsRef<[u8]>>(bytes: T, options: &[ModuleJitOption]) -> CudaResult<Module> {
-        let bytes = bytes.as_ref();
-        goblin::elf::Elf::parse(bytes).expect("Cubin/Fatbin was not valid ELF!");
-        // SAFETY: we verified the bytes were valid ELF
-        unsafe { Self::from_cubin_unchecked(bytes, options) }
-    }
+    // pub unsafe fn from_fatbin_unchecked<T: AsRef<[u8]>>(
+    //     bytes: T,
+    //     options: &[ModuleJitOption],
+    // ) -> CudaResult<Module> {
+    //     Self::from_cubin_unchecked(bytes, options)
+    // }
 
-    pub unsafe fn from_cubin_unchecked<T: AsRef<[u8]>>(
-        bytes: T,
-        options: &[ModuleJitOption],
-    ) -> CudaResult<Module> {
-        let bytes = bytes.as_ref();
-        let mut module = Module {
-            inner: ptr::null_mut(),
-        };
-        let (mut options, mut option_values) = ModuleJitOption::into_raw(options);
-        cuda::cuModuleLoadDataEx(
-            &mut module.inner as *mut cuda::CUmodule,
-            bytes.as_ptr() as *const c_void,
-            options.len() as c_uint,
-            options.as_mut_ptr(),
-            option_values.as_mut_ptr(),
-        )
-        .to_result()?;
-        Ok(module)
-    }
+    // pub fn from_cubin<T: AsRef<[u8]>>(bytes: T, options: &[ModuleJitOption]) -> CudaResult<Module> {
+    //     let bytes = bytes.as_ref();
+    //     goblin::elf::Elf::parse(bytes).expect("Cubin/Fatbin was not valid ELF!");
+    //     // SAFETY: we verified the bytes were valid ELF
+    //     unsafe { Self::from_cubin_unchecked(bytes, options) }
+    // }
+
+    // pub unsafe fn from_cubin_unchecked<T: AsRef<[u8]>>(
+    //     bytes: T,
+    //     options: &[ModuleJitOption],
+    // ) -> CudaResult<Module> {
+    //     let bytes = bytes.as_ref();
+    //     let mut module = Module {
+    //         inner: ptr::null_mut(),
+    //     };
+    //     let (mut options, mut option_values) = ModuleJitOption::into_raw(options);
+    //     cuda::cuModuleLoadDataEx(
+    //         &mut module.inner as *mut cuda::CUmodule,
+    //         bytes.as_ptr() as *const c_void,
+    //         options.len() as c_uint,
+    //         options.as_mut_ptr(),
+    //         option_values.as_mut_ptr(),
+    //     )
+    //     .to_result()?;
+    //     Ok(module)
+    // }
 
     pub fn from_ptx_cstr(cstr: &CStr, options: &[ModuleJitOption]) -> CudaResult<Module> {
         unsafe {
