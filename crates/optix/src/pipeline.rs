@@ -415,7 +415,7 @@ impl Module {
                 &mut raw,
             ))
             .map(|_| Module { raw })
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
         }
     }
 }

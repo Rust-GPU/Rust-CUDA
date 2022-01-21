@@ -183,7 +183,7 @@ impl ToResult for sys::OptixResult {
             sys::OptixResult::OPTIX_ERROR_CUDA_ERROR => CudaError,
             sys::OptixResult::OPTIX_ERROR_INTERNAL_ERROR => InternalError,
             sys::OptixResult::OPTIX_ERROR_UNKNOWN => Unknown,
-            value @ _ => panic!("Unhandled OptixResult value {:?}", value),
+            value => panic!("Unhandled OptixResult value {:?}", value),
         })
     }
 }

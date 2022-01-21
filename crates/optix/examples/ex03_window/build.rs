@@ -1,4 +1,4 @@
-use find_cuda_helper::{find_cuda_root, find_optix_root};
+use find_cuda_helper::find_optix_root;
 
 fn main() {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -8,13 +8,6 @@ fn main() {
     that OPTIX_ROOT or OPTIX_ROOT_DIR are set",
     );
     optix_include = optix_include.join("include");
-
-    let mut cuda_include = find_cuda_root().expect(
-        "Unable to find the CUDA Toolkit, make sure you installed it and
-    that CUDA_ROOT, CUDA_PATH or CUDA_TOOLKIT_ROOT_DIR are set",
-    );
-
-    cuda_include = cuda_include.join("include");
 
     let args = vec![
         format!("-I{}", optix_include.display()),

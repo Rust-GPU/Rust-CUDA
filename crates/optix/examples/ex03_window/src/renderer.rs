@@ -36,8 +36,7 @@ impl Renderer {
         // create CUDA and OptiX contexts
         let device = Device::get_device(0)?;
 
-        let cuda_context =
-            CuContext::create_and_push(ContextFlags::SCHED_AUTO | ContextFlags::MAP_HOST, device)?;
+        let cuda_context = CuContext::new(device)?;
         let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
         let mut ctx = DeviceContext::new(&cuda_context, false)?;

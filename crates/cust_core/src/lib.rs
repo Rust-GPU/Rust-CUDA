@@ -59,6 +59,10 @@ use core::num::*;
 /// invalid reference on the device which would segfault if dereferenced. Generalizing this, any
 /// type implementing `Drop` cannot be `DeviceCopy` since it is responsible for some resource that
 /// would not be available on the device.
+///
+/// # Safety
+///
+/// The type being implemented must hold no references to CPU data.
 pub unsafe trait DeviceCopy: Copy {}
 
 macro_rules! impl_device_copy {

@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 mod renderer;
 use renderer::Renderer;
 

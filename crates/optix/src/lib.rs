@@ -68,7 +68,7 @@ use shader_binding_table::ShaderBindingTable;
 pub mod sys;
 
 pub use cust;
-use cust::memory::{DeviceMemory, DevicePointer};
+use cust::memory::DeviceMemory;
 use error::{Error, ToResult};
 type Result<T, E = Error> = std::result::Result<T, E>;
 

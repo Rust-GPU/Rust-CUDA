@@ -30,6 +30,24 @@ any breaking changes, the API is the same.
 - `Linker::complete` now only returns the built cubin, and not the cubin and a duration.
 - `Stream`, `Module`, `Linker`, `Function`, `Event`, `UnifiedBox`, `ArrayObject`, `LockedBuffer`, `LockedBox`, `DeviceSlice`, `DeviceBuffer`, and `DeviceBox` all now impl `Send` and `Sync`, this makes
 it much easier to write multigpu code. The CUDA API is fully thread-safe except for graph objects.
+- Features such as `vek` for implementing DeviceCopy are now `impl_cratename`, e.g. `impl_vek`, `impl_half`, etc.
+- `DevicePointer::as_raw` now returns a `CUdeviceptr` instead of a `*const T`.
+- Added `DevicePointer::as_ptr` and `DevicePointer::as_mut_ptr` for returning `*const T` or `*mut T`.
+- Added mint integration behind `impl_mint`.
+- Added half integration behind `impl_half`.
+- Added glam integration behind `impl_glam`.
+- Added experimental linux external memory import APIs through `cust::external::ExternalMemory`.
+- `vek` is no longer re-exported.
+- `DeviceBox` now requires `T: DeviceCopy` (previously it didn't but almost all its methods did).
+- `DeviceBox::from_raw` now takes a `CUdeviceptr` instead of a `*mut T`.
+- `DeviceBox::as_device_ptr` now requires `&self` instead of `&mut self`.
+- `DeviceBuffer` now requires `T: DeviceCopy`.
+- `DeviceSlice` now requires `T: DeviceCopy`.
+- `DeviceSlice` is now represented by a ptr and a len instead of `[T]` which was likely unsound.
+- `DeviceSlice::as_ptr` and `DeviceSlice::as_ptr_mut` now both return a `DevicePointer<T>`.
+- Added `DeviceSlice::as_device_ptr`.
+- `DeviceSlice::chunks` and `DeviceSlice::chunks_mut` have been deleted.
+- `DeviceSlice::from_slice` and `DeviceSlice::from_slice_mut` have been deleted.
 
 ## 0.2.2 - 12/5/21
 

@@ -19,8 +19,8 @@ pub struct DeviceBox<T: DeviceCopy> {
     pub(crate) ptr: DevicePointer<T>,
 }
 
-unsafe impl<T: Send> Send for DeviceBox<T> {}
-unsafe impl<T: Sync> Sync for DeviceBox<T> {}
+unsafe impl<T: Send + DeviceCopy> Send for DeviceBox<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for DeviceBox<T> {}
 
 impl<T: DeviceCopy> DeviceBox<T> {
     /// Allocate device memory and place val into it.
@@ -156,14 +156,10 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub fn zeroed() -> CudaResult<Self> {
         unsafe {
-            let mut new_box = DeviceBox::uninitialized()?;
+            let new_box = DeviceBox::uninitialized()?;
             if mem::size_of::<T>() != 0 {
-                cuda::cuMemsetD8_v2(
-                    new_box.as_device_ptr().as_raw_mut() as u64,
-                    0,
-                    mem::size_of::<T>(),
-                )
-                .to_result()?;
+                cuda::cuMemsetD8_v2(new_box.as_device_ptr().as_raw(), 0, mem::size_of::<T>())
+                    .to_result()?;
             }
             Ok(new_box)
         }
@@ -200,10 +196,10 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     /// ```
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub unsafe fn zeroed_async(stream: &Stream) -> CudaResult<Self> {
-        let mut new_box = DeviceBox::uninitialized_async(stream)?;
+        let new_box = DeviceBox::uninitialized_async(stream)?;
         if mem::size_of::<T>() != 0 {
             cuda::cuMemsetD8Async(
-                new_box.as_device_ptr().as_raw_mut() as u64,
+                new_box.as_device_ptr().as_raw(),
                 0,
                 mem::size_of::<T>(),
                 stream.as_inner(),
@@ -214,7 +210,7 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     }
 }
 
-impl<T> DeviceBox<T> {
+impl<T: DeviceCopy> DeviceBox<T> {
     /// Allocate device memory, but do not initialize it.
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
@@ -470,7 +466,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<T> for DeviceBox<T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             cuda::cuMemcpyHtoDAsync_v2(
-                self.ptr.as_raw_mut() as u64,
+                self.ptr.as_raw(),
                 val as *const _ as *const c_void,
                 size,
                 stream.as_inner(),

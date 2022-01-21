@@ -91,10 +91,10 @@ impl CudaRenderer {
         self.buffers.resize(new_size)?;
         self.cpu_image.resize(new_size.product(), Vec3::zero());
 
-        Ok(self
-            .denoiser
+        self.denoiser
             .setup_state(&self.stream, new_size.x as u32, new_size.y as u32, false)
-            .unwrap())
+            .unwrap();
+        Ok(())
     }
 
     /// calculate an optimal launch configuration for an image kernel
@@ -190,7 +190,7 @@ impl CudaRenderer {
 
         let (blocks, threads) = self.launch_dimensions();
 
-        let mut scene = Scene {
+        let scene = Scene {
             objects: &self.buffers.objects,
             materials: &self.buffers.materials,
         }

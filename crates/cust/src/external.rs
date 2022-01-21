@@ -10,6 +10,7 @@ pub struct ExternalMemory(sys::CUexternalMemory);
 
 impl ExternalMemory {
     // Import an external memory referenced by `fd` with `size`
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn import(fd: i32, size: usize) -> CudaResult<ExternalMemory> {
         let desc = sys::CUDA_EXTERNAL_MEMORY_HANDLE_DESC {
             type_: sys::CUexternalMemoryHandleType_enum::CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD,
@@ -26,6 +27,7 @@ impl ExternalMemory {
             .map(|_| ExternalMemory(memory))
     }
 
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn reimport(&mut self, fd: i32, size: usize) -> CudaResult<()> {
         // import new memory - this will call drop to destroy the old one
         *self = ExternalMemory::import(fd, size)?;

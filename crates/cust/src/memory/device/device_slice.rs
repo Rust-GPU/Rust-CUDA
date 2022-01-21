@@ -17,8 +17,8 @@ pub struct DeviceSlice<T: DeviceCopy> {
     len: usize,
 }
 
-unsafe impl<T: Send> Send for DeviceSlice<T> {}
-unsafe impl<T: Sync> Sync for DeviceSlice<T> {}
+unsafe impl<T: Send + DeviceCopy> Send for DeviceSlice<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for DeviceSlice<T> {}
 
 impl<T: DeviceCopy + Default + Clone> DeviceSlice<T> {
     pub fn as_host_vec(&self) -> CudaResult<Vec<T>> {

@@ -46,7 +46,7 @@ impl CublasContext {
             Ok(T::amin(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 stride.unwrap_or(1) as i32,
                 result.as_device_ptr().as_mut_ptr(),
             )
@@ -108,7 +108,7 @@ impl CublasContext {
             Ok(T::amax(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 stride.unwrap_or(1) as i32,
                 result.as_device_ptr().as_mut_ptr(),
             )
@@ -172,10 +172,10 @@ impl CublasContext {
             Ok(T::axpy(
                 ctx.raw,
                 n as i32,
-                alpha.as_device_ptr().as_raw(),
-                x.as_device_ptr().as_raw(),
+                alpha.as_device_ptr().as_ptr(),
+                x.as_device_ptr().as_ptr(),
                 x_stride.unwrap_or(1) as i32,
-                y.as_device_ptr().as_raw_mut(),
+                y.as_device_ptr().as_mut_ptr(),
                 y_stride.unwrap_or(1) as i32,
             )
             .to_result()?)
@@ -245,9 +245,9 @@ impl CublasContext {
             Ok(T::copy(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 x_stride.unwrap_or(1) as i32,
-                y.as_device_ptr().as_raw_mut(),
+                y.as_device_ptr().as_mut_ptr(),
                 y_stride.unwrap_or(1) as i32,
             )
             .to_result()?)
@@ -314,11 +314,11 @@ impl CublasContext {
             Ok(T::dot(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 x_stride.unwrap_or(1) as i32,
-                y.as_device_ptr().as_raw(),
+                y.as_device_ptr().as_ptr(),
                 y_stride.unwrap_or(1) as i32,
-                result.as_device_ptr().as_raw_mut(),
+                result.as_device_ptr().as_mut_ptr(),
             )
             .to_result()?)
         })
@@ -390,11 +390,11 @@ impl CublasContext {
             Ok(T::dotu(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 x_stride.unwrap_or(1) as i32,
-                y.as_device_ptr().as_raw(),
+                y.as_device_ptr().as_ptr(),
                 y_stride.unwrap_or(1) as i32,
-                result.as_device_ptr().as_raw_mut(),
+                result.as_device_ptr().as_mut_ptr(),
             )
             .to_result()?)
         })
@@ -438,11 +438,11 @@ impl CublasContext {
             Ok(T::dotc(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 x_stride.unwrap_or(1) as i32,
-                y.as_device_ptr().as_raw(),
+                y.as_device_ptr().as_ptr(),
                 y_stride.unwrap_or(1) as i32,
-                result.as_device_ptr().as_raw_mut(),
+                result.as_device_ptr().as_mut_ptr(),
             )
             .to_result()?)
         })
@@ -483,9 +483,9 @@ impl CublasContext {
             Ok(T::nrm2(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw(),
+                x.as_device_ptr().as_ptr(),
                 x_stride.unwrap_or(1) as i32,
-                result.as_device_ptr().as_raw_mut(),
+                result.as_device_ptr().as_mut_ptr(),
             )
             .to_result()?)
         })
@@ -559,12 +559,12 @@ impl CublasContext {
             Ok(T::rot(
                 ctx.raw,
                 n as i32,
-                x.as_device_ptr().as_raw_mut(),
+                x.as_device_ptr().as_mut_ptr(),
                 x_stride.unwrap_or(1) as i32,
-                y.as_device_ptr().as_raw_mut(),
+                y.as_device_ptr().as_mut_ptr(),
                 y_stride.unwrap_or(1) as i32,
-                c.as_device_ptr().as_raw(),
-                s.as_device_ptr().as_raw(),
+                c.as_device_ptr().as_ptr(),
+                s.as_device_ptr().as_ptr(),
             )
             .to_result()?)
         })

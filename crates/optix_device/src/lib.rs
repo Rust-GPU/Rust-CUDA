@@ -8,7 +8,7 @@
 extern crate alloc;
 
 use cuda_std::*;
-use glam::{UVec2, UVec3};
+use glam::UVec3;
 
 extern "C" {
     pub fn vprintf(format: *const u8, valist: *const core::ffi::c_void) -> i32;

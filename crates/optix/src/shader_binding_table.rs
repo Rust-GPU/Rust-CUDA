@@ -1,9 +1,6 @@
-use crate::{error::Error, optix_call, pipeline::ProgramGroup, sys};
-
-use cust::memory::{DeviceCopy, DeviceSlice};
-use cust_raw::CUdeviceptr;
-
 use crate::{const_assert, const_assert_eq};
+use crate::{error::Error, optix_call, pipeline::ProgramGroup, sys};
+use cust::memory::{DeviceCopy, DeviceSlice};
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -75,7 +72,7 @@ impl ShaderBindingTable {
     }
 
     pub fn miss<MS: DeviceCopy>(mut self, buf_miss_records: &DeviceSlice<SbtRecord<MS>>) -> Self {
-        if buf_miss_records.len() == 0 {
+        if buf_miss_records.is_empty() {
             panic!("SBT passed empty miss records");
         }
         self.0.missRecordBase = buf_miss_records.as_device_ptr().as_raw();
@@ -88,7 +85,7 @@ impl ShaderBindingTable {
         mut self,
         buf_hitgroup_records: &DeviceSlice<SbtRecord<HG>>,
     ) -> Self {
-        if buf_hitgroup_records.len() == 0 {
+        if buf_hitgroup_records.is_empty() {
             panic!("SBT passed empty hitgroup records");
         }
         self.0.hitgroupRecordBase = buf_hitgroup_records.as_device_ptr().as_raw();
@@ -101,7 +98,7 @@ impl ShaderBindingTable {
         mut self,
         buf_callables_records: &DeviceSlice<SbtRecord<CL>>,
     ) -> Self {
-        if buf_callables_records.len() == 0 {
+        if buf_callables_records.is_empty() {
             panic!("SBT passed empty callables records");
         }
         self.0.callablesRecordBase = buf_callables_records.as_device_ptr().as_raw();

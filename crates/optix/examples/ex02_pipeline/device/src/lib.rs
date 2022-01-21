@@ -6,8 +6,7 @@
     register_attr(nvvm_internal)
 )]
 // #![deny(warnings)]
-
-use core::mem::MaybeUninit;
+#![allow(clippy::missing_safety_doc)]
 
 use cuda_std::*;
 use cust_core::DeviceCopy;
@@ -51,15 +50,12 @@ pub unsafe fn __raygen__renderFrame() {
     // let ix = _optix_get_launch_index_x();
     // let iy = _optix_get_launch_index_y();
 
-    let ix: u32;
-    let iy: u32;
-
     let idx = optix::get_launch_index();
 
     if idx[0] == 3 && idx[1] == 4 {
         vprintf(
             b"Hello from Rust kernel!\n\0".as_ptr().cast(),
-            0 as *const core::ffi::c_void,
+            std::ptr::null::<core::ffi::c_void>(),
         );
 
         #[repr(C)]

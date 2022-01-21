@@ -42,8 +42,7 @@ impl Renderer {
         // create CUDA and OptiX contexts
         let device = Device::get_device(0)?;
 
-        let cuda_context =
-            CuContext::create_and_push(ContextFlags::SCHED_AUTO | ContextFlags::MAP_HOST, device)?;
+        let cuda_context = CuContext::new(device)?;
         let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
         let mut ctx = DeviceContext::new(&cuda_context, true)?;
@@ -152,9 +151,9 @@ impl Renderer {
         let mut buf_miss = DeviceBuffer::from_slice(&rec_miss)?;
         let mut buf_hitgroup = DeviceBuffer::from_slice(&rec_hitgroup)?;
 
-        let sbt = ShaderBindingTable::new(&mut buf_raygen)
-            .miss(&mut buf_miss)
-            .hitgroup(&mut buf_hitgroup);
+        let sbt = ShaderBindingTable::new(&buf_raygen)
+            .miss(&buf_miss)
+            .hitgroup(&buf_hitgroup);
 
         // create pipeline
         let mut program_groups = Vec::new();

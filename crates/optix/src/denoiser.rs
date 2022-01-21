@@ -9,7 +9,7 @@ use std::{
 use cust::{
     error::CudaResult,
     memory::{
-        DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, GpuBox, GpuBuffer, UnifiedBuffer,
+        DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, GpuBuffer, UnifiedBuffer,
     },
     prelude::Stream,
 };
@@ -561,11 +561,10 @@ impl<'a> Image<'a> {
         Self::validate_buf(buffer, format, width, height);
 
         Self {
-            buffer: unsafe {
+            buffer: 
                 // SAFETY: this buffer is never written to for the duration of this image being alive.
                 // And we know the buffer is large enough to be reinterpreted as a buffer of bytes.
-                DevicePointer::from_raw(buffer.as_device_ptr().as_raw())
-            },
+                DevicePointer::from_raw(buffer.as_device_ptr().as_raw()),
             buffer_size: buffer.len() * std::mem::size_of::<T>(),
             format,
             width,

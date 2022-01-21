@@ -1,3 +1,5 @@
+#![allow(clippy::missing_safety_doc)]
+
 use crate::{const_assert, const_assert_eq, context::DeviceContext, error::Error, optix_call, sys};
 use cust::{
     memory::{CopyDestination, DeviceCopy, DeviceBox, DeviceBuffer, DevicePointer, DeviceSlice},
@@ -88,6 +90,7 @@ pub trait Traversable {
 /// # }
 /// ```
 pub struct Accel {
+    #[allow(dead_code)]
     buf: DeviceBuffer<u8>,
     hnd: TraversableHandle,
 }
@@ -168,7 +171,7 @@ impl Accel {
         let mut temp_buffer =
             unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
 
-        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+        let compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
 
         let mut properties = vec![AccelEmitDesc::CompactedSize(
             compacted_size_buffer.as_device_ptr(),
@@ -296,7 +299,7 @@ impl DynamicAccel {
         let mut temp_buffer =
             unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
 
-        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+        let compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
 
         let mut properties = vec![AccelEmitDesc::CompactedSize(
             compacted_size_buffer.as_device_ptr(),
@@ -377,7 +380,7 @@ impl DynamicAccel {
         let mut temp_buffer =
             unsafe { DeviceBuffer::<u8>::uninitialized(sizes.temp_size_in_bytes)? };
 
-        let mut compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
+        let compacted_size_buffer = unsafe { DeviceBox::<usize>::uninitialized()? };
 
         let mut properties = vec![AccelEmitDesc::CompactedSize(
             compacted_size_buffer.as_device_ptr(),
@@ -838,6 +841,7 @@ impl AccelBuildOptions {
 /// [`AccelRelocationInfo`] can also be used on all copies.
 #[repr(transparent)]
 pub struct AccelRelocationInfo {
+    #[allow(dead_code)]
     inner: sys::OptixAccelRelocationInfo,
 }
 
@@ -970,6 +974,7 @@ pub struct CurveArray<'v, 'w, 'i> {
     d_vertex_buffers: Vec<CUdeviceptr>,
     vertex_stride_in_bytes: u32,
     width_buffers: PhantomData<&'w f32>,
+    #[allow(dead_code)]
     num_width_buffers: u32,
     d_width_buffers: Vec<CUdeviceptr>,
     width_stride_in_bytes: u32,
@@ -1549,6 +1554,7 @@ bitflags::bitflags! {
 
 impl<'a> Instance<'a> {
     pub fn new<T: Traversable>(accel: &'a T) -> Instance<'a> {
+        #[allow(clippy::deprecated_cfg_attr)]
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Instance {
             transform: [
@@ -1566,6 +1572,7 @@ impl<'a> Instance<'a> {
     }
 
     pub unsafe fn from_handle(traversable_handle: TraversableHandle) -> Instance<'static> {
+        #[allow(clippy::deprecated_cfg_attr)]
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Instance {
             transform: [
@@ -1716,6 +1723,7 @@ const_assert_eq!(
 
 /// Stores the device memory and the [`TraversableHandle`] for a [`StaticTransform`]
 pub struct StaticTransform {
+    #[allow(dead_code)]
     buf: DeviceBox<StaticTransformWrapper>,
     hnd: TraversableHandle,
 }
@@ -1770,6 +1778,7 @@ impl Traversable for StaticTransform {
 /// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixMatrixMotionTransform`]
 /// and an arbitrary number of motion keys
 pub struct MatrixMotionTransform {
+    #[allow(dead_code)]
     buf: DeviceBuffer<u8>,
     hnd: TraversableHandle,
 }
@@ -1917,6 +1926,8 @@ impl Deref for SrtData {
 /// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixSRTMotionTransform`]
 /// and an arbitrary number of motion keys
 pub struct SrtMotionTransform {
+    // TODO(RDambrosio016): ask al what this is for :p
+    #[allow(dead_code)]
     buf: DeviceBuffer<u8>,
     hnd: TraversableHandle,
 }
