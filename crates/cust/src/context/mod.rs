@@ -166,6 +166,18 @@ pub struct Context {
     device: cuda::CUdevice,
 }
 
+impl Clone for Context {
+    fn clone(&self) -> Self {
+        // because we already retained a context on this device successfully (self), it is
+        // exceedingly rare that this function would fail, therefore a silent panic
+        // is mostly okay
+        Self::new(Device {
+            device: self.device,
+        })
+        .expect("Failed to clone context")
+    }
+}
+
 impl Context {
     /// Retains the primary context for this device and makes it current, incrementing the internal reference cycle
     /// that CUDA keeps track of. There is only one primary context associated with a device, multiple
