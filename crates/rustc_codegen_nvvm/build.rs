@@ -166,6 +166,16 @@ fn rustc_llvm_build() {
         if flag.starts_with("-flto") {
             continue;
         }
+        // ignore flags that aren't supported in gcc 8
+        if flag == "-Wcovered-switch-default" {
+            continue;
+        }
+        if flag == "-Wstring-conversion" {
+            continue;
+        }
+        if flag == "-Werror=unguarded-availability-new" {
+            continue;
+        }
 
         cfg.flag(flag);
     }
@@ -183,7 +193,7 @@ fn rustc_llvm_build() {
     build_helper::rerun_if_changed(Path::new("rustc_llvm_wrapper"));
     cfg.file("rustc_llvm_wrapper/RustWrapper.cpp")
         .file("rustc_llvm_wrapper/PassWrapper.cpp")
-        .include("rustc_llvm_wrapper/rustllvm.h")
+        .include("rustc_llvm_wrapper")
         .cpp(true)
         .cpp_link_stdlib(None) // we handle this below
         .compile("llvm-wrapper");
@@ -241,7 +251,7 @@ fn rustc_llvm_build() {
 
     // Link in the system libraries that LLVM depends on
     #[cfg(not(target_os = "windows"))]
-    link_llvm_system_libs(&llvm_config);
+    link_llvm_system_libs(&llvm_config, required_components);
 
     // LLVM ldflags
     //
@@ -330,9 +340,13 @@ fn rustc_llvm_build() {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn link_llvm_system_libs(llvm_config: &Path) {
+fn link_llvm_system_libs(llvm_config: &Path, components: &[&str]) {
     let mut cmd = Command::new(&llvm_config);
     cmd.arg("--system-libs");
+
+    for comp in components {
+        cmd.arg(comp);
+    }
 
     for lib in output(&mut cmd).split_whitespace() {
         let name = if let Some(stripped) = lib.strip_prefix("-l") {

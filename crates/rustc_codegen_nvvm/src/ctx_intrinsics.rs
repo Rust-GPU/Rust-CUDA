@@ -36,6 +36,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         let t_i128 = self.type_vector(t_i64, 2);
         let t_f32 = self.type_f32();
         let t_f64 = self.type_f64();
+        let t_isize = self.type_isize();
 
         let t_i8_i1 = self.type_struct(&[t_i8, i1], false);
         let t_i16_i1 = self.type_struct(&[t_i16, i1], false);
@@ -175,6 +176,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
         ifn!(map, "llvm.expect.i1", fn(i1, i1) -> i1);
         ifn!(map, "llvm.prefetch", fn(i8p, t_i32, t_i32, t_i32) -> void);
+
+        // This isn't an "LLVM intrinsic", but LLVM's optimization passes
+        // recognize it like one and we assume it exists in `core::slice::cmp`
+        ifn!(map, "memcmp", fn(i8p, i8p, t_isize) -> t_i32);
 
         ifn!(map, "llvm.va_start", fn(i8p) -> void);
         ifn!(map, "llvm.va_end", fn(i8p) -> void);

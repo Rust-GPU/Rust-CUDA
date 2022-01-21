@@ -5,7 +5,7 @@ This section covers how to get started writing GPU crates with `cuda_std` and `c
 ## Required Libraries
 
 Before you can use the project to write GPU crates, you will need a couple of prerequisites:
-- [The CUDA SDK](https://developer.nvidia.com/cuda-downloads), version `11.2` or higher. This is only for building
+- [The CUDA SDK](https://developer.nvidia.com/cuda-downloads), version `11.2` or higher (and the appropriate driver - [see cuda release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)) . This is only for building
 GPU crates, to execute built PTX you only need CUDA 9+.
 
 - LLVM 7.x (7.0 to 7.4), The codegen searches multiple places for LLVM:
@@ -17,6 +17,8 @@ GPU crates, to execute built PTX you only need CUDA 9+.
 - The OptiX SDK if using the optix library (the pathtracer example uses it for denoising).
 
 - You may also need to add `libnvvm` to PATH, the builder should do it for you but in case it does not work, add libnvvm to PATH, it should be somewhere like `CUDA_ROOT/nvvm/bin`,
+
+- You may wish to use or consult the bundled [Dockerfile](#docker) to assist in your local config
 
 ## rust-toolchain
 
@@ -188,3 +190,21 @@ static PTX: &str = include_str!("some/path.ptx");
 ```
 
 Then execute it using cust.
+
+## Docker
+
+There is also a [Dockerfile](Dockerfile) prepared as a quickstart with all the necessary libraries for base cuda development.
+
+You can use it as follows (assuming your clone of Rust-CUDA is at the absolute path `RUST_CUDA`):
+ - Ensure you have Docker setup to [use gpus](https://docs.docker.com/config/containers/resource_constraints/#gpu)
+ - Build `docker build -t rust-cuda $RUST_CUDA`
+ - Run `docker run -it --gpus all -v $RUST_CUDA:/root/rust-cuda --entrypoint /bin/bash rust-cuda`
+    * Running will drop you into the container's shell and you will find the project at `~/rust-cuda`
+ - If all is well, you'll be able to `cargo run` in `~/rust-cuda/examples/cuda/cpu/add`
+ 
+**Notes:**
+1. refer to [rust-toolchain](#rust-toolchain) to ensure you are using the correct toolchain in your project.
+2. despite using Docker, your machine will still need to be running a compatible driver, in this case for Cuda 11.4.1 it is >=470.57.02
+3. if you have issues within the container, it can help to start ensuring your gpu is recognized
+    * ensure `nvidia-smi` provides meaningful output in the container
+    * NVidia provides a number of samples https://github.com/NVIDIA/cuda-samples. In particular, you may want to try `make`ing and running the [`deviceQuery`](https://github.com/NVIDIA/cuda-samples/tree/ba04faaf7328dbcc87bfc9acaf17f951ee5ddcf3/Samples/deviceQuery) sample. If all is well you should see many details about your gpu

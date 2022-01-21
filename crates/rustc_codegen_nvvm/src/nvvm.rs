@@ -6,12 +6,12 @@ use crate::lto::ThinBuffer;
 use find_cuda_helper::find_cuda_root;
 use nvvm::*;
 use rustc_codegen_ssa::traits::ThinBufferMethods;
-use rustc_session::Session;
+use rustc_session::{config::DebugInfo, Session};
 use std::ffi::OsStr;
 use std::fmt::Display;
-use std::fs;
 use std::marker::PhantomData;
 use std::path::Path;
+use std::{fs, ptr};
 use tracing::debug;
 
 // see libintrinsics.ll on what this is.
@@ -71,6 +71,24 @@ pub fn codegen_bitcode_modules(
     unsafe {
         internalize_pass(module, llcx);
         dce_pass(module);
+
+        if sess.opts.debuginfo != DebugInfo::None {
+            cleanup_dicompileunit(module);
+        }
+
+        let (dbg_major, dbg_minor) = nvvm::dbg_version();
+
+        // needed for debug info or else nvvm complains about ir version mismatch for some
+        // reason. It works if you don't use debug info though...
+        let ty_i32 = LLVMInt32TypeInContext(llcx);
+        let major = LLVMConstInt(ty_i32, major as u64, False);
+        let minor = LLVMConstInt(ty_i32, minor as u64, False);
+        let dbg_major = LLVMConstInt(ty_i32, dbg_major as u64, False);
+        let dbg_minor = LLVMConstInt(ty_i32, dbg_minor as u64, False);
+        let vals = vec![major, minor, dbg_major, dbg_minor];
+        let node = LLVMMDNodeInContext(llcx, vals.as_ptr(), vals.len() as u32);
+
+        LLVMAddNamedMetadataOperand(module, "nvvmir.version\0".as_ptr().cast(), node);
     }
     let buf = ThinBuffer::new(module);
 
@@ -106,9 +124,12 @@ pub fn codegen_bitcode_modules(
 
     let res = match prog.compile(opts) {
         Ok(b) => b,
-        Err(_) => {
+        Err(error) => {
             // this should never happen, if it does, something went really bad or its a bug on libnvvm's end
-            panic!("libnvvm returned an error that was not previously caught by the verifier");
+            panic!(
+                "libnvvm returned an error that was not previously caught by the verifier: {:?}",
+                error
+            );
         }
     };
 
@@ -129,6 +150,13 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
     } else {
         None
     }
+}
+
+unsafe fn cleanup_dicompileunit(module: &Module) {
+    let mut cu1 = ptr::null_mut();
+    let mut cu2 = ptr::null_mut();
+    LLVMRustThinLTOGetDICompileUnit(module, &mut cu1, &mut cu2);
+    LLVMRustThinLTOPatchDICompileUnit(module, cu1);
 }
 
 // Merging and DCE (dead code elimination) logic. Inspired a lot by rust-ptx-linker.

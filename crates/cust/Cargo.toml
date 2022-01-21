@@ -2,7 +2,10 @@
 name = "cust"
 version = "0.2.2"
 # Big thanks to the original author of rustacuda <3
-authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "Brook Heisler <brookheisler@gmail.com>"]
+authors = [
+    "Riccardo D'Ambrosio <rdambrosio016@gmail.com>",
+    "Brook Heisler <brookheisler@gmail.com>",
+]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "High level bindings to the CUDA Driver API"
@@ -10,25 +13,29 @@ repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 
 [dependencies]
-cust_raw = { path = "../cust_raw", version = "0.11.2"}
 cust_core = { path = "../cust_core", version = "0.1.0"}
+cust_raw = { path = "../cust_raw", version = "0.11.2"}
 bitflags = "1.2"
 cust_derive = { path = "../cust_derive", version = "0.1" }
 glam = { git = "https://github.com/anderslanglands/glam-rs", branch = "cuda", features=["cuda"], optional=true }
 mint = { version = "^0.5", optional = true }
 num-complex = { version = "0.4", optional = true }
 vek = { version = "0.15.1", optional = true, default-features = false }
+bytemuck = { version = "1.7.3", optional = true }
+goblin = { version = "0.4.3", default-features = false, features = ["elf32", "elf64", "std", "endian_fd"] }
 
 [features]
-default= ["vek", "impl_glam", "impl_mint"]
+default= ["vek", "impl_glam", "impl_mint", "bytemuck"]
 impl_glam = ["cust_core/glam", "glam"]
 impl_mint = ["cust_core/mint", "mint"]
 impl_vek = ["cust_core/vek", "vek"]
 impl_half = ["cust_core/half"]
 impl_num_complex = ["cust_core/num-complex", "num-complex"]
-
 [build-dependencies]
 find_cuda_helper = { path = "../find_cuda_helper", version = "0.2" }
 
 [dev-dependencies]
 image = "0.23.14"
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]

@@ -16,6 +16,9 @@ pub struct DeviceBuffer<T: DeviceCopy> {
     capacity: usize,
 }
 
+unsafe impl<T: Send + DeviceCopy> Send for DeviceBuffer<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for DeviceBuffer<T> {}
+
 impl<T: DeviceCopy> DeviceBuffer<T> {
     /// Allocate a new device buffer large enough to hold `size` `T`'s, but without
     /// initializing the contents.

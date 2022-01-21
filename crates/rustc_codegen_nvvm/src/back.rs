@@ -128,6 +128,35 @@ pub fn target_machine_factory(
     })
 }
 
+pub extern "C" fn demangle_callback(
+    input_ptr: *const c_char,
+    input_len: size_t,
+    output_ptr: *mut c_char,
+    output_len: size_t,
+) -> size_t {
+    let input = unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len as usize) };
+
+    let input = match std::str::from_utf8(input) {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+
+    let output = unsafe { slice::from_raw_parts_mut(output_ptr as *mut u8, output_len as usize) };
+    let mut cursor = io::Cursor::new(output);
+
+    let demangled = match rustc_demangle::try_demangle(input) {
+        Ok(d) => d,
+        Err(_) => return 0,
+    };
+
+    if write!(cursor, "{:#}", demangled).is_err() {
+        // Possible only if provided buffer is not big enough
+        return 0;
+    }
+
+    cursor.position() as size_t
+}
+
 /// Compile a single module (in an nvvm context this means getting the llvm bitcode out of it)
 pub(crate) unsafe fn codegen(
     cgcx: &CodegenContext<NvvmCodegenBackend>,
@@ -167,37 +196,6 @@ pub(crate) unsafe fn codegen(
             .output_filenames
             .temp_path(OutputType::LlvmAssembly, module_name);
         let out_c = path_to_c_string(&out);
-
-        extern "C" fn demangle_callback(
-            input_ptr: *const c_char,
-            input_len: size_t,
-            output_ptr: *mut c_char,
-            output_len: size_t,
-        ) -> size_t {
-            let input =
-                unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len as usize) };
-
-            let input = match std::str::from_utf8(input) {
-                Ok(s) => s,
-                Err(_) => return 0,
-            };
-
-            let output =
-                unsafe { slice::from_raw_parts_mut(output_ptr as *mut u8, output_len as usize) };
-            let mut cursor = io::Cursor::new(output);
-
-            let demangled = match rustc_demangle::try_demangle(input) {
-                Ok(d) => d,
-                Err(_) => return 0,
-            };
-
-            if write!(cursor, "{:#}", demangled).is_err() {
-                // Possible only if provided buffer is not big enough
-                return 0;
-            }
-
-            cursor.position() as size_t
-        }
 
         let result = llvm::LLVMRustPrintModule(llmod, out_c.as_ptr(), demangle_callback);
 

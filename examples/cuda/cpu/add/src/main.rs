@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Make the CUDA module, modules just house the GPU code for the kernels we created.
     // they can be made from PTX code, cubins, or fatbins.
-    let module = Module::from_str(PTX)?;
+    let module = Module::from_ptx(PTX, &[])?;
 
     // make a CUDA stream to issue calls to. You can think of this as an OS thread but for dispatching
     // GPU calls.

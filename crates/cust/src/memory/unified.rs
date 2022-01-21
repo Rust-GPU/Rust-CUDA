@@ -26,6 +26,10 @@ use std::slice;
 pub struct UnifiedBox<T: DeviceCopy> {
     pub(crate) ptr: UnifiedPointer<T>,
 }
+
+unsafe impl<T: Send + DeviceCopy> Send for UnifiedBox<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for UnifiedBox<T> {}
+
 impl<T: DeviceCopy> UnifiedBox<T> {
     /// Allocate unified memory and place val into it.
     ///

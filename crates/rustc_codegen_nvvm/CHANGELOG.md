@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.2.3 - 1/2/22
+
+- Fixed the `raw_eq` intrinsic being undefined.
+
 ## 0.2.2 - 12/5/21 
 
 - Pass all ADTs directly, fixing certain structs being passed indirectly because they are scalar pairs.

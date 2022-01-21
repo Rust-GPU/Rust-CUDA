@@ -47,7 +47,7 @@ impl CudaRenderer {
 
         let optix_context = DeviceContext::new(&context, false).unwrap();
 
-        let module = Module::from_str(PTX)?;
+        let module = Module::from_ptx(PTX, &[])?;
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
         let mut denoiser =
             Denoiser::new(&optix_context, DenoiserModelKind::Ldr, Default::default()).unwrap();

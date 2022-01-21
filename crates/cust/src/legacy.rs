@@ -1,3 +1,5 @@
+//! Legacy (old) context management which preceded primary contexts.
+//!
 //! # CUDA context management
 //!
 //! Most CUDA functions require a context. A CUDA context is analogous to a CPU process - it's
@@ -38,7 +40,7 @@
 //!
 //! ```
 //! use cust::device::Device;
-//! use cust::context::{Context, ContextFlags};
+//! use cust::context::legacy::{Context, ContextFlags};
 //! # use std::error::Error;
 //! # fn main () -> Result<(), Box<dyn Error>> {
 //!
@@ -57,7 +59,7 @@
 //! to the single context and pass it to each thread.
 //!
 //! ```
-//! # use cust::context::{Context, ContextFlags, CurrentContext};
+//! # use cust::context::legacy::{Context, ContextFlags, CurrentContext};
 //! # use cust::device::Device;
 //! # use std::error::Error;
 //! # fn main() -> Result<(), Box<dyn Error>> {
@@ -90,7 +92,7 @@
 //!
 //! ```
 //! # use cust::device::Device;
-//! # use cust::context::{Context, ContextStack, ContextFlags, CurrentContext};
+//! # use cust::context::legacy::{Context, ContextStack, ContextFlags, CurrentContext};
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
@@ -112,6 +114,7 @@
 //! # }
 //! ```
 
+use crate::context::ContextHandle;
 use crate::device::Device;
 use crate::error::{CudaResult, DropResult, ToResult};
 use crate::private::Sealed;
@@ -240,7 +243,7 @@ impl Context {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{Context, ContextFlags};
+    /// # use cust::context::legacy::{Context, ContextFlags};
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -270,7 +273,7 @@ impl Context {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{Context, ContextFlags};
+    /// # use cust::context::legacy::{Context, ContextFlags};
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -300,7 +303,7 @@ impl Context {
     ////*  */
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{Context, ContextFlags};
+    /// # use cust::context::legacy::{Context, ContextFlags};
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -324,7 +327,7 @@ impl Context {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{Context, ContextFlags};
+    /// # use cust::context::legacy::{Context, ContextFlags};
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -371,11 +374,6 @@ impl Drop for Context {
     }
 }
 
-/// Sealed trait for `Context` and `UnownedContext`. Not intended for use outside of cust.
-pub trait ContextHandle: Sealed {
-    #[doc(hidden)]
-    fn get_inner(&self) -> CUcontext;
-}
 impl Sealed for Context {}
 impl ContextHandle for Context {
     fn get_inner(&self) -> CUcontext {
@@ -405,7 +403,7 @@ impl UnownedContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{Context, ContextFlags};
+    /// # use cust::context::legacy::{Context, ContextFlags};
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -440,7 +438,7 @@ impl ContextStack {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{Context, ContextFlags, ContextStack};
+    /// # use cust::context::legacy ::{Context, ContextFlags, ContextStack};
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -466,7 +464,7 @@ impl ContextStack {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{Context, ContextFlags, ContextStack};
+    /// # use cust::context::legacy::{Context, ContextFlags, ContextStack};
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -513,7 +511,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -539,7 +537,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -564,7 +562,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -589,7 +587,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext, ResourceLimit };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext, ResourceLimit };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -614,7 +612,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext, ResourceLimit };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext, ResourceLimit };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -646,7 +644,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext};
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext};
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -686,7 +684,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext, CacheConfig };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext, CacheConfig };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -730,7 +728,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext, ResourceLimit };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext, ResourceLimit };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -757,7 +755,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext, SharedMemoryConfig };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext, SharedMemoryConfig };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -778,7 +776,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
@@ -807,7 +805,7 @@ impl CurrentContext {
     ///
     /// ```
     /// # use cust::device::Device;
-    /// # use cust::context::{ Context, ContextFlags, CurrentContext };
+    /// # use cust::context::legacy::{ Context, ContextFlags, CurrentContext };
     /// # use std::error::Error;
     /// #
     /// # fn main () -> Result<(), Box<dyn Error>> {
