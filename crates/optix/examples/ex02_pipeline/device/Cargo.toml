@@ -1,0 +1,15 @@
+[package]
+name = "device"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cuda_std = { version = "0.2", path = "../../../../cuda_std" }
+cust_core = { version = "0.1", path = "../../../../cust_core" }
+optix_device = { path = "../../../../optix_device" }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+

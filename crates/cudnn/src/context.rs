@@ -397,9 +397,9 @@ impl CudnnContext {
         let x_data = x.data().as_device_ptr().as_raw();
 
         let y_desc = y.descriptor();
-        let y_data = y.data().as_device_ptr().as_raw_mut();
+        let y_data = y.data().as_device_ptr().as_ptr();
 
-        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_ptr();
 
         unsafe {
             sys::cudnnDropoutForward(
@@ -454,9 +454,9 @@ impl CudnnContext {
         let dy_data = dy.data().as_device_ptr().as_raw();
 
         let dx_desc = dx.descriptor();
-        let dx_data = dx.data().as_device_ptr().as_raw_mut();
+        let dx_data = dx.data().as_device_ptr().as_ptr();
 
-        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_ptr();
 
         unsafe {
             sys::cudnnDropoutBackward(
@@ -528,7 +528,7 @@ impl CudnnContext {
                 raw,
                 self.raw,
                 dropout,
-                states.as_device_ptr().as_raw_mut() as *mut std::ffi::c_void,
+                states.as_device_ptr().as_ptr() as *mut std::ffi::c_void,
                 states.len(),
                 seed,
             )
@@ -1185,14 +1185,14 @@ impl CudnnContext {
         let w_data = w.data().as_device_ptr().as_raw();
         let w_desc = w.descriptor();
 
-        let y_data = y.data().as_device_ptr().as_raw_mut();
+        let y_data = y.data().as_device_ptr().as_ptr();
         let y_desc = y.descriptor();
 
         // If the _ size is 0 then the algorithm can work in-place and cuDNN expects a null
         // pointer.
         let (work_space_ptr, work_space_size): (*mut u8, usize) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
-                (work_space.as_device_ptr().as_raw_mut(), work_space.len())
+                (work_space.as_device_ptr().as_mut_ptr(), work_space.len())
             })
         };
 
@@ -1287,12 +1287,12 @@ impl CudnnContext {
         let dy_data = dy.data().as_device_ptr().as_raw();
         let dy_desc = dy.descriptor();
 
-        let dx_data = dx.data().as_device_ptr().as_raw_mut();
+        let dx_data = dx.data().as_device_ptr().as_ptr();
         let dx_desc = dx.descriptor();
 
         let (work_space_ptr, work_space_size): (*mut u8, usize) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
-                (work_space.as_device_ptr().as_raw_mut(), work_space.len())
+                (work_space.as_device_ptr().as_mut_ptr(), work_space.len())
             })
         };
 
@@ -1388,12 +1388,12 @@ impl CudnnContext {
         let dy_data = dy.data().as_device_ptr().as_raw();
         let dy_desc = dy.descriptor();
 
-        let dw_data = dw.data().as_device_ptr().as_raw_mut();
+        let dw_data = dw.data().as_device_ptr().as_ptr();
         let dw_desc = dw.descriptor();
 
         let (work_space_ptr, work_space_size): (*mut u8, usize) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
-                (work_space.as_device_ptr().as_raw_mut(), work_space.len())
+                (work_space.as_device_ptr().as_mut_ptr(), work_space.len())
             })
         };
 
@@ -1615,28 +1615,28 @@ impl CudnnContext {
         L: RnnDataLayout,
         NCHW: SupportedType<T1>,
     {
-        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_raw();
+        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_ptr();
 
         let x_ptr = x.as_device_ptr().as_raw();
-        let y_ptr = y.as_device_ptr().as_raw_mut();
+        let y_ptr = y.as_device_ptr().as_ptr();
 
-        let hx_ptr = hx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let hx_ptr = hx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_ptr());
         let hy_ptr = hy.map_or(std::ptr::null_mut(), |buff| {
-            buff.as_device_ptr().as_raw_mut()
+            buff.as_device_ptr().as_mut_ptr()
         });
 
         let c_desc = c_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
 
-        let cx_ptr = cx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let cx_ptr = cx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_ptr());
         let cy_ptr = cy.map_or(std::ptr::null_mut(), |buff| {
-            buff.as_device_ptr().as_raw_mut()
+            buff.as_device_ptr().as_mut_ptr()
         });
 
-        let weight_space_ptr = weight_space.as_device_ptr().as_raw_mut();
-        let work_space_ptr = work_space.as_device_ptr().as_raw_mut();
+        let weight_space_ptr = weight_space.as_device_ptr().as_ptr();
+        let work_space_ptr = work_space.as_device_ptr().as_ptr();
         let (reserve_space_ptr, reserve_space_size) = reserve_space
             .map_or((std::ptr::null_mut(), 0), |buff| {
-                (buff.as_device_ptr().as_raw_mut(), buff.len())
+                (buff.as_device_ptr().as_mut_ptr(), buff.len())
             });
 
         unsafe {
@@ -1814,32 +1814,32 @@ impl CudnnContext {
         L: RnnDataLayout,
         NCHW: SupportedType<T1>,
     {
-        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_raw();
+        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_ptr();
 
         let y_ptr = y.as_device_ptr().as_raw();
         let dy_ptr = dy.as_device_ptr().as_raw();
 
-        let dx_ptr = dx.as_device_ptr().as_raw_mut();
+        let dx_ptr = dx.as_device_ptr().as_ptr();
 
         let h_desc = h_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
 
-        let hx_ptr = hx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
-        let dhy_ptr = dhy.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let hx_ptr = hx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_ptr());
+        let dhy_ptr = dhy.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_ptr());
         let dhx_ptr = dhx.map_or(std::ptr::null_mut(), |buff| {
-            buff.as_device_ptr().as_raw_mut()
+            buff.as_device_ptr().as_mut_ptr()
         });
 
         let c_desc = c_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
 
-        let cx_ptr = cx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
-        let dcy_ptr = dcy.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_raw());
+        let cx_ptr = cx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_ptr());
+        let dcy_ptr = dcy.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_mut_ptr());
         let dcx_ptr = dcx.map_or(std::ptr::null_mut(), |buff| {
-            buff.as_device_ptr().as_raw_mut()
+            buff.as_device_ptr().as_mut_ptr()
         });
 
-        let weight_space_ptr = weight_space.as_device_ptr().as_raw_mut();
-        let work_space_ptr = work_space.as_device_ptr().as_raw_mut();
-        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
+        let weight_space_ptr = weight_space.as_device_ptr().as_ptr();
+        let work_space_ptr = work_space.as_device_ptr().as_ptr();
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_ptr();
 
         unsafe {
             sys::cudnnRNNBackwardData_v8(
@@ -1947,15 +1947,15 @@ impl CudnnContext {
         L: RnnDataLayout,
         NCHW: SupportedType<T1>,
     {
-        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_raw();
+        let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_mut_ptr();
 
         let x_ptr = x.as_device_ptr().as_raw();
         let hx_ptr = x.as_device_ptr().as_raw();
         let y_ptr = y.as_device_ptr().as_raw();
 
-        let dweight_space_ptr = dweight_space.as_device_ptr().as_raw_mut();
-        let work_space_ptr = work_space.as_device_ptr().as_raw_mut();
-        let reserve_space_ptr = reserve_space.as_device_ptr().as_raw_mut();
+        let dweight_space_ptr = dweight_space.as_device_ptr().as_mut_ptr();
+        let work_space_ptr = work_space.as_device_ptr().as_mut_ptr();
+        let reserve_space_ptr = reserve_space.as_device_ptr().as_mut_ptr();
 
         unsafe {
             sys::cudnnRNNBackwardWeights_v8(

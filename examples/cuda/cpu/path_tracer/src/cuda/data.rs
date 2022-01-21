@@ -3,10 +3,10 @@ use cust::{
     error::CudaResult,
     memory::{DeviceBuffer, DeviceCopy, UnifiedBuffer},
     util::SliceExt,
-    vek::{num_traits::Zero, Vec2, Vec3},
 };
 use gpu_rand::DefaultRand;
 use path_tracer_gpu::{material::MaterialKind, scene::Scene, Object, Viewport};
+use vek::{num_traits::Zero, Vec2, Vec3};
 
 use super::SEED;
 

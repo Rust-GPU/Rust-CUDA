@@ -1,13 +1,18 @@
 [workspace]
 members = [
   "crates/*",
-
+  "crates/optix/examples/ex*",
+  "crates/optix/examples/ex*/device",
   "xtask",
 
   "examples/optix/*",
   "examples/cuda/cpu/*",
   "examples/cuda/gpu/*",
 
+]
+
+exclude = [
+    "crates/optix/examples/common"
 ]
 
 [profile.dev.package.rustc_codegen_nvvm]

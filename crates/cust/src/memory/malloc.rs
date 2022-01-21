@@ -39,16 +39,15 @@ use std::ptr;
 ///     cuda_free(device_buffer).unwrap();
 /// }
 /// ```
-pub unsafe fn cuda_malloc<T>(count: usize) -> CudaResult<DevicePointer<T>> {
+pub unsafe fn cuda_malloc<T: DeviceCopy>(count: usize) -> CudaResult<DevicePointer<T>> {
     let size = count.checked_mul(mem::size_of::<T>()).unwrap_or(0);
     if size == 0 {
         return Err(CudaError::InvalidMemoryAllocation);
     }
 
-    let mut ptr: *mut c_void = ptr::null_mut();
-    cuda::cuMemAlloc_v2(&mut ptr as *mut *mut c_void as *mut u64, size).to_result()?;
-    let ptr = ptr as *mut T;
-    Ok(DevicePointer::wrap(ptr as *mut T))
+    let mut ptr = 0;
+    cuda::cuMemAlloc_v2(&mut ptr, size).to_result()?;
+    Ok(DevicePointer::from_raw(ptr))
 }
 
 /// Unsafe wrapper around `cuMemAllocAsync` which queues a memory allocation operation on a stream.
@@ -60,7 +59,10 @@ pub unsafe fn cuda_malloc<T>(count: usize) -> CudaResult<DevicePointer<T>> {
 ///
 /// The memory behind the returned pointer must not be used in any way until the
 /// allocation actually takes place in the stream.
-pub unsafe fn cuda_malloc_async<T>(stream: &Stream, count: usize) -> CudaResult<DevicePointer<T>> {
+pub unsafe fn cuda_malloc_async<T: DeviceCopy>(
+    stream: &Stream,
+    count: usize,
+) -> CudaResult<DevicePointer<T>> {
     let size = count.checked_mul(mem::size_of::<T>()).unwrap_or(0);
     if size == 0 {
         return Err(CudaError::InvalidMemoryAllocation);
@@ -74,7 +76,7 @@ pub unsafe fn cuda_malloc_async<T>(stream: &Stream, count: usize) -> CudaResult<
     )
     .to_result()?;
     let ptr = ptr as *mut T;
-    Ok(DevicePointer::wrap(ptr as *mut T))
+    Ok(DevicePointer::from_raw(ptr as cuda::CUdeviceptr))
 }
 
 /// Unsafe wrapper around `cuMemFreeAsync` which queues a memory allocation free operation on a stream.
@@ -85,12 +87,15 @@ pub unsafe fn cuda_malloc_async<T>(stream: &Stream, count: usize) -> CudaResult<
 /// # Safety
 ///
 /// The pointer must be valid.
-pub unsafe fn cuda_free_async<T>(stream: &Stream, mut p: DevicePointer<T>) -> CudaResult<()> {
+pub unsafe fn cuda_free_async<T: DeviceCopy>(
+    stream: &Stream,
+    p: DevicePointer<T>,
+) -> CudaResult<()> {
     if mem::size_of::<T>() == 0 {
         return Err(CudaError::InvalidMemoryAllocation);
     }
 
-    cuda::cuMemFreeAsync(p.as_raw_mut() as u64, stream.as_inner()).to_result()
+    cuda::cuMemFreeAsync(p.as_raw(), stream.as_inner()).to_result()
 }
 
 /// Unsafe wrapper around the `cuMemAllocManaged` function, which allocates some unified memory and
@@ -166,13 +171,12 @@ pub unsafe fn cuda_malloc_unified<T: DeviceCopy>(count: usize) -> CudaResult<Uni
 ///     cuda_free(device_buffer).unwrap();
 /// }
 /// ```
-pub unsafe fn cuda_free<T>(mut p: DevicePointer<T>) -> CudaResult<()> {
-    let ptr = p.as_raw_mut();
+pub unsafe fn cuda_free<T: DeviceCopy>(ptr: DevicePointer<T>) -> CudaResult<()> {
     if ptr.is_null() {
         return Err(CudaError::InvalidMemoryAllocation);
     }
 
-    cuda::cuMemFree_v2(ptr as u64).to_result()?;
+    cuda::cuMemFree_v2(ptr.as_raw()).to_result()?;
     Ok(())
 }
 
@@ -385,11 +389,10 @@ mod test {
     #[test]
     fn test_cuda_free_null() {
         let _context = crate::quick_init().unwrap();
-        let null = ::std::ptr::null_mut::<u64>();
         unsafe {
             assert_eq!(
                 CudaError::InvalidMemoryAllocation,
-                cuda_free(DevicePointer::wrap(null)).unwrap_err()
+                cuda_free(DevicePointer::<u64>::null()).unwrap_err()
             );
         }
     }

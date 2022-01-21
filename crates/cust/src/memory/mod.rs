@@ -87,8 +87,11 @@ pub use self::malloc::*;
 pub use self::pointer::*;
 pub use self::unified::*;
 
-use core::marker::PhantomData;
-use core::num::*;
+use crate::error::*;
+
+pub use cust_core::DeviceCopy;
+
+use std::ffi::c_void;
 
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
 /// or a regular [`DeviceBuffer`].
@@ -100,7 +103,7 @@ pub trait GpuBuffer<T: DeviceCopy>: private::Sealed {
 
 impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
     fn as_device_ptr(&self) -> DevicePointer<T> {
-        unsafe { DevicePointer::wrap((**self).as_ptr() as *mut _) }
+        self.as_slice().as_device_ptr()
     }
 
     fn len(&self) -> usize {
@@ -110,7 +113,7 @@ impl<T: DeviceCopy> GpuBuffer<T> for DeviceBuffer<T> {
 
 impl<T: DeviceCopy> GpuBuffer<T> for UnifiedBuffer<T> {
     fn as_device_ptr(&self) -> DevicePointer<T> {
-        unsafe { DevicePointer::wrap(self.as_ptr() as *mut _) }
+        DevicePointer::from_raw(self.as_ptr() as u64)
     }
 
     fn len(&self) -> usize {
@@ -132,7 +135,57 @@ impl<T: DeviceCopy> GpuBox<T> for DeviceBox<T> {
 
 impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
     fn as_device_ptr(&self) -> DevicePointer<T> {
-        unsafe { DevicePointer::wrap(self.ptr.as_raw() as *mut _) }
+        DevicePointer::from_raw(self.ptr.as_raw() as u64)
+    }
+}
+
+/// A trait describing a region of memory on the device with a base pointer and
+/// a size, used to be generic over DeviceBox, DeviceBuffer, DeviceVariable etc.
+pub trait DeviceMemory {
+    /// Get the raw cuda device pointer
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr;
+
+    /// Get the size of the memory region in bytes
+    fn size_in_bytes(&self) -> usize;
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceBox<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        self.as_device_ptr().as_raw()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>()
+    }
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceVariable<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        self.as_device_ptr().as_raw()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>()
+    }
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceBuffer<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        self.as_device_ptr().as_raw()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>() * self.len()
+    }
+}
+
+impl<T: DeviceCopy> DeviceMemory for DeviceSlice<T> {
+    fn as_raw_ptr(&self) -> cust_raw::CUdeviceptr {
+        self.as_device_ptr().as_raw()
+    }
+
+    fn size_in_bytes(&self) -> usize {
+        std::mem::size_of::<T>() * self.len()
     }
 }
 
@@ -146,145 +199,28 @@ mod private {
     impl<T: DeviceCopy> Sealed for DeviceBox<T> {}
 }
 
-/// Marker trait for types which can safely be copied to or from a CUDA device.
-///
-/// A type can be safely copied if its value can be duplicated simply by copying bits and if it does
-/// not contain a reference to memory which is not accessible to the device. Additionally, the
-/// DeviceCopy trait does not imply copy semantics as the Copy trait does.
-///
-/// ## How can I implement DeviceCopy?
-///
-/// There are two ways to implement DeviceCopy on your type. The simplest is to use `derive`:
-///
-/// ```
-/// use cust::DeviceCopy;
-///
-/// #[derive(Clone, Copy, DeviceCopy)]
-/// struct MyStruct(u64);
-///
-/// # fn main () {}
-/// ```
-///
-/// This is safe because the `DeviceCopy` derive macro will check that all fields of the struct,
-/// enum or union implement `DeviceCopy`. For example, this fails to compile, because `Vec` cannot
-/// be copied to the device:
-///
-/// ```compile_fail
-/// use cust::DeviceCopy;
-///
-/// #[derive(Clone, DeviceCopy)]
-/// struct MyStruct(Vec<u64>);
-/// # fn main () {}
-/// ```
-///
-/// You can also implement `DeviceCopy` unsafely:
-///
-/// ```
-/// use cust::memory::DeviceCopy;
-///
-/// #[derive(Clone, Copy)]
-/// struct MyStruct(u64);
-///
-/// unsafe impl DeviceCopy for MyStruct { }
-/// # fn main () {}
-/// ```
-///
-/// ## What is the difference between `DeviceCopy` and `Copy`?
-///
-/// `DeviceCopy` is stricter than `Copy`. `DeviceCopy` must only be implemented for types which
-/// do not contain references or raw pointers to non-device-accessible memory. `DeviceCopy` also
-/// does not imply copy semantics - that is, `DeviceCopy` values are not implicitly copied on
-/// assignment the way that `Copy` values are. This is helpful, as it may be desirable to implement
-/// `DeviceCopy` for large structures that would be inefficient to copy for every assignment.
-///
-/// ## When can't my type be `DeviceCopy`?
-///
-/// Some types cannot be safely copied to the device. For example, copying `&T` would create an
-/// invalid reference on the device which would segfault if dereferenced. Generalizing this, any
-/// type implementing `Drop` cannot be `DeviceCopy` since it is responsible for some resource that
-/// would not be available on the device.
-#[allow(clippy::missing_safety_doc)] // explained in the doc already
-pub unsafe trait DeviceCopy: Copy {}
+/// Simple wrapper over cuMemcpyHtoD_v2
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn memcpy_htod(
+    d_ptr: cust_raw::CUdeviceptr,
+    src_ptr: *const c_void,
+    size: usize,
+) -> CudaResult<()> {
+    crate::sys::cuMemcpyHtoD_v2(d_ptr, src_ptr, size).to_result()?;
+    Ok(())
+}
 
-macro_rules! impl_device_copy {
-    ($($t:ty)*) => {
-        $(
-            unsafe impl DeviceCopy for $t {}
-        )*
+/// Get the current free and total memory.
+///
+/// Returns in `.1` the total amount of memory available to the the current context.
+/// Returns in `.0` the amount of memory on the device that is free according to
+/// the OS. CUDA is not guaranteed to be able to allocate all of the memory that
+/// the OS reports as free.
+pub fn mem_get_info() -> CudaResult<(usize, usize)> {
+    let mut mem_free = 0;
+    let mut mem_total = 0;
+    unsafe {
+        crate::sys::cuMemGetInfo_v2(&mut mem_free, &mut mem_total).to_result()?;
     }
+    Ok((mem_free, mem_total))
 }
-
-impl_device_copy!(
-    usize u8 u16 u32 u64 u128
-    isize i8 i16 i32 i64 i128
-    f32 f64
-    bool char
-
-    NonZeroU8 NonZeroU16 NonZeroU32 NonZeroU64 NonZeroU128
-);
-unsafe impl<T: DeviceCopy> DeviceCopy for Option<T> {}
-unsafe impl<L: DeviceCopy, R: DeviceCopy> DeviceCopy for Result<L, R> {}
-unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for PhantomData<T> {}
-unsafe impl<T: DeviceCopy> DeviceCopy for Wrapping<T> {}
-unsafe impl<T: DeviceCopy, const N: usize> DeviceCopy for [T; N] {}
-unsafe impl DeviceCopy for () {}
-unsafe impl<A: DeviceCopy, B: DeviceCopy> DeviceCopy for (A, B) {}
-unsafe impl<A: DeviceCopy, B: DeviceCopy, C: DeviceCopy> DeviceCopy for (A, B, C) {}
-unsafe impl<A: DeviceCopy, B: DeviceCopy, C: DeviceCopy, D: DeviceCopy> DeviceCopy
-    for (A, B, C, D)
-{
-}
-unsafe impl<A: DeviceCopy, B: DeviceCopy, C: DeviceCopy, D: DeviceCopy, E: DeviceCopy> DeviceCopy
-    for (A, B, C, D, E)
-{
-}
-unsafe impl<A: DeviceCopy, B: DeviceCopy, C: DeviceCopy, D: DeviceCopy, E: DeviceCopy, F: DeviceCopy>
-    DeviceCopy for (A, B, C, D, E, F)
-{
-}
-unsafe impl<
-        A: DeviceCopy,
-        B: DeviceCopy,
-        C: DeviceCopy,
-        D: DeviceCopy,
-        E: DeviceCopy,
-        F: DeviceCopy,
-        G: DeviceCopy,
-    > DeviceCopy for (A, B, C, D, E, F, G)
-{
-}
-unsafe impl<
-        A: DeviceCopy,
-        B: DeviceCopy,
-        C: DeviceCopy,
-        D: DeviceCopy,
-        E: DeviceCopy,
-        F: DeviceCopy,
-        G: DeviceCopy,
-        H: DeviceCopy,
-    > DeviceCopy for (A, B, C, D, E, F, G, H)
-{
-}
-
-#[cfg(feature = "vek")]
-macro_rules! impl_device_copy_vek {
-    ($($strukt:ident),* $(,)?) => {
-        $(
-            unsafe impl<T: DeviceCopy> DeviceCopy for $strukt<T> {}
-        )*
-    }
-}
-
-#[cfg(feature = "vek")]
-use vek::*;
-
-#[cfg(feature = "vek")]
-impl_device_copy_vek! {
-    Vec2, Vec3, Vec4, Extent2, Extent3,
-    Mat2, Mat3, Mat4,
-    CubicBezier2, CubicBezier3,
-    Quaternion,
-}
-
-#[cfg(feature = "num-complex")]
-unsafe impl<T: DeviceCopy> DeviceCopy for num_complex::Complex<T> {}

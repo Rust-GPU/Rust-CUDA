@@ -481,12 +481,8 @@ impl<'a, T: DeviceCopy> CopyDestination<T> for Symbol<'a, T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyHtoD_v2(
-                    self.ptr.as_raw_mut() as u64,
-                    val as *const T as *const c_void,
-                    size,
-                )
-                .to_result()?
+                cuda::cuMemcpyHtoD_v2(self.ptr.as_raw(), val as *const T as *const c_void, size)
+                    .to_result()?
             }
         }
         Ok(())

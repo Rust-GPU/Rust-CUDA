@@ -8,19 +8,18 @@ use crate::sys as cuda;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
-use std::ptr;
-
 /// Fixed-size device-side buffer. Provides basic access to device memory.
 #[derive(Debug)]
-pub struct DeviceBuffer<T> {
+#[repr(C)]
+pub struct DeviceBuffer<T: DeviceCopy> {
     buf: DevicePointer<T>,
     capacity: usize,
 }
 
-unsafe impl<T: Send> Send for DeviceBuffer<T> {}
-unsafe impl<T: Sync> Sync for DeviceBuffer<T> {}
+unsafe impl<T: Send + DeviceCopy> Send for DeviceBuffer<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for DeviceBuffer<T> {}
 
-impl<T> DeviceBuffer<T> {
+impl<T: DeviceCopy> DeviceBuffer<T> {
     /// Allocate a new device buffer large enough to hold `size` `T`'s, but without
     /// initializing the contents.
     ///
@@ -46,7 +45,8 @@ impl<T> DeviceBuffer<T> {
         let ptr = if size > 0 && mem::size_of::<T>() > 0 {
             cuda_malloc(size)?
         } else {
-            DevicePointer::wrap(ptr::NonNull::dangling().as_ptr() as *mut T)
+            // FIXME (AL): Do we /really/ want to allow creating an invalid buffer?
+            DevicePointer::null()
         };
         Ok(DeviceBuffer {
             buf: ptr,
@@ -80,12 +80,12 @@ impl<T> DeviceBuffer<T> {
     /// ```
     pub unsafe fn zeroed(size: usize) -> CudaResult<Self> {
         let ptr = if size > 0 && mem::size_of::<T>() > 0 {
-            let mut ptr = cuda_malloc(size)?;
-            cuda::cuMemsetD8_v2(ptr.as_raw_mut() as u64, 0, size * mem::size_of::<T>())
-                .to_result()?;
+            let ptr = cuda_malloc(size)?;
+            cuda::cuMemsetD8_v2(ptr.as_raw(), 0, size * mem::size_of::<T>()).to_result()?;
             ptr
         } else {
-            DevicePointer::wrap(ptr::NonNull::dangling().as_ptr() as *mut T)
+            // FIXME (AL): Do we /really/ want to allow creating an invalid buffer?
+            DevicePointer::null()
         };
         Ok(DeviceBuffer {
             buf: ptr,
@@ -229,28 +229,28 @@ impl<T: DeviceCopy> DeviceBuffer<T> {
         uninit.async_copy_from(slice, stream)?;
         Ok(uninit)
     }
+
+    /// Explicitly creates a [`DeviceSlice`] from this buffer.
+    pub fn as_slice(&self) -> &DeviceSlice<T> {
+        self
+    }
 }
-impl<T> Deref for DeviceBuffer<T> {
+
+impl<T: DeviceCopy> Deref for DeviceBuffer<T> {
     type Target = DeviceSlice<T>;
 
     fn deref(&self) -> &DeviceSlice<T> {
-        unsafe {
-            DeviceSlice::from_slice(::std::slice::from_raw_parts(
-                self.buf.as_raw(),
-                self.capacity,
-            ))
-        }
+        unsafe { &*(self as *const _ as *const DeviceSlice<T>) }
     }
 }
-impl<T> DerefMut for DeviceBuffer<T> {
+
+impl<T: DeviceCopy> DerefMut for DeviceBuffer<T> {
     fn deref_mut(&mut self) -> &mut DeviceSlice<T> {
-        unsafe {
-            &mut *(::std::slice::from_raw_parts_mut(self.buf.as_raw_mut(), self.capacity)
-                as *mut [T] as *mut DeviceSlice<T>)
-        }
+        unsafe { &mut *(self as *mut _ as *mut DeviceSlice<T>) }
     }
 }
-impl<T> Drop for DeviceBuffer<T> {
+
+impl<T: DeviceCopy> Drop for DeviceBuffer<T> {
     fn drop(&mut self) {
         if self.buf.is_null() {
             return;
@@ -269,7 +269,6 @@ impl<T> Drop for DeviceBuffer<T> {
 #[cfg(test)]
 mod test_device_buffer {
     use super::*;
-    use crate::memory::device::DeviceBox;
     use crate::stream::{Stream, StreamFlags};
 
     #[derive(Clone, Copy, Debug)]
@@ -305,32 +304,6 @@ mod test_device_buffer {
         }
         stream.synchronize().unwrap();
         assert_eq!(start, end);
-    }
-
-    #[test]
-    fn test_slice() {
-        let _context = crate::quick_init().unwrap();
-        let start = [0u64, 1, 2, 3, 4, 5];
-        let mut end = [0u64, 0];
-        let mut buf = DeviceBuffer::from_slice(&[0u64, 0, 0, 0]).unwrap();
-        buf.copy_from(&start[0..4]).unwrap();
-        buf[0..2].copy_to(&mut end).unwrap();
-        assert_eq!(start[0..2], end);
-    }
-
-    #[test]
-    fn test_async_slice() {
-        let _context = crate::quick_init().unwrap();
-        let stream = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
-        let start = [0u64, 1, 2, 3, 4, 5];
-        let mut end = [0u64, 0];
-        unsafe {
-            let mut buf = DeviceBuffer::from_slice_async(&[0u64, 0, 0, 0], &stream).unwrap();
-            buf.async_copy_from(&start[0..4], &stream).unwrap();
-            buf[0..2].async_copy_to(&mut end, &stream).unwrap();
-            stream.synchronize().unwrap();
-            assert_eq!(start[0..2], end);
-        }
     }
 
     #[test]
@@ -376,36 +349,6 @@ mod test_device_buffer {
     }
 
     #[test]
-    fn test_copy_device_slice_to_device() {
-        let _context = crate::quick_init().unwrap();
-        let start = DeviceBuffer::from_slice(&[0u64, 1, 2, 3, 4, 5]).unwrap();
-        let mut mid = DeviceBuffer::from_slice(&[0u64, 0, 0, 0]).unwrap();
-        let mut end = DeviceBuffer::from_slice(&[0u64, 0]).unwrap();
-        let mut host_end = [0u64, 0];
-        start[1..5].copy_to(&mut mid).unwrap();
-        end.copy_from(&mid[1..3]).unwrap();
-        end.copy_to(&mut host_end).unwrap();
-        assert_eq!([2u64, 3], host_end);
-    }
-
-    #[test]
-    fn test_async_copy_device_slice_to_device() {
-        let _context = crate::quick_init().unwrap();
-        let stream = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
-        unsafe {
-            let start = DeviceBuffer::from_slice_async(&[0u64, 1, 2, 3, 4, 5], &stream).unwrap();
-            let mut mid = DeviceBuffer::from_slice_async(&[0u64, 0, 0, 0], &stream).unwrap();
-            let mut end = DeviceBuffer::from_slice_async(&[0u64, 0], &stream).unwrap();
-            let mut host_end = [0u64, 0];
-            start[1..5].async_copy_to(&mut mid, &stream).unwrap();
-            end.async_copy_from(&mid[1..3], &stream).unwrap();
-            end.async_copy_to(&mut host_end, &stream).unwrap();
-            stream.synchronize().unwrap();
-            assert_eq!([2u64, 3], host_end);
-        }
-    }
-
-    #[test]
     #[should_panic]
     fn test_copy_to_d2d_wrong_size() {
         let _context = crate::quick_init().unwrap();
@@ -444,16 +387,6 @@ mod test_device_buffer {
             let mut buf = DeviceBuffer::from_slice_async(&[0u64, 1, 2, 3, 4, 5], &stream).unwrap();
             let start = DeviceBuffer::from_slice_async(&[0u64, 1, 2, 3, 4], &stream).unwrap();
             let _ = buf.async_copy_from(&start, &stream);
-        }
-    }
-
-    #[test]
-    fn test_can_create_uninitialized_non_devicecopy_buffers() {
-        let _context = crate::quick_init().unwrap();
-        unsafe {
-            let _box: DeviceBox<Vec<u8>> = DeviceBox::uninitialized().unwrap();
-            let buffer: DeviceBuffer<Vec<u8>> = DeviceBuffer::uninitialized(10).unwrap();
-            let _slice = &buffer[0..5];
         }
     }
 }

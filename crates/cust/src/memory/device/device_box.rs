@@ -15,12 +15,12 @@ use std::os::raw::c_void;
 ///
 /// See the [`module-level documentation`](../memory/index.html) for more information on device memory.
 #[derive(Debug)]
-pub struct DeviceBox<T> {
+pub struct DeviceBox<T: DeviceCopy> {
     pub(crate) ptr: DevicePointer<T>,
 }
 
-unsafe impl<T: Send> Send for DeviceBox<T> {}
-unsafe impl<T: Sync> Sync for DeviceBox<T> {}
+unsafe impl<T: Send + DeviceCopy> Send for DeviceBox<T> {}
+unsafe impl<T: Sync + DeviceCopy> Sync for DeviceBox<T> {}
 
 impl<T: DeviceCopy> DeviceBox<T> {
     /// Allocate device memory and place val into it.
@@ -156,14 +156,10 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub fn zeroed() -> CudaResult<Self> {
         unsafe {
-            let mut new_box = DeviceBox::uninitialized()?;
+            let new_box = DeviceBox::uninitialized()?;
             if mem::size_of::<T>() != 0 {
-                cuda::cuMemsetD8_v2(
-                    new_box.as_device_ptr().as_raw_mut() as u64,
-                    0,
-                    mem::size_of::<T>(),
-                )
-                .to_result()?;
+                cuda::cuMemsetD8_v2(new_box.as_device_ptr().as_raw(), 0, mem::size_of::<T>())
+                    .to_result()?;
             }
             Ok(new_box)
         }
@@ -200,10 +196,10 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     /// ```
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub unsafe fn zeroed_async(stream: &Stream) -> CudaResult<Self> {
-        let mut new_box = DeviceBox::uninitialized_async(stream)?;
+        let new_box = DeviceBox::uninitialized_async(stream)?;
         if mem::size_of::<T>() != 0 {
             cuda::cuMemsetD8Async(
-                new_box.as_device_ptr().as_raw_mut() as u64,
+                new_box.as_device_ptr().as_raw(),
                 0,
                 mem::size_of::<T>(),
                 stream.as_inner(),
@@ -214,7 +210,7 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
     }
 }
 
-impl<T> DeviceBox<T> {
+impl<T: DeviceCopy> DeviceBox<T> {
     /// Allocate device memory, but do not initialize it.
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
@@ -289,9 +285,9 @@ impl<T> DeviceBox<T> {
     /// let ptr = DeviceBox::into_device(x).as_raw_mut();
     /// let x = unsafe { DeviceBox::from_raw(ptr) };
     /// ```
-    pub unsafe fn from_raw(ptr: *mut T) -> Self {
+    pub unsafe fn from_raw(ptr: cust_raw::CUdeviceptr) -> Self {
         DeviceBox {
-            ptr: DevicePointer::wrap(ptr),
+            ptr: DevicePointer::from_raw(ptr),
         }
     }
 
@@ -360,7 +356,7 @@ impl<T> DeviceBox<T> {
     /// let ptr = x.as_device_ptr();
     /// println!("{:p}", ptr);
     /// ```
-    pub fn as_device_ptr(&mut self) -> DevicePointer<T> {
+    pub fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
     }
 
@@ -400,7 +396,7 @@ impl<T> DeviceBox<T> {
         }
     }
 }
-impl<T> Drop for DeviceBox<T> {
+impl<T: DeviceCopy> Drop for DeviceBox<T> {
     fn drop(&mut self) {
         if self.ptr.is_null() {
             return;
@@ -412,23 +408,22 @@ impl<T> Drop for DeviceBox<T> {
         }
     }
 }
-impl<T> Pointer for DeviceBox<T> {
+
+impl<T: DeviceCopy> Pointer for DeviceBox<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Pointer::fmt(&self.ptr, f)
+        let ptr = self.ptr.as_raw() as *const c_void;
+        fmt::Pointer::fmt(&ptr, f)
     }
 }
-impl<T> crate::private::Sealed for DeviceBox<T> {}
+
+impl<T: DeviceCopy> crate::private::Sealed for DeviceBox<T> {}
 impl<T: DeviceCopy> CopyDestination<T> for DeviceBox<T> {
     fn copy_from(&mut self, val: &T) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyHtoD_v2(
-                    self.ptr.as_raw_mut() as u64,
-                    val as *const T as *const c_void,
-                    size,
-                )
-                .to_result()?
+                cuda::cuMemcpyHtoD_v2(self.ptr.as_raw(), val as *const T as *const c_void, size)
+                    .to_result()?
             }
         }
         Ok(())
@@ -453,10 +448,7 @@ impl<T: DeviceCopy> CopyDestination<DeviceBox<T>> for DeviceBox<T> {
     fn copy_from(&mut self, val: &DeviceBox<T>) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            unsafe {
-                cuda::cuMemcpyDtoD_v2(self.ptr.as_raw_mut() as u64, val.ptr.as_raw() as u64, size)
-                    .to_result()?
-            }
+            unsafe { cuda::cuMemcpyDtoD_v2(self.ptr.as_raw(), val.ptr.as_raw(), size).to_result()? }
         }
         Ok(())
     }
@@ -464,10 +456,7 @@ impl<T: DeviceCopy> CopyDestination<DeviceBox<T>> for DeviceBox<T> {
     fn copy_to(&self, val: &mut DeviceBox<T>) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            unsafe {
-                cuda::cuMemcpyDtoD_v2(val.ptr.as_raw_mut() as u64, self.ptr.as_raw() as u64, size)
-                    .to_result()?
-            }
+            unsafe { cuda::cuMemcpyDtoD_v2(val.ptr.as_raw(), self.ptr.as_raw(), size).to_result()? }
         }
         Ok(())
     }
@@ -477,7 +466,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<T> for DeviceBox<T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             cuda::cuMemcpyHtoDAsync_v2(
-                self.ptr.as_raw_mut() as u64,
+                self.ptr.as_raw(),
                 val as *const _ as *const c_void,
                 size,
                 stream.as_inner(),
@@ -505,13 +494,8 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceBox<T>> for DeviceBox<T> {
     unsafe fn async_copy_from(&mut self, val: &DeviceBox<T>, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            cuda::cuMemcpyDtoDAsync_v2(
-                self.ptr.as_raw_mut() as u64,
-                val.ptr.as_raw() as u64,
-                size,
-                stream.as_inner(),
-            )
-            .to_result()?
+            cuda::cuMemcpyDtoDAsync_v2(self.ptr.as_raw(), val.ptr.as_raw(), size, stream.as_inner())
+                .to_result()?
         }
         Ok(())
     }
@@ -519,13 +503,8 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceBox<T>> for DeviceBox<T> {
     unsafe fn async_copy_to(&self, val: &mut DeviceBox<T>, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            cuda::cuMemcpyDtoDAsync_v2(
-                val.ptr.as_raw_mut() as u64,
-                self.ptr.as_raw() as u64,
-                size,
-                stream.as_inner(),
-            )
-            .to_result()?
+            cuda::cuMemcpyDtoDAsync_v2(val.ptr.as_raw(), self.ptr.as_raw(), size, stream.as_inner())
+                .to_result()?
         }
         Ok(())
     }
@@ -609,8 +588,8 @@ mod test_device_box {
     #[test]
     fn test_device_pointer_implements_traits_safely() {
         let _context = crate::quick_init().unwrap();
-        let mut x = DeviceBox::new(&5u64).unwrap();
-        let mut y = DeviceBox::new(&0u64).unwrap();
+        let x = DeviceBox::new(&5u64).unwrap();
+        let y = DeviceBox::new(&0u64).unwrap();
 
         // If the impls dereference the pointer, this should segfault.
         let _ = Ord::cmp(&x.as_device_ptr(), &y.as_device_ptr());

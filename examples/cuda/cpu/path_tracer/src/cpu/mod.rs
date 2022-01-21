@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use cust::vek::{Clamp, Vec2, Vec3};
 use gpu_rand::{DefaultRand, GpuRand};
 use imgui::Ui;
 use path_tracer_gpu::{
@@ -8,6 +7,7 @@ use path_tracer_gpu::{
 };
 use rayon::prelude::*;
 use sysinfo::{ProcessorExt, System, SystemExt};
+use vek::{Clamp, Vec2, Vec3};
 
 use crate::{common::Camera, cuda::SEED};
 

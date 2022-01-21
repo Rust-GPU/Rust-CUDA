@@ -29,13 +29,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 
     // allocate the GPU memory needed to house our numbers and copy them over.
-    let mut lhs_gpu = lhs.as_slice().as_dbuf()?;
-    let mut rhs_gpu = rhs.as_slice().as_dbuf()?;
+    let lhs_gpu = lhs.as_slice().as_dbuf()?;
+    let rhs_gpu = rhs.as_slice().as_dbuf()?;
 
     // allocate our output buffer. You could also use DeviceBuffer::uninitialized() to avoid the
     // cost of the copy, but you need to be careful not to read from the buffer.
     let mut out = vec![0.0f32; NUMBERS_LEN];
-    let mut out_buf = out.as_slice().as_dbuf()?;
+    let out_buf = out.as_slice().as_dbuf()?;
 
     // retrieve the add kernel from the module so we can calculate the right launch config.
     let func = module.get_function("add")?;

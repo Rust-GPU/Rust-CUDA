@@ -8,13 +8,12 @@ use std::{
 
 use cust::{
     error::CudaResult,
-    memory::{
-        DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, GpuBox, GpuBuffer, UnifiedBuffer,
-    },
+    memory::{DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, GpuBuffer, UnifiedBuffer},
     prelude::Stream,
 };
 
-use crate::{context::OptixContext, error::OptixResult, optix_call, sys};
+use crate::{context::DeviceContext, error::Error, optix_call, sys};
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 // can't zero initialize, OptixPixelFormat is not zero-initializable.
 fn null_optix_image() -> sys::OptixImage2D {
@@ -44,7 +43,7 @@ pub enum DenoiserModelKind {
 
 impl DenoiserModelKind {
     /// Converts this model kind to its raw counterpart.
-    pub fn to_raw(self) -> sys::OptixDenoiserModelKind {
+    pub fn to_raw(self) -> sys::OptixDenoiserModelKind::Type {
         match self {
             Self::Ldr => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_LDR,
             Self::Hdr => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_HDR,
@@ -131,10 +130,10 @@ impl Drop for Denoiser {
 impl Denoiser {
     /// Create a new [`Denoiser`] with a model kind and some options.
     pub fn new(
-        ctx: &OptixContext,
+        ctx: &DeviceContext,
         kind: DenoiserModelKind,
         options: DenoiserOptions,
-    ) -> OptixResult<Self> {
+    ) -> Result<Self> {
         let mut raw = MaybeUninit::uninit();
         unsafe {
             let ctx = ctx.raw;
@@ -159,7 +158,7 @@ impl Denoiser {
     ///
     /// If tiling is being used, `width` and `height` should not contain the overlap size. Tiling requires
     /// extra overlap areas which is why there is scratch memory with and without tiling requirements.
-    pub fn required_gpu_memory(&self, width: u32, height: u32) -> OptixResult<DenoiserSizes> {
+    pub fn required_gpu_memory(&self, width: u32, height: u32) -> Result<DenoiserSizes> {
         let mut sizes = MaybeUninit::uninit();
         unsafe {
             optix_call!(optixDenoiserComputeMemoryResources(
@@ -192,7 +191,7 @@ impl Denoiser {
         mut width: u32,
         mut height: u32,
         tiled: bool,
-    ) -> OptixResult<()> {
+    ) -> Result<()> {
         // first, find out how much memory we need to allocate
         let sizes = self.required_gpu_memory(width, height)?;
         let original_width = width;
@@ -264,7 +263,7 @@ impl Denoiser {
         input_image: Image,
         parameters: DenoiserParams,
         out_buffer: &mut impl GpuBuffer<T>,
-    ) -> OptixResult<()> {
+    ) -> Result<()> {
         let state_lock = self.state.lock().unwrap();
         let state = state_lock.as_ref().expect(
             "State was not initialized before invoking the denoiser, call Denoiser::setup_state first"
@@ -374,7 +373,7 @@ impl Denoiser {
         let raw_params = parameters.to_raw();
 
         let mut out = input_image.to_raw();
-        out.data = out_buffer.as_device_ptr().as_raw_mut() as u64;
+        out.data = out_buffer.as_device_ptr().as_raw() as u64;
 
         let layer = sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
@@ -389,14 +388,14 @@ impl Denoiser {
                 self.raw,
                 stream.as_inner(),
                 &raw_params as *const _,
-                state.state.as_device_ptr().as_raw_mut() as u64,
+                state.state.as_device_ptr().as_raw() as u64,
                 state.state.len(),
                 &cloned as *const _,
                 &layer as *const _,
                 1, // num-layers
                 0, // offsetX
                 0, // offsetY
-                state.scratch.as_device_ptr().as_raw_mut() as u64,
+                state.scratch.as_device_ptr().as_raw() as u64,
                 state.scratch.len()
             ))?;
         }
@@ -501,7 +500,7 @@ pub enum ImageFormat {
 }
 
 impl ImageFormat {
-    pub fn to_raw(self) -> sys::OptixPixelFormat {
+    pub fn to_raw(self) -> sys::OptixPixelFormat::Type {
         use ImageFormat::*;
 
         match self {
@@ -560,11 +559,10 @@ impl<'a> Image<'a> {
         Self::validate_buf(buffer, format, width, height);
 
         Self {
-            buffer: unsafe {
+            buffer:
                 // SAFETY: this buffer is never written to for the duration of this image being alive.
                 // And we know the buffer is large enough to be reinterpreted as a buffer of bytes.
-                DevicePointer::wrap(buffer.as_device_ptr().as_raw_mut() as *mut u8)
-            },
+                DevicePointer::from_raw(buffer.as_device_ptr().as_raw()),
             buffer_size: buffer.len() * std::mem::size_of::<T>(),
             format,
             width,

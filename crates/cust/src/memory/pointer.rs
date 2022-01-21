@@ -1,60 +1,14 @@
 use crate::memory::DeviceCopy;
+use cust_raw::CUdeviceptr;
 
 use core::{
-    cmp::Ordering,
     fmt::{self, Debug, Pointer},
-    hash::{Hash, Hasher},
+    hash::Hash,
     ptr,
 };
-
-macro_rules! derive_traits {
-    ( $( $Ptr:ty )* ) => ($(
-        impl<T: ?Sized> Debug for $Ptr {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                Debug::fmt(&self.0, f)
-            }
-        }
-        impl<T: ?Sized> Pointer for $Ptr {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                Pointer::fmt(&self.0, f)
-            }
-        }
-
-        impl<T: ?Sized> Hash for $Ptr {
-            fn hash<H: Hasher>(&self, h: &mut H) {
-                Hash::hash(&self.0, h);
-            }
-        }
-
-        impl<T: ?Sized> PartialEq for $Ptr {
-            fn eq(&self, other: &$Ptr) -> bool {
-                PartialEq::eq(&self.0, &other.0)
-            }
-        }
-
-        impl<T: ?Sized> Eq for $Ptr {}
-
-        impl<T: ?Sized> PartialOrd for $Ptr {
-            fn partial_cmp(&self, other: &$Ptr) -> Option<Ordering> {
-                PartialOrd::partial_cmp(&self.0, &other.0)
-            }
-        }
-
-        impl<T: ?Sized> Ord for $Ptr {
-            fn cmp(&self, other: &$Ptr) -> Ordering {
-                Ord::cmp(&self.0, &other.0)
-            }
-        }
-
-        impl<T: ?Sized> Clone for $Ptr {
-            fn clone(&self) -> Self {
-                Self(self.0)
-            }
-        }
-        impl<T: ?Sized> Copy for $Ptr {}
-    )*)
-}
-derive_traits!(DevicePointer<T> UnifiedPointer<T>);
+use std::ffi::c_void;
+use std::marker::PhantomData;
+use std::mem::size_of;
 
 /// A pointer to device memory.
 ///
@@ -68,68 +22,45 @@ derive_traits!(DevicePointer<T> UnifiedPointer<T>);
 /// the other side of that boundary does not attempt to dereference the pointer on the CPU. It is
 /// thus possible to pass a `DevicePointer` to a CUDA kernel written in C.
 #[repr(transparent)]
-pub struct DevicePointer<T: ?Sized>(*mut T);
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub struct DevicePointer<T: ?Sized + DeviceCopy> {
+    ptr: CUdeviceptr,
+    marker: PhantomData<*mut T>,
+}
 
-unsafe impl<T: ?Sized> DeviceCopy for DevicePointer<T> {}
+unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for DevicePointer<T> {}
 
-impl<T: ?Sized> DevicePointer<T> {
-    /// Wrap the given raw pointer in a DevicePointer. The given pointer is assumed to be a valid,
-    /// device pointer or null.
-    ///
-    /// # Safety
-    ///
-    /// The given pointer must have been allocated with [`cuda_malloc`](fn.cuda_malloc.html) or
-    /// be null.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # let _context = cust::quick_init().unwrap();
-    /// use cust::memory::*;
-    /// use std::ptr;
-    /// unsafe {
-    ///     let null : *mut u64 = ptr::null_mut();
-    ///     assert!(DevicePointer::wrap(null).is_null());
-    /// }
-    /// ```
-    pub unsafe fn wrap(ptr: *mut T) -> Self {
-        DevicePointer(ptr)
+impl<T: DeviceCopy> Pointer for DevicePointer<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let ptr = self.ptr as *const c_void;
+        fmt::Pointer::fmt(&ptr, f)
+    }
+}
+
+impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
+    /// Returns a rust [`pointer`] created from this pointer, meant for FFI purposes.
+    /// **The pointer is not dereferenceable from the CPU!**
+    pub fn as_ptr(&self) -> *const T {
+        self.ptr as *const T
     }
 
-    /// Returns the contained pointer as a raw pointer. The returned pointer is not valid on the CPU
-    /// and must not be dereferenced.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # let _context = cust::quick_init().unwrap();
-    /// use cust::memory::*;
-    /// unsafe {
-    ///     let dev_ptr = cuda_malloc::<u64>(1).unwrap();
-    ///     let ptr: *const u64 = dev_ptr.as_raw();
-    ///     cuda_free(dev_ptr);
-    /// }
-    /// ```
-    pub fn as_raw(self) -> *const T {
-        self.0
+    /// Returns a rust [`pointer`] created from this pointer, meant for FFI purposes.
+    /// **The pointer is not dereferenceable from the CPU!**
+    pub fn as_mut_ptr(&self) -> *mut T {
+        self.ptr as *mut T
     }
 
-    /// Returns the contained pointer as a mutable raw pointer. The returned pointer is not valid on the CPU
-    /// and must not be dereferenced.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # let _context = cust::quick_init().unwrap();
-    /// use cust::memory::*;
-    /// unsafe {
-    ///     let mut dev_ptr = cuda_malloc::<u64>(1).unwrap();
-    ///     let ptr: *mut u64 = dev_ptr.as_raw_mut();
-    ///     cuda_free(dev_ptr);
-    /// }
-    /// ```
-    pub fn as_raw_mut(&mut self) -> *mut T {
-        self.0
+    /// Returns the contained CUdeviceptr.
+    pub fn as_raw(&self) -> CUdeviceptr {
+        self.ptr
+    }
+
+    /// Create a DevicePointer from a raw CUDA pointer
+    pub fn from_raw(ptr: CUdeviceptr) -> Self {
+        Self {
+            ptr,
+            marker: PhantomData,
+        }
     }
 
     /// Returns true if the pointer is null.
@@ -145,24 +76,20 @@ impl<T: ?Sized> DevicePointer<T> {
     /// }
     /// ```
     pub fn is_null(self) -> bool {
-        self.0.is_null()
+        self.ptr == 0
     }
 
     /// Returns a null device pointer.
     ///
-    /// # Examples:
-    ///
-    /// ```
-    /// # let _context = cust::quick_init().unwrap();
-    /// use cust::memory::*;
-    /// let ptr : DevicePointer<u64> = DevicePointer::null();
-    /// assert!(ptr.is_null());
-    /// ```
+    // TODO (AL): do we even want this?
     pub fn null() -> Self
     where
         T: Sized,
     {
-        unsafe { Self::wrap(ptr::null_mut()) }
+        Self {
+            ptr: 0,
+            marker: PhantomData,
+        }
     }
 
     /// Calculates the offset from a device pointer.
@@ -202,7 +129,11 @@ impl<T: ?Sized> DevicePointer<T> {
     where
         T: Sized,
     {
-        Self::wrap(self.0.offset(count))
+        let ptr = self.ptr + (count as usize * size_of::<T>()) as u64;
+        Self {
+            ptr,
+            marker: PhantomData,
+        }
     }
 
     /// Calculates the offset from a device pointer using wrapping arithmetic.
@@ -239,7 +170,13 @@ impl<T: ?Sized> DevicePointer<T> {
     where
         T: Sized,
     {
-        unsafe { Self::wrap(self.0.wrapping_offset(count)) }
+        let ptr = self
+            .ptr
+            .wrapping_add((count as usize * size_of::<T>()) as u64);
+        Self {
+            ptr,
+            marker: PhantomData,
+        }
     }
 
     /// Calculates the offset from a pointer (convenience for `.offset(count as isize)`).
@@ -400,11 +337,18 @@ impl<T: ?Sized> DevicePointer<T> {
 /// `UnifiedPointer` through an FFI boundary to C code expecting a `*mut T`. It is
 /// thus possible to pass a `UnifiedPointer` to a CUDA kernel written in C.
 #[repr(transparent)]
-pub struct UnifiedPointer<T: ?Sized>(*mut T);
+#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub struct UnifiedPointer<T: ?Sized + DeviceCopy>(*mut T);
 
 unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for UnifiedPointer<T> {}
 
-impl<T: ?Sized> UnifiedPointer<T> {
+impl<T: DeviceCopy> Pointer for UnifiedPointer<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Pointer::fmt(&self.0, f)
+    }
+}
+
+impl<T: ?Sized + DeviceCopy> UnifiedPointer<T> {
     /// Wrap the given raw pointer in a UnifiedPointer. The given pointer is assumed to be a valid,
     /// unified-memory pointer or null.
     ///

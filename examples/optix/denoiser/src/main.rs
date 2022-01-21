@@ -1,13 +1,13 @@
 use cust::memory::DeviceBuffer;
 use cust::prelude::{Stream, StreamFlags};
 use cust::util::SliceExt;
-use cust::vek::{Clamp, Vec3};
 use image::io::Reader;
-use optix::context::OptixContext;
+use optix::context::DeviceContext;
 use optix::denoiser::{Denoiser, DenoiserModelKind, DenoiserParams, Image, ImageFormat};
 use std::error::Error;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use vek::{Clamp, Vec3};
 
 #[derive(StructOpt)]
 #[structopt(
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // set up CUDA and OptiX then make the needed structs/contexts.
     let cuda_ctx = cust::quick_init()?;
     optix::init()?;
-    let optix_ctx = OptixContext::new(&cuda_ctx)?;
+    let optix_ctx = DeviceContext::new(&cuda_ctx, false)?;
 
     let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
 

@@ -59,6 +59,7 @@
 pub mod device;
 pub mod error;
 pub mod event;
+pub mod external;
 pub mod function;
 // WIP
 pub mod context;
@@ -83,9 +84,6 @@ use crate::device::Device;
 use crate::error::{CudaResult, ToResult};
 use bitflags::bitflags;
 use sys::{cuDriverGetVersion, cuInit};
-
-#[cfg(feature = "vek")]
-pub use vek;
 
 bitflags! {
     /// Bit flags for initializing the CUDA driver. Currently, no flags are defined,
