@@ -2,20 +2,20 @@
 
 use crate::{const_assert, const_assert_eq, context::DeviceContext, error::Error, optix_call, sys};
 use cust::{
-    memory::{CopyDestination, DeviceCopy, DeviceBox, DeviceBuffer, DevicePointer, DeviceSlice},
+    memory::{CopyDestination, DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, DeviceSlice},
     DeviceCopy,
 };
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+use memoffset::offset_of;
+use std::ffi::c_void;
+use std::mem::size_of;
 use std::ops::Deref;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     marker::PhantomData,
 };
-use memoffset::offset_of;
-use std::ffi::c_void;
-use std::mem::size_of;
 
 use cust_raw::CUdeviceptr;
 use mint::{RowMatrix3x4, Vector3};
@@ -26,8 +26,6 @@ use mint::{RowMatrix3x4, Vector3};
 type OptixEnumBaseType = i32;
 #[cfg(unix)]
 type OptixEnumBaseType = u32;
-
-
 
 pub trait BuildInput: std::hash::Hash {
     fn to_sys(&self) -> sys::OptixBuildInput;
@@ -962,9 +960,9 @@ impl From<GeometryFlags> for u32 {
 /// Specify acceleration structure build input data for a curves geometry
 ///
 /// A curve is a swept surface defined by a 3D spline curve and a varying width (radius). A curve (or "strand") of degree d (3=cubic, 2=quadratic, 1=linear) is represented by N > d vertices and N width values, and comprises N - d segments. Each segment is defined by d+1 consecutive vertices. Each curve may have a different number of vertices.
-/// 
+///
 /// OptiX describes the curve array as a list of curve segments. The primitive id is the segment number. It is the user's responsibility to maintain a mapping between curves and curve segments. Each index buffer entry i = indexBuffer[primid] specifies the start of a curve segment, represented by d+1 consecutive vertices in the vertex buffer, and d+1 consecutive widths in the width buffer. Width is interpolated the same way vertices are interpolated, that is, using the curve basis.
-/// 
+///
 /// Each curves build input has only one SBT record. To create curves with different materials in the same BVH, use multiple build inputs.
 pub struct CurveArray<'v, 'w, 'i> {
     curve_type: CurveType,
@@ -1006,11 +1004,11 @@ impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
     ///
     /// # Parameters
     /// * `curve_type` - Curve degree and basis
-    /// * `vertex_buffers` - A slice of device buffers, one per motion step. 
+    /// * `vertex_buffers` - A slice of device buffers, one per motion step.
     ///     The length of this slice must match the number of motion keys specified
     ///     in [`AccelBuildOptions::motion_options`]
-    /// * `width_buffers` - Parallel to `vertex_buffers` with matching lengths and 
-    ///     number of motion steps. One value per vertex specifying the width of 
+    /// * `width_buffers` - Parallel to `vertex_buffers` with matching lengths and
+    ///     number of motion steps. One value per vertex specifying the width of
     ///     the curve
     /// * `index_buffer` - An array of u32, one per curve segment. Each index is
     ///     the start of `degree+1` consecutive vertices in `vertex_buffers`, and
@@ -1024,10 +1022,16 @@ impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
     ) -> Result<CurveArray<'v, 'w, 'i>> {
         // TODO (AL): Do some sanity checking on the values here
         let num_vertices = vertex_buffers[0].len() as u32;
-        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
+        let d_vertex_buffers: Vec<_> = vertex_buffers
+            .iter()
+            .map(|b| b.as_device_ptr().as_raw())
+            .collect();
 
         let num_width_buffers = width_buffers.len() as u32;
-        let d_width_buffers: Vec<_> = width_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
+        let d_width_buffers: Vec<_> = width_buffers
+            .iter()
+            .map(|b| b.as_device_ptr().as_raw())
+            .collect();
 
         Ok(CurveArray {
             curve_type,
@@ -1074,7 +1078,7 @@ impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
         self
     }
 
-    /// Primitive index bias, applied on the device in `optixGetPrimitiveIndex()`. 
+    /// Primitive index bias, applied on the device in `optixGetPrimitiveIndex()`.
     ///
     /// Sum of primitiveIndexOffset and number of primitives must not overflow 32bits.
     pub fn primitive_index_offset(mut self, offset: u32) -> Self {
@@ -1275,7 +1279,10 @@ impl<'v, 'g, V: Vertex> TriangleArray<'v, 'g, V> {
     pub fn new(vertex_buffers: &[&'v DeviceSlice<V>], geometry_flags: &'g [GeometryFlags]) -> Self {
         // TODO (AL): do some sanity checking on the slice lengths here
         let num_vertices = vertex_buffers[0].len() as u32;
-        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
+        let d_vertex_buffers: Vec<_> = vertex_buffers
+            .iter()
+            .map(|b| b.as_device_ptr().as_raw())
+            .collect();
         TriangleArray {
             vertex_buffers: PhantomData,
             num_vertices,
@@ -1354,7 +1361,10 @@ impl<'v, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'i, V, I> {
         geometry_flags: &[GeometryFlags],
     ) -> Self {
         let num_vertices = vertex_buffers[0].len() as u32;
-        let d_vertex_buffers: Vec<_> = vertex_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
+        let d_vertex_buffers: Vec<_> = vertex_buffers
+            .iter()
+            .map(|b| b.as_device_ptr().as_raw())
+            .collect();
         IndexedTriangleArray {
             vertex_buffers: PhantomData,
             num_vertices,
@@ -1451,7 +1461,10 @@ impl<'a, 's> CustomPrimitiveArray<'a, 's> {
         flags: &[GeometryFlags],
     ) -> Result<CustomPrimitiveArray<'a, 's>> {
         let num_primitives = aabb_buffers.len() as u32;
-        let aabb_buffers: Vec<_> = aabb_buffers.iter().map(|b| b.as_device_ptr().as_raw()).collect();
+        let aabb_buffers: Vec<_> = aabb_buffers
+            .iter()
+            .map(|b| b.as_device_ptr().as_raw())
+            .collect();
 
         Ok(CustomPrimitiveArray {
             aabb_buffers,
@@ -1537,8 +1550,14 @@ pub struct Instance<'a> {
     accel: PhantomData<&'a ()>,
 }
 
-const_assert_eq!(std::mem::align_of::<Instance>(), sys::OptixInstanceByteAlignment);
-const_assert_eq!(std::mem::size_of::<Instance>(), std::mem::size_of::<sys::OptixInstance>());
+const_assert_eq!(
+    std::mem::align_of::<Instance>(),
+    sys::OptixInstanceByteAlignment
+);
+const_assert_eq!(
+    std::mem::size_of::<Instance>(),
+    std::mem::size_of::<sys::OptixInstance>()
+);
 
 bitflags::bitflags! {
     #[derive(DeviceCopy)]
@@ -1558,8 +1577,8 @@ impl<'a> Instance<'a> {
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Instance {
             transform: [
-                1.0, 0.0, 0.0, 0.0, 
-                0.0, 1.0, 0.0, 0.0, 
+                1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
                 0.0, 0.0, 1.0, 0.0].into(),
             instance_id: 0,
             sbt_offset: 0,
@@ -1576,8 +1595,8 @@ impl<'a> Instance<'a> {
         #[cfg_attr(rustfmt, rustfmt_skip)]
         Instance {
             transform: [
-                1.0, 0.0, 0.0, 0.0, 
-                0.0, 1.0, 0.0, 0.0, 
+                1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
                 0.0, 0.0, 1.0, 0.0].into(),
             instance_id: 0,
             sbt_offset: 0,
@@ -1676,7 +1695,6 @@ impl<'i> Hash for InstancePointerArray<'i> {
         state.write_usize(self.instances.len());
     }
 }
-
 
 impl<'i> BuildInput for InstancePointerArray<'i> {
     fn to_sys(&self) -> sys::OptixBuildInput {

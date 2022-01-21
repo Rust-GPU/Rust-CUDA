@@ -1,8 +1,8 @@
-use vek::Vec2;
 use glutin::{event::Event, event_loop::ControlFlow};
 use imgui::Ui;
 use path_tracer_gpu::scene::Scene;
 use sysinfo::{System, SystemExt};
+use vek::Vec2;
 
 use crate::{
     common::{Camera, CameraController},
