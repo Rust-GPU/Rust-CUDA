@@ -52,7 +52,7 @@ pub enum CudaError {
     InvalidPtx = 218,
     InvalidGraphicsContext = 219,
     NvlinkUncorrectable = 220,
-    InvalidSouce = 300,
+    InvalidSource = 300,
     FileNotFound = 301,
     SharedObjectSymbolNotFound = 302,
     SharedObjectInitFailed = 303,
@@ -165,7 +165,7 @@ impl ToResult for cudaError_enum {
                 Err(CudaError::InvalidGraphicsContext)
             }
             cudaError_enum::CUDA_ERROR_NVLINK_UNCORRECTABLE => Err(CudaError::NvlinkUncorrectable),
-            cudaError_enum::CUDA_ERROR_INVALID_SOURCE => Err(CudaError::InvalidSouce),
+            cudaError_enum::CUDA_ERROR_INVALID_SOURCE => Err(CudaError::InvalidSource),
             cudaError_enum::CUDA_ERROR_FILE_NOT_FOUND => Err(CudaError::FileNotFound),
             cudaError_enum::CUDA_ERROR_SHARED_OBJECT_SYMBOL_NOT_FOUND => {
                 Err(CudaError::SharedObjectSymbolNotFound)

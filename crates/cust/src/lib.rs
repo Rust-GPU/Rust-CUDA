@@ -75,7 +75,6 @@ mod surface;
 mod texture;
 pub mod util;
 
-pub use cust_core;
 pub use cust_derive::DeviceCopy;
 pub use cust_raw as sys;
 

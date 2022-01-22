@@ -74,9 +74,9 @@ Instead you can now use `DeviceSlice::index` which behaves the same.
 - Added `ModuleJitOption`, `JitFallback`, `JitTarget`, and `OptLevel` for specifying options when loading a module. Note that
 `ModuleJitOption::MaxRegisters` does not seem to work currently, but NVIDIA is looking into it.
 You can achieve the same goal by compiling the ptx to cubin using nvcc then loading that: `nvcc --cubin foo.ptx -maxrregcount=REGS`
-- Added `Module::from_fatbin` and `Module::from_fatbin_unchecked`.
-- Added `Module::from_cubin` and `Module::from_cubin_unchecked`.
-- Added `Module::from_ptr` and `Module::from_ptx_cstr`.
+- Added `Module::from_fatbin`.
+- Added `Module::from_cubin`.
+- Added `Module::from_ptx` and `Module::from_ptx_cstr`.
 - `Stream`, `Module`, `Linker`, `Function`, `Event`, `UnifiedBox`, `ArrayObject`, `LockedBuffer`, `LockedBox`, `DeviceSlice`, `DeviceBuffer`, and `DeviceBox` all now impl `Send` and `Sync`, this makes
 it much easier to write multigpu code. The CUDA API is fully thread-safe except for graph objects.
 
@@ -98,6 +98,7 @@ it much easier to write multigpu code. The CUDA API is fully thread-safe except 
 - `DeviceSlice::as_ptr` and `DeviceSlice::as_ptr_mut` now both return a `DevicePointer<T>`.
 - `DeviceSlice` is now `Clone` and `Copy`.
 - `DevicePointer::as_raw` now returns a `CUdeviceptr`, not a `*const T` (use `DevicePointer::as_ptr`).
+- Fixed typo in `CudaError`, `InvalidSouce` is now `InvalidSource`, no more invalid sauce 🍅🥣
 
 ## 0.2.2 - 12/5/21
 

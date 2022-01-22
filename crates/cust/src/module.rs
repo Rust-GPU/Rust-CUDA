@@ -178,91 +178,111 @@ impl Module {
         }
     }
 
-    // TODO(RDambrosio016): figure out why the heck cuda rejects cubins literally made by nvcc and loaded by fs::read
-
-    // /// Creates a new module by loading a fatbin (fat binary) file.
-    // ///
-    // /// Fatbinary files are files that contain multiple ptx or cubin files. The driver will choose already-built
-    // /// cubin if it is present, and otherwise JIT compile any PTX in the file to cubin.
-    // ///
-    // /// # Example
-    // ///
-    // /// ```
-    // /// # use cust::*;
-    // /// # use std::error::Error;
-    // /// # fn main() -> Result<(), Box<dyn Error>> {
-    // /// # let _ctx = quick_init()?;
-    // /// use cust::module::Module;
-    // /// let fatbin_bytes = std::fs::read("./resources/add.cubin")?;
-    // /// assert!(fatbin_bytes.contains(&0));
-    // /// let module = Module::from_cubin(&fatbin_bytes, &[])?;
-    // /// # Ok(())
-    // /// # }
-    // /// ```
-    // pub fn from_fatbin<T: AsRef<[u8]>>(
-    //     bytes: T,
-    //     options: &[ModuleJitOption],
-    // ) -> CudaResult<Module> {
-    //     let mut bytes = bytes.as_ref().to_vec();
-    //     bytes.push(0);
-    //     // fatbins are just ELF files like cubins, and cuModuleLoadDataEx accepts ptx, cubin, and fatbin.
-    //     // We just make the distinction in case we want to do anything extra in the future. As well
-    //     // as keep things explicit to anyone reading the code.
-    //     Self::from_cubin(bytes, options)
-    // }
-
-    // pub unsafe fn from_fatbin_unchecked<T: AsRef<[u8]>>(
-    //     bytes: T,
-    //     options: &[ModuleJitOption],
-    // ) -> CudaResult<Module> {
-    //     Self::from_cubin_unchecked(bytes, options)
-    // }
-
-    // pub fn from_cubin<T: AsRef<[u8]>>(bytes: T, options: &[ModuleJitOption]) -> CudaResult<Module> {
-    //     let bytes = bytes.as_ref();
-    //     goblin::elf::Elf::parse(bytes).expect("Cubin/Fatbin was not valid ELF!");
-    //     // SAFETY: we verified the bytes were valid ELF
-    //     unsafe { Self::from_cubin_unchecked(bytes, options) }
-    // }
-
-    // pub unsafe fn from_cubin_unchecked<T: AsRef<[u8]>>(
-    //     bytes: T,
-    //     options: &[ModuleJitOption],
-    // ) -> CudaResult<Module> {
-    //     let bytes = bytes.as_ref();
-    //     let mut module = Module {
-    //         inner: ptr::null_mut(),
-    //     };
-    //     let (mut options, mut option_values) = ModuleJitOption::into_raw(options);
-    //     cuda::cuModuleLoadDataEx(
-    //         &mut module.inner as *mut cuda::CUmodule,
-    //         bytes.as_ptr() as *const c_void,
-    //         options.len() as c_uint,
-    //         options.as_mut_ptr(),
-    //         option_values.as_mut_ptr(),
-    //     )
-    //     .to_result()?;
-    //     Ok(module)
-    // }
-
-    pub fn from_ptx_cstr(cstr: &CStr, options: &[ModuleJitOption]) -> CudaResult<Module> {
-        unsafe {
-            let mut module = Module {
-                inner: ptr::null_mut(),
-            };
-            let (mut options, mut option_values) = ModuleJitOption::into_raw(options);
-            cuda::cuModuleLoadDataEx(
-                &mut module.inner as *mut cuda::CUmodule,
-                cstr.as_ptr() as *const c_void,
-                options.len() as c_uint,
-                options.as_mut_ptr(),
-                option_values.as_mut_ptr(),
-            )
-            .to_result()?;
-            Ok(module)
-        }
+    /// Creates a new module by loading a fatbin (fat binary) file.
+    ///
+    /// Fatbinary files are files that contain multiple ptx or cubin files. The driver will choose already-built
+    /// cubin if it is present, and otherwise JIT compile any PTX in the file to cubin.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use cust::*;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # let _ctx = quick_init()?;
+    /// use cust::module::Module;
+    /// let fatbin_bytes = std::fs::read("./resources/add.fatbin")?;
+    /// // will return InvalidSource if the fatbin does not contain any compatible code, meaning, either
+    /// // cubin compiled for the same device architecture OR PTX that can be JITted into valid code.
+    /// let module = Module::from_fatbin(&fatbin_bytes, &[])?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_fatbin<T: AsRef<[u8]>>(
+        bytes: T,
+        options: &[ModuleJitOption],
+    ) -> CudaResult<Module> {
+        // fatbins can be loaded just like cubins, we just use different methods so it's explicit.
+        // please don't use from_cubin for fatbins, that is pure chaos and ferris will come to your house
+        Self::from_cubin(bytes, options)
     }
 
+    /// Creates a new module by loading a cubin (CUDA Binary) file.
+    ///
+    /// Cubins are architecture/compute-capability specific files generated as the final step of the CUDA compilation
+    /// process. They cannot be interchanged across compute capabilities unlike PTX (to some degree). You can create one
+    /// using the PTX compiler APIs, the cust [`Linker`](crate::link::Linker), or nvcc (`nvcc a.ptx --cubin -arch=sm_XX`).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use cust::*;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # let _ctx = quick_init()?;
+    /// use cust::module::Module;
+    /// let cubin_bytes = std::fs::read("./resources/add.cubin")?;
+    /// // will return InvalidSource if the cubin arch doesn't match the context's device arch!
+    /// let module = Module::from_cubin(&cubin_bytes, &[])?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_cubin<T: AsRef<[u8]>>(bytes: T, options: &[ModuleJitOption]) -> CudaResult<Module> {
+        // it is very unclear whether cuda wants or doesn't want a null terminator. The method works
+        // whether you have one or not. So for safety we just add one. In theory you can figure out the
+        // length of an ELF image without a null terminator. But the docs are confusing, so we add one just
+        // to be sure.
+        let mut bytes = bytes.as_ref().to_vec();
+        bytes.push(0);
+        // SAFETY: the image is known to be dereferenceable
+        unsafe { Self::load_module(bytes.as_ptr() as *const c_void, options) }
+    }
+
+    unsafe fn load_module(image: *const c_void, options: &[ModuleJitOption]) -> CudaResult<Module> {
+        let mut module = Module {
+            inner: ptr::null_mut(),
+        };
+        let (mut options, mut option_values) = ModuleJitOption::into_raw(options);
+        cuda::cuModuleLoadDataEx(
+            &mut module.inner as *mut cuda::CUmodule,
+            image,
+            options.len() as c_uint,
+            options.as_mut_ptr(),
+            option_values.as_mut_ptr(),
+        )
+        .to_result()?;
+        Ok(module)
+    }
+
+    /// Creates a new module from a [`CStr`] pointing to PTX code.
+    ///
+    /// The driver will JIT the PTX into arch-specific cubin or pick already-cached cubin if available.
+    pub fn from_ptx_cstr(cstr: &CStr, options: &[ModuleJitOption]) -> CudaResult<Module> {
+        // SAFETY: the image is known to be dereferenceable
+        unsafe { Self::load_module(cstr.as_ptr() as *const c_void, options) }
+    }
+
+    /// Creates a new module from a PTX string, allocating an intermediate buffer for the [`CString`].
+    ///
+    /// The driver will JIT the PTX into arch-specific cubin or pick already-cached cubin if available.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `string` contains a nul.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use cust::*;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # let _ctx = quick_init()?;
+    /// use cust::module::Module;
+    /// let ptx = std::fs::read("./resources/add.ptx")?;
+    /// let module = Module::from_ptx(&ptx, &[])?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn from_ptx<T: AsRef<str>>(string: T, options: &[ModuleJitOption]) -> CudaResult<Module> {
         let cstr = CString::new(string.as_ref())
             .expect("string given to Module::from_str contained nul bytes");
