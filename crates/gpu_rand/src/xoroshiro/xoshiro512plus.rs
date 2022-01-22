@@ -13,9 +13,10 @@ use crate::xoroshiro::Seed512;
 /// The algorithm used here is translated from [the `xoshiro512plus.c`
 /// reference source code](http://xoshiro.di.unimi.it/xoshiro512plus.c) by
 /// David Blackman and Sebastiano Vigna.
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust::DeviceCopy))]
+
 pub struct Xoshiro512Plus {
     s: [u64; 8],
 }

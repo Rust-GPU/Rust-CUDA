@@ -5,6 +5,7 @@ use crate::{
 };
 use enum_dispatch::enum_dispatch;
 use gpu_rand::DefaultRand;
+use cust_core::DeviceCopy;
 
 #[enum_dispatch]
 pub trait Material {
@@ -12,16 +13,14 @@ pub trait Material {
     fn scatter(&self, incoming: Ray, hit: HitRecord, rng: &mut DefaultRand) -> (Vec3, Option<Ray>);
 }
 
-#[derive(Clone, Copy, PartialEq)]
-#[cfg_attr(not(target_os = "cuda"), derive(cust::DeviceCopy))]
+#[derive(Clone, Copy, PartialEq, DeviceCopy)]
 #[enum_dispatch(Material)]
 pub enum MaterialKind {
     Diffuse(DiffuseMaterial),
     Metallic(MetallicMaterial),
 }
 
-#[derive(Clone, Copy, PartialEq)]
-#[cfg_attr(not(target_os = "cuda"), derive(cust::DeviceCopy))]
+#[derive(Clone, Copy, PartialEq, DeviceCopy)]
 pub struct DiffuseMaterial {
     pub color: Vec3,
 }
@@ -43,8 +42,7 @@ impl Material for DiffuseMaterial {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-#[cfg_attr(not(target_os = "cuda"), derive(cust::DeviceCopy))]
+#[derive(Clone, Copy, PartialEq, DeviceCopy)]
 pub struct MetallicMaterial {
     pub color: Vec3,
     pub roughness: f32,

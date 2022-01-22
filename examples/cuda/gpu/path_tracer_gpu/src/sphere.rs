@@ -2,9 +2,9 @@ use crate::hittable::{HitRecord, Hittable};
 use crate::*;
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
+use cust_core::DeviceCopy;
 
-#[cfg_attr(not(target_os = "cuda"), derive(cust::DeviceCopy))]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, DeviceCopy)]
 pub struct Sphere {
     pub center: Point,
     pub radius: f32,

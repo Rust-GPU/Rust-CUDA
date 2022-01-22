@@ -10,16 +10,22 @@ use syn::{
     TypeParamBound,
 };
 
-use proc_macro::TokenStream as BaseTokenStream;
-
-#[proc_macro_derive(DeviceCopy)]
-pub fn derive_device_copy(input: BaseTokenStream) -> BaseTokenStream {
+#[proc_macro_derive(DeviceCopyCore)]
+pub fn device_copy_core(input: BaseTokenStream) -> BaseTokenStream {
     let ast = syn::parse(input).unwrap();
-    let gen = impl_device_copy(&ast);
+    let gen = impl_device_copy(&ast, quote!(::cust_core::DeviceCopy));
+    BaseTokenStream::from(gen)
+}
+#[proc_macro_derive(DeviceCopy)]
+pub fn device_copy(input: BaseTokenStream) -> BaseTokenStream {
+    let ast = syn::parse(input).unwrap();
+    let gen = impl_device_copy(&ast, quote!(::cust::memory::DeviceCopy));
     BaseTokenStream::from(gen)
 }
 
-fn impl_device_copy(input: &DeriveInput) -> TokenStream {
+use proc_macro::TokenStream as BaseTokenStream;
+
+fn impl_device_copy(input: &DeriveInput, import: TokenStream) -> TokenStream {
     let input_type = &input.ident;
 
     // Generate the code to type-check all fields of the derived struct/enum/union. We can't perform
@@ -42,17 +48,17 @@ fn impl_device_copy(input: &DeriveInput) -> TokenStream {
 
     // If the struct/enum/union is generic, we need to add the DeviceCopy bound to the generics
     // when implementing DeviceCopy.
-    let generics = add_bound_to_generics(&input.generics);
+    let generics = add_bound_to_generics(&input.generics, import.clone());
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
 
     // Finally, generate the unsafe impl and the type-checking function.
     let generated_code = quote! {
-        unsafe impl#impl_generics ::cust::memory::DeviceCopy for #input_type#type_generics #where_clause {}
+        unsafe impl#impl_generics #import for #input_type#type_generics #where_clause {}
 
         #[doc(hidden)]
         #[allow(all)]
         fn #type_test_func_ident#impl_generics(value: &#input_type#type_generics) #where_clause {
-            fn assert_impl<T: ::cust::memory::DeviceCopy>() {}
+            fn assert_impl<T: #import>() {}
             #check_types_code
         }
     };
@@ -60,10 +66,9 @@ fn impl_device_copy(input: &DeriveInput) -> TokenStream {
     generated_code
 }
 
-fn add_bound_to_generics(generics: &Generics) -> Generics {
+fn add_bound_to_generics(generics: &Generics, import: TokenStream) -> Generics {
     let mut new_generics = generics.clone();
-    let bound: TypeParamBound =
-        parse_str(&quote! {::cust::memory::DeviceCopy}.to_string()).unwrap();
+    let bound: TypeParamBound = parse_str(&quote! {#import}.to_string()).unwrap();
 
     for type_param in &mut new_generics.type_params_mut() {
         type_param.bounds.push(bound.clone())

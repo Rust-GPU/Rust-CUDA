@@ -12,9 +12,10 @@ use rand_core::{RngCore, SeedableRng};
 /// reference source code](http://xoshiro.di.unimi.it/xoroshiro64star.c) by
 /// David Blackman and Sebastiano Vigna.
 #[allow(missing_copy_implementations)]
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust::DeviceCopy))]
+
 pub struct Xoroshiro64Star {
     s0: u32,
     s1: u32,

@@ -12,9 +12,10 @@ use rand_core::{Error, RngCore, SeedableRng};
 /// Sebastiano Vigna. For `next_u32`, a more efficient mixing function taken
 /// from [`dsiutils`](http://dsiutils.di.unimi.it/) is used.
 #[allow(missing_copy_implementations)]
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust::DeviceCopy))]
+
 pub struct SplitMix64 {
     x: u64,
 }

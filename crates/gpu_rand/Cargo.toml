@@ -10,12 +10,10 @@ readme = "../../README.md"
 
 [dependencies]
 rand_core = { version = "0.6" }
+cust_core = { version = "0.1.0", path = "../cust_core" }
 
 [target.'cfg(target_os = "cuda")'.dependencies]
 cuda_std = { version = "0.2", path = "../cuda_std" }
-
-[target.'cfg(not(target_os = "cuda"))'.dependencies]
-cust = { version = "0.2", path = "../cust" }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

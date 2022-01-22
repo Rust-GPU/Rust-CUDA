@@ -1,7 +1,7 @@
-use gpu_rand::DefaultRand;
-
 use crate::material::*;
 use crate::*;
+use cust_core::DeviceCopy;
+use gpu_rand::DefaultRand;
 
 const MAX_BOUNCES: u32 = 5;
 
@@ -13,8 +13,7 @@ pub struct Scene<'a> {
 }
 
 /// SAFETY: the slice is created from unified memory so it works on the GPU too.
-#[cfg(not(target_os = "cuda"))]
-unsafe impl cust::memory::DeviceCopy for Scene<'_> {}
+unsafe impl DeviceCopy for Scene<'_> {}
 
 impl Scene<'_> {
     pub fn hit(&self, ray: Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {

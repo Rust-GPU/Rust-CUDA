@@ -17,6 +17,7 @@ pub mod scene;
 pub mod sphere;
 
 pub use cuda_std::vek;
+use cust_core::DeviceCopy;
 use enum_dispatch::enum_dispatch;
 use hittable::{HitRecord, Hittable};
 use sphere::Sphere;
@@ -25,8 +26,7 @@ pub type Vec3 = vek::Vec3<f32>;
 pub type Point = vek::Vec3<f32>;
 pub type Vec2 = vek::Vec2<f32>;
 
-#[cfg_attr(not(target_os = "cuda"), derive(cust::DeviceCopy))]
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, DeviceCopy)]
 #[repr(C)]
 pub struct Viewport {
     pub bounds: vek::Vec2<usize>,
@@ -36,9 +36,8 @@ pub struct Viewport {
     pub origin: Vec3,
 }
 
-#[cfg_attr(not(target_os = "cuda"), derive(cust::DeviceCopy))]
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, DeviceCopy)]
 #[enum_dispatch(Hittable)]
 pub enum Object {
     Sphere(Sphere),

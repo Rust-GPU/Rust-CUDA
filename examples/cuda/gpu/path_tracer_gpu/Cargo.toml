@@ -7,9 +7,7 @@ edition = "2018"
 cuda_std = { version = "0.2", path = "../../../../crates/cuda_std" }
 enum_dispatch = "0.3.7"
 gpu_rand = { version = "0.1", path = "../../../../crates/gpu_rand" }
-
-[target.'cfg(not(target_os = "cuda"))'.dependencies]
-cust = { version = "0.2", path = "../../../../crates/cust", features = ["vek"] }
+cust_core = { path = "../../../../crates/cust_core" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

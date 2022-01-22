@@ -1,9 +1,8 @@
 #![allow(clippy::missing_safety_doc)]
 
 use crate::{const_assert, const_assert_eq, context::DeviceContext, error::Error, optix_call, sys};
-use cust::{
-    memory::{CopyDestination, DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, DeviceSlice},
-    DeviceCopy,
+use cust::memory::{
+    CopyDestination, DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, DeviceSlice,
 };
 type Result<T, E = Error> = std::result::Result<T, E>;
 

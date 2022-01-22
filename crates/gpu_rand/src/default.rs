@@ -1,12 +1,11 @@
-use rand_core::{RngCore, SeedableRng};
-
 use crate::xoroshiro::Xoroshiro128StarStar;
+use rand_core::{RngCore, SeedableRng};
 
 /// Default random generator which is good for most applications.
 ///
 /// This currently uses [`Xoroshiro128StarStar`], but that may be changed in the future (with a major version bump).
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust::DeviceCopy))]
 #[repr(transparent)]
 pub struct DefaultRand {
     inner: Xoroshiro128StarStar,

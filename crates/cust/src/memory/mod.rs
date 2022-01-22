@@ -89,7 +89,8 @@ pub use self::unified::*;
 
 use crate::error::*;
 
-pub use cust_core::DeviceCopy;
+pub use crate::DeviceCopy;
+pub use cust_core::_hidden::DeviceCopy;
 
 use std::ffi::c_void;
 

@@ -11,9 +11,10 @@ use rand_core::{Error, RngCore, SeedableRng};
 /// The algorithm used here is translated from [the `xoshiro128starstar.c`
 /// reference source code](http://xoshiro.di.unimi.it/xoshiro128starstar.c) by
 /// David Blackman and Sebastiano Vigna.
+#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
-#[cfg_attr(not(target_os = "cuda"), derive(Copy, cust::DeviceCopy))]
+
 pub struct Xoshiro128Plus {
     s: [u32; 4],
 }
