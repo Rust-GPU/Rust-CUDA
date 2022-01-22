@@ -61,9 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // allocate the buffer for the noisy image and copy the data to the GPU.
     let in_buf = linear.as_slice().as_dbuf()?;
 
-    // Currently zeroed is unsafe, but in the future we will probably expose a safe way to do it
-    // using bytemuck
-    let mut out_buf = unsafe { DeviceBuffer::<Vec3<f32>>::zeroed((width * height) as usize)? };
+    let mut out_buf = DeviceBuffer::<Vec3<f32>>::zeroed((width * height) as usize)?;
 
     // make an image to tell OptiX about how our image buffer is represented
     let input_image = Image::new(&in_buf, ImageFormat::Float3, width, height);

@@ -324,6 +324,11 @@ impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
     {
         self.wrapping_offset((count as isize).wrapping_neg())
     }
+
+    /// Casts this device pointer to another type.
+    pub fn cast<U: DeviceCopy>(self) -> DevicePointer<U> {
+        DevicePointer::from_raw(self.ptr)
+    }
 }
 
 /// A pointer to unified memory.

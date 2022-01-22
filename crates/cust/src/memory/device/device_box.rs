@@ -84,7 +84,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// # Ok(())
     /// # }
     pub unsafe fn new_async(val: &T, stream: &Stream) -> CudaResult<Self> {
-        let mut dev_box = DeviceBox::uninitialized()?;
+        let mut dev_box = DeviceBox::uninitialized_async(stream)?;
         dev_box.async_copy_from(val, stream)?;
         Ok(dev_box)
     }
@@ -120,6 +120,9 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// # Ok(())
     /// # }
     pub fn drop_async(self, stream: &Stream) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
         // make sure we dont run the normal destructor, otherwise a double drop will happen
         let me = ManuallyDrop::new(self);
         // SAFETY: we consume the box so its not possible to use the box past its drop point unless
@@ -165,7 +168,7 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
         }
     }
 
-    /// Allocate device memory asynchronously and asynchronously fills it with zeroes (`0u8`).
+    /// Allocates device memory asynchronously and asynchronously fills it with zeroes (`0u8`).
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
     ///

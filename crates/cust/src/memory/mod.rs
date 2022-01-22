@@ -89,6 +89,9 @@ pub use self::unified::*;
 
 use crate::error::*;
 
+#[cfg(feature = "bytemuck")]
+pub use bytemuck;
+
 pub use crate::DeviceCopy;
 pub use cust_core::_hidden::DeviceCopy;
 

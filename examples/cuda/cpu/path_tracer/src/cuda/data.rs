@@ -1,4 +1,5 @@
 use crate::common::Camera;
+use bytemuck::Zeroable;
 use cust::{
     error::CudaResult,
     memory::{DeviceBuffer, DeviceCopy, UnifiedBuffer},
@@ -6,7 +7,7 @@ use cust::{
 };
 use gpu_rand::DefaultRand;
 use path_tracer_gpu::{material::MaterialKind, scene::Scene, Object, Viewport};
-use vek::{num_traits::Zero, Vec2, Vec3};
+use vek::{Vec2, Vec3};
 
 use super::SEED;
 
@@ -75,7 +76,7 @@ impl CudaRendererBuffers {
     /// Reset the renderer's view, in the buffer's case this means clearing accumulated buffers from previous samples.
     /// As well as changing the viewport.
     pub fn update_camera(&mut self, new_camera: &Camera) -> CudaResult<()> {
-        self.accumulated_buffer = unsafe { DeviceBuffer::zeroed(self.accumulated_buffer.len())? };
+        self.accumulated_buffer = DeviceBuffer::zeroed(self.accumulated_buffer.len())?;
         new_camera.as_viewport(&mut self.viewport);
         Ok(())
     }
@@ -104,9 +105,9 @@ impl CudaRendererBuffers {
     }
 
     // could also use the convenience method on optix::denoiser::Image for this
-    fn image_buffer<T: DeviceCopy + Zero>(
+    fn image_buffer<T: DeviceCopy + Zeroable>(
         dimensions: Vec2<usize>,
     ) -> CudaResult<DeviceBuffer<Vec3<T>>> {
-        unsafe { DeviceBuffer::zeroed(dimensions.product()) }
+        DeviceBuffer::zeroed(dimensions.product())
     }
 }

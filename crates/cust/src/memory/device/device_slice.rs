@@ -5,8 +5,9 @@ use crate::memory::DeviceCopy;
 use crate::memory::DevicePointer;
 use crate::stream::Stream;
 use crate::sys as cuda;
-use std::mem;
-
+#[cfg(feature = "bytemuck")]
+use bytemuck::{Pod, Zeroable};
+use std::mem::{self, size_of};
 use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 use std::os::raw::c_void;
 
@@ -204,6 +205,218 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// See the documentation of `from_raw_parts` for more details.
     pub unsafe fn from_raw_parts_mut(ptr: DevicePointer<T>, len: usize) -> DeviceSlice<T> {
         DeviceSlice { ptr, len }
+    }
+}
+
+#[cfg(feature = "bytemuck")]
+impl<T: DeviceCopy + Pod> DeviceSlice<T> {
+    // NOTE(RDambrosio016): async memsets kind of blur the line between safe and unsafe, the only
+    // unsafe thing i can imagine could happen is someone allocs a buffer, launches an async memset, then
+    // tries to read back the value. However, it is unclear whether this is actually UB. Even if the
+    // reads get jumbled into the writes, well, we know this type is Pod, so any byte value is fine for it.
+    // So currently these functions are unsafe, but we may want to reevaluate this in the future.
+
+    /// Sets the memory range of this buffer to contiguous `8-bit` values of `value`.
+    ///
+    /// In total it will set `sizeof<T> * len` values of `value` contiguously.
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub fn set_8(&mut self, value: u8) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+
+        // SAFETY: We know T can hold any value because it is `Pod`, and
+        // sub-byte alignment isn't a thing so we know the alignment is right.
+        unsafe {
+            cuda::cuMemsetD8_v2(self.ptr.as_raw(), value, size_of::<T>() * self.len).to_result()
+        }
+    }
+
+    /// Sets the memory range of this buffer to contiguous `8-bit` values of `value` asynchronously.
+    ///
+    /// In total it will set `sizeof<T> * len` values of `value` contiguously.
+    ///
+    /// # Safety
+    ///
+    /// This operation is async so it does not complete immediately, it uses stream-ordering semantics.
+    /// Therefore you should not read/write from/to the memory range until the operation is complete.
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub unsafe fn set_8_async(&mut self, value: u8, stream: &Stream) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+
+        cuda::cuMemsetD8Async(
+            self.ptr.as_raw(),
+            value,
+            size_of::<T>() * self.len,
+            stream.as_inner(),
+        )
+        .to_result()
+    }
+
+    /// Sets the memory range of this buffer to contiguous `16-bit` values of `value`.
+    ///
+    /// In total it will set `(sizeof<T> / 2) * len` values of `value` contiguously.
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - `self.ptr % 2 != 0` (the pointer is not aligned to at least 2 bytes).
+    /// - `(size_of::<T>() * self.len) % 2 != 0` (the data size is not a multiple of 2 bytes)
+    #[track_caller]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub fn set_16(&mut self, value: u16) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+        let data_len = size_of::<T>() * self.len;
+        assert_eq!(
+            data_len % 2,
+            0,
+            "Buffer length is not a multiple of 2 bytes!"
+        );
+        assert_eq!(
+            self.ptr.as_raw() % 2,
+            0,
+            "Buffer pointer is not aligned to at least 2 bytes!"
+        );
+        unsafe { cuda::cuMemsetD16_v2(self.ptr.as_raw(), value, data_len / 2).to_result() }
+    }
+
+    /// Sets the memory range of this buffer to contiguous `16-bit` values of `value` asynchronously.
+    ///
+    /// In total it will set `(sizeof<T> / 2) * len` values of `value` contiguously.
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - `self.ptr % 2 != 0` (the pointer is not aligned to at least 2 bytes).
+    /// - `(size_of::<T>() * self.len) % 2 != 0` (the data size is not a multiple of 2 bytes)
+    ///
+    /// # Safety
+    ///
+    /// This operation is async so it does not complete immediately, it uses stream-ordering semantics.
+    /// Therefore you should not read/write from/to the memory range until the operation is complete.
+    #[track_caller]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub unsafe fn set_16_async(&mut self, value: u16, stream: &Stream) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+        let data_len = size_of::<T>() * self.len;
+        assert_eq!(
+            data_len % 2,
+            0,
+            "Buffer length is not a multiple of 2 bytes!"
+        );
+        assert_eq!(
+            self.ptr.as_raw() % 2,
+            0,
+            "Buffer pointer is not aligned to at least 2 bytes!"
+        );
+        cuda::cuMemsetD16Async(self.ptr.as_raw(), value, data_len / 2, stream.as_inner())
+            .to_result()
+    }
+
+    /// Sets the memory range of this buffer to contiguous `32-bit` values of `value`.
+    ///
+    /// In total it will set `(sizeof<T> / 4) * len` values of `value` contiguously.
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - `self.ptr % 4 != 0` (the pointer is not aligned to at least 4 bytes).
+    /// - `(size_of::<T>() * self.len) % 4 != 0` (the data size is not a multiple of 4 bytes)
+    #[track_caller]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub fn set_32(&mut self, value: u32) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+        let data_len = size_of::<T>() * self.len;
+        assert_eq!(
+            data_len % 4,
+            0,
+            "Buffer length is not a multiple of 4 bytes!"
+        );
+        assert_eq!(
+            self.ptr.as_raw() % 4,
+            0,
+            "Buffer pointer is not aligned to at least 4 bytes!"
+        );
+        unsafe { cuda::cuMemsetD32_v2(self.ptr.as_raw(), value, data_len / 4).to_result() }
+    }
+
+    /// Sets the memory range of this buffer to contiguous `32-bit` values of `value` asynchronously.
+    ///
+    /// In total it will set `(sizeof<T> / 4) * len` values of `value` contiguously.
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - `self.ptr % 4 != 0` (the pointer is not aligned to at least 4 bytes).
+    /// - `(size_of::<T>() * self.len) % 4 != 0` (the data size is not a multiple of 4 bytes)
+    ///
+    /// # Safety
+    ///
+    /// This operation is async so it does not complete immediately, it uses stream-ordering semantics.
+    /// Therefore you should not read/write from/to the memory range until the operation is complete.
+    #[track_caller]
+    #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+    pub unsafe fn set_32_async(&mut self, value: u32, stream: &Stream) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+        let data_len = size_of::<T>() * self.len;
+        assert_eq!(
+            data_len % 4,
+            0,
+            "Buffer length is not a multiple of 4 bytes!"
+        );
+        assert_eq!(
+            self.ptr.as_raw() % 4,
+            0,
+            "Buffer pointer is not aligned to at least 4 bytes!"
+        );
+        cuda::cuMemsetD32Async(self.ptr.as_raw(), value, data_len / 4, stream.as_inner())
+            .to_result()
+    }
+}
+
+#[cfg(feature = "bytemuck")]
+impl<T: DeviceCopy + Zeroable> DeviceSlice<T> {
+    /// Sets this slice's data to zero.
+    pub fn set_zero(&mut self) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+        // SAFETY: this is fine because Zeroable guarantees a zero byte-pattern is safe
+        // for this type. And a slice of bytes can represent any type.
+        let mut erased = DeviceSlice {
+            ptr: self.ptr.cast::<u8>(),
+            len: size_of::<T>() * self.len,
+        };
+        erased.set_8(0)
+    }
+
+    /// Sets this slice's data to zero asynchronously.
+    ///
+    /// # Safety
+    ///
+    /// This operation is async so it does not complete immediately, it uses stream-ordering semantics.
+    /// Therefore you should not read/write from/to the memory range until the operation is complete.
+    pub unsafe fn set_zero_async(&mut self, stream: &Stream) -> CudaResult<()> {
+        if self.ptr.is_null() {
+            return Ok(());
+        }
+        // SAFETY: this is fine because Zeroable guarantees a zero byte-pattern is safe
+        // for this type. And a slice of bytes can represent any type.
+        let mut erased = DeviceSlice {
+            ptr: self.ptr.cast::<u8>(),
+            len: size_of::<T>() * self.len,
+        };
+        erased.set_8_async(0, stream)
     }
 }
 

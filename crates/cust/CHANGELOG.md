@@ -52,12 +52,22 @@ Instead you can now use `DeviceSlice::index` which behaves the same.
 - Added `cust::memory::LockedBox`, same as `LockedBuffer` except for single elements.
 - Added `cust::memory::cuda_malloc_async`.
 - Added `cust::memory::cuda_free_async`.
-- Added `impl AsyncCopyDestination<LockedBox<T>> for DeviceBox<T>` for async HtoD memcpy.
+- Added `impl AsyncCopyDestination<LockedBox<T>> for DeviceBox<T>` for async HtoD/DtoH memcpy.
+- Added `DeviceBox::new_async`.
+- Added `DeviceBox::drop_async`.
+- Added `DeviceBox::zeroed_async`.
+- Added `DeviceBox::uninitialized_async`.
+- Added `DeviceBuffer::uninitialized_async`.
+- Added `DeviceBuffer::drop_async`.
+- Added `DeviceBuffer::zeroed`.
+- Added `DeviceBuffer::zeroed_async`.
+- Added `DeviceBuffer::cast`.
+- Added `DeviceBuffer::try_cast`.
+- Added `DeviceSlice::set_8` and `DeviceSlice::set_8_async`.
+- Added `DeviceSlice::set_16` and `DeviceSlice::set_16_async`.
+- Added `DeviceSlice::set_32` and `DeviceSlice::set_32_async`.
+- Added `DeviceSlice::set_zero` and `DeviceSlice::set_zero_async`.
 - Added the `bytemuck` feature which is enabled by default.
-- Added `zeroed_async` to `DeviceBox`.
-- Added `drop_async` to `DeviceBox`.
-- Added `new_async` to `DeviceBox`.
-- Added `DevicePointer::as_ptr` and `DevicePointer::as_mut_ptr` for returning `*const T` or `*mut T`.
 - Added mint integration behind `impl_mint`.
 - Added half integration behind `impl_half`.
 - Added glam integration behind `impl_glam`.
@@ -69,8 +79,8 @@ Instead you can now use `DeviceSlice::index` which behaves the same.
 - Added `mem_get_info` to query the amount of free and total memory.
 - Added `DevicePointer::as_ptr` and `DevicePointer::as_mut_ptr` for `*const T` and `*mut T`.
 - Added `DevicePointer::from_raw` for `CUdeviceptr -> DevicePointer<T>` with a safe function.
+- Added `DevicePointer::cast`.
 - Added dependency on `cust_core` for `DeviceCopy`.
-- Added dependency on `goblin` for verifying cubins and fatbins (impossible to implement safe module loading without it).
 - Added `ModuleJitOption`, `JitFallback`, `JitTarget`, and `OptLevel` for specifying options when loading a module. Note that
 `ModuleJitOption::MaxRegisters` does not seem to work currently, but NVIDIA is looking into it.
 You can achieve the same goal by compiling the ptx to cubin using nvcc then loading that: `nvcc --cubin foo.ptx -maxrregcount=REGS`

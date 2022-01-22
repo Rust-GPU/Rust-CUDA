@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-vek = "0.15"
+vek = { version = "0.15", features = ["bytemuck"] }
 bytemuck = { version = "1.7.2", features = ["derive"] }
 cust = { version = "0.2", path = "../../../../crates/cust", features = ["impl_vek"] }
 image = "0.23.14"
