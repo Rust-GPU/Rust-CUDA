@@ -33,6 +33,25 @@ impl fmt::Display for CudaBuilderError {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DebugInfo {
+    None,
+    LineTables,
+    // NOTE(RDambrosio016): currently unimplemented because it causes a segfault somewhere in LLVM
+    // or libnvvm. Probably the latter.
+    // Full,
+}
+
+impl DebugInfo {
+    fn into_nvvm_and_rustc_options(self) -> (String, String) {
+        match self {
+            DebugInfo::None => unreachable!(),
+            DebugInfo::LineTables => ("-generate-line-info".into(), "-Cdebuginfo=1".into()),
+            // DebugInfo::Full => ("-g".into(), "-Cdebuginfo=2".into()),
+        }
+    }
+}
+
 pub enum EmitOption {
     LlvmIr,
     Bitcode,
@@ -117,7 +136,8 @@ pub struct CudaBuilder {
     ///
     /// `true` by default.
     pub override_libm: bool,
-    pub debug: bool,
+    /// Whether to generate any debug info and what level of info to generate.
+    pub debug: DebugInfo,
 }
 
 impl CudaBuilder {
@@ -137,11 +157,12 @@ impl CudaBuilder {
             emit: None,
             optix: false,
             override_libm: true,
-            debug: false,
+            debug: DebugInfo::None,
         }
     }
 
-    pub fn debug(mut self, debug: bool) -> Self {
+    /// Whether to generate any debug info and what level of info to generate.
+    pub fn debug(mut self, debug: DebugInfo) -> Self {
         self.debug = debug;
         self
     }
@@ -385,9 +406,10 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         llvm_args.push("--override-libm".to_string());
     }
 
-    if builder.debug {
-        rustflags.push("-Cdebuginfo=1".to_string());
-        llvm_args.push("-generate-line-info".to_string());
+    if builder.debug != DebugInfo::None {
+        let (nvvm_flag, rustc_flag) = builder.debug.into_nvvm_and_rustc_options();
+        llvm_args.push(nvvm_flag);
+        rustflags.push(rustc_flag);
     }
 
     let llvm_args = llvm_args.join(" ");

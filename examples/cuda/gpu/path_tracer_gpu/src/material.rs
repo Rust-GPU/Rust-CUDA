@@ -3,9 +3,9 @@ use crate::{
     math::{random_in_unit_sphere, reflect},
     Ray, Vec3,
 };
+use cust_core::DeviceCopy;
 use enum_dispatch::enum_dispatch;
 use gpu_rand::DefaultRand;
-use cust_core::DeviceCopy;
 
 #[enum_dispatch]
 pub trait Material {

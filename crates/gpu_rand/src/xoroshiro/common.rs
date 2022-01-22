@@ -223,6 +223,7 @@ macro_rules! deal_with_zero_seed {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! impl_initialize_states {
     ($seed:expr, $num_states:expr) => {{
         // there is unfortunately not a well-performant, clean, and safe way to do
