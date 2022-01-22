@@ -45,7 +45,6 @@ Instead you can now use `DeviceSlice::index` which behaves the same.
 ### Deprecated
 
 - Deprecated `Module::from_str`, use `Module::from_ptx` and pass `&[]` for options.
-`ModuleJitOption::MaxRegisters` does not seem to work currently, but NVIDIA is looking into it.
 - Deprecated `Module::load_from_string`, use `Module::from_ptx_cstr`.
 
 ### Added 
@@ -73,6 +72,8 @@ Instead you can now use `DeviceSlice::index` which behaves the same.
 - Added dependency on `cust_core` for `DeviceCopy`.
 - Added dependency on `goblin` for verifying cubins and fatbins (impossible to implement safe module loading without it).
 - Added `ModuleJitOption`, `JitFallback`, `JitTarget`, and `OptLevel` for specifying options when loading a module. Note that
+`ModuleJitOption::MaxRegisters` does not seem to work currently, but NVIDIA is looking into it.
+You can achieve the same goal by compiling the ptx to cubin using nvcc then loading that: `nvcc --cubin foo.ptx -maxrregcount=REGS`
 - Added `Module::from_fatbin` and `Module::from_fatbin_unchecked`.
 - Added `Module::from_cubin` and `Module::from_cubin_unchecked`.
 - Added `Module::from_ptr` and `Module::from_ptx_cstr`.
