@@ -8,7 +8,7 @@ Notable changes to this project will be documented in this file.
 
 This release is gigantic, so here are the main things you need to worry about:
 
-`Context::create_and_push(FLAGS, device)` -> `Context::new(device)`.
+`Context::create_and_push(FLAGS, device)` -> `Context::new(device)`.  
 `Module::from_str(PTX)` -> `Module::from_ptx(PTX, &[])`.
 
 ### Context handling overhaul
