@@ -3,6 +3,8 @@ members = [
   "crates/*",
   "crates/optix/examples/ex*",
   "crates/optix/examples/ex*/device",
+  "crates/optix/examples/rust/ex*",
+
   "xtask",
 
   "examples/optix/*",

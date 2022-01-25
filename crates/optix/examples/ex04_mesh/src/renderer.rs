@@ -63,7 +63,7 @@ impl Renderer {
             .traversable_graph_flags(TraversableGraphFlags::ALLOW_SINGLE_GAS)
             .exception_flags(ExceptionFlags::NONE);
 
-        let ptx = include_str!(concat!(env!("OUT_DIR"), "/src/ex04_mesh.ptx"));
+        let ptx = include_str!("../../resources/ex04_mesh.ptx");
 
         let (module, _log) = Module::new(
             &mut ctx,

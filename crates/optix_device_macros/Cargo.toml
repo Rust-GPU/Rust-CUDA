@@ -1,0 +1,16 @@
+[package]
+name = "optix_device_macros"
+version = "0.1.0"
+edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "Macros for optix_device"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.9"
+syn = { version = "1.0.75", features = ["full"] }
+proc-macro2 = "1"

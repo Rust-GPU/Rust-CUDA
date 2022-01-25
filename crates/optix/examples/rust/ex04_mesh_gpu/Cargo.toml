@@ -1,0 +1,11 @@
+[package]
+name = "ex04_mesh_gpu"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cuda_std = { version = "0.2.0", path = "../../../../cuda_std" }
+optix_device = { version = "0.1.0", path = "../../../../optix_device" }
+
+[lib]
+crate-type = ["cdylib", "rlib"]

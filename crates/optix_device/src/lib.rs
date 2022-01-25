@@ -1,13 +1,20 @@
 #![cfg_attr(
     target_arch = "nvptx64",
     no_std,
-    feature(register_attr, asm),
+    feature(register_attr, asm, asm_experimental_arch),
     register_attr(nvvm_internal)
 )]
 
 extern crate alloc;
 
+pub mod misc;
+pub mod payload;
+pub mod sys;
+pub mod trace;
+pub mod util;
+
 use cuda_std::*;
+pub use glam;
 use glam::UVec3;
 
 extern "C" {
@@ -44,4 +51,8 @@ pub fn get_launch_dimensions() -> UVec3 {
     }
 
     UVec3::new(x, y, z)
+}
+
+pub mod raygen {
+    pub use crate::trace::*;
 }

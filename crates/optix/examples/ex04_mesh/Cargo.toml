@@ -16,3 +16,4 @@ glam = { version = "0.20", features=["cuda"] }
 
 [build-dependencies]
 find_cuda_helper = { version = "0.2", path = "../../../find_cuda_helper" }
+cuda_builder = { version = "0.2", path = "../../../cuda_builder" }
