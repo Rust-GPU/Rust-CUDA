@@ -1,10 +1,12 @@
-use cuda_std::gpu_only;
+use crate::sys::*;
 use glam::Vec3;
+use paste::paste;
+use seq_macro::seq;
 
 /// An opaque handle to a traversable BVH.
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TraversableHandle(u64);
+pub struct TraversableHandle(pub(crate) u64);
 
 impl TraversableHandle {
     /// A null traversable handle which will cause only the miss program to be invoked.
@@ -45,9 +47,40 @@ bitflags::bitflags! {
     }
 }
 
-#[gpu_only]
+/// Instantiates a new ray trace into the scene.
+///
+/// The hardware will perform a query into the scene graph in hardware, running
+/// any required programs as necessary. For example, running the `miss` program if the ray
+/// missed any intersectable object in the scene. Running the `anyhit` and `closesthit` programs if
+/// specified, etc.
+///
+/// # Parameters
+///
+/// - `handle`: a valid handle to a traversable BVH, usually stored in the launch params and populated by
+/// the host.
+/// - `ray_origin`: the origin of the ray.
+/// - `ray_direction`: the direction of the ray.
+/// - `tmin`: the minimum distance along the ray to accept as a hit.
+/// - `tmax`: the maximum distance along the ray to accept as a hit.
+/// - `ray_time`: the time allocated for motion-aware traversal and material evaluation. If motion is not
+/// enabled in the pipeline compiler options, this argument is ignored.
+/// - `ray_flags`: a set of flags to control the behavior of the ray.
+/// - `visibility_mask`: Controls intersection across configurable masks of instances. An intersection for an instance
+/// will only be computed if there is at least a matching bit in both masks. Usually set to `255` if this masking isn't being used.
+/// - `sbt_offset`: A valid offset into the shader binding table for selecting the sbt record for a ray intersection.
+/// - `sbt_stride`: A valid stride into the shader binding table for selecting the sbt record for a ray intersection.
+/// - `miss_sbt_index`: The index of the sbt record to use for the miss program.
+/// - `payload`: An array of references to 32-bit values for the payload of the ray.
+///
+/// # Notes
+///
+/// - **OptiX rejects values of infinity for `tmin` and `tmax` and it will throw an exception, use [`f32::MAX`] instead**
+///
+/// # Safety
+///
+/// `sbt_offset`, `sbt_stride`, and `miss_sbt_index` must be valid offsets/strides/indices for the shader binding table.
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn trace(
+pub unsafe fn trace<P: TracePayload>(
     handle: TraversableHandle,
     ray_origin: Vec3,
     ray_direction: Vec3,
@@ -59,93 +92,89 @@ pub unsafe fn trace(
     sbt_offset: u32,
     sbt_stride: u32,
     miss_sbt_index: u32,
-    p0: &mut u32,
-    p1: &mut u32,
+    payload: P,
 ) {
-    let [ox, oy, oz] = ray_origin.to_array();
-    let [dx, dy, dz] = ray_direction.to_array();
-    let handle = handle.0;
-    let ray_flags = ray_flags.bits;
-    let visibility_mask = visbility_mask as u32;
+    P::trace(
+        handle,
+        ray_origin,
+        ray_direction,
+        tmin,
+        tmax,
+        ray_time,
+        visbility_mask,
+        ray_flags,
+        sbt_offset,
+        sbt_stride,
+        miss_sbt_index,
+        payload,
+    )
+}
 
-    // NOTE(RDambrosio016): This is horrific, so let me take a second to explain. OptiX is entirely just
-    // inline assembly, which makes sense, that is what a gpu-side library is. Which is great, we can just look
-    // at the internal headers and see how optix works. This works fine, but for some strange reason, optix really
-    // wants floats to be passed as .f32 regs in _optix_trace_typed_32. Except rust inline asm doesn't support float regs
-    // for nvptx. So we declare our own regs then mov our b32 regs into it. If we do not do this, optix will stack overflow
-    // when trying to make a module, why? i have no idea.
-    asm!(
-        "{{",
-            ".reg .f32 %f<9>;",
-            "mov.f32 	%f0, {ox};",
-            "mov.f32 	%f1, {oy};",
-            "mov.f32 	%f2, {oz};",
-            "mov.f32 	%f3, {dx};",
-            "mov.f32 	%f4, {dy};",
-            "mov.f32 	%f5, {dz};",
-            "mov.f32 	%f6, {tmin};",
-            "mov.f32 	%f7, {tmax};",
-            "mov.f32 	%f8, {ray_time};",
-            concat!(
-            "call",
-            "({p0}, {p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8}, {p9}, {p10},",
-            "{p11}, {p12}, {p13}, {p14}, {p15}, {p16}, {p17}, {p18}, {p19}, {p20}, {p21},",
-            "{p22}, {p23}, {p24}, {p25}, {p26}, {p27}, {p28}, {p29}, {p30}, {p31}),",
-            "_optix_trace_typed_32,",
-            "({}, {}, %f0, %f1, %f2, %f3, %f4, %f5, %f6, %f7, %f8, {}, {}, {}, {}, {}, {},",
-            "{p0}, {p1}, {p2}, {p3}, {p4}, {p5}, {p6}, {p7}, {p8}, {p9}, {p10},",
-            "{p11}, {p12}, {p13}, {p14}, {p15}, {p16}, {p17}, {p18}, {p19}, {p20}, {p21},",
-            "{p22}, {p23}, {p24}, {p25}, {p26}, {p27}, {p28}, {p29}, {p30}, {p31});",
-            ),
-        "}}",
-        in(reg32) 0,
-        in(reg64) handle,
-        in(reg32) visibility_mask,
-        in(reg32) ray_flags,
-        in(reg32) sbt_offset,
-        in(reg32) sbt_stride,
-        in(reg32) miss_sbt_index,
-        in(reg32) 2,
-        ox = in(reg32) ox,
-        oy = in(reg32) oy,
-        oz = in(reg32) oz,
-        dx = in(reg32) dx,
-        dy = in(reg32) dy,
-        dz = in(reg32) dz,
-        tmin = in(reg32) tmin,
-        tmax = in(reg32) tmax,
-        ray_time = in(reg32) ray_time,
-        p0 = inout(reg32) *p0,
-        p1 = inout(reg32) *p1,
-        p2 = out(reg32) _,
-        p3 = out(reg32) _,
-        p4 = out(reg32) _,
-        p5 = out(reg32) _,
-        p6 = out(reg32) _,
-        p7 = out(reg32) _,
-        p8 = out(reg32) _,
-        p9 = out(reg32) _,
-        p10 = out(reg32) _,
-        p11 = out(reg32) _,
-        p12 = out(reg32) _,
-        p13 = out(reg32) _,
-        p14 = out(reg32) _,
-        p15 = out(reg32) _,
-        p16 = out(reg32) _,
-        p17 = out(reg32) _,
-        p18 = out(reg32) _,
-        p19 = out(reg32) _,
-        p20 = out(reg32) _,
-        p21 = out(reg32) _,
-        p22 = out(reg32) _,
-        p23 = out(reg32) _,
-        p24 = out(reg32) _,
-        p25 = out(reg32) _,
-        p26 = out(reg32) _,
-        p27 = out(reg32) _,
-        p28 = out(reg32) _,
-        p29 = out(reg32) _,
-        p30 = out(reg32) _,
-        p31 = out(reg32) _,
+pub trait TracePayload {
+    #[allow(clippy::too_many_arguments, clippy::missing_safety_doc)]
+    unsafe fn trace(
+        handle: TraversableHandle,
+        ray_origin: Vec3,
+        ray_direction: Vec3,
+        tmin: f32,
+        tmax: f32,
+        ray_time: f32,
+        visbility_mask: u8,
+        ray_flags: RayFlags,
+        sbt_offset: u32,
+        sbt_stride: u32,
+        miss_sbt_index: u32,
+        payload: Self,
     );
+}
+
+macro_rules! impl_trace_payload_array {
+    ($($num:tt),*) => {
+        paste! {
+            $(
+                impl TracePayload for [&mut u32; $num] {
+                    unsafe fn trace(
+                        handle: TraversableHandle,
+                        ray_origin: Vec3,
+                        ray_direction: Vec3,
+                        tmin: f32,
+                        tmax: f32,
+                        ray_time: f32,
+                        visbility_mask: u8,
+                        ray_flags: RayFlags,
+                        sbt_offset: u32,
+                        sbt_stride: u32,
+                        miss_sbt_index: u32,
+                        payload: Self,
+                    ) {
+                        seq!(
+                            P in 0..$num {{
+                                let [#(p~P,)*] = payload;
+                                [<trace_ $num>](
+                                handle,
+                                ray_origin,
+                                ray_direction,
+                                tmin,
+                                tmax,
+                                ray_time,
+                                visbility_mask,
+                                ray_flags,
+                                sbt_offset,
+                                sbt_stride,
+                                miss_sbt_index,
+                                #(
+                                    p~P,
+                                )*
+                                )
+                            }}
+                        )
+                    }
+                }
+            )*
+        }
+    };
+}
+
+impl_trace_payload_array! {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
 }

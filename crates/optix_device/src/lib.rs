@@ -7,8 +7,11 @@
 
 extern crate alloc;
 
+mod hit;
+mod intersect;
 pub mod misc;
 pub mod payload;
+mod ray;
 pub mod sys;
 pub mod trace;
 pub mod util;
@@ -53,6 +56,48 @@ pub fn get_launch_dimensions() -> UVec3 {
     UVec3::new(x, y, z)
 }
 
+/// Functions/items only available in raygen programs (`__raygen__`).
 pub mod raygen {
+    #[doc(inline)]
     pub use crate::trace::*;
+}
+
+/// Functions/items only available in miss programs (`__miss__`).
+pub mod intersection {
+    #[doc(inline)]
+    pub use crate::intersect::{get_attribute, report_intersection};
+    #[doc(inline)]
+    pub use crate::ray::*;
+}
+
+/// Functions/items only available in anyhit programs (`__anyhit__`).
+pub mod anyhit {
+    #[doc(inline)]
+    pub use crate::hit::*;
+    #[doc(inline)]
+    pub use crate::intersect::{get_attribute, ignore_intersection, terminate_ray};
+    #[doc(inline)]
+    pub use crate::ray::*;
+}
+
+/// Functions/items only available in closesthit programs (`__closesthit__`).
+pub mod closesthit {
+    #[doc(inline)]
+    pub use crate::hit::*;
+    #[doc(inline)]
+    pub use crate::intersect::get_attribute;
+    #[doc(inline)]
+    pub use crate::ray::{
+        ray_flags, ray_time, ray_tmax, ray_tmin, ray_visibility_mask, ray_world_direction,
+        ray_world_origin,
+    };
+}
+
+/// Functions/items only available in miss programs (`__miss__`).
+pub mod miss {
+    #[doc(inline)]
+    pub use crate::ray::{
+        ray_flags, ray_time, ray_tmax, ray_tmin, ray_visibility_mask, ray_world_direction,
+        ray_world_origin,
+    };
 }

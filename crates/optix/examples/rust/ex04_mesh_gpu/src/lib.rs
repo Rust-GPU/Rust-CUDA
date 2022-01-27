@@ -113,8 +113,7 @@ pub unsafe fn __raygen__renderFrame() {
         RayType::SurfaceRay as u32,
         1,
         RayType::SurfaceRay as u32,
-        &mut p0,
-        &mut p1,
+        [&mut p0, &mut p1],
     );
 
     let fb_index = i.x + i.y * PARAMS.frame.size.x;
