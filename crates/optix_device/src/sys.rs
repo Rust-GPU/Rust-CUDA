@@ -69,7 +69,7 @@ get_payload! {
     0, 1, 2, 3, 4, 5, 6, 7
 }
 
-macro_rules! trace {
+macro_rules! trace_fns {
     ($($num:tt ($($used:ident)*) $($unused:ident)*),* $(,)?) => {
         $(
             paste! {
@@ -159,7 +159,7 @@ macro_rules! trace {
 
 // i know this is ugly but it would have taken more time to write a sophisticated macro for this. Besides, this looks a lot
 // like a graph for my sanity when writing this 📉
-trace! {
+trace_fns! {
     0   ()p0 p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31,
     1    (p0)p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31,
     2    (p0 p1)p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 p13 p14 p15 p16 p17 p18 p19 p20 p21 p22 p23 p24 p25 p26 p27 p28 p29 p30 p31,
