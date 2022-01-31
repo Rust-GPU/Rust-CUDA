@@ -58,10 +58,7 @@ impl Scene<'_> {
                     return Vec3::zero();
                 }
             } else {
-                let unit = cur_ray.dir.normalized();
-                let t = 0.5 * (unit.y + 1.0);
-                let c = (1.0 - t) * Vec3::one() + t * Vec3::new(0.5, 0.7, 1.0);
-                return attenuation * c;
+                return attenuation * render::color(cur_ray);
             }
         }
         Vec3::zero()

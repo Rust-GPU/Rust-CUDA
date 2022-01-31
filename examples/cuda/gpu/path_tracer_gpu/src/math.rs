@@ -35,9 +35,19 @@ pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
     v - 2.0 * v.dot(n) * n
 }
 
-pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f32) -> Vec3 {
-    let cos_t = (-uv).dot(n).min(1.0);
-    let r_out_perp = etai_over_etat * (uv + cos_t * n);
-    let r_out_parallel = -((1.0 - r_out_perp.magnitude_squared()).abs()).sqrt() * n;
-    r_out_perp + r_out_parallel
+pub fn refract(v: Vec3, n: Vec3, ni_over_nt: f32) -> Option<Vec3> {
+    let uv = v.normalized();
+    let dt = uv.dot(n);
+    let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
+    if discriminant > 0.0 {
+        Some(ni_over_nt * (uv - n * dt) - discriminant.sqrt() * n)
+    } else {
+        None
+    }
+}
+
+pub fn schlick(cos: f32, ref_idx: f32) -> f32 {
+    let r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
+    let r0sq = r0 * r0;
+    r0sq + (1.0 - r0sq) * (1.0 - cos).powf(5.0)
 }

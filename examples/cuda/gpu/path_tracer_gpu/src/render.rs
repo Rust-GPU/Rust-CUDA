@@ -1,8 +1,10 @@
 use crate::*;
 
+const BACKGROUND_BLUE_MULTIPLIER: f32 = 0.7;
+
 pub fn color(ray: Ray) -> Vec3 {
     let unit = ray.dir.normalized();
-    let t = 0.5 * (unit.y + 1.0);
+    let t = BACKGROUND_BLUE_MULTIPLIER * (unit.y + 1.0);
     (1.0 - t) * Vec3::one() + t * Vec3::new(0.5, 0.7, 1.0)
 }
 

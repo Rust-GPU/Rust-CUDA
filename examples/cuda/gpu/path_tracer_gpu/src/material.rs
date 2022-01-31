@@ -1,11 +1,7 @@
-use crate::{
-    hittable::HitRecord,
-    math::{random_in_unit_sphere, reflect},
-    Ray, Vec3,
-};
+use crate::{hittable::HitRecord, math::*, Ray, Vec3};
 use cust_core::DeviceCopy;
 use enum_dispatch::enum_dispatch;
-use gpu_rand::DefaultRand;
+use gpu_rand::{DefaultRand, GpuRand};
 
 #[enum_dispatch]
 pub trait Material {
@@ -18,6 +14,7 @@ pub trait Material {
 pub enum MaterialKind {
     Diffuse(DiffuseMaterial),
     Metallic(MetallicMaterial),
+    Dielectric(DielectricMaterial),
 }
 
 #[derive(Clone, Copy, PartialEq, DeviceCopy)]
@@ -61,5 +58,49 @@ impl Material for MetallicMaterial {
         } else {
             (attenuation, None)
         }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, DeviceCopy)]
+pub struct DielectricMaterial {
+    pub ior: f32,
+    pub color: Vec3,
+}
+
+impl Material for DielectricMaterial {
+    fn scatter(&self, incoming: Ray, hit: HitRecord, rng: &mut DefaultRand) -> (Vec3, Option<Ray>) {
+        let outward_norm;
+        let ni_over_nt: f32;
+        let cos: f32;
+
+        if incoming.dir.dot(hit.normal) > 0.0 {
+            outward_norm = -hit.normal;
+            ni_over_nt = self.ior;
+            cos = self.ior * incoming.dir.dot(hit.normal) / incoming.dir.magnitude();
+        } else {
+            outward_norm = hit.normal;
+            ni_over_nt = 1.0 / self.ior;
+            cos = -incoming.dir.dot(hit.normal) / incoming.dir.magnitude();
+        }
+
+        if let Some(refracted) = refract(incoming.dir, outward_norm, ni_over_nt) {
+            if rng.normal_f32() > schlick(cos, self.ior) {
+                return (
+                    self.color,
+                    Some(Ray {
+                        origin: hit.point,
+                        dir: refracted,
+                    }),
+                );
+            }
+        }
+
+        (
+            self.color,
+            Some(Ray {
+                origin: hit.point,
+                dir: reflect(incoming.dir.normalized(), hit.normal),
+            }),
+        )
     }
 }

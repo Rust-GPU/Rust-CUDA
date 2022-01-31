@@ -7,7 +7,7 @@ pub mod viewer;
 
 use common::Camera;
 use path_tracer_gpu::{
-    material::{DiffuseMaterial, MaterialKind, MetallicMaterial},
+    material::{DielectricMaterial, DiffuseMaterial, MaterialKind, MetallicMaterial},
     scene::Scene,
     sphere::Sphere,
     Object,
@@ -37,13 +37,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         }),
         MaterialKind::Metallic(MetallicMaterial {
             color: Vec3::new(1.0, 0.7, 0.7),
-            roughness: 0.02,
+            roughness: 0.2,
+        }),
+        MaterialKind::Dielectric(DielectricMaterial {
+            ior: 1.0,
+            color: Vec3::new(1.0, 1.0, 1.0),
         }),
     ];
 
     let objects = vec![
         Object::Sphere(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5, 0)),
         Object::Sphere(Sphere::new(Vec3::new(1.1, 0.2, -0.7), 0.2, 2)),
+        Object::Sphere(Sphere::new(Vec3::new(-0.5, 0.4, -0.9), 0.3, 3)),
+        Object::Sphere(Sphere::new(Vec3::new(0.7, 0.0, -0.2), 0.2, 1)),
         // Object::Sphere(Sphere::new(Vec3::new(0.0, -200.5, -1.0), 200.0, 1)),
     ];
     let cpu_scene = Scene {

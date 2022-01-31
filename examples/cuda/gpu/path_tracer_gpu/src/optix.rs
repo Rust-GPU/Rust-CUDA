@@ -1,5 +1,6 @@
 use crate::{
     hittable::{HitRecord, Hittable},
+    material::Material,
     render::{self, generate_ray},
     scene::{Scene, MAX_BOUNCES},
     sphere::Sphere,
@@ -7,7 +8,7 @@ use crate::{
 };
 use cuda_std::kernel;
 use cust_core::DeviceCopy;
-use gpu_rand::DefaultRand;
+use gpu_rand::{DefaultRand, GpuRand};
 use optix_device::{
     closesthit, get_launch_index,
     glam::Vec3Swizzles,
