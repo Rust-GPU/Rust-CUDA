@@ -9,5 +9,5 @@ which runs on CPU or GPU, with the additional option of running OptiX denoising.
 
 ![Path Tracer](assets/path_tracer.png)
 
-The Path Tracer uses cuda_builder to compile the core path tracer for the GPU, and uses the core path tracer as a normal crate
+The Path Tracer uses cuda_builder to compile the core path tracer for the GPU and GPU (hardware raytracing), and uses the core path tracer as a normal crate
 for CPU rendering and sharing structures.

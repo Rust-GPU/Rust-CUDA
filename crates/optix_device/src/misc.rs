@@ -1,10 +1,13 @@
 use cuda_std::gpu_only;
 
+/// Retrieves the data past the SBT header for this particular program
+///
+/// # Safety
+///
+/// The type requested must match with what is stored in the SBT.
 #[gpu_only]
-pub fn primitive_index() -> u32 {
-    let mut idx: u32;
-    unsafe {
-        asm!("call ({}), _optix_read_primitive_idx, ();", out(reg32) idx);
-    }
-    idx
+pub unsafe fn sbt_data<T>() -> &'static T {
+    let ptr: *const T;
+    asm!("call ({}), _optix_get_sbt_data_ptr_64, ();", out(reg64) ptr);
+    &*ptr
 }

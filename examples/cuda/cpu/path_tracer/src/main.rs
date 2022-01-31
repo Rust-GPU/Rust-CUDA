@@ -1,6 +1,7 @@
 pub mod common;
 pub mod cpu;
 pub mod cuda;
+pub mod optix;
 pub mod renderer;
 pub mod viewer;
 
@@ -43,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let objects = vec![
         Object::Sphere(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5, 0)),
         Object::Sphere(Sphere::new(Vec3::new(1.1, 0.2, -0.7), 0.2, 2)),
-        Object::Sphere(Sphere::new(Vec3::new(0.0, -200.5, -1.0), 200.0, 1)),
+        // Object::Sphere(Sphere::new(Vec3::new(0.0, -200.5, -1.0), 200.0, 1)),
     ];
     let cpu_scene = Scene {
         objects: &objects,

@@ -46,7 +46,14 @@ pub fn ray_tmin() -> f32 {
     let x: f32;
 
     unsafe {
-        asm!("call ({}), _optix_get_ray_tmin, ();", out(reg32) x);
+        asm!(
+            "{{",
+            ".reg .f32 %f<1>;",
+            "call (%f0), _optix_get_ray_tmin, ();",
+            "mov.f32 {}, %f0;",
+            "}}",
+            out(reg32) x
+        );
     }
 
     x
@@ -58,7 +65,14 @@ pub fn ray_tmax() -> f32 {
     let x: f32;
 
     unsafe {
-        asm!("call ({}), _optix_get_ray_tmax, ();", out(reg32) x);
+        asm!(
+            "{{",
+            ".reg .f32 %f<1>;",
+            "call (%f0), _optix_get_ray_tmax, ();",
+            "mov.f32 {}, %f0;",
+            "}}",
+            out(reg32) x
+        );
     }
 
     x

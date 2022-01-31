@@ -14,6 +14,7 @@ pub struct Renderer {
     cuda: CudaRenderer,
     cpu: CpuRenderer,
     running_on_gpu: bool,
+    pub use_optix: bool,
     pub denoise: bool,
     accumulated_samples: usize,
     camera: Camera,
@@ -33,6 +34,7 @@ impl Renderer {
             camera: *camera,
             controller: CameraController::new(dimensions),
             system: System::new_all(),
+            use_optix: false,
         }
     }
 
@@ -67,12 +69,13 @@ impl Renderer {
         if self.running_on_gpu {
             ui.separator();
             ui.text("Running on GPU");
+            ui.checkbox("Use OptiX", &mut self.use_optix);
             ui.checkbox("OptiX Denoise", &mut self.denoise);
             ui.separator();
 
             let duration = self
                 .cuda
-                .render()
+                .render(self.use_optix)
                 .expect("Failed to render using CUDA backend");
 
             ui.text(format!(

@@ -5,11 +5,13 @@ use imgui::Ui;
 
 use std::time::Duration;
 
-use crate::common::Camera;
+use crate::{common::Camera, optix::OptixRenderer};
+use anyhow::Result;
 use cust::{
     error::CudaResult,
     event::{Event, EventFlags},
     function::{BlockSize, GridSize},
+    memory::DeviceBox,
     prelude::*,
 };
 use optix::{
@@ -38,16 +40,17 @@ pub struct CudaRenderer {
 
     buffers: CudaRendererBuffers,
     cpu_image: Vec<Vec3<u8>>,
+    optix_renderer: OptixRenderer,
 }
 
 impl CudaRenderer {
-    pub fn new(dimensions: Vec2<usize>, camera: &Camera, scene: &Scene) -> CudaResult<Self> {
+    pub fn new(dimensions: Vec2<usize>, camera: &Camera, scene: &Scene) -> Result<Self> {
         let context = cust::quick_init()?;
         optix::init().unwrap();
 
-        let optix_context = DeviceContext::new(&context, false).unwrap();
+        let mut optix_context = DeviceContext::new(&context, false).unwrap();
 
-        let module = Module::from_ptx(PTX, &[])?;
+        let module = Module::from_ptx(PTX, &[]).unwrap();
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None)?;
         let mut denoiser =
             Denoiser::new(&optix_context, DenoiserModelKind::Ldr, Default::default()).unwrap();
@@ -59,6 +62,8 @@ impl CudaRenderer {
         let buffers = CudaRendererBuffers::new(dimensions, camera, scene)?;
         let cpu_image = vec![Vec3::zero(); dimensions.product()];
 
+        let optix_renderer = OptixRenderer::new(&mut optix_context, &stream, scene)?;
+
         Ok(Self {
             _context: context,
             _optix_context: optix_context,
@@ -67,6 +72,7 @@ impl CudaRenderer {
             stream,
             buffers,
             cpu_image,
+            optix_renderer,
         })
     }
 
@@ -184,38 +190,48 @@ impl CudaRenderer {
     }
 
     /// Render another sample of the image, adding it on top of the already accumulated buffer.
-    pub fn render(&mut self) -> CudaResult<Duration> {
+    pub fn render(&mut self, use_optix: bool) -> Result<Duration> {
         let module = &self.module;
         let stream = &self.stream;
 
         let (blocks, threads) = self.launch_dimensions();
 
-        let scene = Scene {
-            objects: &self.buffers.objects,
-            materials: &self.buffers.materials,
-        }
-        .as_dbox()?;
-
         // record how long each render sample took using events
+
         let start = Event::new(EventFlags::DEFAULT)?;
         let stop = Event::new(EventFlags::DEFAULT)?;
 
         start.record(stream)?;
 
-        unsafe {
-            launch!(
-                module.render<<<blocks, threads, 0, stream>>>(
-                    self.buffers.accumulated_buffer.as_device_ptr(),
-                    self.buffers.viewport,
-                    scene.as_device_ptr(),
-                    self.buffers.rand_states.as_unified_ptr()
-                )
-            )?;
+        if use_optix {
+            self.optix_renderer
+                .render(module, stream, &mut self.buffers)?;
+        } else {
+            unsafe {
+                let scene = DeviceBox::new_async(
+                    &Scene {
+                        objects: &self.buffers.objects,
+                        materials: &self.buffers.materials,
+                    },
+                    stream,
+                )?;
+
+                launch!(
+                    module.render<<<blocks, threads, 0, stream>>>(
+                        self.buffers.accumulated_buffer.as_device_ptr(),
+                        self.buffers.viewport,
+                        scene.as_device_ptr(),
+                        self.buffers.rand_states.as_unified_ptr()
+                    )
+                )?;
+
+                scene.drop_async(stream)?;
+            }
         }
 
         stop.record(stream)?;
         // dont need to synchronize the stream, the event can do it for us.
         stop.synchronize()?;
-        stop.elapsed(&start)
+        Ok(stop.elapsed(&start)?)
     }
 }

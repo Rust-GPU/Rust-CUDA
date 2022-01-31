@@ -138,6 +138,8 @@ pub struct CudaBuilder {
     pub override_libm: bool,
     /// Whether to generate any debug info and what level of info to generate.
     pub debug: DebugInfo,
+    /// Additional arguments passed to cargo during `cargo build`.
+    pub build_args: Vec<String>,
 }
 
 impl CudaBuilder {
@@ -158,7 +160,15 @@ impl CudaBuilder {
             optix: false,
             override_libm: true,
             debug: DebugInfo::None,
+            build_args: vec![],
         }
+    }
+
+    /// Additional arguments passed to cargo during `cargo build`.
+    pub fn build_args(mut self, args: &[impl AsRef<str>]) -> Self {
+        self.build_args
+            .extend(args.iter().map(|s| s.as_ref().to_owned()));
+        self
     }
 
     /// Whether to generate any debug info and what level of info to generate.
@@ -432,6 +442,8 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         "--target",
         target,
     ]);
+
+    cargo.args(&builder.build_args);
 
     cargo.env(dylib_path_envvar(), new_path);
 

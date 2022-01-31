@@ -877,7 +877,7 @@ pub enum AccelEmitDesc {
 /// Used to communicate bounds info to and from OptiX for bounding custom primitives
 /// and instances
 #[repr(C)]
-#[derive(DeviceCopy, Copy, Clone)]
+#[derive(Debug, DeviceCopy, Copy, Clone)]
 pub struct Aabb {
     min: Vector3<f32>,
     max: Vector3<f32>,

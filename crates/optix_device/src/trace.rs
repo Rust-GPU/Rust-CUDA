@@ -1,11 +1,12 @@
 use crate::sys::*;
+use cust_core::DeviceCopy;
 use glam::Vec3;
 use paste::paste;
 use seq_macro::seq;
 
 /// An opaque handle to a traversable BVH.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, DeviceCopy)]
 pub struct TraversableHandle(pub(crate) u64);
 
 impl TraversableHandle {

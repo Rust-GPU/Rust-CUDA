@@ -14,11 +14,14 @@ pub mod payload;
 mod ray;
 pub mod sys;
 pub mod trace;
+pub mod transform;
 pub mod util;
 
 use cuda_std::*;
 pub use glam;
 use glam::UVec3;
+
+pub use misc::*;
 
 extern "C" {
     pub fn vprintf(format: *const u8, valist: *const core::ffi::c_void) -> i32;
@@ -65,7 +68,7 @@ pub mod raygen {
 /// Functions/items only available in miss programs (`__miss__`).
 pub mod intersection {
     #[doc(inline)]
-    pub use crate::intersect::{get_attribute, report_intersection};
+    pub use crate::intersect::{get_attribute, primitive_index, report_intersection};
     #[doc(inline)]
     pub use crate::ray::*;
 }
@@ -75,7 +78,9 @@ pub mod anyhit {
     #[doc(inline)]
     pub use crate::hit::*;
     #[doc(inline)]
-    pub use crate::intersect::{get_attribute, ignore_intersection, terminate_ray};
+    pub use crate::intersect::{
+        get_attribute, ignore_intersection, primitive_index, terminate_ray,
+    };
     #[doc(inline)]
     pub use crate::ray::*;
 }
@@ -85,7 +90,7 @@ pub mod closesthit {
     #[doc(inline)]
     pub use crate::hit::*;
     #[doc(inline)]
-    pub use crate::intersect::get_attribute;
+    pub use crate::intersect::{get_attribute, primitive_index};
     #[doc(inline)]
     pub use crate::ray::{
         ray_flags, ray_time, ray_tmax, ray_tmin, ray_visibility_mask, ray_world_direction,

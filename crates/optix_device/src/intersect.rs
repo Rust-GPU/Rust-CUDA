@@ -2,6 +2,15 @@ use cuda_std::gpu_only;
 use paste::paste;
 use seq_macro::seq;
 
+#[gpu_only]
+pub fn primitive_index() -> u32 {
+    let mut idx: u32;
+    unsafe {
+        asm!("call ({}), _optix_read_primitive_idx, ();", out(reg32) idx);
+    }
+    idx
+}
+
 pub trait IntersectionPayload {
     fn report_intersection(hit_t: f32, hit_kind: u8, payload: Self) -> bool;
 }
@@ -22,11 +31,15 @@ macro_rules! impl_intersection_payload {
                             let out: u32;
                             unsafe {
                                 asm!(
+                                    "{{",
+                                    ".reg .f32 %f0;",
+                                    "mov.f32 %f0, {hit_t};",
                                     concat!("call ({}), _optix_report_intersection_", stringify!($num)),
-                                    concat!(", ({}, {}, ", #(concat!("{", stringify!(p~P), "},"),)* ");"),
+                                    concat!(", (%f0, {}", #(concat!(", {", stringify!(p~P), "}"),)* ");"),
+                                    "}}",
                                     out(reg32) out,
-                                    in(reg32) hit_t,
                                     in(reg32) hit_kind,
+                                    hit_t = in(reg32) hit_t,
                                     #(
                                         p~P = in(reg32) p~P,
                                     )*

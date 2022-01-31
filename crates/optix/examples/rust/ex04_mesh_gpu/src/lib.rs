@@ -8,7 +8,7 @@
 
 use cuda_std::kernel;
 use optix_device::{
-    get_launch_index,
+    closesthit, get_launch_index,
     glam::*,
     misc::*,
     payload,
@@ -65,7 +65,7 @@ fn random_color(i: u32) -> Vec4 {
 
 #[kernel]
 pub unsafe fn __closesthit__radiance() {
-    let prim_id = primitive_index();
+    let prim_id = closesthit::primitive_index();
     let buf = get_color_buf();
     *buf = random_color(prim_id);
 }

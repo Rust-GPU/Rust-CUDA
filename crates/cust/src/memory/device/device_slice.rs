@@ -464,6 +464,15 @@ fn slice_end_index_overflow_fail() -> ! {
     panic!("attempted to index slice up to maximum usize");
 }
 
+impl<T: DeviceCopy> DeviceSliceIndex<T> for usize {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        (self..self + 1).get_unchecked(slice)
+    }
+    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+        slice.index(self..self + 1)
+    }
+}
+
 impl<T: DeviceCopy> DeviceSliceIndex<T> for Range<usize> {
     unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
         DeviceSlice::from_raw_parts(slice.as_device_ptr().add(self.start), self.end - self.start)

@@ -3,7 +3,7 @@ use crate::*;
 use cust_core::DeviceCopy;
 use gpu_rand::DefaultRand;
 
-const MAX_BOUNCES: u32 = 5;
+pub const MAX_BOUNCES: u32 = 5;
 
 #[repr(C)]
 #[derive(Clone, Copy)]

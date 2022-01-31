@@ -11,6 +11,7 @@ extern crate alloc;
 pub mod hittable;
 pub mod material;
 pub mod math;
+pub mod optix;
 pub mod render;
 pub mod render_kernels;
 pub mod scene;
@@ -22,9 +23,9 @@ use enum_dispatch::enum_dispatch;
 use hittable::{HitRecord, Hittable};
 use sphere::Sphere;
 
-pub type Vec3 = vek::Vec3<f32>;
-pub type Point = vek::Vec3<f32>;
-pub type Vec2 = vek::Vec2<f32>;
+pub type Vec3<T = f32> = vek::Vec3<T>;
+pub type Point<T = f32> = vek::Vec3<T>;
+pub type Vec2<T = f32> = vek::Vec2<T>;
 
 #[derive(Default, Clone, Copy, DeviceCopy)]
 #[repr(C)]
@@ -56,5 +57,14 @@ impl Ray {
 
     pub fn at(&self, t: f32) -> Point {
         self.origin + t * self.dir
+    }
+
+    pub fn from_optix() -> Self {
+        use optix_device::intersection;
+
+        Self {
+            dir: Vec3::from(intersection::ray_world_direction().to_array()),
+            origin: Vec3::from(intersection::ray_world_origin().to_array()),
+        }
     }
 }
