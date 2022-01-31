@@ -1,9 +1,7 @@
-use crate::cuda::{CudaRendererBuffers, PTX};
+use crate::cuda::CudaRendererBuffers;
 use anyhow::Result;
 use cust::{
-    function::{BlockSize, GridSize},
-    memory::{DeviceBox, DeviceBuffer, DeviceVariable, UnifiedBox, UnifiedBuffer},
-    module::Module,
+    memory::{DeviceBox, DeviceBuffer},
     prelude::Stream,
 };
 use optix::{
@@ -20,7 +18,7 @@ use optix::{
     shader_binding_table::{SbtRecord, ShaderBindingTable},
 };
 use path_tracer_gpu::{optix::LaunchParams, scene::Scene, sphere::Sphere, Object};
-use vek::Vec3;
+
 pub type RaygenRecord = SbtRecord<i32>;
 pub type MissRecord = SbtRecord<i32>;
 pub type SphereHitgroupRecord = SbtRecord<Sphere>;
@@ -31,11 +29,7 @@ pub(crate) static OPTIX_PTX: &str = include_str!("../../../../resources/path_tra
 pub struct OptixRenderer {
     sbt: ShaderBindingTable,
     gas: Accel,
-    buf_raygen: DeviceBuffer<RaygenRecord>,
-    buf_sphere_hitgroup: DeviceBuffer<SphereHitgroupRecord>,
-    buf_miss: DeviceBuffer<MissRecord>,
     pipeline: Pipeline,
-    aabb_buffer: DeviceBuffer<Aabb>,
 }
 
 impl OptixRenderer {
@@ -74,7 +68,7 @@ impl OptixRenderer {
         );
         let (pg_sphere_hitgroup, _log) = ProgramGroup::new(ctx, &[pgdesc_sphere_hitgroup])?;
 
-        let (accel, aabb_buffer) = Self::build_accel_from_scene(ctx, stream, scene)?;
+        let accel = Self::build_accel_from_scene(ctx, stream, scene)?;
 
         let rec_raygen: Vec<_> = pg_raygen
             .iter()
@@ -116,11 +110,7 @@ impl OptixRenderer {
         Ok(Self {
             sbt,
             gas: accel,
-            buf_raygen,
-            buf_miss,
-            buf_sphere_hitgroup,
             pipeline,
-            aabb_buffer,
         })
     }
 
@@ -128,7 +118,7 @@ impl OptixRenderer {
         ctx: &mut DeviceContext,
         stream: &Stream,
         scene: &Scene,
-    ) -> Result<(Accel, DeviceBuffer<Aabb>)> {
+    ) -> Result<Accel> {
         let mut aabbs = Vec::with_capacity(scene.objects.len());
         for obj in scene.objects.iter() {
             match obj {
@@ -160,7 +150,7 @@ impl OptixRenderer {
         let gas = Accel::build(ctx, stream, &[accel_options], &build_inputs, true)?;
         // dont need to synchronize, we enqueue the optix launch on the same stream so it will be ordered
         // correctly
-        Ok((gas, buf))
+        Ok(gas)
     }
 
     fn build_scene_hitgroup_records(
@@ -186,12 +176,7 @@ impl OptixRenderer {
         Ok(sphere_records)
     }
 
-    pub fn render(
-        &mut self,
-        module: &Module,
-        stream: &Stream,
-        buffers: &mut CudaRendererBuffers,
-    ) -> Result<()> {
+    pub fn render(&mut self, stream: &Stream, buffers: &mut CudaRendererBuffers) -> Result<()> {
         let dims = buffers.viewport.bounds.numcast().unwrap();
 
         let launch_params = LaunchParams {

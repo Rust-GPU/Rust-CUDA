@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 use crate::{
     hittable::{HitRecord, Hittable},
     material::Material,

@@ -204,8 +204,7 @@ impl CudaRenderer {
         start.record(stream)?;
 
         if use_optix {
-            self.optix_renderer
-                .render(module, stream, &mut self.buffers)?;
+            self.optix_renderer.render(stream, &mut self.buffers)?;
         } else {
             unsafe {
                 let scene = DeviceBox::new_async(
