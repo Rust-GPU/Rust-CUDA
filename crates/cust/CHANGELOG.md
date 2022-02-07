@@ -2,7 +2,7 @@
 
 Notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## 0.3.0 - 2/7/22
 
 ### TLDR
 
@@ -31,62 +31,62 @@ pull in `cust_core` in GPU crates for deriving `DeviceCopy` without cfg shenanig
 
 ### Removed
 
-- Deleted `DeviceBox::wrap`, use `DeviceBox::from_raw`.
-- Deleted `DeviceSlice::as_ptr` and `DeviceSlice::as_mut_ptr`. Use `DeviceSlice::as_device_ptr` then `DevicePointer::as_(mut)_ptr`.
-- Deleted `DeviceSlice::chunks` and consequently `DeviceChunks`.
-- Deleted `DeviceSlice::chunks_mut` and consequently `DeviceChunksMut`.
-- Deleted `DeviceSlice::from_slice` and `DeviceSlice::from_slice_mut` because it was unsound.
-- Deleted `DevicePointer::as_raw_mut` (use `DevicePointer::as_mut_ptr`).
-- Deleted `DevicePointer::wrap` (use `DevicePointer::from_raw`).
+- `DeviceBox::wrap`, use `DeviceBox::from_raw`.
+- `DeviceSlice::as_ptr` and `DeviceSlice::as_mut_ptr`. Use `DeviceSlice::as_device_ptr` then `DevicePointer::as_(mut)_ptr`.
+- `DeviceSlice::chunks` and consequently `DeviceChunks`.
+- `DeviceSlice::chunks_mut` and consequently `DeviceChunksMut`.
+- `DeviceSlice::from_slice` and `DeviceSlice::from_slice_mut` because it was unsound.
+- `DevicePointer::as_raw_mut` (use `DevicePointer::as_mut_ptr`).
+- `DevicePointer::wrap` (use `DevicePointer::from_raw`).
 - `DeviceSlice` no longer implements `Index` and `IndexMut`, switching away from `[T]` made this impossible to implement.
 Instead you can now use `DeviceSlice::index` which behaves the same.
 - `vek` is no longer re-exported.
 
 ### Deprecated
 
-- Deprecated `Module::from_str`, use `Module::from_ptx` and pass `&[]` for options.
-- Deprecated `Module::load_from_string`, use `Module::from_ptx_cstr`.
+- `Module::from_str`, use `Module::from_ptx` and pass `&[]` for options.
+- `Module::load_from_string`, use `Module::from_ptx_cstr`.
 
 ### Added 
 
-- Added `cust::memory::LockedBox`, same as `LockedBuffer` except for single elements.
-- Added `cust::memory::cuda_malloc_async`.
-- Added `cust::memory::cuda_free_async`.
-- Added `impl AsyncCopyDestination<LockedBox<T>> for DeviceBox<T>` for async HtoD/DtoH memcpy.
-- Added `DeviceBox::new_async`.
-- Added `DeviceBox::drop_async`.
-- Added `DeviceBox::zeroed_async`.
-- Added `DeviceBox::uninitialized_async`.
-- Added `DeviceBuffer::uninitialized_async`.
-- Added `DeviceBuffer::drop_async`.
-- Added `DeviceBuffer::zeroed`.
-- Added `DeviceBuffer::zeroed_async`.
-- Added `DeviceBuffer::cast`.
-- Added `DeviceBuffer::try_cast`.
-- Added `DeviceSlice::set_8` and `DeviceSlice::set_8_async`.
-- Added `DeviceSlice::set_16` and `DeviceSlice::set_16_async`.
-- Added `DeviceSlice::set_32` and `DeviceSlice::set_32_async`.
-- Added `DeviceSlice::set_zero` and `DeviceSlice::set_zero_async`.
-- Added the `bytemuck` feature which is enabled by default.
-- Added mint integration behind `impl_mint`.
-- Added half integration behind `impl_half`.
-- Added glam integration behind `impl_glam`.
-- Added experimental linux external memory import APIs through `cust::external::ExternalMemory`.
-- Added `DeviceBuffer::as_slice`.
-- Added `DeviceVariable`, a simple wrapper around `DeviceBox<T>` and `T` which allows easy management of a CPU and GPU version of a type.
-- Added `DeviceMemory`, a trait describing any region of GPU memory that can be described with a pointer + a length.
-- Added `memcpy_htod`, a wrapper around `cuMemcpyHtoD_v2`.
-- Added `mem_get_info` to query the amount of free and total memory.
-- Added `DevicePointer::as_ptr` and `DevicePointer::as_mut_ptr` for `*const T` and `*mut T`.
-- Added `DevicePointer::from_raw` for `CUdeviceptr -> DevicePointer<T>` with a safe function.
-- Added `DevicePointer::cast`.
-- Added dependency on `cust_core` for `DeviceCopy`.
-- Added `ModuleJitOption`, `JitFallback`, `JitTarget`, and `OptLevel` for specifying options when loading a module. Note that
+- `cust::memory::LockedBox`, same as `LockedBuffer` except for single elements.
+- `cust::memory::cuda_malloc_async`.
+- `cust::memory::cuda_free_async`.
+- `impl AsyncCopyDestination<LockedBox<T>> for DeviceBox<T>` for async HtoD/DtoH memcpy.
+- `DeviceBox::new_async`.
+- `DeviceBox::drop_async`.
+- `DeviceBox::zeroed_async`.
+- `DeviceBox::uninitialized_async`.
+- `DeviceBuffer::uninitialized_async`.
+- `DeviceBuffer::drop_async`.
+- `DeviceBuffer::zeroed`.
+- `DeviceBuffer::zeroed_async`.
+- `DeviceBuffer::cast`.
+- `DeviceBuffer::try_cast`.
+- `DeviceSlice::set_8` and `DeviceSlice::set_8_async`.
+- `DeviceSlice::set_16` and `DeviceSlice::set_16_async`.
+- `DeviceSlice::set_32` and `DeviceSlice::set_32_async`.
+- `DeviceSlice::set_zero` and `DeviceSlice::set_zero_async`.
+- the `bytemuck` feature which is enabled by default.
+- mint integration behind `impl_mint`.
+- half integration behind `impl_half`.
+- glam integration behind `impl_glam`.
+- experimental linux external memory import APIs through `cust::external::ExternalMemory`.
+- `DeviceBuffer::as_slice`.
+- `DeviceVariable`, a simple wrapper around `DeviceBox<T>` and `T` which allows easy management of a CPU and GPU version of a type.
+- `DeviceMemory`, a trait describing any region of GPU memory that can be described with a pointer + a length.
+- `memcpy_htod`, a wrapper around `cuMemcpyHtoD_v2`.
+- `mem_get_info` to query the amount of free and total memory.
+- `DevicePointer::as_ptr` and `DevicePointer::as_mut_ptr` for `*const T` and `*mut T`.
+- `DevicePointer::from_raw` for `CUdeviceptr -> DevicePointer<T>` with a safe function.
+- `DevicePointer::cast`.
+- dependency on `cust_core` for `DeviceCopy`.
+- `ModuleJitOption`, `JitFallback`, `JitTarget`, and `OptLevel` for specifying options when loading a module. Note that
 `ModuleJitOption::MaxRegisters` does not seem to work currently, but NVIDIA is looking into it.
 You can achieve the same goal by compiling the ptx to cubin using nvcc then loading that: `nvcc --cubin foo.ptx -maxrregcount=REGS`
-- Added `Module::from_fatbin`.
-- Added `Module::from_cubin`.
-- Added `Module::from_ptx` and `Module::from_ptx_cstr`.
+- `Module::from_fatbin`.
+- `Module::from_cubin`.
+- `Module::from_ptx` and `Module::from_ptx_cstr`.
 - `Stream`, `Module`, `Linker`, `Function`, `Event`, `UnifiedBox`, `ArrayObject`, `LockedBuffer`, `LockedBox`, `DeviceSlice`, `DeviceBuffer`, and `DeviceBox` all now impl `Send` and `Sync`, this makes
 it much easier to write multigpu code. The CUDA API is fully thread-safe except for graph objects.
 

@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cust = { version = "0.2", path = "../../../../crates/cust" }
+cust = { version = "0.3", path = "../../../../crates/cust" }
 nanorand = "0.6.1"
 
 [build-dependencies]
-cuda_builder = { version = "0.2", path = "../../../../crates/cuda_builder" }
+cuda_builder = { version = "0.3", path = "../../../../crates/cuda_builder" }

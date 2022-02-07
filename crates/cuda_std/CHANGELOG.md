@@ -2,7 +2,7 @@
 
 Notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.2.2 - 2/7/22
 
 - Thread/Block/Grid index/dim intrinsics now hint to llvm that their range is in some bound declared by CUDA. Hopefully allowing for more optimizations.
 

@@ -1,6 +1,6 @@
 [package]
 name = "cust_derive"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Brook Heisler <brookheisler@gmail.com>", "Riccardo D'Ambrosio <rdambrosio016@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"

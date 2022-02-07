@@ -46,11 +46,11 @@ around to adding it yet.
 | ------------ | ------------- | ----- |
 | CUDA Runtime API | ➖ | The CUDA Runtime API is for CUDA C++, we use the driver API | 
 | CUDA Driver API | 🟨 | Most functions are implemented, but there is still a lot left to wrap because it is gigantic | 
-| cuBLAS | ❌ |
+| cuBLAS | ❌ | In-progress |
 | cuFFT | ❌ |
 | cuSOLVER | ❌ |
 | cuRAND | ➖ | cuRAND only works with the runtime API, we have our own general purpose GPU rand library called `gpu_rand` |
-| cuDNN | ❌ |
+| cuDNN | ❌ | In-progress |
 | cuSPARSE | ❌ |
 | AmgX | ❌ |
 | cuTENSOR | ❌ |
@@ -102,7 +102,7 @@ on things used by the wide majority of users.
 | SIMD Video Instructions | ❌ |
 | Cooperative Groups | ❌ |
 | Dynamic Parallelism | ❌ |
-| Stream Ordered Memory | ❌ |
+| Stream Ordered Memory | ✔️ |
 | Graph Memory Nodes | ❌ |
 | Unified Memory | ✔️ |
 | `__restrict__` | ➖ | Not needed, you get that performance boost automatically through rust's noalias :) |
