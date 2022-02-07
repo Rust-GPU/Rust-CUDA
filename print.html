@@ -175,11 +175,11 @@ around to adding it yet.</p>
 <table><thead><tr><th>Library Name</th><th>Support Level</th><th>Notes</th></tr></thead><tbody>
 <tr><td>CUDA Runtime API</td><td>➖</td><td>The CUDA Runtime API is for CUDA C++, we use the driver API</td></tr>
 <tr><td>CUDA Driver API</td><td>🟨</td><td>Most functions are implemented, but there is still a lot left to wrap because it is gigantic</td></tr>
-<tr><td>cuBLAS</td><td>❌</td><td></td></tr>
+<tr><td>cuBLAS</td><td>❌</td><td>In-progress</td></tr>
 <tr><td>cuFFT</td><td>❌</td><td></td></tr>
 <tr><td>cuSOLVER</td><td>❌</td><td></td></tr>
 <tr><td>cuRAND</td><td>➖</td><td>cuRAND only works with the runtime API, we have our own general purpose GPU rand library called <code>gpu_rand</code></td></tr>
-<tr><td>cuDNN</td><td>❌</td><td></td></tr>
+<tr><td>cuDNN</td><td>❌</td><td>In-progress</td></tr>
 <tr><td>cuSPARSE</td><td>❌</td><td></td></tr>
 <tr><td>AmgX</td><td>❌</td><td></td></tr>
 <tr><td>cuTENSOR</td><td>❌</td><td></td></tr>
@@ -228,7 +228,7 @@ on things used by the wide majority of users.</p>
 <tr><td>SIMD Video Instructions</td><td>❌</td><td></td></tr>
 <tr><td>Cooperative Groups</td><td>❌</td><td></td></tr>
 <tr><td>Dynamic Parallelism</td><td>❌</td><td></td></tr>
-<tr><td>Stream Ordered Memory</td><td>❌</td><td></td></tr>
+<tr><td>Stream Ordered Memory</td><td>✔️</td><td></td></tr>
 <tr><td>Graph Memory Nodes</td><td>❌</td><td></td></tr>
 <tr><td>Unified Memory</td><td>✔️</td><td></td></tr>
 <tr><td><code>__restrict__</code></td><td>➖</td><td>Not needed, you get that performance boost automatically through rust's noalias :)</td></tr>
