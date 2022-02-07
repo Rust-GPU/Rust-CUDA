@@ -38,7 +38,7 @@ in recent years it has been shown time and time again that a specialized solutio
 of projects such as rust-gpu (for Rust -> SPIR-V).
 
 Our hope is that with this project we can push the Rust GPU computing industry forward and make Rust an excellent language
-for such tasks. Rust offers plenty of benefits such as `__restrict__` performance benefits for every kernel, An excellent module/crate system, 
+for such tasks. Rust offers plenty of benefits such as `__restrict__` performance benefits for every kernel, excellent module/crate system, 
 delimiting of unsafe areas of CPU/GPU code with `unsafe`, high level wrappers to low level CUDA libraries, etc.
 
 ## Structure
