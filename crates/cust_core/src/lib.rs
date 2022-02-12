@@ -6,6 +6,7 @@ pub use cust_derive::DeviceCopyCore as DeviceCopy;
 #[doc(hidden)]
 pub mod _hidden {
     use core::marker::PhantomData;
+    use core::mem::MaybeUninit;
     use core::num::*;
 
     /// Marker trait for types which can safely be copied to or from a CUDA device.
@@ -87,6 +88,7 @@ pub mod _hidden {
 
         NonZeroU8 NonZeroU16 NonZeroU32 NonZeroU64 NonZeroU128
     );
+    unsafe impl<T: DeviceCopy> DeviceCopy for MaybeUninit<T> {}
     unsafe impl<T: DeviceCopy> DeviceCopy for Option<T> {}
     unsafe impl<L: DeviceCopy, R: DeviceCopy> DeviceCopy for Result<L, R> {}
     unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for PhantomData<T> {}
