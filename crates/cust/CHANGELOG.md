@@ -2,6 +2,10 @@
 
 Notable changes to this project will be documented in this file.
 
+## 0.3.1 - 2/11/22
+
+No changes, updated to cust_derive 0.2 to fix a bug.
+
 ## 0.3.0 - 2/7/22
 
 ### TLDR

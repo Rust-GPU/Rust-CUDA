@@ -1,6 +1,6 @@
 [package]
 name = "cust"
-version = "0.3.0"
+version = "0.3.1"
 # Big thanks to the original author of rustacuda <3
 authors = [
     "Riccardo D'Ambrosio <rdambrosio016@gmail.com>",
@@ -16,7 +16,7 @@ readme = "../../README.md"
 cust_core = { path = "../cust_core", version = "0.1.0"}
 cust_raw = { path = "../cust_raw", version = "0.11.2"}
 bitflags = "1.2"
-cust_derive = { path = "../cust_derive", version = "0.1" }
+cust_derive = { path = "../cust_derive", version = "0.2" }
 glam = { version = "0.20", features=["cuda"], optional = true }
 mint = { version = "^0.5", optional = true }
 num-complex = { version = "0.4", optional = true }

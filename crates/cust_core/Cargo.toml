@@ -1,6 +1,6 @@
 [package]
 name = "cust_core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Core library for cust that can be shared across CPU and GPU"
@@ -13,7 +13,7 @@ glam = { version = "0.20", features=["cuda", "libm"], default-features=false, op
 mint = { version = "^0.5", optional = true }
 half = { version = "1.8", optional = true }
 num-complex = { version = "0.4", optional = true }
-cust_derive = { path = "../cust_derive", version = "0.1" }
+cust_derive = { path = "../cust_derive", version = "0.2" }
 
 [features]
 default = ["vek", "glam", "mint"]
