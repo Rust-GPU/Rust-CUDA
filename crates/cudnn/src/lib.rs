@@ -13,7 +13,8 @@ mod nan_propagation;
 mod op_tensor;
 mod rnn;
 mod seq_data_axis;
-mod tensor;
+mod tensor_descriptor;
+mod tensor_format;
 mod w_grad_mode;
 
 pub use context::*;
@@ -28,7 +29,8 @@ pub use nan_propagation::*;
 pub use op_tensor::*;
 pub use rnn::*;
 pub use seq_data_axis::*;
-pub use tensor::*;
+pub use tensor_descriptor::*;
+pub use tensor_format::*;
 pub use w_grad_mode::*;
 
 pub(crate) mod private {

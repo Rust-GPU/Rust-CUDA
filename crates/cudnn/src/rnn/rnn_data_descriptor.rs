@@ -10,20 +10,17 @@ pub trait RnnDataType: DataType {}
 impl RnnDataType for f32 {}
 impl RnnDataType for f64 {}
 
-pub struct RnnDataDescriptor<T, L>
+pub struct RnnDataDescriptor<T>
 where
     T: DataType + RnnDataType,
-    L: RnnDataLayout,
 {
     pub(crate) raw: sys::cudnnRNNDataDescriptor_t,
     data_type: PhantomData<T>,
-    layout: L,
 }
 
-impl<T, L> RnnDataDescriptor<T, L>
+impl<T> RnnDataDescriptor<T>
 where
     T: DataType + RnnDataType,
-    L: RnnDataLayout,
 {
     /// Initializes a recurrent neural network data descriptor object.
     ///
@@ -71,18 +68,18 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, RnnDataDescriptor, SeqMajorUnpacked};
+    /// use cudnn::{CudnnContext, RnnDataDescriptor, RnnDataLayout};
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let layout = SeqMajorUnpacked;
+    /// let layout = RnnDataLayout::SeqMajorUnpacked;
     /// let max_seq_length = 3;
     /// let batch_size = 5;
     /// let vector_size = 10;
     /// let seq_lengths = [1, 2, 3, 2, 1];
     /// let padding_fill = None; // Should only be set for output sequences.
     ///
-    /// let rnn_data_desc = RnnDataDescriptor::<f32, _>::new(
+    /// let rnn_data_desc = RnnDataDescriptor::<f32>::new(
     ///     layout,
     ///     max_seq_length,
     ///     batch_size,
@@ -94,7 +91,7 @@ where
     /// # }
     /// ```
     pub fn new(
-        layout: L,
+        layout: RnnDataLayout,
         max_seq_length: i32,
         batch_size: i32,
         vector_size: i32,
@@ -122,7 +119,7 @@ where
             sys::cudnnSetRNNDataDescriptor(
                 raw,
                 T::into_raw(),
-                L::into_raw(),
+                layout.into(),
                 max_seq_length,
                 batch_size,
                 vector_size,
@@ -134,16 +131,14 @@ where
             Ok(Self {
                 raw,
                 data_type: PhantomData,
-                layout,
             })
         }
     }
 }
 
-impl<T, L> Drop for RnnDataDescriptor<T, L>
+impl<T> Drop for RnnDataDescriptor<T>
 where
     T: DataType + RnnDataType,
-    L: RnnDataLayout,
 {
     fn drop(&mut self) {
         unsafe {

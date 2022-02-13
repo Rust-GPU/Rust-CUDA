@@ -4,7 +4,7 @@ use crate::{
     error::{CudnnError, IntoResult},
     math_type::MathType,
     private, sys,
-    tensor::{NCHWVectC8x32, NCHWVectC8x4, TensorFormat, NCHW, NHWC},
+    tensor_format::TensorFormat,
 };
 
 /// The best suited algorithm according to the layer specifications obtained through a heuristic.
@@ -214,122 +214,63 @@ macro_rules! impl_convolution_algo {
     };
 }
 
-pub trait SupportedConvFwd<
-    InType,
-    InFmt,
-    FilterType,
-    FilterFmt,
-    CompType,
-    OutType,
-    OutFmt,
-    const D: usize,
-    const N: usize,
-> where
+pub trait SupportedConvFwd<InType, FilterType, CompType, OutType, const N: usize>
+where
     Self: ConvolutionFwdAlgo,
     InType: DataType,
-    InFmt: TensorFormat,
     FilterType: DataType,
-    FilterFmt: TensorFormat,
     CompType: DataType,
     OutType: DataType,
-    OutFmt: TensorFormat,
 {
 }
 
 macro_rules! impl_supported_conv_fwd {
-    ($conv_fwd_algo:ty, $in_type:ty, $in_fmt:ty, $filter_type:ty, $filter_fmt:ty, $comp_type:ty, $out_type:ty, $out_fmt:ty, $dim_operands:expr, $dim_conv:expr) => {
-        impl
-            SupportedConvFwd<
-                $in_type,
-                $in_fmt,
-                $filter_type,
-                $filter_fmt,
-                $comp_type,
-                $out_type,
-                $out_fmt,
-                $dim_operands,
-                $dim_conv,
-            > for $conv_fwd_algo
+    ($conv_fwd_algo:ty, $in_type:ty,  $filter_type:ty,  $comp_type:ty, $out_type:ty,  $dim_conv:expr) => {
+        impl SupportedConvFwd<$in_type, $filter_type, $comp_type, $out_type, $dim_conv>
+            for $conv_fwd_algo
         {
         }
     };
 }
 
-pub trait SupportedConvBwdData<
-    FilterType,
-    FilterFmt,
-    OutGradType,
-    OutGradFmt,
-    CompType,
-    InGradType,
-    InGradFmt,
-    const D: usize,
-    const N: usize,
-> where
+pub trait SupportedConvBwdData<FilterType, OutGradType, CompType, InGradType, const N: usize>
+where
     Self: ConvolutionBwdDataAlgo,
     FilterType: DataType,
-    FilterFmt: TensorFormat,
     OutGradType: DataType,
-    OutGradFmt: TensorFormat,
     CompType: DataType,
     InGradType: DataType,
-    InGradFmt: TensorFormat,
 {
 }
 
 macro_rules! impl_supported_conv_bwd_data {
-    ($conv_bwd_data_algo:ty,  $filter_type:ty, $filter_fmt:ty,  $out_grad_type:ty, $out_grad_fmt:ty,$comp_type:ty, $in_grad_type:ty, $in_grad_fmt:ty, $dim_operands:expr, $dim_conv:expr) => {
+    ($conv_bwd_data_algo:ty,  $filter_type:ty,  $out_grad_type:ty, $comp_type:ty, $in_grad_type:ty,  $dim_conv:expr) => {
         impl
-            SupportedConvBwdData<
-                $filter_type,
-                $filter_fmt,
-                $out_grad_type,
-                $out_grad_fmt,
-                $comp_type,
-                $in_grad_type,
-                $in_grad_fmt,
-                $dim_operands,
-                $dim_conv,
-            > for $conv_bwd_data_algo
+            SupportedConvBwdData<$filter_type, $out_grad_type, $comp_type, $in_grad_type, $dim_conv>
+            for $conv_bwd_data_algo
         {
         }
     };
 }
 
-pub trait SupportedConvBwdFilter<
-    InType,
-    InFmt,
-    OutGradType,
-    OutGradFmt,
-    CompType,
-    FilterGradType,
-    FilterGradFmt,
-    const D: usize,
-    const N: usize,
-> where
+pub trait SupportedConvBwdFilter<InType, OutGradType, CompType, FilterGradType, const N: usize>
+where
     Self: ConvolutionBwdFilterAlgo,
     InType: DataType,
-    InFmt: TensorFormat,
     OutGradType: DataType,
-    OutGradFmt: TensorFormat,
     CompType: DataType,
     FilterGradType: DataType,
-    FilterGradFmt: TensorFormat,
 {
 }
 
 macro_rules! impl_supported_conv_bwd_filter {
-    ($conv_bwd_filter_algo:ty,  $in_type:ty, $in_fmt:ty,  $out_grad_type:ty, $out_grad_fmt:ty,$comp_type:ty, $filter_grad_type:ty, $filter_grad_fmt:ty, $dim_operands:expr, $dim_conv:expr) => {
+    ($conv_bwd_filter_algo:ty,  $in_type:ty,  $out_grad_type:ty ,$comp_type:ty, $filter_grad_type:ty, $dim_conv:expr) => {
         impl
             SupportedConvBwdFilter<
                 $in_type,
-                $in_fmt,
                 $out_grad_type,
-                $out_grad_fmt,
                 $comp_type,
                 $filter_grad_type,
-                $filter_grad_fmt,
-                $dim_operands,
                 $dim_conv,
             > for $conv_bwd_filter_algo
         {
@@ -403,137 +344,53 @@ mod impl_convolution_algo {
 
 #[rustfmt::skip]
 mod supported_conv_fwd_impls {
-
-    // The macro arguments are to be interpreted as follows, from left to right:
-    // <algo. name> <input ty> <input fmt> <filter ty> <filter fmt> <comp. ty> <out ty> <out fmt>
-    //
-    // The last two integers are indicative of the convolution type.
-
     use super::*;
-    /// ImplicitGemm supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NCHW, f64, NCHW, f64, f64, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NHWC, f64, NCHW, f64, f64, NHWC, 4, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, f32, f32, f32, f32, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, f64, f64, f64, f64, 2);
 
-    /// ImplicitPrecompGemm supported configurations for 2-d convolutions and filter format equal to
-    /// NCHW.
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NCHW, f64, NCHW, f64, f64, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NHWC, f64, NCHW, f64, f64, NHWC, 4, 2);
+    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, f32, f32, f32, 2);
+    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, f64, f64, f64, 2);
 
-    /// Gemm supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_fwd!(Gemm, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(Gemm, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(Gemm, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(Gemm, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(Gemm, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(Gemm, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(Gemm, f64, NCHW, f64, NCHW, f64, f64, NHWC, 4, 2);
-    impl_supported_conv_fwd!(Gemm, f64, NHWC, f64, NCHW, f64, f64, NHWC, 4, 2);
+    impl_supported_conv_fwd!(Gemm, f32, f32, f32, f32, 2);
+    impl_supported_conv_fwd!(Gemm, f64, f64, f64, f64, 2);
 
-    /// Fft supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_fwd!(Fft, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
+    impl_supported_conv_fwd!(Fft, f32, f32, f32, f32, 2);
 
-    /// FftTiling supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_fwd!(FftTiling, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(FftTiling, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
+    impl_supported_conv_fwd!(FftTiling, f32, f32, f32, f32, 2);
+    impl_supported_conv_fwd!(FftTiling, f64, f64, f64, f64, 2);
 
-    /// Winograd supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_fwd!(Winograd, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(Winograd, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(Winograd, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(Winograd, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
+    impl_supported_conv_fwd!(Winograd, f32, f32, f32, f32, 2);
     
-    /// WinogradNonFused supported configurations for 2-d convolutions and filter format equal to 
-    /// NCHW.
-    impl_supported_conv_fwd!(WinogradNonFused, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(WinogradNonFused, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(WinogradNonFused, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(WinogradNonFused, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
-    
+    impl_supported_conv_fwd!(WinogradNonFused, f32, f32, f32, f32, 2);
 
-    /// 2-d convolutions supported with NCHWVectC memory format.
-    impl_supported_conv_fwd!(ImplicitGemm, i8, NCHWVectC8x4, i8, NCHWVectC8x4, i32, i8, NCHWVectC8x4, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, u8, NCHWVectC8x4, u8, NCHWVectC8x4, i32, u8, NCHWVectC8x4, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, i8, NCHWVectC8x32, i8, NCHWVectC8x32, i32, i8, NCHWVectC8x32, 4, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, i8, i8, i32, i8, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, u8, u8, i32, u8, 2);
+    impl_supported_conv_fwd!(ImplicitPrecompGemm, i8, i8, i32, i8, 2);
 
-    /// 2-d convolutions supported with NHWC memory format.
-    impl_supported_conv_fwd!(ImplicitGemm, i8, NHWC, i8, NHWC, i32, i8, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, i8, NHWC, i8, NHWC, i32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, u8, NHWC, u8, NHWC, i32, u8, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, i8, NHWC, u8, NHWC, i32, u8, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, u8, NHWC, u8, NHWC, i32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitGemm, i8, NHWC, u8, NHWC, i32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NHWC, f32, NHWC, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NHWC, f64, NHWC, f64, f64, NHWC, 4, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, i8, i8, i32, f32, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, i8, u8, i32, u8, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, u8, u8, i32, f32, 2);
+    impl_supported_conv_fwd!(ImplicitGemm, i8, u8, i32, f32, 2);
+   
 
-    /// ImplicitGemm supported configurations for 3-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NHWC, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NCHW, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_fwd!(ImplicitGemm, f32, NHWC, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NCHW, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NHWC, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NCHW, f64, NCHW, f64, f64, NHWC, 5, 3);
-    impl_supported_conv_fwd!(ImplicitGemm, f64, NHWC, f64, NCHW, f64, f64, NHWC, 5, 3);
+    impl_supported_conv_fwd!(ImplicitGemm, f32, f32, f32, f32, 3);
+    impl_supported_conv_fwd!(ImplicitGemm, f64, f64, f64, f64, 3);
 
-    /// ImplicitPrecompGemm supported configurations for 3-d convolutions and filter format equal to
-    /// NCHW.
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NHWC, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NCHW, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NHWC, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NCHW, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NHWC, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NCHW, f64, NCHW, f64, f64, NHWC, 5, 3);
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, NHWC, f64, NCHW, f64, f64, NHWC, 5, 3);
+    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, f32, f32, f32, 3);
+    impl_supported_conv_fwd!(ImplicitPrecompGemm, f64, f64, f64, f64, 3);
 
-    /// Fft supported configurations for 3-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_fwd!(FftTiling, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_fwd!(FftTiling, f64, NCHW, f64, NCHW, f64, f64, NCHW, 5, 3);
+    impl_supported_conv_fwd!(FftTiling, f32, f32, f32, f32, 3);
+    impl_supported_conv_fwd!(FftTiling, f64, f64, f64, f64, 3);
 
-    /// Supported configurations for 3-d convolution with filter format equal to NHWC.
-    impl_supported_conv_fwd!(ImplicitPrecompGemm, f32, NHWC, f32, NHWC, f32, f32, NHWC, 5, 3);
-
-    /// BestHeuristic supported configurations. Its the set union of all those above.
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NHWC, f64, NCHW, f64, f64, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, NCHWVectC8x4, i8, NCHWVectC8x4, i32, i8, NCHWVectC8x4, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, u8, NCHWVectC8x4, u8, NCHWVectC8x4, i32, u8, NCHWVectC8x4, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, NCHWVectC8x32, i8, NCHWVectC8x32, i32, i8, NCHWVectC8x32, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, NHWC, i8, NHWC, i32, i8, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, NHWC, i8, NHWC, i32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, u8, NHWC, u8, NHWC, i32, u8, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, NHWC, u8, NHWC, i32, u8, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, u8, NHWC, u8, NHWC, i32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, NHWC, u8, NHWC, i32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NHWC, f32, NHWC, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NHWC, f64, NHWC, f64, f64, NHWC, 4, 2);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NHWC, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NHWC, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NHWC, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NHWC, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, NHWC, f64, NCHW, f64, f64, NHWC, 5, 3);
-    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, NHWC, f32, NHWC, f32, f32, NHWC, 5, 3);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, f32, f32, f32, 2);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, f64, f64, f64, 2);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, i8, i32, i8, 2);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, u8, u8, i32, u8, 2);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, u8, i32, u8, 2);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, u8, u8, i32, f32, 2);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, i8, u8, i32, f32, 2);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f32, f32, f32, f32, 3);
+    impl_supported_conv_fwd!(BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, f64, f64, f64, f64, 3);
 }
 
 // Admissible configurations for the backward data convolution (as specified in
@@ -543,70 +400,33 @@ mod supported_conv_fwd_impls {
 mod supported_conv_bwd_data_impls {
     use super::*;
 
-    // The macro arguments are to be interpreted as follows, from left to right:
-    // <algo. name> <filter ty> <filter fmt> <diff. ty> <diff. fmt> <comp. ty> <in. diff ty> <in. diff fmt>
-    //
-    // The last two integers are indicative of the convolution type.
-
-    /// DataAlgo0 supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(DataAlgo0, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(DataAlgo0, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_bwd_data!(DataAlgo0, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(DataAlgo0, f64, NCHW, f64, NCHW, f64, f64, NHWC, 4, 2);
+    impl_supported_conv_bwd_data!(DataAlgo0, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_data!(DataAlgo0, f64, f64, f64, f64, 2);
     
-    /// DataAlgo1 supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(DataAlgo1, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(DataAlgo1, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_bwd_data!(DataAlgo1, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(DataAlgo1, f64, NCHW, f64, NCHW, f64, f64, NHWC, 4, 2);
+    impl_supported_conv_bwd_data!(DataAlgo1, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_data!(DataAlgo1, f64, f64, f64, f64, 2);
 
-    /// Fft supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(Fft, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
+    impl_supported_conv_bwd_data!(Fft, f32, f32, f32, f32, 2);
 
-    /// FftTiling supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(FftTiling, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(FftTiling, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
+    impl_supported_conv_bwd_data!(FftTiling, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_data!(FftTiling, f64, f64, f64, f64, 2);
 
-    /// Winograd supported configurations for 2-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(Winograd, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(Winograd, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
+    impl_supported_conv_bwd_data!(Winograd, f32, f32, f32, f32, 2);
     
-    /// WinogradNonFused supported configurations for 2-d convolutions and filter format equal to 
-    /// NCHW.
-    impl_supported_conv_bwd_data!(WinogradNonFused, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(WinogradNonFused, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
+    impl_supported_conv_bwd_data!(WinogradNonFused, f32, f32, f32, f32, 2);
 
-    /// DataAlgo0 supported configurations for 2-d convolutions and filter format equal to NHWC.
-    impl_supported_conv_bwd_data!(DataAlgo0, f32, NHWC, f32, NHWC, f32, f32, NHWC, 4, 2);
+    impl_supported_conv_bwd_data!(DataAlgo0, f32, f32, f32, f32, 3);
+    impl_supported_conv_bwd_data!(DataAlgo0, f64, f64, f64, f64, 3);
 
-    /// DataAlgo1 supported configurations for 2-d convolutions and filter format equal to NHWC.
-    impl_supported_conv_bwd_data!(DataAlgo1, f32, NHWC, f32, NHWC, f32, f32, NHWC, 4, 2);
+    impl_supported_conv_bwd_data!(DataAlgo1, f32, f32, f32, f32, 3);
 
-    /// DataAlgo0 supported configurations for 3-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(DataAlgo0, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_data!(DataAlgo0, f32, NCHW, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_bwd_data!(DataAlgo0, f64, NCHW, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_bwd_data!(DataAlgo0, f64, NCHW, f64, NCHW, f64, f64, NHWC, 5, 3);
+    impl_supported_conv_bwd_data!(FftTiling, f32, f32, f32, f32, 3);
+    impl_supported_conv_bwd_data!(FftTiling, f64, f64, f64, f64, 3);
 
-    /// DataAlgo1 supported configurations for 3-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(DataAlgo1, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-
-    /// FftTiling supported configurations for 3-d convolutions and filter format equal to NCHW.
-    impl_supported_conv_bwd_data!(FftTiling, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_data!(FftTiling, f64, NCHW, f64, NCHW, f64, f64, NCHW, 5, 3);
-
-    /// DataAlgo1 supported configurations for 3-d convolutions and filter format equal to NHWC.
-    impl_supported_conv_bwd_data!(DataAlgo1, f32, NHWC, f32, NHWC, f32, f32, NHWC, 5, 3);
-
-    /// BestHeuristic supported configurations. Its the set union of all those above.
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NHWC, 4, 2);
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f32, NCHW, f32, NCHW, f32, f32, NHWC, 5, 3);
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f64, NCHW, f64, NCHW, f64, f64, NHWC, 5, 3);
+    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f64, f64, f64, f64, 2);
+    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f32, f32, f32, f32, 3);
+    impl_supported_conv_bwd_data!(BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, f64, f64, f64, f64, 3);
 }
 
 // Admissible configurations for the backward filter convolution  (as specified in
@@ -616,80 +436,33 @@ mod supported_conv_bwd_data_impls {
 mod supported_conv_bwd_filter_impls {
     use super::*;
 
-    // The macro arguments are to be interpreted as follows, from left to right:
-    // <algo. name> <in. ty> <in. fmt> <diff. ty> <diff. fmt> <comp. ty> <filter diff ty> <filter diff fmt>
-    //
-    // The last two integers are indicative of the convolution type.
 
-    /// FilterAlgo0 supported configurations for 2-d convolutions and filter gradient format equal 
-    /// to NCHW.
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, NHWC, f32, NHWC, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f64, NHWC, f64, NHWC, f64, f64, NCHW, 4, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo0, f64, f64, f64, f64, 2);
 
-    /// FilterAlgo1 supported configurations for 2-d convolutions and filter gradient format equal 
-    /// to NCHW.
-    impl_supported_conv_bwd_filter!(FilterAlgo1, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo1, f32, NHWC, f32, NHWC, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo1, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo1, f64, NHWC, f64, NHWC, f64, f64, NCHW, 4, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo1, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo1, f64, f64, f64, f64, 2);
 
-    /// Fft supported configurations for 2-d convolutions and filter gradient format equal 
-    /// to NCHW.
-    impl_supported_conv_bwd_filter!(Fft, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
+    impl_supported_conv_bwd_filter!(Fft, f32, f32, f32, f32, 2);
 
-    /// FftTiling supported configurations for 2-d convolutions and filter gradient format equal 
-    /// to NCHW.
-    impl_supported_conv_bwd_filter!(FftTiling, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FftTiling, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
+    impl_supported_conv_bwd_filter!(FftTiling, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_filter!(FftTiling, f64, f64, f64, f64, 2);
 
-    /// FilterAlgo3 supported configurations for 2-d convolutions and filter gradient format equal 
-    /// to NCHW.
-    impl_supported_conv_bwd_filter!(FilterAlgo3, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo3, f32, NHWC, f32, NHWC, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo3, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo3, f64, NHWC, f64, NHWC, f64, f64, NCHW, 4, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo3, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo3, f64, f64, f64, f64, 2);
 
-    /// WinogradNonFused supported configurations for 2-d convolutions and filter gradient format 
-    /// equal to NCHW.
-    impl_supported_conv_bwd_filter!(WinogradNonFused, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(WinogradNonFused, f32, NHWC, f32, NHWC, f32, f32, NCHW, 4, 2);
+    impl_supported_conv_bwd_filter!(WinogradNonFused, f32, f32, f32, f32, 2);
 
-    /// FilterAlgo0 supported configurations for 2-d convolutions and filter gradient format equal 
-    /// to NHWC.
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, NHWC, f32, NHWC, f32, f32, NHWC, 4, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, f32, f32, f32, 3);
+    impl_supported_conv_bwd_filter!(FilterAlgo0, f64, f64, f64, f64, 3);
 
+    impl_supported_conv_bwd_filter!(FilterAlgo3, f32, f32, f32, f32, 3);
+    impl_supported_conv_bwd_filter!(FilterAlgo3, f64, f64, f64, f64, 3);
 
-    /// FilterAlgo1 supported configurations for 2-d convolutions and filter gradient format equal
-    /// to NHWC.
-    impl_supported_conv_bwd_filter!(FilterAlgo1, f32, NHWC, f32, NCHW, f32, f32, NHWC, 4, 2);
-    impl_supported_conv_bwd_filter!(FilterAlgo1, f32, NHWC, f32, NHWC, f32, f32, NHWC, 4, 2);
+    impl_supported_conv_bwd_filter!(FilterAlgo1, f32, f32, f32, f32, 3);
 
-    /// FilterAlgo0 supported configurations for 3-d convolutions and filter gradient format equal 
-    /// to NCHW.
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, NHWC, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f32, NHWC, f32, NHWC, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f64, NHWC, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_bwd_filter!(FilterAlgo0, f64, NHWC, f64, NHWC, f64, f64, NCHW, 5, 3);
-
-    /// FilterAlgo3 supported configurations for 3-d convolutions and filter gradient format equal 
-    /// to NCHW.
-    impl_supported_conv_bwd_filter!(FilterAlgo3, f32, NHWC, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_filter!(FilterAlgo3, f64, NHWC, f64, NCHW, f64, f64, NCHW, 5, 3);
-
-    /// FilterAlgo1 supported configurations for 3-d convolutions and filter gradient format equal
-    /// to NHWC.
-    impl_supported_conv_bwd_filter!(FilterAlgo1, f32, NHWC, f32, NHWC, f32, f32, NCHW, 5, 3);
-
-    /// BestHeuristic supported configurations. Its the set union of all those above.
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f32, NHWC, f32, NCHW, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f32, NHWC, f32, NHWC, f32, f32, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f64, NHWC, f64, NCHW, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f64, NHWC, f64, NHWC, f64, f64, NCHW, 4, 2);
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f32, NHWC, f32, NCHW, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f32, NHWC, f32, NHWC, f32, f32, NCHW, 5, 3);
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f64, NHWC, f64, NCHW, f64, f64, NCHW, 5, 3);
-    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f64, NHWC, f64, NHWC, f64, f64, NCHW, 5, 3);
+    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f32, f32, f32, f32, 2);
+    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f64, f64, f64, f64, 2);
+    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f32, f32, f32, f32, 3);
+    impl_supported_conv_bwd_filter!(BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, f64, f64, f64, f64, 3);
 }

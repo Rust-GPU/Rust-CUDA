@@ -4,7 +4,7 @@ use crate::{
     error::{CudnnError, IntoResult},
     math_type::MathType,
     sys,
-    tensor::TensorFormat,
+    tensor_format::TensorFormat,
 };
 
 use std::{marker::PhantomData, mem::MaybeUninit};

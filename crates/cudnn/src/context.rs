@@ -1,7 +1,7 @@
 use crate::{
     convolution::{
         BestHeuristic, ConvolutionBwdDataAlgo, ConvolutionBwdFilterAlgo, ConvolutionDescriptor,
-        ConvolutionFwdAlgo, Filter, FilterDescriptor, SupportedConvBwdData, SupportedConvBwdFilter,
+        ConvolutionFwdAlgo, FilterDescriptor, SupportedConvBwdData, SupportedConvBwdFilter,
         SupportedConvFwd,
     },
     data_type::*,
@@ -11,7 +11,8 @@ use crate::{
     op_tensor::*,
     rnn::{RnnDataDescriptor, RnnDataLayout, RnnDataType, RnnDescriptor, RnnMode, SupportedPrec},
     sys,
-    tensor::*,
+    tensor_descriptor::TensorDescriptor,
+    tensor_format::TensorFormat,
     ForwardMode, WGradMode,
 };
 use cust::memory::{GpuBox, GpuBuffer};
@@ -80,7 +81,7 @@ impl CudnnContext {
         }
     }
 
-    /// The the same version of a given cuDNN library can be compiled against different CUDA toolkit
+    /// The same version of a given cuDNN library can be compiled against different CUDA toolkit
     /// versions. This routine returns the CUDA toolkit version that the currently used cuDNN
     /// library has been compiled against.
     pub fn cuda_version(&self) -> (u32, u32, u32) {
@@ -118,7 +119,7 @@ impl CudnnContext {
         }
     }
 
-    /// This function computes a binary element-wise tensor core operations according to the
+    /// This function computes a binary element-wise tensor core operation according to the
     /// following equation:
     ///
     /// C = OP( alpha * A , beta * B ) + gamma * C
@@ -137,47 +138,48 @@ impl CudnnContext {
     ///
     /// * `alpha` - scaling factor for the left operand.
     ///
-    /// * `a` - left operand.
+    /// * `a_desc` - tensor descriptor for the left operand.
+    ///
+    /// * `a` - data for the left operand.
     ///
     /// * `beta` - scaling factor for the right operand.
     ///
-    /// * `b` - right operand.
+    /// * `b_desc` - tensor descriptor for right operand.
+    ///
+    /// * `b` - data for the right operand.
     ///
     /// * `gamma` - scaling factor for the destination tensor.
     ///
-    /// * `c` - destination tensor. This tensor is written after being read.
+    /// * `c_desc` - tensor descriptor for the destination tensor.
+    ///
+    /// * `c` - data for the destination tensor. This tensor is written after being read.
     ///
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
-    pub fn binary_tensor_op<CompT, Op, T1, F1, T2, F2, T3, F3, const D: usize>(
+    pub fn binary_tensor_op<CompT, Op, T1, T2, T3>(
         &self,
         op_desc: &OpTensorDescriptor<CompT, Op>,
         alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
+        a_desc: &TensorDescriptor<T1>,
+        a: &impl GpuBuffer<T1>,
         beta: CompT,
-        b: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+        b_desc: &TensorDescriptor<T2>,
+        b: &impl GpuBuffer<T2>,
         gamma: CompT,
-        c: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
+        c_desc: &TensorDescriptor<T3>,
+        c: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
         CompT: DataType + SupportedOp<T1, T2, T3>,
         Op: OpTensorOp + BinaryOp,
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
     {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
-
-        let b_data = b.data().as_device_ptr().as_raw();
-        let b_desc = b.descriptor();
-
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
+        let a_data = a.as_device_ptr().as_ptr();
+        let b_data = b.as_device_ptr().as_ptr();
+        let c_data = c.as_device_ptr().as_ptr();
 
         unsafe {
             sys::cudnnOpTensor(
@@ -213,36 +215,37 @@ impl CudnnContext {
     ///
     /// * `alpha` - scaling factor for the operand.
     ///
-    /// * `a` - operand.
+    /// * `a_desc` - tensor descriptor for the operand.
+    ///
+    /// * `a` - data for the operand.
     ///
     /// * `gamma` - scaling factor for the destination tensor.
     ///
-    /// * `c` - destination tensor. This tensor is written after being read.
+    /// * `c_desc` - tensor descriptor for the destination tensor.
+    ///
+    /// * `c` - data for the destination tensor. This tensor is written after being read.
     ///
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
-    pub fn unary_tensor_op<CompT, Op, T1, F1, T2, F2, const D: usize>(
+    pub fn unary_tensor_op<CompT, Op, T1, T2>(
         &self,
         op_desc: &OpTensorDescriptor<CompT, Op>,
         alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
+        a_desc: &TensorDescriptor<T1>,
+        a: &impl GpuBuffer<T1>,
         gamma: CompT,
-        c: &mut Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+        c_desc: &TensorDescriptor<T2>,
+        c: &mut impl GpuBuffer<T2>,
     ) -> Result<(), CudnnError>
     where
         CompT: DataType + SupportedOp<T1, T1, T2>,
         Op: OpTensorOp + UnaryOp,
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
     {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
-
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
+        let a_data = a.as_device_ptr().as_ptr();
+        let c_data = c.as_device_ptr().as_ptr();
 
         unsafe {
             // The second tensor and the second scaling factors here are ignored.
@@ -274,34 +277,35 @@ impl CudnnContext {
     ///
     /// * `alpha` - scaling factor for the operand.
     ///
-    /// * `a` - operand.
+    /// * `a_desc` - tensor descriptor for the operand.
+    ///
+    /// * `a` - data for the operand.
     ///
     /// * `gamma` - scaling factor for the destination tensor.
     ///
-    /// * `c` - destination tensor. This tensor is written after being read.
+    /// * `c_desc` - tensor descriptor for the destination tensor.
+    ///
+    /// * `c` - data for the destination tensor. This tensor is written after being read.
     ///
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
-    pub fn add_assign<CompT, T1, F1, T2, F2, const D: usize>(
+    pub fn add_assign<CompT, T1, T2>(
         &self,
         alpha: CompT,
-        a: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
+        a_desc: &TensorDescriptor<T1>,
+        a: &impl GpuBuffer<T1>,
         gamma: CompT,
-        c: &mut Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+        c_desc: &TensorDescriptor<T2>,
+        c: &mut impl GpuBuffer<T2>,
     ) -> Result<(), CudnnError>
     where
         CompT: DataType + SupportedOp<T1, T1, T2>,
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
     {
-        let a_data = a.data().as_device_ptr().as_raw();
-        let a_desc = a.descriptor();
-
-        let c_data = c.data().as_device_ptr().as_raw();
-        let c_desc = c.descriptor();
+        let a_data = a.as_device_ptr().as_ptr();
+        let c_data = c.as_device_ptr().as_ptr();
 
         unsafe {
             sys::cudnnAddTensor(
@@ -318,7 +322,7 @@ impl CudnnContext {
     }
 
     /// This function is used to query the amount of space required to store the states of the
-    /// random number generators
+    /// random number generators.
     pub fn get_dropout_states_size(&self) -> Result<usize, CudnnError> {
         let mut size = MaybeUninit::uninit();
 
@@ -332,21 +336,23 @@ impl CudnnContext {
     /// This function is used to query the amount of reserve needed to run dropout with the input
     /// dimensions given by `x_desc`.
     ///
-    /// The same reserve space is expected to be passed to `dropout_forward()` and
-    /// `dropout_backward()`, and its contents is expected to remain unchanged between
-    /// `dropout_forward()` and `dropout_backward` calls.
+    /// The same reserve space is expected to be passed to
+    /// [`dropout_forward()`](CudnnContext::dropoit_forward()) and
+    /// [`dropout_backward()`](CudnnContext::dropout_backward()).
+    ///
+    /// **Do note** that the content of there reserved space is expected to remain unchanged
+    /// between both calls.
     ///
     /// # Arguments
     ///
     /// `x_desc` - a previously initialized tensor descriptor, describing input to a dropout
     /// operation.
-    pub fn get_dropout_reserved_space_size<T, F, const D: usize>(
+    pub fn get_dropout_reserved_space_size<T>(
         &self,
-        x_desc: &TensorDescriptor<T, F, D>,
+        x_desc: &TensorDescriptor<T>,
     ) -> Result<usize, CudnnError>
     where
         T: DataType,
-        F: TensorFormat + SupportedType<T>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -357,10 +363,11 @@ impl CudnnContext {
         }
     }
 
-    /// This function performs forward dropout operation over `x` returning results in `y`.
+    /// This function performs forward dropout operation over `x_data` returning results in
+    /// `y_data`.
     ///
-    /// The approximate dropout fraction of x values will be replaced by a 0, and the rest will be
-    /// scaled by 1 / (1 - dropout), i.e. the value configured in `dropout_desc`.
+    /// The approximate dropout fraction of `x_data` values will be replaced by a 0, and the rest
+    /// will be scaled by 1 / (1 - dropout), i.e. the value configured in `dropout_desc`.
     ///
     /// This function should not be running concurrently with another `dropout_forward()` function
     /// using the same states, as defined in the `DropoutDescriptor`.
@@ -369,9 +376,13 @@ impl CudnnContext {
     ///
     /// * `dropout_descriptor` - previously created dropout descriptor.
     ///
-    /// * `x` - input tensor.
+    /// * `x_desc` - tensor descriptor for the operand.
     ///
-    /// * `y` - destination tensor.
+    /// * `x_data` - data for the operand.
+    ///
+    /// * `y_desc` - tensor descriptor for the destination tensor.
+    ///
+    /// * `y_data` - data for the destination tensor.
     ///
     /// * `reserve_space` - user-allocated GPU memory used by this function. It is expected that the
     /// contents of reserveSpace does not change between `dropout_forward()` and
@@ -379,26 +390,22 @@ impl CudnnContext {
     ///
     /// # Errors
     ///
-    /// Returns an error if the number of elements in `x` and `y` differs and if `reserve_space` is
-    /// less than the value returned by `get_dropout_reserve_space_size`.
-    pub fn dropout_forward<T, F1, F2, const D: usize>(
+    /// Returns an error if the number of elements in `x_data` and `y_data` differs and if
+    /// `reserve_space` is less than the value returned by `get_dropout_reserve_space_size`.
+    pub fn dropout_forward<T>(
         &self,
         dropout_desc: &DropoutDescriptor<impl GpuBuffer<u8>>,
-        x: &Tensor<T, F1, impl GpuBuffer<T>, D>,
-        y: &mut Tensor<T, F2, impl GpuBuffer<T>, D>,
+        x_desc: &TensorDescriptor<T>,
+        x: &impl GpuBuffer<T>,
+        y_desc: &TensorDescriptor<T>,
+        y: &mut impl GpuBuffer<T>,
         reserve_space: &mut impl GpuBuffer<u8>,
     ) -> Result<(), CudnnError>
     where
         T: DataType,
-        F1: TensorFormat + SupportedType<T>,
-        F2: TensorFormat + SupportedType<T>,
     {
-        let x_desc = x.descriptor();
-        let x_data = x.data().as_device_ptr().as_raw();
-
-        let y_desc = y.descriptor();
-        let y_data = y.data().as_device_ptr().as_ptr();
-
+        let x_data = x.as_device_ptr().as_ptr();
+        let y_data = y.as_device_ptr().as_ptr();
         let reserve_space_ptr = reserve_space.as_device_ptr().as_ptr();
 
         unsafe {
@@ -416,19 +423,24 @@ impl CudnnContext {
         }
     }
 
-    /// This function performs backward dropout operation over `dy` returning results in `dx`.
+    /// This function performs backward dropout operation over `dy_data` returning results in
+    /// `dx_data`.
     ///
-    /// If during forward dropout operation value from `x` was propagated to `y` then
-    /// during backward operation value from `dy` will be propagated to `dx`, otherwise, `dx`
-    /// value will be set to 0.
+    /// If during forward dropout operation value from `x_data` was propagated to `y_data` then
+    /// during backward operation value from `dy_data` will be propagated to `dx_data`, otherwise,
+    /// `dx_data` value will be set to 0.
     ///
     /// # Arguments
     ///
     /// * `dropout_descriptor` - previously created dropout descriptor.
     ///
-    /// * `dy` - input tensor.
+    /// * `dx_desc` - tensor descriptor for the operand.
     ///
-    /// * `dx` - destination tensor.
+    /// * `dx` - data for the operand.
+    ///
+    /// * `dy_desc` - tensor descriptor for the destination tensor.
+    ///
+    /// * `dy` - data for the destination tensor.
     ///
     /// * `reserve_space` - user-allocated GPU memory used by this function. It is expected that the
     /// contents of reserveSpace does not change between `dropout_forward()` and
@@ -436,26 +448,22 @@ impl CudnnContext {
     ///
     /// # Errors
     ///
-    /// Returns an error if the number of elements in `dx` and `dy` differs and if `reserve_space`
-    /// is less than the value returned by `get_dropout_reserve_space_size`.
-    pub fn dropout_backward<T, F1, F2, const D: usize>(
+    /// Returns an error if the number of elements in `dx_data` and `dy_data` differs and if
+    /// `reserve_space` is less than the value returned by `get_dropout_reserve_space_size`.
+    pub fn dropout_backward<T>(
         &self,
         dropout_desc: &DropoutDescriptor<impl GpuBuffer<u8>>,
-        dy: &Tensor<T, F1, impl GpuBuffer<T>, D>,
-        dx: &mut Tensor<T, F2, impl GpuBuffer<T>, D>,
+        dx_desc: &TensorDescriptor<T>,
+        dx: &impl GpuBuffer<T>,
+        dy_desc: &TensorDescriptor<T>,
+        dy: &mut impl GpuBuffer<T>,
         reserve_space: &mut impl GpuBuffer<u8>,
     ) -> Result<(), CudnnError>
     where
         T: DataType,
-        F1: TensorFormat + SupportedType<T>,
-        F2: TensorFormat + SupportedType<T>,
     {
-        let dy_desc = dy.descriptor();
-        let dy_data = dy.data().as_device_ptr().as_raw();
-
-        let dx_desc = dx.descriptor();
-        let dx_data = dx.data().as_device_ptr().as_ptr();
-
+        let dy_data = dx.as_device_ptr().as_ptr();
+        let dx_data = dy.as_device_ptr().as_ptr();
         let reserve_space_ptr = reserve_space.as_device_ptr().as_ptr();
 
         unsafe {
@@ -484,7 +492,8 @@ impl CudnnContext {
     ///
     /// * `seed` - seed used to initialize random number generator states.
     ///
-    /// **Do note** that the exact amount of memory can be obtained with `get_dropout_states_size`.
+    /// **Do note** that the exact amount of memory can be obtained with
+    /// [`get_dropout_states_size()`](CudnnContext::get_dropout_states_sizes).
     ///
     /// # Errors
     ///
@@ -566,7 +575,7 @@ impl CudnnContext {
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
     ///     ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor, MathType,
-    ///     TensorDescriptor, NCHW,
+    ///     TensorDescriptorBuilder, TensorFormat,
     /// };
     ///
     /// let ctx = CudnnContext::new()?;
@@ -581,43 +590,35 @@ impl CudnnContext {
     /// // 2-dimensional convolution.
     /// let mut conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, groups, mode, math_type)?;
     ///
-    /// let input_desc = TensorDescriptor::<f32, _, 4>::new([3, 2, 5, 5,], NCHW)?;
-    /// let filter_desc = FilterDescriptor::<f32, _, 4>::new([3, 2, 2, 2], NCHW)?;
-    /// let output_desc = TensorDescriptor::<f32, _, 4>::new([3, 3, 4, 4], NCHW)?;
+    /// let input_desc = TensorDescriptorBuilder::<f32>::new(&[3, 2, 5, 5,])
+    ///     .format(TensorFormat::Nchw)
+    ///     .build()?;
+    ///
+    /// let filter_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
+    ///
+    /// let output_desc = TensorDescriptorBuilder::<f32>::new(&[3, 3, 4, 4])
+    ///     .format(TensorFormat::Nchw)
+    ///     .build()?;
     ///
     /// let algo = ctx.get_convolution_forward_algorithm(&input_desc, &filter_desc, &output_desc, &conv_desc)?;
     ///
-    /// conv_desc.set_math_type(algo.math_type())?; // Set math type.
+    /// conv_desc.set_math_type(algo.math_type())?; // Sets math type.
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_forward_algorithm<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn get_convolution_forward_algorithm<T1, T2, CompType, T3, const N: usize>(
         &self,
-        x_desc: &TensorDescriptor<T1, F1, D>,
-        w_desc: &FilterDescriptor<T2, F2, D>,
-        y_desc: &TensorDescriptor<T3, F3, D>,
+        x_desc: &TensorDescriptor<T1>,
+        w_desc: &FilterDescriptor<T2>,
+        y_desc: &TensorDescriptor<T3>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
     ) -> Result<BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-        BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>:
-            SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>: SupportedConvFwd<T1, T2, CompType, T3, N>,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
         let mut perf_results = MaybeUninit::uninit();
@@ -683,33 +684,20 @@ impl CudnnContext {
     /// descriptor's at its creation may differ, for this reason you should always manually set the
     /// math type of the convolution descriptor according to the one of the returned algorithm to
     /// get the best possible performance.
-    pub fn get_convolution_backward_data_algorithm<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn get_convolution_backward_data_algorithm<T1, T2, CompType, T3, const N: usize>(
         &self,
-        w_desc: &FilterDescriptor<T1, F1, D>,
-        dy_desc: &TensorDescriptor<T2, F2, D>,
-        dx_desc: &TensorDescriptor<T3, F3, D>,
+        w_desc: &FilterDescriptor<T1>,
+        dy_desc: &TensorDescriptor<T2>,
+        dx_desc: &TensorDescriptor<T3>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
     ) -> Result<BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
         BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>:
-            SupportedConvBwdData<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+            SupportedConvBwdData<T1, T2, CompType, T3, N>,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
         let mut perf_results = MaybeUninit::uninit();
@@ -775,33 +763,20 @@ impl CudnnContext {
     /// descriptor's at its creation may differ, for this reason you should always manually set the
     /// math type of the convolution descriptor according to the one of the returned algorithm to
     /// get the best possible performance.
-    pub fn get_convolution_backward_filter_algorithm<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn get_convolution_backward_filter_algorithm<T1, T2, CompType, T3, const N: usize>(
         &self,
-        x_desc: &TensorDescriptor<T1, F1, D>,
-        dy_desc: &TensorDescriptor<T2, F2, D>,
-        dw_desc: &FilterDescriptor<T3, F3, D>,
+        x_desc: &TensorDescriptor<T1>,
+        dy_desc: &TensorDescriptor<T2>,
+        dw_desc: &FilterDescriptor<T3>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
     ) -> Result<BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
         BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>:
-            SupportedConvBwdFilter<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+            SupportedConvBwdFilter<T1, T2, CompType, T3, N>,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
         let mut perf_results = MaybeUninit::uninit();
@@ -855,7 +830,7 @@ impl CudnnContext {
     /// The specified algorithm can be the result of the call to
     /// [`get_convolution_forward_algorithm`](crate::CudnnContext::get_convolution_forward_algorithm)
     /// or can be chosen arbitrarily by the user. In the former case workspace size can be directly
-    /// obtained by calling [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
+    /// obtained by calling [`workspace_size()`](crate::BestHeuristic::workspace_size) on the returned
     /// algorithm.
     ///
     /// # Arguments
@@ -881,7 +856,7 @@ impl CudnnContext {
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
     ///    ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor,
-    ///    ImplicitPrecompGemm, MathType, TensorDescriptor, NCHW,
+    ///    ImplicitPrecompGemm, MathType, TensorDescriptorBuilder, TensorFormat,
     /// };
     /// use cust::memory::DeviceBuffer;
     ///
@@ -898,9 +873,15 @@ impl CudnnContext {
     /// let mut conv_desc =
     ///     ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, groups, mode, math_type)?;
     ///
-    /// let input_desc = TensorDescriptor::<f32, _, 4>::new([3, 2, 5, 5], NCHW)?;
-    /// let filter_desc = FilterDescriptor::<f32, _, 4>::new([3, 2, 2, 2], NCHW)?;
-    /// let output_desc = TensorDescriptor::<f32, _, 4>::new([3, 3, 4, 4], NCHW)?;
+    /// let input_desc = TensorDescriptorBuilder::<f32>::new(&[3, 2, 5, 5,])
+    ///     .format(TensorFormat::Nchw)
+    ///     .build()?;
+    ///
+    /// let filter_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
+    ///
+    /// let output_desc = TensorDescriptorBuilder::<f32>::new(&[3, 3, 4, 4])
+    ///     .format(TensorFormat::Nchw)
+    ///     .build()?;
     ///
     /// let algo = ImplicitPrecompGemm;
     ///
@@ -916,34 +897,20 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_forward_workspace_size<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        A,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn get_convolution_forward_workspace_size<T1, T2, CompType, T3, A, const N: usize>(
         &self,
-        x_desc: &TensorDescriptor<T1, F1, D>,
-        w_desc: &FilterDescriptor<T2, F2, D>,
-        y_desc: &TensorDescriptor<T3, F3, D>,
+        x_desc: &TensorDescriptor<T1>,
+        w_desc: &FilterDescriptor<T2>,
+        y_desc: &TensorDescriptor<T3>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, T2, CompType, T3, N>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -990,34 +957,20 @@ impl CudnnContext {
     ///
     ///  **Do note** that not every algorithm is available for every configuration of the input
     /// tensor and/or every configuration of the convolution descriptor.
-    pub fn get_convolution_backward_data_workspace_size<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        A,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn get_convolution_backward_data_workspace_size<T1, T2, CompType, T3, A, const N: usize>(
         &self,
-        w_desc: &FilterDescriptor<T1, F1, D>,
-        dy_desc: &TensorDescriptor<T2, F2, D>,
-        dx_desc: &TensorDescriptor<T3, F3, D>,
+        w_desc: &FilterDescriptor<T1>,
+        dy_desc: &TensorDescriptor<T2>,
+        dx_desc: &TensorDescriptor<T3>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-        A: ConvolutionBwdDataAlgo + SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        A: ConvolutionBwdDataAlgo + SupportedConvFwd<T1, T2, CompType, T3, N>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -1064,35 +1017,20 @@ impl CudnnContext {
     ///
     /// **Do note** that not every algorithm is available for every configuration of the input
     /// tensor and/or every configuration of the convolution descriptor.
-    pub fn get_convolution_backward_filter_workspace_size<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        A,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn get_convolution_backward_filter_workspace_size<T1, T2, CompType, T3, A, const N: usize>(
         &self,
-        x_desc: &TensorDescriptor<T1, F1, D>,
-        dy_desc: &TensorDescriptor<T2, F2, D>,
-        dw_desc: &FilterDescriptor<T3, F3, D>,
+        x_desc: &TensorDescriptor<T1>,
+        dy_desc: &TensorDescriptor<T2>,
+        dw_desc: &FilterDescriptor<T3>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-        A: ConvolutionBwdFilterAlgo
-            + SupportedConvBwdFilter<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        A: ConvolutionBwdFilterAlgo + SupportedConvBwdFilter<T1, T2, CompType, T3, N>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -1122,9 +1060,13 @@ impl CudnnContext {
     ///
     /// * `alpha` - scaling parameter.
     ///
-    /// * `x` - input map.
+    /// * `x_desc` - input map descritptor.
     ///
-    /// * `w` - filter.
+    /// * `x` - input map data.
+    ///
+    /// * `w_desc` - filter descriptor.
+    ///
+    /// * `w` - filter data.
     ///
     /// * `conv_desc` - convolution descriptor.
     ///
@@ -1132,11 +1074,13 @@ impl CudnnContext {
     ///
     /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
     /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
-    /// dimension can be obtained with [`get_convolution_forward_workspace_size`].
+    /// dimension can be obtained with `get_convolution_forward_workspace_size`.
     ///
     /// * `beta` - scaling parameter.
     ///
-    /// * `y` - output map. It carries the result of the convolution.
+    /// * `y_desc` - output map descriptor.
+    ///
+    /// * `y` - output map data. It carries the result of the convolution.
     ///
     /// Scaling factors `alpha` and `beta` can be used to scale the input tensor and the output
     /// tensor respectively. They are used to blend the computation result with prior value in the
@@ -1145,50 +1089,33 @@ impl CudnnContext {
     /// **Do note** than not all possible configurations of layouts and data types for the operands
     /// are supported by cuDNN. Refer to the following link for the
     /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionForward).
-    pub fn convolution_forward<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        A,
-        W,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn convolution_forward<T1, T2, CompType, T3, A, W, const N: usize>(
         &self,
         alpha: CompType,
-        x: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
-        w: &Filter<T2, F2, impl GpuBuffer<T2>, D>,
+        x_desc: &TensorDescriptor<T1>,
+        x: &impl GpuBuffer<T1>,
+        w_desc: &FilterDescriptor<T2>,
+        w: &impl GpuBuffer<T2>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
         work_space: Option<&mut W>,
         beta: CompType,
-        y: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
+        y_desc: &TensorDescriptor<T3>,
+        y: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, T2, CompType, T3, N>,
         W: GpuBuffer<u8>,
     {
-        let x_data = x.data().as_device_ptr().as_raw();
-        let x_desc = x.descriptor();
+        let x_data = x.as_device_ptr().as_ptr();
+        let w_data = w.as_device_ptr().as_ptr();
+        let y_data = y.as_device_ptr().as_ptr();
 
-        let w_data = w.data().as_device_ptr().as_raw();
-        let w_desc = w.descriptor();
-
-        let y_data = y.data().as_device_ptr().as_ptr();
-        let y_desc = y.descriptor();
-
-        // If the _ size is 0 then the algorithm can work in-place and cuDNN expects a null
+        // If the size is 0 then the algorithm can work in-place and cuDNN expects a null
         // pointer.
         let (work_space_ptr, work_space_size): (*mut u8, usize) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
@@ -1227,9 +1154,13 @@ impl CudnnContext {
     ///
     /// * `alpha` - scaling parameter.
     ///
-    /// * `w` - filter.
+    /// * `w_desc` - filter descriptor.
     ///
-    /// * `dy` - output map gradient.
+    /// * `w` - filter data.
+    ///
+    /// * `dy_desc` - output map gradient descriptor.
+    ///
+    /// * `dy` - output map gradient data.
     ///
     /// * `conv_desc` - previously initialized convolution description. The one defined for the
     /// forward pass in suitable to be used here provided that it refers to the same layer.
@@ -1242,53 +1173,38 @@ impl CudnnContext {
     ///
     /// * `beta` - scaling parameter.
     ///
-    /// * `dx` - input map gradient.
+    /// * `dx_desc` - input map gradient descriptor.
+    ///
+    /// * `dx` - input map gradient data.
     ///
     /// **Do note** than not all possible configurations of layouts and data types for the operands
     /// are supported by cuDNN. Refer to the following link for the
     /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardData).
-    pub fn convolution_backward_data<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        A,
-        W,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn convolution_backward_data<T1, T2, CompType, T3, A, W, const N: usize>(
         &self,
         alpha: CompType,
-        w: &Filter<T1, F1, impl GpuBuffer<T1>, D>,
-        dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+        w_desc: &FilterDescriptor<T1>,
+        w: &impl GpuBuffer<T1>,
+        dy_desc: &TensorDescriptor<T2>,
+        dy: &impl GpuBuffer<T2>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
         work_space: Option<&mut W>,
         beta: CompType,
-        dx: &mut Tensor<T3, F3, impl GpuBuffer<T3>, D>,
+        dx_desc: &TensorDescriptor<T3>,
+        dx: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-        A: ConvolutionBwdDataAlgo + SupportedConvBwdData<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        A: ConvolutionBwdDataAlgo + SupportedConvBwdData<T1, T2, CompType, T3, N>,
         W: GpuBuffer<u8>,
     {
-        let w_data = w.data().as_device_ptr().as_raw();
-        let w_desc = w.descriptor();
-
-        let dy_data = dy.data().as_device_ptr().as_raw();
-        let dy_desc = dy.descriptor();
-
-        let dx_data = dx.data().as_device_ptr().as_ptr();
-        let dx_desc = dx.descriptor();
+        let w_data = w.as_device_ptr().as_ptr();
+        let dy_data = dy.as_device_ptr().as_ptr();
+        let dx_data = dx.as_device_ptr().as_ptr();
 
         let (work_space_ptr, work_space_size): (*mut u8, usize) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
@@ -1327,9 +1243,13 @@ impl CudnnContext {
     ///
     /// * `alpha` - scaling parameter.
     ///
-    /// * `x` - input map.
+    /// * `x_desc` - input ma descriptor.
     ///
-    /// * `dy` - output map gradient.
+    /// * `x` - input map data.
+    ///
+    /// * `dy_desc` - output map gradient descriptor.
+    ///
+    /// * `y` - output map gradient data.
     ///
     /// * `conv_desc` - previously initialized convolution description. The one defined for the
     /// forward pass in suitable to be used here provided that it refers to the same layer.
@@ -1342,54 +1262,38 @@ impl CudnnContext {
     ///
     /// * `beta` - scaling parameter.
     ///
-    /// * `dw` - filter gradient.
+    /// * `dw_desc` - filter gradient descriptor.
+    ///
+    /// * `dw` - filter gradient data.
     ///
     /// **Do note** than not all possible configurations of layouts and data types for the operands
     /// are supported by cuDNN. Refer to the following link for the
     /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardFilter).
-    pub fn convolution_backward_filter<
-        T1,
-        F1,
-        T2,
-        F2,
-        CompType,
-        T3,
-        F3,
-        A,
-        W,
-        const D: usize,
-        const N: usize,
-    >(
+    pub fn convolution_backward_filter<T1, T2, CompType, T3, A, W, const N: usize>(
         &self,
         alpha: CompType,
-        x: &Tensor<T1, F1, impl GpuBuffer<T1>, D>,
-        dy: &Tensor<T2, F2, impl GpuBuffer<T2>, D>,
+        x_desc: &TensorDescriptor<T1>,
+        x: &impl GpuBuffer<T1>,
+        dy_desc: &TensorDescriptor<T2>,
+        y: &impl GpuBuffer<T2>,
         conv_desc: &ConvolutionDescriptor<CompType, N>,
         algo: &A,
         work_space: Option<&mut W>,
         beta: CompType,
-        dw: &mut Filter<T3, F3, impl GpuBuffer<T3>, D>,
+        dw_desc: &FilterDescriptor<T3>,
+        dw: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
         T1: DataType,
-        F1: TensorFormat + SupportedType<T1>,
         T2: DataType,
-        F2: TensorFormat + SupportedType<T2>,
         CompType: DataType,
         T3: DataType,
-        F3: TensorFormat + SupportedType<T3>,
-        A: ConvolutionBwdFilterAlgo
-            + SupportedConvBwdFilter<T1, F1, T2, F2, CompType, T3, F3, D, N>,
+        A: ConvolutionBwdFilterAlgo + SupportedConvBwdFilter<T1, T2, CompType, T3, N>,
         W: GpuBuffer<u8>,
     {
-        let x_data = x.data().as_device_ptr().as_raw();
-        let x_desc = x.descriptor();
-
-        let dy_data = dy.data().as_device_ptr().as_raw();
-        let dy_desc = dy.descriptor();
-
-        let dw_data = dw.data().as_device_ptr().as_ptr();
-        let dw_desc = dw.descriptor();
+        let x_data = x.as_device_ptr().as_ptr();
+        let dy_data = y.as_device_ptr().as_ptr();
+        let dw_data = dw.as_device_ptr().as_ptr();
 
         let (work_space_ptr, work_space_size): (*mut u8, usize) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
@@ -1438,16 +1342,15 @@ impl CudnnContext {
     ///
     /// Returns an error is an incompatible or unsupported combination of input arguments was
     /// detected.
-    pub fn get_rnn_temp_space_sizes<T1, T2, L>(
+    pub fn get_rnn_temp_space_sizes<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
         forward_mode: ForwardMode,
-        x_desc: &RnnDataDescriptor<T1, L>,
+        x_desc: &RnnDataDescriptor<T1>,
     ) -> Result<(usize, Option<usize>), CudnnError>
     where
         T1: DataType + RnnDataType,
         T2: DataType + SupportedPrec<T1>,
-        L: RnnDataLayout,
     {
         let mut workspace_size = MaybeUninit::uninit();
         let mut reserve_space_size = MaybeUninit::uninit();
@@ -1590,19 +1493,19 @@ impl CudnnContext {
     ///
     /// Returns errors is an unsupported arguments combination is detected or if the supplied
     /// buffers are too small.
-    pub fn rnn_forward<T1, T2, L>(
+    pub fn rnn_forward<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
         forward_mode: ForwardMode,
         device_seq_lengths: &impl GpuBuffer<i32>,
-        x_desc: &RnnDataDescriptor<T1, L>,
+        x_desc: &RnnDataDescriptor<T1>,
         x: &impl GpuBuffer<T1>,
-        y_desc: &RnnDataDescriptor<T1, L>,
+        y_desc: &RnnDataDescriptor<T1>,
         y: &impl GpuBuffer<T1>,
-        h_desc: &TensorDescriptor<T1, NCHW, 3>,
+        h_desc: &TensorDescriptor<T1>,
         hx: Option<&impl GpuBuffer<T1>>,
         hy: Option<&mut impl GpuBuffer<T1>>,
-        c_desc: Option<&TensorDescriptor<T1, NCHW, 3>>,
+        c_desc: Option<&TensorDescriptor<T1>>,
         cx: Option<&impl GpuBuffer<T1>>,
         cy: Option<&mut impl GpuBuffer<T1>>,
         weight_space: &mut impl GpuBuffer<u8>,
@@ -1612,12 +1515,10 @@ impl CudnnContext {
     where
         T1: DataType + RnnDataType,
         T2: DataType + SupportedPrec<T1>,
-        L: RnnDataLayout,
-        NCHW: SupportedType<T1>,
     {
         let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_ptr();
 
-        let x_ptr = x.as_device_ptr().as_raw();
+        let x_ptr = x.as_device_ptr().as_ptr();
         let y_ptr = y.as_device_ptr().as_ptr();
 
         let hx_ptr = hx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_ptr());
@@ -1626,7 +1527,6 @@ impl CudnnContext {
         });
 
         let c_desc = c_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
-
         let cx_ptr = cx.map_or(std::ptr::null(), |buff| buff.as_device_ptr().as_ptr());
         let cy_ptr = cy.map_or(std::ptr::null_mut(), |buff| {
             buff.as_device_ptr().as_mut_ptr()
@@ -1787,20 +1687,20 @@ impl CudnnContext {
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument was encountered.
-    pub fn rnn_backward_data<T1, T2, L>(
+    pub fn rnn_backward_data<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
         device_seq_lengths: &impl GpuBuffer<i32>,
-        y_desc: &RnnDataDescriptor<T1, L>,
+        y_desc: &RnnDataDescriptor<T1>,
         y: &impl GpuBuffer<T1>,
         dy: &impl GpuBuffer<T1>,
-        x_desc: &RnnDataDescriptor<T1, L>,
+        x_desc: &RnnDataDescriptor<T1>,
         dx: &mut impl GpuBuffer<T1>,
-        h_desc: Option<&TensorDescriptor<T1, NCHW, 3>>,
+        h_desc: Option<&TensorDescriptor<T1>>,
         hx: Option<&impl GpuBuffer<T1>>,
         dhy: Option<&impl GpuBuffer<T1>>,
         dhx: Option<&mut impl GpuBuffer<T1>>,
-        c_desc: Option<&TensorDescriptor<T1, NCHW, 3>>,
+        c_desc: Option<&TensorDescriptor<T1>>,
         cx: Option<&impl GpuBuffer<T1>>,
         dcy: Option<&impl GpuBuffer<T1>>,
         dcx: Option<&mut impl GpuBuffer<T1>>,
@@ -1811,13 +1711,11 @@ impl CudnnContext {
     where
         T1: DataType + RnnDataType,
         T2: DataType + SupportedPrec<T1>,
-        L: RnnDataLayout,
-        NCHW: SupportedType<T1>,
     {
         let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_ptr();
 
-        let y_ptr = y.as_device_ptr().as_raw();
-        let dy_ptr = dy.as_device_ptr().as_raw();
+        let y_ptr = y.as_device_ptr().as_ptr();
+        let dy_ptr = dy.as_device_ptr().as_ptr();
 
         let dx_ptr = dx.as_device_ptr().as_ptr();
 
@@ -1926,16 +1824,16 @@ impl CudnnContext {
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument combinations was encountered.
-    pub fn rnn_backward_weights<T1, T2, L>(
+    pub fn rnn_backward_weights<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
         add_grad: WGradMode,
         device_seq_lengths: &impl GpuBuffer<i32>,
-        x_desc: &RnnDataDescriptor<T1, L>,
+        x_desc: &RnnDataDescriptor<T1>,
         x: &impl GpuBuffer<T1>,
-        h_desc: &TensorDescriptor<T1, NCHW, 3>,
+        h_desc: &TensorDescriptor<T1>,
         hx: &impl GpuBuffer<T1>,
-        y_desc: &RnnDataDescriptor<T1, L>,
+        y_desc: &RnnDataDescriptor<T1>,
         y: &impl GpuBuffer<T1>,
         dweight_space: &mut impl GpuBuffer<u8>,
         work_space: &mut impl GpuBuffer<u8>,
@@ -1944,14 +1842,12 @@ impl CudnnContext {
     where
         T1: DataType + RnnDataType,
         T2: DataType + SupportedPrec<T1>,
-        L: RnnDataLayout,
-        NCHW: SupportedType<T1>,
     {
         let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_mut_ptr();
 
-        let x_ptr = x.as_device_ptr().as_raw();
-        let hx_ptr = x.as_device_ptr().as_raw();
-        let y_ptr = y.as_device_ptr().as_raw();
+        let x_ptr = x.as_device_ptr().as_ptr();
+        let hx_ptr = x.as_device_ptr().as_ptr();
+        let y_ptr = y.as_device_ptr().as_ptr();
 
         let dweight_space_ptr = dweight_space.as_device_ptr().as_mut_ptr();
         let work_space_ptr = work_space.as_device_ptr().as_mut_ptr();
