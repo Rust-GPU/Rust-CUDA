@@ -44,7 +44,7 @@ where
     /// let nan_policy = NanPropagation::PropagateNaN;
     ///
     /// // We are stating that the computation must be done in f32.
-    /// let desc = OpTensorDescriptor::<f32, _>::new(op, nan_policy)?;
+    /// let desc = OpTensorDescriptor::<f32, Add>::new(op, nan_policy)?;
     /// # Ok(())
     /// # }
     /// ```

@@ -66,9 +66,25 @@ impl OpTensorOp for Not {
 }
 
 /// A unary tensor core operation.
+///
+/// Unary operations are:
+///
+/// * [`Sqrt`]
+///
+/// * [`Not`]
 pub trait UnaryOp: OpTensorOp {}
 
 /// A binary tensor core operation.
+///
+/// Binary operations are:
+///
+/// * [`Add`]
+///
+/// * [`Mul`]
+///
+/// * [`Min`]
+///
+/// * [`Max`]
 pub trait BinaryOp: OpTensorOp {}
 
 impl BinaryOp for Add {}

@@ -8,93 +8,27 @@ use std::{
     mem::{self, MaybeUninit},
 };
 
-pub struct TensorDescriptorBuilder<'a, T>
+/// A generic description of an n-dimensional dataset.
+#[derive(Debug, Clone, PartialEq, Hash)]
+pub struct TensorDescriptor<T>
 where
     T: DataType,
 {
-    shape: &'a [i32],
+    pub(crate) raw: sys::cudnnTensorDescriptor_t,
     data_type: PhantomData<T>,
 }
 
-impl<'a, T> TensorDescriptorBuilder<'a, T>
+impl<T> TensorDescriptor<T>
 where
     T: DataType,
 {
-    /// Creates a tensor descriptor builder with the given shape.
+    /// Creates a tensor descriptor builder with the given shape and strides.
     ///
     /// # Arguments
     ///
-    /// `shape` - slice containing the size of the tensor for every dimension.
+    /// * `shape` - slice containing the size of the tensor for every dimension.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use cudnn::TensorDescriptorBuilder;
-    ///
-    /// let builder = TensorDescriptorBuilder::<f32>::new(&[5, 5, 10, 25]);
-    /// ```
-    pub fn new(shape: &'a [i32]) -> Self {
-        Self {
-            shape,
-            data_type: PhantomData,
-        }
-    }
-
-    /// Configures the strides for this tensor descriptor builder.
-    ///
-    /// # Arguments
-    ///
-    /// `strides` - strides for the tensor descriptor.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use cudnn::TensorDescriptorBuilder;
-    ///
-    /// let builder = TensorDescriptorBuilder::<f32>::new(&[5, 5, 10, 25]).strides(&[1250, 250, 25, 1]);
-    /// ```
-    pub fn strides(self, strides: &'a [i32]) -> TensorDescriptorBuilderStrides<'a, T> {
-        TensorDescriptorBuilderStrides {
-            builder: self,
-            strides,
-        }
-    }
-
-    /// Configures the format for this tensor descriptor builder.
-    ///
-    /// # Arguments
-    ///
-    /// `format` - format for the tensor descriptor.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use cudnn::{TensorFormat, TensorDescriptorBuilder};
-    ///
-    /// let builder = TensorDescriptorBuilder::<f32>::new(&[5, 5, 10, 25]).format(TensorFormat::Nchw);
-    /// ```
-    pub fn format(self, format: TensorFormat) -> TensorDescriptorBuilderFormat<'a, T> {
-        TensorDescriptorBuilderFormat {
-            builder: self,
-            format,
-        }
-    }
-}
-
-pub struct TensorDescriptorBuilderStrides<'a, T>
-where
-    T: DataType,
-{
-    builder: TensorDescriptorBuilder<'a, T>,
-    strides: &'a [i32],
-}
-
-impl<'a, T> TensorDescriptorBuilderStrides<'a, T>
-where
-    T: DataType,
-{
-    /// Creates a tensor descriptor from the provided configuration.
-    ///
+    /// * `strides` - strides for the tensor descriptor.
     ///
     /// # Examples
     ///
@@ -102,26 +36,18 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{TensorDescriptorBuilder, TensorFormat};
+    /// use cudnn::TensorDescriptor;
     ///
-    /// let builder = TensorDescriptorBuilder::<f32>::new(&[5, 5, 10, 25])
-    ///     .strides(&[1250, 250, 25, 1])
-    ///     .build()?;
+    /// let shape = &[5, 5, 10, 25];
+    /// let strides = &[1250, 250, 25, 1];
+    ///
+    /// let builder = TensorDescriptor::<f32>::new_strides(shape, strides)?;
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if at least one of the elements of the shape slice was negative or zero,
-    /// the dimension was smaller than 3 or larger than `CUDNN_DIM_MAX`, or the total size of the
-    /// tensor descriptor exceeds the maximum limit of 2 Giga-elements.
-    pub fn build(self) -> Result<TensorDescriptor<T>, CudnnError> {
+    pub fn new_strides(shape: &[i32], strides: &[i32]) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
 
-        let shape = self.builder.shape;
-        let data_type = self.builder.data_type;
-        let strides = self.strides;
         let ndims = shape.len();
 
         assert_eq!(
@@ -143,24 +69,20 @@ where
             )
             .into_result()?;
 
-            Ok(TensorDescriptor { raw, data_type })
+            Ok(Self {
+                raw,
+                data_type: PhantomData,
+            })
         }
     }
-}
 
-pub struct TensorDescriptorBuilderFormat<'a, T>
-where
-    T: DataType,
-{
-    builder: TensorDescriptorBuilder<'a, T>,
-    format: TensorFormat,
-}
-
-impl<'a, T> TensorDescriptorBuilderFormat<'a, T>
-where
-    T: DataType,
-{
-    /// Creates a tensor descriptor from the provided configuration.
+    /// Creates a tensor descriptor builder with the given shape and format.
+    ///
+    /// # Arguments
+    ///
+    /// * `shape` - slice containing the size of the tensor for every dimension.
+    ///
+    /// * `format` - format for the tensor descriptor.
     ///
     /// # Examples
     ///
@@ -168,26 +90,18 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{TensorDescriptorBuilder, TensorFormat};
+    /// use cudnn::{TensorDescriptor, TensorFormat};
     ///
-    /// let builder = TensorDescriptorBuilder::<f32>::new(&[5, 5, 10, 25])
-    ///     .format(TensorFormat::Nchw)
-    ///     .build()?;
+    /// let shape = &[5, 5, 10, 25];
+    /// let format = TensorFormat::Nchw;
+    ///
+    /// let builder = TensorDescriptor::<f32>::new_format(shape, format)?;
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if at least one of the elements of the shape slice was negative or zero,
-    /// the dimension was smaller than 3 or larger than `CUDNN_DIM_MAX`, or the total size of the
-    /// tensor descriptor exceeds the maximum limit of 2 Giga-elements.
-    pub fn build(self) -> Result<TensorDescriptor<T>, CudnnError> {
+    pub fn new_format(shape: &[i32], format: TensorFormat) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
 
-        let shape = self.builder.shape;
-        let data_type = self.builder.data_type;
-        let format = self.format;
         let ndims = shape.len();
 
         unsafe {
@@ -203,19 +117,12 @@ where
             )
             .into_result()?;
 
-            Ok(TensorDescriptor { raw, data_type })
+            Ok(TensorDescriptor {
+                raw,
+                data_type: PhantomData,
+            })
         }
     }
-}
-
-/// A generic description of an n-dimensional dataset.
-#[derive(Debug, Clone, PartialEq, Hash)]
-pub struct TensorDescriptor<T>
-where
-    T: DataType,
-{
-    pub(crate) raw: sys::cudnnTensorDescriptor_t,
-    data_type: PhantomData<T>,
 }
 
 impl<T> Drop for TensorDescriptor<T>
