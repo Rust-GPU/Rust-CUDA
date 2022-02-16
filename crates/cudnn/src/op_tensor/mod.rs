@@ -46,6 +46,43 @@ impl CudnnContext {
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{CudnnContext, Mul, NanPropagation, OpTensorDescriptor, TensorDescriptor};
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let op = Mul;
+    /// let nan_policy = NanPropagation::PropagateNaN;
+    ///
+    /// let op_desc = OpTensorDescriptor::<f32, Mul>::new(op, nan_policy)?;
+    ///
+    /// let alpha = 1.0;
+    /// let a_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
+    /// let a = DeviceBuffer::<i8>::from_slice(&[2, 2, 2, 2, 2])?;
+    ///
+    /// let beta = 1.0;
+    /// let b_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
+    /// let b = DeviceBuffer::<i8>::from_slice(&[3, 3, 3, 3, 3])?;
+    ///
+    /// let gamma = 0.0;
+    /// let c_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
+    /// let mut c = DeviceBuffer::<i8>::from_slice(&[0, 0, 0, 0, 0])?;
+    ///
+    /// ctx.binary_tensor_op(&op_desc, alpha, &a_desc, &a, beta, &b_desc, &b, gamma, &c_desc, &mut c)?;
+    ///
+    /// let c_host = c.as_host_vec()?;
+    ///
+    /// assert!(c_host.iter().all(|x| *x == 6));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn binary_tensor_op<CompT, Op, T1, T2, T3>(
         &self,
         op_desc: &OpTensorDescriptor<CompT, Op>,
@@ -121,6 +158,39 @@ impl CudnnContext {
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{CudnnContext, NanPropagation, OpTensorDescriptor, Sqrt, TensorDescriptor};
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let op = Sqrt;
+    /// let nan_policy = NanPropagation::PropagateNaN;
+    ///
+    /// let op_desc = OpTensorDescriptor::<f32, Sqrt>::new(op, nan_policy)?;
+    ///
+    /// let alpha = 1.0;
+    /// let a_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
+    /// let a = DeviceBuffer::<i8>::from_slice(&[49, 49, 49, 49, 49])?;
+    ///
+    /// let gamma = 0.0;
+    /// let c_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
+    /// let mut c = DeviceBuffer::<i8>::from_slice(&[0, 0, 0, 0, 0])?;
+    ///
+    /// ctx.unary_tensor_op(&op_desc, alpha, &a_desc, &a, gamma, &c_desc, &mut c)?;
+    ///
+    /// let c_host = c.as_host_vec()?;
+    ///
+    /// assert!(c_host.iter().all(|x| *x == 7));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn unary_tensor_op<CompT, Op, T1, T2>(
         &self,
         op_desc: &OpTensorDescriptor<CompT, Op>,
@@ -186,6 +256,34 @@ impl CudnnContext {
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{CudnnContext, TensorDescriptor};
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let alpha = 1.0;
+    /// let a_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
+    /// let a = DeviceBuffer::<i8>::from_slice(&[4, 4, 4, 4, 4])?;
+    ///
+    /// let gamma = 1.0;
+    /// let c_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
+    /// let mut c = DeviceBuffer::<i8>::from_slice(&[6, 6, 6, 6, 6])?;
+    ///
+    /// ctx.add_assign(alpha, &a_desc, &a, gamma, &c_desc, &mut c)?;
+    ///
+    /// let c_host = c.as_host_vec()?;
+    ///
+    /// assert!(c_host.iter().all(|x| *x == 10));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn add_assign<CompT, T1, T2>(
         &self,
         alpha: CompT,

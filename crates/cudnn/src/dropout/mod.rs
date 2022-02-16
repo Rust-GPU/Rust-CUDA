@@ -106,7 +106,7 @@ impl CudnnContext {
             sys::cudnnSetDropoutDescriptor(raw, self.raw, dropout, states_ptr, states_size, seed)
                 .into_result()?;
 
-            Ok(DropoutDescriptor::new(raw, states))
+            Ok(DropoutDescriptor { raw, states })
         }
     }
 

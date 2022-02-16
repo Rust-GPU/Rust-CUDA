@@ -7,16 +7,7 @@ where
     T: GpuBuffer<u8>,
 {
     pub(crate) raw: sys::cudnnDropoutDescriptor_t,
-    states: T,
-}
-
-impl<T> DropoutDescriptor<T>
-where
-    T: GpuBuffer<u8>,
-{
-    pub(crate) fn new(raw: sys::cudnnDropoutDescriptor_t, states: T) -> Self {
-        Self { raw, states }
-    }
+    pub(crate) states: T,
 }
 
 impl<T> Drop for DropoutDescriptor<T>

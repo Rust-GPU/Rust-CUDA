@@ -84,6 +84,8 @@ impl<T: DataType, Op: OpTensorOp> Drop for OpTensorDescriptor<T, Op> {
 /// | f64      | f64      | f64      | f64      |
 /// | f32      | i8       | i8       | i8       |
 /// | f32      | f32      | f32      | i8       |
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensor).
 pub trait SupportedOp<AType, BType, CType>
 where
     Self: DataType,
