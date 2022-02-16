@@ -2,6 +2,10 @@
 
 Notable changes to this project will be documented in this file.
 
+## 0.3.2 - 2/16/22
+
+- Fixed `ModuleJitOptions` not working (due to cursed reasons).
+
 ## 0.3.1 - 2/11/22
 
 No changes, updated to cust_derive 0.2 to fix a bug.
