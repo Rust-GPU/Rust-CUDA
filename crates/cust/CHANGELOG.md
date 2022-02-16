@@ -2,6 +2,10 @@
 
 Notable changes to this project will be documented in this file.
 
+## Unreleased
+
+ - Add `memory::memcpy_dtoh` to allow copying from device to host.
+
 ## 0.3.2 - 2/16/22
 
 - Fixed `ModuleJitOptions` not working (due to cursed reasons).
