@@ -214,6 +214,17 @@ pub unsafe fn memcpy_htod(
     Ok(())
 }
 
+/// Simple wrapper over cuMemcpyDtoH_v2
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn memcpy_dtoh(
+    d_ptr: *mut c_void,
+    src_ptr: cust_raw::CUdeviceptr,
+    size: usize,
+) -> CudaResult<()> {
+    crate::sys::cuMemcpyDtoH_v2(d_ptr, src_ptr, size).to_result()?;
+    Ok(())
+}
+
 /// Get the current free and total memory.
 ///
 /// Returns in `.1` the total amount of memory available to the the current context.
