@@ -4,6 +4,8 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added symbols for cuda_std to link to for warp intrinsics.
+
 ## 0.2.3 - 1/2/22
 
 - Fixed the `raw_eq` intrinsic being undefined.

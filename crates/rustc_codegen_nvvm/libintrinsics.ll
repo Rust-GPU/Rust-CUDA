@@ -286,5 +286,47 @@ start:
 }
 declare {<2 x i64>, i1} @__rust_u128_mulo(<2 x i64>, <2 x i64>) #0
 
+; Required because we need to explicitly generate { i32, i1 } for the following intrinsics
+; except rustc will not generate them (it will make { i32, i8 }) which libnvvm rejects.
+
+define { i32, i8 } @__nvvm_warp_shuffle(i32, i32, i32, i32, i32) #1 {
+start:
+  %5 = call { i32, i1 } @llvm.nvvm.shfl.sync.i32(i32 %0, i32 %1, i32 %2, i32 %3, i32 %4)
+  %6 = extractvalue { i32, i1 } %5, 1
+  %7 = zext i1 %6 to i8
+  %8 = extractvalue { i32, i1 } %5, 0
+  %9 = insertvalue { i32, i8 } undef, i32 %8, 0
+  %10 = insertvalue { i32, i8 } %9, i8 %7, 1
+  ret { i32, i8 } %10
+}
+
+declare { i32, i1 } @llvm.nvvm.shfl.sync.i32(i32, i32, i32, i32, i32) #1
+
+define { i32, i8 } @__nvvm_warp_match_all_32(i32, i32) {
+start:
+  %2 = call { i32, i1 } @llvm.nvvm.match.all.sync.i32(i32 %0, i32 %1)
+  %3 = extractvalue { i32, i1 } %2, 1
+  %4 = zext i1 %3 to i8
+  %5 = extractvalue { i32, i1 } %2, 0
+  %6 = insertvalue { i32, i8 } undef, i32 %5, 0
+  %7 = insertvalue { i32, i8 } %6, i8 %4, 1
+  ret { i32, i8 } %7
+}
+
+declare { i32, i1 } @llvm.nvvm.match.all.sync.i32(i32, i32) #1
+
+define { i32, i8 } @__nvvm_warp_match_all_64(i32, i64) {
+start:
+  %2 = call { i32, i1 } @llvm.nvvm.match.all.sync.i64(i32 %0, i64 %1)
+  %3 = extractvalue { i32, i1 } %2, 1
+  %4 = zext i1 %3 to i8
+  %5 = extractvalue { i32, i1 } %2, 0
+  %6 = insertvalue { i32, i8 } undef, i32 %5, 0
+  %7 = insertvalue { i32, i8 } %6, i8 %4, 1
+  ret { i32, i8 } %7
+}
+
+declare { i32, i1 } @llvm.nvvm.match.all.sync.i64(i32, i64) #1
+
 attributes #0 = { alwaysinline speculatable }
 attributes #1 = { alwaysinline }
