@@ -92,36 +92,46 @@ pub enum ModuleJitOption {
 
 impl ModuleJitOption {
     pub fn into_raw(opts: &[Self]) -> (Vec<cuda::CUjit_option>, Vec<*mut c_void>) {
+        // And here we stumble across one of the most horrific things i have ever seen in my entire
+        // journey of working with many parts of CUDA. As a background, CUDA usually wants an array
+        // of pointers to values when it takes void**, after all, this is what is expected by anyone.
+        // However, there is a SINGLE exception in the entire driver API, and that is cuModuleLoadDataEx,
+        // it actually wants you to pass values by value instead of by ref if they fit into pointer length.
+        // Therefore something like MaxRegisters should be passed as `u32 as usize as *mut c_void`.
+        // This is completely undocumented. I initially brought this up to an nvidia developer,
+        // who eventually was able to figure out this issue, currently it appears to be labeled "not a bug",
+        // however this will likely be changed in the future, or at least get documented better. (hopefully)
         let mut raw_opts = Vec::with_capacity(opts.len());
         let mut raw_vals = Vec::with_capacity(opts.len());
+
         for opt in opts {
             match opt {
                 Self::MaxRegisters(regs) => {
                     raw_opts.push(cuda::CUjit_option::CU_JIT_MAX_REGISTERS);
-                    raw_vals.push(regs as *const u32 as *mut _);
+                    raw_vals.push(*regs as usize as *mut c_void);
                 }
                 Self::OptLevel(level) => {
                     raw_opts.push(cuda::CUjit_option::CU_JIT_OPTIMIZATION_LEVEL);
-                    raw_vals.push(level as *const OptLevel as *mut _);
+                    raw_vals.push(*level as usize as *mut c_void);
                 }
                 Self::DetermineTargetFromContext => {
                     raw_opts.push(cuda::CUjit_option::CU_JIT_TARGET_FROM_CUCONTEXT);
                 }
                 Self::Target(target) => {
                     raw_opts.push(cuda::CUjit_option::CU_JIT_TARGET);
-                    raw_vals.push(target as *const JitTarget as *mut _);
+                    raw_vals.push(*target as usize as *mut c_void);
                 }
                 Self::Fallback(fallback) => {
                     raw_opts.push(cuda::CUjit_option::CU_JIT_FALLBACK_STRATEGY);
-                    raw_vals.push(fallback as *const JitFallback as *mut _);
+                    raw_vals.push(*fallback as usize as *mut c_void);
                 }
                 Self::GenenerateDebugInfo(gen) => {
                     raw_opts.push(cuda::CUjit_option::CU_JIT_GENERATE_DEBUG_INFO);
-                    raw_vals.push(gen as *const bool as *mut _);
+                    raw_vals.push(*gen as usize as *mut c_void);
                 }
                 Self::GenerateLineInfo(gen) => {
                     raw_opts.push(cuda::CUjit_option::CU_JIT_GENERATE_LINE_INFO);
-                    raw_vals.push(gen as *const bool as *mut _)
+                    raw_vals.push(*gen as usize as *mut c_void)
                 }
             }
         }
