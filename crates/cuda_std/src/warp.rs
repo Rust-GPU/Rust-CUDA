@@ -412,7 +412,6 @@ pub unsafe fn warp_vote_ballot(mask: u32, predicate: bool) -> u32 {
 ///
 /// # Arguments
 ///
-/// - `mode` dictates how to calculate the target lane that will be used as the source of this thread's returned value.
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
 /// that calculates this thread as its target lane.
@@ -455,7 +454,6 @@ pub unsafe fn warp_shuffle_down<T: WarpShuffleValue>(
 ///
 /// # Arguments
 ///
-/// - `mode` dictates how to calculate the target lane that will be used as the source of this thread's returned value.
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
 /// that calculates this thread as its target lane.
@@ -498,7 +496,6 @@ pub unsafe fn warp_shuffle_up<T: WarpShuffleValue>(
 ///
 /// # Arguments
 ///
-/// - `mode` dictates how to calculate the target lane that will be used as the source of this thread's returned value.
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
 /// that calculates this thread as its target lane.
@@ -541,7 +538,6 @@ pub unsafe fn warp_shuffle_idx<T: WarpShuffleValue>(
 ///
 /// # Arguments
 ///
-/// - `mode` dictates how to calculate the target lane that will be used as the source of this thread's returned value.
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
 /// that calculates this thread as its target lane.
