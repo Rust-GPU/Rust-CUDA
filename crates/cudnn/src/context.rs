@@ -38,6 +38,7 @@ use std::mem::{self, MaybeUninit};
 /// resources on drop. They will also synchronize the entire device when dropping the context.
 /// Therefore, you should minimize both the amount of contexts, and the amount of context drops.
 /// You should generally create and drop context outside of performance critical code paths.
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct CudnnContext {
     pub(crate) raw: sys::cudnnHandle_t,
 }

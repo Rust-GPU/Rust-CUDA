@@ -1,7 +1,6 @@
 use crate::sys;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-
 pub enum TensorFormat {
     /// This tensor format specifies that the data is laid out in the following order: batch size,
     /// feature maps, rows, columns. The strides are implicitly defined in such a way that the data

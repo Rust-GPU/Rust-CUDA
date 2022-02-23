@@ -41,7 +41,7 @@ where
     /// let shape = &[5, 5, 10, 25];
     /// let strides = &[1250, 250, 25, 1];
     ///
-    /// let builder = TensorDescriptor::<f32>::new_strides(shape, strides)?;
+    /// let desc = TensorDescriptor::<f32>::new_strides(shape, strides)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -95,7 +95,7 @@ where
     /// let shape = &[5, 5, 10, 25];
     /// let format = TensorFormat::Nchw;
     ///
-    /// let builder = TensorDescriptor::<f32>::new_format(shape, format)?;
+    /// let desc = TensorDescriptor::<f32>::new_format(shape, format)?;
     /// # Ok(())
     /// # }
     /// ```
