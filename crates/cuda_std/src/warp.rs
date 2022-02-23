@@ -35,7 +35,7 @@ pub fn lane_id() -> u32 {
     let mut out;
     unsafe {
         asm!(
-            "mov.u32 {}, %laneid",
+            "mov.u32 {}, %laneid;",
             out(reg32) out
         );
     }
