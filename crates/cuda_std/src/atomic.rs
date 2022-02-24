@@ -61,6 +61,18 @@ macro_rules! safety_doc {
     };
 }
 
+// taken from stdlib compare_and_swap docs
+fn double_ordering_from_one(ordering: Ordering) -> (Ordering, Ordering) {
+    match ordering {
+        Ordering::Relaxed => (Ordering::Relaxed, Ordering::Relaxed),
+        Ordering::Acquire => (Ordering::Acquire, Ordering::Acquire),
+        Ordering::Release => (Ordering::Release, Ordering::Relaxed),
+        Ordering::AcqRel => (Ordering::AcqRel, Ordering::Acquire),
+        Ordering::SeqCst => (Ordering::SeqCst, Ordering::SeqCst),
+        _ => unreachable!(),
+    }
+}
+
 macro_rules! atomic_float {
     ($float_ty:ident, $atomic_ty:ident, $align:tt, $scope:ident, $width:tt $(,$unsafety:ident)?) => {
         #[doc = concat!("A ", stringify!($width), "-bit float type which can be safely shared between threads and synchronizes across ", scope_doc!($scope))]
@@ -220,6 +232,17 @@ macro_rules! atomic_float {
                     #[cfg(not(target_os = "cuda"))]
                     self.as_atomic_bits().store(val.to_bits(), order);
                 }
+
+                // $(#[doc = safety_doc!($unsafety)])?
+                // pub $($unsafety)? fn compare_and_swap(&self, current: f32, new: f32, order: Ordering) -> Result<$float_ty, $float_ty> {
+                //     #[cfg(target_os = "cuda")]
+                //     unsafe {
+                //         let res = mid::[<atomic_compare_and_swap_ $float_ty _ $scope>](self.v.get().cast(), order, current, new);
+                //     }
+
+                //     #[cfg(not(target_os = "cuda"))]
+                //     self.as_atomic_bits().compare_exchange
+                // }
             }
         }
     };
