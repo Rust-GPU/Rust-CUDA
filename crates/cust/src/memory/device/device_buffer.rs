@@ -5,7 +5,7 @@ use crate::memory::{cuda_free_async, DevicePointer};
 use crate::memory::{cuda_malloc_async, DeviceCopy};
 use crate::stream::Stream;
 use crate::sys as cuda;
-#[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
+#[cfg(feature = "bytemuck")]
 pub use bytemuck;
 #[cfg(feature = "bytemuck")]
 use bytemuck::{Pod, PodCastError, Zeroable};
@@ -282,6 +282,7 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
     }
 }
 
+#[cfg(feature = "bytemuck")]
 fn casting_went_wrong(src: &str, err: PodCastError) -> ! {
     panic!("{}>{:?}", src, err);
 }
