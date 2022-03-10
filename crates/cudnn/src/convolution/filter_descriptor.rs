@@ -1,9 +1,4 @@
-use crate::{
-    data_type::DataType,
-    error::{CudnnError, IntoResult},
-    sys,
-    tensor::{SupportedType, TensorFormat},
-};
+use crate::{sys, CudnnError, DataType, IntoResult, ScalarC};
 use std::{
     marker::PhantomData,
     mem::{self, MaybeUninit},
@@ -11,28 +6,25 @@ use std::{
 
 /// A generic description of an n-dimensional filter dataset.
 #[derive(Debug, Clone, PartialEq, Hash)]
-pub struct FilterDescriptor<T, F, const D: usize>
+pub struct FilterDescriptor<T>
 where
     T: DataType,
-    F: TensorFormat + SupportedType<T>,
 {
     pub(crate) raw: sys::cudnnFilterDescriptor_t,
     data_type: PhantomData<T>,
-    format: F,
 }
 
-impl<T, F, const D: usize> FilterDescriptor<T, F, D>
+impl<T> FilterDescriptor<T>
 where
     T: DataType,
-    F: TensorFormat + SupportedType<T>,
 {
-    /// Creates a generic filter descriptor with the given memory format.
+    /// Creates a generic filter descriptor with the given shape and memory format.
     ///
     /// # Arguments
     ///
-    /// * shape - array containing the size of the filter for every dimension.
+    /// * `shape` - slice containing the size of the filter for every dimension.
     ///
-    /// * format - tensor format. If set to [`NCHW`](TensorFormat::NCHW), then the layout of the
+    /// * `format` - tensor format. If set to [`Nchw`](ScalarC::Nchw), then the layout of the
     /// filter is as follows: for D = 4, a 4D filter descriptor, the filter layout is in the form of
     /// KCRS, i.e. K represents the number of output feature maps, C is the number of input feature
     /// maps, R is the number of rows per filter, S is the number of columns per filter. For N = 3,
@@ -51,17 +43,18 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{FilterDescriptor, NCHW};
+    /// use cudnn::{FilterDescriptor, ScalarC};
     ///
-    /// let shape = [2, 2, 25, 25];
-    /// let format = NCHW;
+    /// let shape = &[2, 2, 25, 25];
+    /// let format = ScalarC::Nchw;
     ///
-    /// let desc = FilterDescriptor::<f32, _, 4>::new(shape, format)?;
+    /// let desc = FilterDescriptor::<f32>::new(shape, format)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(shape: [i32; D], format: F) -> Result<Self, CudnnError> {
+    pub fn new(shape: &[i32], format: ScalarC) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
+        let ndims = shape.len();
 
         unsafe {
             sys::cudnnCreateFilterDescriptor(raw.as_mut_ptr()).into_result()?;
@@ -69,26 +62,24 @@ where
 
             sys::cudnnSetFilterNdDescriptor(
                 raw,
-                <F as SupportedType<T>>::data_type(),
-                <F as TensorFormat>::into_raw(),
-                D as i32,
+                T::into_raw(),
+                format.into(),
+                ndims as i32,
                 shape.as_ptr(),
             )
             .into_result()?;
 
             Ok(Self {
                 raw,
-                format,
                 data_type: PhantomData,
             })
         }
     }
 }
 
-impl<T, F, const D: usize> Drop for FilterDescriptor<T, F, D>
+impl<T> Drop for FilterDescriptor<T>
 where
     T: DataType,
-    F: TensorFormat + SupportedType<T>,
 {
     fn drop(&mut self) {
         unsafe {

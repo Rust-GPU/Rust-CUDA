@@ -1,9 +1,4 @@
-use crate::{
-    data_type::DataType,
-    error::{CudnnError, IntoResult},
-    sys,
-    tensor::{SupportedType, TensorFormat},
-};
+use crate::{sys, CudnnError, DataType, IntoResult, ScalarC, TensorFormat, VecType};
 use std::{
     marker::PhantomData,
     mem::{self, MaybeUninit},
@@ -11,35 +6,25 @@ use std::{
 
 /// A generic description of an n-dimensional dataset.
 #[derive(Debug, Clone, PartialEq, Hash)]
-pub struct TensorDescriptor<T, F, const D: usize>
+pub struct TensorDescriptor<T>
 where
     T: DataType,
-    F: TensorFormat + SupportedType<T>,
 {
     pub(crate) raw: sys::cudnnTensorDescriptor_t,
     data_type: PhantomData<T>,
-    format: F,
 }
 
-impl<T, F, const D: usize> TensorDescriptor<T, F, D>
+impl<T> TensorDescriptor<T>
 where
     T: DataType,
-    F: TensorFormat + SupportedType<T>,
 {
-    /// Creates a generic tensor descriptor with the given memory format.
+    /// Creates a tensor descriptor with the given shape and strides.
     ///
     /// # Arguments
     ///
-    /// * shape - array containing the size of the tensor for every dimension. The size along
-    /// unused dimensions should be set to 1.
+    /// * `shape` - slice containing the size of the tensor for every dimension.
     ///
-    /// * format - tensor format.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if at least one of the elements of the array shape was negative or zero,
-    /// the dimension was smaller than 3 or larger than `CUDNN_DIM_MAX`, or the total size of the
-    /// tensor descriptor exceeds the maximum limit of 2 Giga-elements.
+    /// * `strides` - strides for the tensor descriptor.
     ///
     /// # Examples
     ///
@@ -47,17 +32,73 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{TensorDescriptor, NCHW};
+    /// use cudnn::TensorDescriptor;
     ///
-    /// let shape = [2, 25, 25];
-    /// let format = NCHW;
+    /// let shape = &[5, 5, 10, 25];
+    /// let strides = &[1250, 250, 25, 1];
     ///
-    /// let desc = TensorDescriptor::<f32, _, 3>::new(shape, format)?;
+    /// let desc = TensorDescriptor::<f32>::new_strides(shape, strides)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(shape: [i32; D], format: F) -> Result<Self, CudnnError> {
+    pub fn new_strides(shape: &[i32], strides: &[i32]) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
+
+        let ndims = shape.len();
+
+        assert_eq!(
+            ndims,
+            strides.len(),
+            "shape and strides length do not match."
+        );
+
+        unsafe {
+            sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+            let raw = raw.assume_init();
+
+            sys::cudnnSetTensorNdDescriptor(
+                raw,
+                T::into_raw(),
+                ndims as i32,
+                shape.as_ptr(),
+                strides.as_ptr(),
+            )
+            .into_result()?;
+
+            Ok(Self {
+                raw,
+                data_type: PhantomData,
+            })
+        }
+    }
+
+    /// Creates a tensor descriptor with the given shape and format.
+    ///
+    /// # Arguments
+    ///
+    /// * `shape` - slice containing the size of the tensor for every dimension.
+    ///
+    /// * `format` - format for the tensor descriptor.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{TensorDescriptor, ScalarC};
+    ///
+    /// let shape = &[5, 5, 10, 25];
+    /// let format = ScalarC::Nchw;
+    ///
+    /// let desc = TensorDescriptor::<f32>::new_format(shape, format)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_format(shape: &[i32], format: ScalarC) -> Result<Self, CudnnError> {
+        let mut raw = MaybeUninit::uninit();
+
+        let ndims = shape.len();
 
         unsafe {
             sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
@@ -65,26 +106,75 @@ where
 
             sys::cudnnSetTensorNdDescriptorEx(
                 raw,
-                <F as TensorFormat>::into_raw(),
-                <F as SupportedType<T>>::data_type(),
-                D as i32,
+                format.into(),
+                T::into_raw(),
+                ndims as i32,
                 shape.as_ptr(),
             )
             .into_result()?;
 
-            Ok(Self {
+            Ok(TensorDescriptor {
                 raw,
-                format,
+                data_type: PhantomData,
+            })
+        }
+    }
+
+    /// Creates a tensor descriptor with the given shape and vectorized format.
+    ///
+    /// # Arguments
+    ///
+    /// `shape` - slice containing the size of the tensor for every dimension.
+    ///
+    /// **Do note** that the actual vectorized data type must be specified with the associated
+    /// generic.
+    ///
+    /// Check [cuDNN docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#nc32hw32-layout-x32) for more details.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{TensorDescriptor, Vec4};
+    ///
+    /// let shape = &[4, 32, 32, 32];
+    ///
+    /// let desc = TensorDescriptor::<i8>::new_vectorized::<Vec4>(shape)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_vectorized<V: VecType<T>>(shape: &[i32]) -> Result<Self, CudnnError> {
+        let mut raw = MaybeUninit::uninit();
+
+        let ndims = shape.len();
+        let format = TensorFormat::NchwVectC;
+
+        unsafe {
+            sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+            let raw = raw.assume_init();
+
+            sys::cudnnSetTensorNdDescriptorEx(
+                raw,
+                format.into(),
+                V::into_raw(),
+                ndims as i32,
+                shape.as_ptr(),
+            )
+            .into_result()?;
+
+            Ok(TensorDescriptor {
+                raw,
                 data_type: PhantomData,
             })
         }
     }
 }
 
-impl<T, F, const D: usize> Drop for TensorDescriptor<T, F, D>
+impl<T> Drop for TensorDescriptor<T>
 where
     T: DataType,
-    F: TensorFormat + SupportedType<T>,
 {
     fn drop(&mut self) {
         unsafe {

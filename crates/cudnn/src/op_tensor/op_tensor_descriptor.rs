@@ -1,34 +1,50 @@
-use crate::{
-    data_type::*,
-    error::{CudnnError, IntoResult},
-    nan_propagation::NanPropagation,
-    op_tensor::*,
-    sys,
-};
+use crate::{sys, BinaryOp, CudnnError, DataType, IntoResult, NanPropagation, UnaryOp};
 use std::{marker::PhantomData, mem::MaybeUninit};
 
-/// The description of a Tensor Core operation.
+/// Initializes an op tensor descriptor.
+///
+/// # Arguments
+///
+/// * `raw` - raw pointer to the descriptor.
+///
+/// * `op` - raw  operation type.
+///
+/// * `nan_opt` - raw nan propagation policy.
+unsafe fn init_raw_op_descriptor<T: DataType>(
+    op: sys::cudnnOpTensorOp_t,
+    nan_opt: sys::cudnnNanPropagation_t,
+) -> Result<sys::cudnnOpTensorDescriptor_t, CudnnError> {
+    let mut raw = MaybeUninit::uninit();
+
+    sys::cudnnCreateOpTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+
+    let mut raw = raw.assume_init();
+
+    sys::cudnnSetOpTensorDescriptor(raw, op, T::into_raw(), nan_opt).into_result()?;
+    Ok(raw)
+}
+
+/// The description of a unary Tensor Core operation.
 ///
 ///
 /// As specified in the cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#scaling-parameters),
 /// admissible types for scaling parameters are `f32` and `f64` for `f32` and `f64` tensors
 /// respectively.
-pub struct OpTensorDescriptor<T: DataType, Op: OpTensorOp> {
+pub struct UnaryOpTensorDescriptor<T: DataType> {
     pub(crate) raw: sys::cudnnOpTensorDescriptor_t,
     comp_type: PhantomData<T>,
-    op: Op,
+    op: UnaryOp,
 }
 
-impl<T, Op> OpTensorDescriptor<T, Op>
+impl<T> UnaryOpTensorDescriptor<T>
 where
     T: DataType,
-    Op: OpTensorOp,
 {
-    /// Creates a tensor point-wise math descriptor.
+    /// Creates a unary tensor point-wise math descriptor.
     ///
     /// # Arguments
     ///
-    /// * `op` - the tensor point-wise math operation to be performed.
+    /// * `op` - the unary tensor point-wise math operation to be performed.
     ///
     /// * `nan_opt` - a NaN propagation policy.
     ///
@@ -38,25 +54,19 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{Add, NanPropagation, OpTensorDescriptor};
+    /// use cudnn::{UnaryOp, UnaryOpTensorDescriptor, NanPropagation};
     ///
-    /// let op = Add;
+    /// let op = UnaryOp::Sqrt;
     /// let nan_policy = NanPropagation::PropagateNaN;
     ///
     /// // We are stating that the computation must be done in f32.
-    /// let desc = OpTensorDescriptor::<f32, _>::new(op, nan_policy)?;
+    /// let desc = UnaryOpTensorDescriptor::<f32>::new(op, nan_policy)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(op: Op, nan_opt: NanPropagation) -> Result<Self, CudnnError> {
-        let mut raw = MaybeUninit::uninit();
-
+    pub fn new(op: UnaryOp, nan_opt: NanPropagation) -> Result<Self, CudnnError> {
         unsafe {
-            sys::cudnnCreateOpTensorDescriptor(raw.as_mut_ptr()).into_result()?;
-            let mut raw = raw.assume_init();
-
-            sys::cudnnSetOpTensorDescriptor(raw, Op::into_raw(), T::into_raw(), nan_opt.into())
-                .into_result()?;
+            let raw = init_raw_op_descriptor::<T>(op.into(), nan_opt.into())?;
 
             Ok(Self {
                 raw,
@@ -67,7 +77,68 @@ where
     }
 }
 
-impl<T: DataType, Op: OpTensorOp> Drop for OpTensorDescriptor<T, Op> {
+impl<T: DataType> Drop for UnaryOpTensorDescriptor<T> {
+    fn drop(&mut self) {
+        unsafe {
+            sys::cudnnDestroyOpTensorDescriptor(self.raw);
+        }
+    }
+}
+
+/// The description of a binary Tensor Core operation.
+///
+///
+/// As specified in the cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#scaling-parameters),
+/// admissible types for scaling parameters are `f32` and `f64` for `f32` and `f64` tensors
+/// respectively.
+pub struct BinaryOpTensorDescriptor<T: DataType> {
+    pub(crate) raw: sys::cudnnOpTensorDescriptor_t,
+    comp_type: PhantomData<T>,
+    op: BinaryOp,
+}
+
+impl<T> BinaryOpTensorDescriptor<T>
+where
+    T: DataType,
+{
+    /// Creates a binary tensor point-wise math descriptor.
+    ///
+    /// # Arguments
+    ///
+    /// * `op` - the unary tensor point-wise math operation to be performed.
+    ///
+    /// * `nan_opt` - a NaN propagation policy.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{BinaryOp, BinaryOpTensorDescriptor, NanPropagation};
+    ///
+    /// let op = BinaryOp::Add;
+    /// let nan_policy = NanPropagation::PropagateNaN;
+    ///
+    /// // We are stating that the computation must be done in f32.
+    /// let desc = BinaryOpTensorDescriptor::<f32>::new(op, nan_policy)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(op: BinaryOp, nan_opt: NanPropagation) -> Result<Self, CudnnError> {
+        unsafe {
+            let raw = init_raw_op_descriptor::<T>(op.into(), nan_opt.into())?;
+
+            Ok(Self {
+                raw,
+                comp_type: PhantomData,
+                op,
+            })
+        }
+    }
+}
+
+impl<T: DataType> Drop for BinaryOpTensorDescriptor<T> {
     fn drop(&mut self) {
         unsafe {
             sys::cudnnDestroyOpTensorDescriptor(self.raw);
@@ -84,6 +155,8 @@ impl<T: DataType, Op: OpTensorOp> Drop for OpTensorDescriptor<T, Op> {
 /// | f64      | f64      | f64      | f64      |
 /// | f32      | i8       | i8       | i8       |
 /// | f32      | f32      | f32      | i8       |
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensor).
 pub trait SupportedOp<AType, BType, CType>
 where
     Self: DataType,

@@ -1,79 +1,67 @@
 use crate::sys;
 
-/// Addition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Add;
-
-/// Multiplication.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Mul;
-
-/// Minimum comparison.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Min;
-
-/// Maximum comparison.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Max;
-
-/// Square root.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Sqrt;
-
-/// Negation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Not;
-
-/// A tensor core operation.
-pub trait OpTensorOp {
-    fn into_raw() -> sys::cudnnOpTensorOp_t;
-}
-
-impl OpTensorOp for Add {
-    fn into_raw() -> sys::cudnnOpTensorOp_t {
-        sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_ADD
-    }
-}
-
-impl OpTensorOp for Mul {
-    fn into_raw() -> sys::cudnnOpTensorOp_t {
-        sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_MUL
-    }
-}
-
-impl OpTensorOp for Min {
-    fn into_raw() -> sys::cudnnOpTensorOp_t {
-        sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_MIN
-    }
-}
-
-impl OpTensorOp for Max {
-    fn into_raw() -> sys::cudnnOpTensorOp_t {
-        sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_MAX
-    }
-}
-
-impl OpTensorOp for Sqrt {
-    fn into_raw() -> sys::cudnnOpTensorOp_t {
-        sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_SQRT
-    }
-}
-
-impl OpTensorOp for Not {
-    fn into_raw() -> sys::cudnnOpTensorOp_t {
-        sys::cudnnOpTensorOp_t::CUDNN_OP_TENSOR_NOT
-    }
-}
-
 /// A unary tensor core operation.
-pub trait UnaryOp: OpTensorOp {}
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum UnaryOp {
+    Sqrt,
+    Not,
+}
+
+impl From<UnaryOp> for sys::cudnnOpTensorOp_t {
+    fn from(op: UnaryOp) -> Self {
+        match op {
+            UnaryOp::Sqrt => Self::CUDNN_OP_TENSOR_SQRT,
+            UnaryOp::Not => Self::CUDNN_OP_TENSOR_NOT,
+        }
+    }
+}
 
 /// A binary tensor core operation.
-pub trait BinaryOp: OpTensorOp {}
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BinaryOp {
+    Add,
+    Mul,
+    Min,
+    Max,
+}
 
-impl BinaryOp for Add {}
-impl BinaryOp for Mul {}
-impl BinaryOp for Min {}
-impl BinaryOp for Max {}
-impl UnaryOp for Sqrt {}
-impl UnaryOp for Not {}
+impl From<BinaryOp> for sys::cudnnOpTensorOp_t {
+    fn from(op: BinaryOp) -> Self {
+        match op {
+            BinaryOp::Add => Self::CUDNN_OP_TENSOR_ADD,
+            BinaryOp::Mul => Self::CUDNN_OP_TENSOR_MUL,
+            BinaryOp::Min => Self::CUDNN_OP_TENSOR_MIN,
+            BinaryOp::Max => Self::CUDNN_OP_TENSOR_MAX,
+        }
+    }
+}
+
+/// A tensor core operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TensorOp {
+    UnaryOp(UnaryOp),
+    BinaryOp(BinaryOp),
+}
+
+impl From<UnaryOp> for TensorOp {
+    fn from(op: UnaryOp) -> Self {
+        Self::UnaryOp(op)
+    }
+}
+
+impl From<BinaryOp> for TensorOp {
+    fn from(op: BinaryOp) -> Self {
+        Self::BinaryOp(op)
+    }
+}
+
+impl From<TensorOp> for sys::cudnnOpTensorOp_t {
+    fn from(op: TensorOp) -> Self {
+        match op {
+            TensorOp::BinaryOp(op) => op.into(),
+            TensorOp::UnaryOp(op) => op.into(),
+        }
+    }
+}

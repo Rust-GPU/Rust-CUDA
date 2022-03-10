@@ -1,10 +1,5 @@
 use crate::{
-    convolution::ConvolutionMode,
-    data_type::DataType,
-    error::{CudnnError, IntoResult},
-    math_type::MathType,
-    sys,
-    tensor::TensorFormat,
+    sys, ConvMode, DataType, MathType, TensorFormat, {CudnnError, IntoResult},
 };
 
 use std::{marker::PhantomData, mem::MaybeUninit};
@@ -15,13 +10,13 @@ use std::{marker::PhantomData, mem::MaybeUninit};
 /// the same convolution descriptor can be reused in the backward path provided it corresponds to
 /// the same layer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ConvolutionDescriptor<T: DataType, const N: usize> {
+pub struct ConvDescriptor<T: DataType> {
     pub(crate) raw: sys::cudnnConvolutionDescriptor_t,
     comp_type: PhantomData<T>,
 }
 
-impl<T: DataType, const N: usize> ConvolutionDescriptor<T, N> {
-    /// Creates a new `ConvolutionDescriptor`.
+impl<T: DataType> ConvDescriptor<T> {
+    /// Creates a new `ConvDescriptor`.
     ///
     /// # Arguments
     ///
@@ -37,11 +32,16 @@ impl<T: DataType, const N: usize> ConvolutionDescriptor<T, N> {
     ///
     /// * `groups` - number of groups to be used in the associated convolution.
     ///
-    /// * `mode` - selects between [`Convolution`](ConvolutionMode::Convolution) and
-    /// [`CrossCorrelation`](ConvolutionMode::CrossCorrelation).
+    /// * `mode` - selects between [`Convolution`](ConvMode::Convolution) and
+    /// [`CrossCorrelation`](ConvMode::CrossCorrelation).
     ///
     /// * `math_type` - indicates whether or not the use of tensor op is permitted in the library
     /// routines associated with a given convolution descriptor.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an error if any element of stride and dilation is negative or 0, if
+    /// any element of padding is negative or if N is greater than `CUDNN_DIM_MAX`.
     ///
     /// # Examples
     ///
@@ -53,18 +53,16 @@ impl<T: DataType, const N: usize> ConvolutionDescriptor<T, N> {
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, ConvolutionDescriptor, MathType, ConvolutionMode};
+    /// use cudnn::{ConvDescriptor, ConvMode, CudnnContext, MathType};
     ///
     /// let ctx = CudnnContext::new()?;
     ///
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let groups = 1;
-    /// let mode = ConvolutionMode::CrossCorrelation;
-    /// let math_type = MathType::Default;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
-    /// let conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, groups, mode, math_type)?;
+    /// let conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -75,33 +73,24 @@ impl<T: DataType, const N: usize> ConvolutionDescriptor<T, N> {
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, ConvolutionDescriptor, MathType, ConvolutionMode};
+    /// use cudnn::{ConvDescriptor, ConvMode, CudnnContext, MathType};
     ///
     /// let ctx = CudnnContext::new()?;
     ///
     /// let padding = [0, 0, 0];
     /// let stride = [1, 1, 1];
     /// let dilation = [1, 1, 1];
-    /// let groups = 1;
-    /// let mode = ConvolutionMode::CrossCorrelation;
-    /// let math_type = MathType::Default;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
-    /// let conv_desc = ConvolutionDescriptor::<f32, 3>::new(padding, stride, dilation, groups, mode, math_type)?;
+    /// let conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// # Errors
-    ///
-    /// This function returns an error if any element of stride and dilation is negative or 0, if
-    /// any element of padding is negative or if N is greater than `CUDNN_DIM_MAX`.
-    pub fn new(
+    pub fn new<const N: usize>(
         padding: [i32; N],
         stride: [i32; N],
         dilation: [i32; N],
-        groups: u32,
-        mode: ConvolutionMode,
-        math_type: MathType,
+        mode: ConvMode,
     ) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
 
@@ -124,10 +113,6 @@ impl<T: DataType, const N: usize> ConvolutionDescriptor<T, N> {
             )
             .into_result()?;
 
-            conv_desc.set_math_type(math_type)?;
-
-            sys::cudnnSetConvolutionGroupCount(conv_desc.raw, groups as i32).into_result()?;
-
             Ok(conv_desc)
         }
     }
@@ -139,12 +124,67 @@ impl<T: DataType, const N: usize> ConvolutionDescriptor<T, N> {
     /// `math_type` - the provided math type.
     ///
     /// **Do note** that tensor core operations may not be available on all device architectures.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors if the math type was not set successfully.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # use cudnn::{CudnnContext, ConvDescriptor, MathType, ConvMode};
+    /// # let ctx = CudnnContext::new()?;
+    /// # let padding = [0, 0];
+    /// # let stride = [1, 1];
+    /// # let dilation = [1, 1];
+    /// # let mode = ConvMode::CrossCorrelation;
+    /// let mut conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
+    ///
+    /// conv_desc.set_math_type(MathType::Default)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn set_math_type(&mut self, math_type: MathType) -> Result<(), CudnnError> {
         unsafe { sys::cudnnSetConvolutionMathType(self.raw, math_type.into()).into_result() }
     }
+
+    /// Sets the group count for this convolution descriptor instance.
+    ///
+    /// # Arguments
+    ///
+    /// `groups` - group count.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors if the argument passed is invalid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # use cudnn::{CudnnContext, ConvDescriptor, MathType, ConvMode};
+    /// # let ctx = CudnnContext::new()?;
+    /// # let padding = [0, 0];
+    /// # let stride = [1, 1];
+    /// # let dilation = [1, 1];
+    /// # let mode = ConvMode::CrossCorrelation;
+    /// let mut conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
+    ///
+    /// conv_desc.set_group_count(1)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_group_count(&mut self, groups: i32) -> Result<(), CudnnError> {
+        unsafe { sys::cudnnSetConvolutionGroupCount(self.raw, groups) }.into_result()
+    }
 }
 
-impl<T: DataType, const N: usize> Drop for ConvolutionDescriptor<T, N> {
+impl<T: DataType> Drop for ConvDescriptor<T> {
     fn drop(&mut self) {
         unsafe {
             sys::cudnnDestroyConvolutionDescriptor(self.raw);

@@ -1,35 +1,28 @@
-use crate::sys;
-
-/// Data layout is padded, with outer stride from one time-step to the next.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SeqMajorUnpacked;
-
-/// The sequence length is sorted and packed as in the basic RNN API.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SeqMajorPacked;
-
-/// Data layout is padded, with outer stride from one batch to the next.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct BatchMajorUnpacked;
+use crate::{sys, RnnDataDescriptor};
 
 /// The data layout for input and output of a recurrent neural network.
-pub trait RnnDataLayout {
-    fn into_raw() -> sys::cudnnRNNDataLayout_t;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RnnDataLayout {
+    /// Data layout is padded, with outer stride from one time-step to the next.
+    SeqMajorUnpacked,
+    /// The sequence length is sorted and packed as in the basic RNN API.
+    SeqMajorPacked,
+    /// Data layout is padded, with outer stride from one batch to the next.
+    BatchMajorUnpacked,
 }
 
-macro_rules! impl_rnn_data_layout {
-    ($layout:ident, $raw:ident) => {
-        impl RnnDataLayout for $layout {
-            fn into_raw() -> sys::cudnnRNNDataLayout_t {
-                sys::cudnnRNNDataLayout_t::$raw
+impl From<RnnDataLayout> for sys::cudnnRNNDataLayout_t {
+    fn from(rnn_data_layout: RnnDataLayout) -> Self {
+        match rnn_data_layout {
+            RnnDataLayout::SeqMajorUnpacked => {
+                sys::cudnnRNNDataLayout_t::CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED
+            }
+            RnnDataLayout::SeqMajorPacked => {
+                sys::cudnnRNNDataLayout_t::CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_PACKED
+            }
+            RnnDataLayout::BatchMajorUnpacked => {
+                sys::cudnnRNNDataLayout_t::CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED
             }
         }
-    };
+    }
 }
-
-impl_rnn_data_layout!(SeqMajorPacked, CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_PACKED);
-impl_rnn_data_layout!(SeqMajorUnpacked, CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED);
-impl_rnn_data_layout!(
-    BatchMajorUnpacked,
-    CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED
-);

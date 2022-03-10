@@ -7,14 +7,14 @@ use crate::sys;
 ///
 /// A cross-correlation is equivalent to a convolution with its filter rotated by 180 degrees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ConvolutionMode {
+pub enum ConvMode {
     /// Convolution operation.
     Convolution,
     /// Cross Correlation operation.
     CrossCorrelation,
 }
 
-impl From<sys::cudnnConvolutionMode_t> for ConvolutionMode {
+impl From<sys::cudnnConvolutionMode_t> for ConvMode {
     fn from(raw: sys::cudnnConvolutionMode_t) -> Self {
         match raw {
             sys::cudnnConvolutionMode_t::CUDNN_CONVOLUTION => Self::Convolution,
@@ -23,13 +23,11 @@ impl From<sys::cudnnConvolutionMode_t> for ConvolutionMode {
     }
 }
 
-impl From<ConvolutionMode> for sys::cudnnConvolutionMode_t {
-    fn from(convolution_mode: ConvolutionMode) -> sys::cudnnConvolutionMode_t {
+impl From<ConvMode> for sys::cudnnConvolutionMode_t {
+    fn from(convolution_mode: ConvMode) -> sys::cudnnConvolutionMode_t {
         match convolution_mode {
-            ConvolutionMode::Convolution => sys::cudnnConvolutionMode_t::CUDNN_CONVOLUTION,
-            ConvolutionMode::CrossCorrelation => {
-                sys::cudnnConvolutionMode_t::CUDNN_CROSS_CORRELATION
-            }
+            ConvMode::Convolution => sys::cudnnConvolutionMode_t::CUDNN_CONVOLUTION,
+            ConvMode::CrossCorrelation => sys::cudnnConvolutionMode_t::CUDNN_CROSS_CORRELATION,
         }
     }
 }

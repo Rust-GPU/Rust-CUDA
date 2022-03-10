@@ -1,4 +1,4 @@
-bindgen "/usr/include/cudnn.h" \
+bindgen "${HOME}/local/include/cudnn.h" \
      --size_t-is-usize \
      --allowlist-type "cudnn.*" \
      --allowlist-function "cudnn.*" \
