@@ -88,6 +88,8 @@ pub mod _hidden {
 
         NonZeroU8 NonZeroU16 NonZeroU32 NonZeroU64 NonZeroU128
     );
+    unsafe impl<T> DeviceCopy for *const T {}
+    unsafe impl<T> DeviceCopy for *mut T {}
     unsafe impl<T: DeviceCopy> DeviceCopy for MaybeUninit<T> {}
     unsafe impl<T: DeviceCopy> DeviceCopy for Option<T> {}
     unsafe impl<L: DeviceCopy, R: DeviceCopy> DeviceCopy for Result<L, R> {}
