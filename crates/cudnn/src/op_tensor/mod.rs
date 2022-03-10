@@ -23,7 +23,7 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `op_desc` - handle to a previously initialized op tensor descriptor.
+    /// * `op_desc` - handle to a previously initialized binary op tensor descriptor.
     ///
     /// * `alpha` - scaling factor for the left operand.
     ///
@@ -53,15 +53,15 @@ impl CudnnContext {
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, Mul, NanPropagation, OpTensorDescriptor, TensorDescriptor};
+    /// use cudnn::{BinaryOp, BinaryOpTensorDescriptor, CudnnContext, NanPropagation, TensorDescriptor};
     /// use cust::memory::DeviceBuffer;
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let op = Mul;
+    /// let op = BinaryOp::Mul;
     /// let nan_policy = NanPropagation::PropagateNaN;
     ///
-    /// let op_desc = OpTensorDescriptor::<f32, Mul>::new(op, nan_policy)?;
+    /// let op_desc = BinaryOpTensorDescriptor::<f32>::new(op, nan_policy)?;
     ///
     /// let alpha = 1.0;
     /// let a_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
@@ -83,9 +83,9 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn binary_tensor_op<CompT, Op, T1, T2, T3>(
+    pub fn binary_tensor_op<CompT, T1, T2, T3>(
         &self,
-        op_desc: &OpTensorDescriptor<CompT, Op>,
+        op_desc: &BinaryOpTensorDescriptor<CompT>,
         alpha: CompT,
         a_desc: &TensorDescriptor<T1>,
         a: &impl GpuBuffer<T1>,
@@ -97,8 +97,7 @@ impl CudnnContext {
         c: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
-        CompT: DataType + SupportedOp<T1, T2, T3>,
-        Op: OpTensorOp + BinaryOp,
+        CompT: SupportedOp<T1, T2, T3>,
         T1: DataType,
         T2: DataType,
         T3: DataType,
@@ -141,7 +140,7 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `op_desc` - handle to a previously initialized op tensor descriptor.
+    /// * `op_desc` - handle to a previously initialized unary op tensor descriptor.
     ///
     /// * `alpha` - scaling factor for the operand.
     ///
@@ -165,15 +164,15 @@ impl CudnnContext {
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, NanPropagation, OpTensorDescriptor, Sqrt, TensorDescriptor};
+    /// use cudnn::{CudnnContext, NanPropagation, TensorDescriptor, UnaryOp, UnaryOpTensorDescriptor};
     /// use cust::memory::DeviceBuffer;
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let op = Sqrt;
+    /// let op = UnaryOp::Sqrt;
     /// let nan_policy = NanPropagation::PropagateNaN;
     ///
-    /// let op_desc = OpTensorDescriptor::<f32, Sqrt>::new(op, nan_policy)?;
+    /// let op_desc = UnaryOpTensorDescriptor::<f32>::new(op, nan_policy)?;
     ///
     /// let alpha = 1.0;
     /// let a_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
@@ -191,9 +190,9 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn unary_tensor_op<CompT, Op, T1, T2>(
+    pub fn unary_tensor_op<CompT, T1, T2>(
         &self,
-        op_desc: &OpTensorDescriptor<CompT, Op>,
+        op_desc: &UnaryOpTensorDescriptor<CompT>,
         alpha: CompT,
         a_desc: &TensorDescriptor<T1>,
         a: &impl GpuBuffer<T1>,
@@ -202,8 +201,7 @@ impl CudnnContext {
         c: &mut impl GpuBuffer<T2>,
     ) -> Result<(), CudnnError>
     where
-        CompT: DataType + SupportedOp<T1, T1, T2>,
-        Op: OpTensorOp + UnaryOp,
+        CompT: SupportedOp<T1, T1, T2>,
         T1: DataType,
         T2: DataType,
     {
@@ -294,7 +292,7 @@ impl CudnnContext {
         c: &mut impl GpuBuffer<T2>,
     ) -> Result<(), CudnnError>
     where
-        CompT: DataType + SupportedOp<T1, T1, T2>,
+        CompT: SupportedOp<T1, T1, T2>,
         T1: DataType,
         T2: DataType,
     {
@@ -310,5 +308,56 @@ impl CudnnContext {
             )
             .into_result()
         }
+    }
+
+    /// Sets all the elements of a tensor to a given value.
+    ///
+    /// # Arguments
+    ///
+    /// * `desc` - tensor descriptor.
+    ///
+    /// * `data` - data for the tensor.
+    ///
+    /// * `value` - value to set. Must be stored in host memory.
+    ///
+    /// **Do note** that this routine is only available for `f32` and `f64` tensors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{CudnnContext, ScalarC, TensorDescriptor};
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let value = 7.0;
+    /// let desc = TensorDescriptor::<f32>::new_format(&[1, 1, 1, 5], ScalarC::Nchw)?;
+    /// let mut data = DeviceBuffer::<f32>::from_slice(&[0.0, 0.0, 0.0, 0.0, 0.0])?;
+    ///
+    /// ctx.set(&desc, &mut data, value)?;
+    ///
+    /// let data_host = data.as_host_vec()?;
+    ///
+    /// assert!(data_host.iter().all(|x| (*x - value).abs() <= std::f32::EPSILON));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set<T>(
+        &self,
+        desc: &TensorDescriptor<T>,
+        data: &mut impl GpuBuffer<T>,
+        value: T,
+    ) -> Result<(), CudnnError>
+    where
+        T: DataType,
+    {
+        let data = data.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
+
+        let value = &value as *const T as *const std::ffi::c_void;
+
+        unsafe { sys::cudnnSetTensor(self.raw, desc.raw, data, value).into_result() }
     }
 }

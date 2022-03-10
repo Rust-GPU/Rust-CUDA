@@ -1,9 +1,9 @@
-use crate::{backend::Descriptor, sys, ConvolutionMode, CudnnError, DataType, IntoResult};
+use crate::{backend::Descriptor, sys, ConvMode, CudnnError, DataType, IntoResult};
 
 #[derive(Default, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ConvCfgBuilder<'a> {
     comp_type: Option<sys::cudnnDataType_t>,
-    mode: Option<ConvolutionMode>,
+    mode: Option<ConvMode>,
     dilations: Option<&'a [i64]>,
     strides: Option<&'a [i64]>,
     pre_paddings: Option<&'a [i64]>,
@@ -19,7 +19,7 @@ impl<'a> ConvCfgBuilder<'a> {
         self
     }
 
-    pub fn set_convolution_mode(mut self, mode: ConvolutionMode) -> Self {
+    pub fn set_convolution_mode(mut self, mode: ConvMode) -> Self {
         self.mode = Some(mode);
         self
     }

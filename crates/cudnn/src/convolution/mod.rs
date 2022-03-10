@@ -1,9 +1,11 @@
 mod convolution_algo;
+mod convolution_config;
 mod convolution_descriptor;
 mod convolution_mode;
 mod filter_descriptor;
 
 pub use convolution_algo::*;
+pub use convolution_config::*;
 pub use convolution_descriptor::*;
 pub use convolution_mode::*;
 pub use filter_descriptor::*;
@@ -44,8 +46,8 @@ impl CudnnContext {
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
-    ///     ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor,
-    ///     TensorDescriptor, TensorFormat
+    ///     ConvDescriptor, ConvMode, CudnnContext, FilterDescriptor, ScalarC,
+    ///     TensorDescriptor
     /// };
     ///
     /// let ctx = CudnnContext::new()?;
@@ -53,34 +55,35 @@ impl CudnnContext {
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
-    /// let mut conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    /// let mut conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     ///
-    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
-    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
-    /// let y_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
+    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let y_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
     ///
-    /// let algo = ctx.get_convolution_forward_algorithm(&x_desc, &w_desc, &y_desc, &conv_desc)?;
+    /// let res = ctx.get_convolution_forward_algorithm(&x_desc, &w_desc, &y_desc, &conv_desc)?;
     ///
-    /// let math_type = algo.math_type();
+    /// let algo = res.algo();
+    /// let math_type = res.math_type();
+    ///
     /// conv_desc.set_math_type(math_type)?; // Sets math type.
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_forward_algorithm<T1, T2, CompType, T3, const N: usize>(
+    pub fn get_convolution_forward_algorithm<T1, T2, CompType, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         w_desc: &FilterDescriptor<T2>,
         y_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-    ) -> Result<BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>, CudnnError>
+        conv_desc: &ConvDescriptor<CompType>,
+    ) -> Result<BestHeuristic<ConvFwdAlgo>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>: SupportedConvFwd<T1, T2, CompType, T3, N>,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
         let mut perf_results = MaybeUninit::uninit();
@@ -104,7 +107,7 @@ impl CudnnContext {
                 // This is general enough so that in the future it can be expanded to be more
                 // complex.
                 1 => {
-                    let results: Vec<BestHeuristic<sys::cudnnConvolutionFwdAlgo_t>> = {
+                    let results: Vec<BestHeuristic<ConvFwdAlgo>> = {
                         let raw_results = std::slice::from_raw_parts(
                             perf_results.as_ptr(),
                             returned_algo_count as usize,
@@ -113,7 +116,7 @@ impl CudnnContext {
                         raw_results
                             .iter()
                             .copied()
-                            .map(BestHeuristic::<sys::cudnnConvolutionFwdAlgo_t>::try_from)
+                            .map(BestHeuristic::<ConvFwdAlgo>::try_from)
                             .filter_map(Result::ok)
                             .collect()
                     };
@@ -155,8 +158,8 @@ impl CudnnContext {
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
-    ///     ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor,
-    ///     TensorDescriptor, TensorFormat
+    ///     ConvDescriptor, ConvMode, CudnnContext, FilterDescriptor, ScalarC,
+    ///     TensorDescriptor
     /// };
     ///
     /// let ctx = CudnnContext::new()?;
@@ -164,35 +167,35 @@ impl CudnnContext {
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
-    /// let mut conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    /// let mut conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     ///
-    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
-    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
-    /// let dx_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
+    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
+    /// let dx_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
     ///
-    /// let algo = ctx.get_convolution_backward_data_algorithm(&w_desc, &dy_desc, &dx_desc, &conv_desc)?;
+    /// let res = ctx.get_convolution_backward_data_algorithm(&w_desc, &dy_desc, &dx_desc, &conv_desc)?;
     ///
-    /// let math_type = algo.math_type();
+    /// let algo = res.algo();
+    /// let math_type = res.math_type();
+    ///
     /// conv_desc.set_math_type(math_type)?; // Sets math type.
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_data_algorithm<T1, T2, CompType, T3, const N: usize>(
+    pub fn get_convolution_backward_data_algorithm<T1, T2, CompType, T3>(
         &self,
         w_desc: &FilterDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dx_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-    ) -> Result<BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>, CudnnError>
+        conv_desc: &ConvDescriptor<CompType>,
+    ) -> Result<BestHeuristic<ConvBwdDataAlgo>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>:
-            SupportedConvBwdData<T1, T2, CompType, T3, N>,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
         let mut perf_results = MaybeUninit::uninit();
@@ -216,7 +219,7 @@ impl CudnnContext {
                 // This is general enough so that in the future it can be expanded to be more
                 // complex.
                 1 => {
-                    let results: Vec<BestHeuristic<sys::cudnnConvolutionBwdDataAlgo_t>> = {
+                    let results: Vec<BestHeuristic<ConvBwdDataAlgo>> = {
                         let raw_results = std::slice::from_raw_parts(
                             perf_results.as_ptr(),
                             returned_algo_count as usize,
@@ -225,7 +228,7 @@ impl CudnnContext {
                         raw_results
                             .iter()
                             .copied()
-                            .map(BestHeuristic::<sys::cudnnConvolutionBwdDataAlgo_t>::try_from)
+                            .map(BestHeuristic::<ConvBwdDataAlgo>::try_from)
                             .filter_map(Result::ok)
                             .collect()
                     };
@@ -267,8 +270,8 @@ impl CudnnContext {
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
-    ///     ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor,
-    ///     TensorDescriptor, TensorFormat
+    ///     ConvDescriptor, ConvMode, CudnnContext, FilterDescriptor, ScalarC,
+    ///     TensorDescriptor
     /// };
     ///
     /// let ctx = CudnnContext::new()?;
@@ -276,35 +279,35 @@ impl CudnnContext {
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
-    /// let mut conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    /// let mut conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     ///
-    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
-    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
-    /// let dw_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
+    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
+    /// let dw_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
     ///
-    /// let algo = ctx.get_convolution_backward_filter_algorithm(&x_desc, &dy_desc, &dw_desc, &conv_desc)?;
+    /// let res = ctx.get_convolution_backward_filter_algorithm(&x_desc, &dy_desc, &dw_desc, &conv_desc)?;
     ///
-    /// let math_type = algo.math_type();
+    /// let algo = res.algo();
+    /// let math_type = res.math_type();
+    ///
     /// conv_desc.set_math_type(math_type)?; // Sets math type.
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_filter_algorithm<T1, T2, CompType, T3, const N: usize>(
+    pub fn get_convolution_backward_filter_algorithm<T1, T2, CompType, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dw_desc: &FilterDescriptor<T3>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-    ) -> Result<BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>, CudnnError>
+        conv_desc: &ConvDescriptor<CompType>,
+    ) -> Result<BestHeuristic<ConvBwdFilterAlgo>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>:
-            SupportedConvBwdFilter<T1, T2, CompType, T3, N>,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
         let mut perf_results = MaybeUninit::uninit();
@@ -328,7 +331,7 @@ impl CudnnContext {
                 // This is general enough so that in the future it can be expanded to be more
                 // complex.
                 1 => {
-                    let results: Vec<BestHeuristic<sys::cudnnConvolutionBwdFilterAlgo_t>> = {
+                    let results: Vec<BestHeuristic<ConvBwdFilterAlgo>> = {
                         let raw_results = std::slice::from_raw_parts(
                             perf_results.as_ptr(),
                             returned_algo_count as usize,
@@ -337,7 +340,7 @@ impl CudnnContext {
                         raw_results
                             .iter()
                             .copied()
-                            .map(BestHeuristic::<sys::cudnnConvolutionBwdFilterAlgo_t>::try_from)
+                            .map(BestHeuristic::<ConvBwdFilterAlgo>::try_from)
                             .filter_map(Result::ok)
                             .collect()
                     };
@@ -388,8 +391,8 @@ impl CudnnContext {
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
-    ///    ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor,
-    ///    ImplicitPrecompGemm, MathType, TensorDescriptor, TensorFormat
+    ///    ConvDescriptor, ConvFwdAlgo, ConvMode, CudnnContext, FilterDescriptor,
+    ///    MathType, ScalarC, TensorDescriptor
     /// };
     /// use cust::memory::DeviceBuffer;
     ///
@@ -398,17 +401,17 @@ impl CudnnContext {
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
     /// // 2-dimensional convolution.
     /// let mut conv_desc =
-    ///     ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    ///     ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     ///
-    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
-    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
-    /// let y_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
+    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let y_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
     ///
-    /// let algo = ImplicitPrecompGemm;
+    /// let algo = ConvFwdAlgo::ImplicitPrecompGemm;
     ///
     /// let size = ctx.get_convolution_forward_workspace_size(
     ///     &x_desc,
@@ -422,20 +425,19 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_forward_workspace_size<T1, T2, CompType, T3, A, const N: usize>(
+    pub fn get_convolution_forward_workspace_size<T1, T2, CompType, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         w_desc: &FilterDescriptor<T2>,
         y_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-        algo: &A,
+        conv_desc: &ConvDescriptor<CompType>,
+        algo: &ConvFwdAlgo,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, T2, CompType, T3, N>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -446,7 +448,7 @@ impl CudnnContext {
                 w_desc.raw,
                 conv_desc.raw,
                 y_desc.raw,
-                algo.into_raw(),
+                (*algo).into(),
                 size.as_mut_ptr(),
             )
             .into_result()?;
@@ -496,8 +498,8 @@ impl CudnnContext {
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
-    ///    ConvolutionDescriptor, ConvolutionMode, CudnnContext, DataAlgo0, FilterDescriptor,
-    ///    MathType, TensorDescriptor, TensorFormat
+    ///    ConvDescriptor, ConvBwdDataAlgo, ConvMode, CudnnContext, FilterDescriptor,
+    ///    MathType, ScalarC, TensorDescriptor
     /// };
     /// use cust::memory::DeviceBuffer;
     ///
@@ -506,17 +508,17 @@ impl CudnnContext {
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
     /// // 2-dimensional convolution.
     /// let mut conv_desc =
-    ///     ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    ///     ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     ///
-    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
-    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
-    /// let dx_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
+    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
+    /// let dx_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
     ///
-    /// let algo = DataAlgo0;
+    /// let algo = ConvBwdDataAlgo::Algo0;
     ///
     /// let size = ctx.get_convolution_backward_data_workspace_size(
     ///     &w_desc,
@@ -530,20 +532,19 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_data_workspace_size<T1, T2, CompType, T3, A, const N: usize>(
+    pub fn get_convolution_backward_data_workspace_size<T1, T2, CompType, T3>(
         &self,
         w_desc: &FilterDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dx_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-        algo: &A,
+        conv_desc: &ConvDescriptor<CompType>,
+        algo: &ConvBwdDataAlgo,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        A: ConvolutionBwdDataAlgo + SupportedConvBwdData<T1, T2, CompType, T3, N>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -554,7 +555,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 conv_desc.raw,
                 dx_desc.raw,
-                ConvolutionBwdDataAlgo::into_raw(algo),
+                (*algo).into(),
                 size.as_mut_ptr(),
             )
             .into_result()?;
@@ -604,8 +605,8 @@ impl CudnnContext {
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
-    ///    ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterAlgo0, FilterDescriptor,
-    ///    MathType, TensorDescriptor, TensorFormat
+    ///    ConvDescriptor, ConvBwdFilterAlgo, ConvMode, CudnnContext, FilterDescriptor,
+    ///    MathType, ScalarC, TensorDescriptor
     /// };
     /// use cust::memory::DeviceBuffer;
     ///
@@ -614,17 +615,17 @@ impl CudnnContext {
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
     /// // 2-dimensional convolution.
     /// let mut conv_desc =
-    ///     ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    ///     ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     ///
-    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
-    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
-    /// let dw_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
+    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
+    /// let dw_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
     ///
-    /// let algo = FilterAlgo0;
+    /// let algo = ConvBwdFilterAlgo::Algo0;
     ///
     /// let size = ctx.get_convolution_backward_filter_workspace_size(
     ///     &x_desc,
@@ -638,20 +639,19 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_filter_workspace_size<T1, T2, CompType, T3, A, const N: usize>(
+    pub fn get_convolution_backward_filter_workspace_size<T1, T2, CompType, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dw_desc: &FilterDescriptor<T3>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-        algo: &A,
+        conv_desc: &ConvDescriptor<CompType>,
+        algo: &ConvBwdFilterAlgo,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        A: ConvolutionBwdFilterAlgo + SupportedConvBwdFilter<T1, T2, CompType, T3, N>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -662,7 +662,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 conv_desc.raw,
                 dw_desc.raw,
-                ConvolutionBwdFilterAlgo::into_raw(algo),
+                (*algo).into(),
                 size.as_mut_ptr(),
             )
             .into_result()?;
@@ -724,8 +724,8 @@ impl CudnnContext {
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use cudnn::{
-    ///     ConvolutionDescriptor, ConvolutionMode, CudnnContext, FilterDescriptor,
-    ///     ImplicitPrecompGemm, TensorDescriptor, TensorFormat
+    ///     ConvDescriptor, ConvFwdAlgo, ConvMode, CudnnContext, FilterDescriptor,
+    ///     ScalarC, TensorDescriptor
     /// };
     /// use cust::memory::DeviceBuffer;
     ///
@@ -734,19 +734,19 @@ impl CudnnContext {
     /// let padding = [0, 0];
     /// let stride = [1, 1];
     /// let dilation = [1, 1];
-    /// let mode = ConvolutionMode::CrossCorrelation;
+    /// let mode = ConvMode::CrossCorrelation;
     ///
-    /// let conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    /// let conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     ///
     /// # let data = vec![1.0_f32; 150];
     /// # let x = DeviceBuffer::from_slice(&data)?;
     /// # let w = DeviceBuffer::from_slice(&data[..24])?;
     /// # let mut y = DeviceBuffer::from_slice(&data[..144])?;
-    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
-    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
-    /// let y_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
+    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let y_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
     ///
-    /// let algo = ImplicitPrecompGemm;
+    /// let algo = ConvFwdAlgo::ImplicitPrecompGemm;
     ///
     /// let size = ctx.get_convolution_forward_workspace_size(
     ///     &x_desc,
@@ -777,15 +777,15 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn convolution_forward<T1, T2, CompType, T3, A, W, const N: usize>(
+    pub fn convolution_forward<T1, T2, CompType, T3, W>(
         &self,
         alpha: CompType,
         x_desc: &TensorDescriptor<T1>,
         x: &impl GpuBuffer<T1>,
         w_desc: &FilterDescriptor<T2>,
         w: &impl GpuBuffer<T2>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-        algo: &A,
+        conv_desc: &ConvDescriptor<CompType>,
+        algo: &ConvFwdAlgo,
         work_space: Option<&mut W>,
         beta: CompType,
         y_desc: &TensorDescriptor<T3>,
@@ -794,9 +794,8 @@ impl CudnnContext {
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        A: ConvolutionFwdAlgo + SupportedConvFwd<T1, T2, CompType, T3, N>,
         W: GpuBuffer<u8>,
     {
         let x_data = x.as_device_ptr().as_ptr() as *const std::ffi::c_void;
@@ -826,7 +825,7 @@ impl CudnnContext {
                 w_desc.raw,
                 w_data,
                 conv_desc.raw,
-                algo.into_raw(),
+                (*algo).into(),
                 work_space_ptr,
                 work_space_size,
                 beta,
@@ -885,25 +884,25 @@ impl CudnnContext {
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{DataAlgo0, FilterDescriptor, TensorDescriptor, TensorFormat};
+    /// use cudnn::{ConvBwdDataAlgo, FilterDescriptor, ScalarC, TensorDescriptor};
     /// use cust::memory::DeviceBuffer;
     ///
-    /// # use cudnn::{CudnnContext, ConvolutionDescriptor, ConvolutionMode};
+    /// # use cudnn::{CudnnContext, ConvDescriptor, ConvMode};
     /// # let ctx = CudnnContext::new()?;
     /// # let padding = [0, 0];
     /// # let stride = [1, 1];
     /// # let dilation = [1, 1];
-    /// # let mode = ConvolutionMode::CrossCorrelation;
-    /// # let conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    /// # let mode = ConvMode::CrossCorrelation;
+    /// # let conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     /// # let data = vec![1.0_f32; 150];
     /// # let mut dx = DeviceBuffer::from_slice(&data)?;
     /// # let w = DeviceBuffer::from_slice(&data[..24])?;
     /// # let dy = DeviceBuffer::from_slice(&data[..144])?;
-    /// let dx_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
-    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
-    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
+    /// let dx_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
     ///
-    /// let algo = DataAlgo0;
+    /// let algo = ConvBwdDataAlgo::Algo0;
     ///
     /// let size = ctx.get_convolution_backward_data_workspace_size(
     ///     &w_desc,
@@ -934,15 +933,15 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn convolution_backward_data<T1, T2, CompType, T3, A, W, const N: usize>(
+    pub fn convolution_backward_data<T1, T2, CompType, T3, W>(
         &self,
         alpha: CompType,
         w_desc: &FilterDescriptor<T1>,
         w: &impl GpuBuffer<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dy: &impl GpuBuffer<T2>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-        algo: &A,
+        conv_desc: &ConvDescriptor<CompType>,
+        algo: &ConvBwdDataAlgo,
         work_space: Option<&mut W>,
         beta: CompType,
         dx_desc: &TensorDescriptor<T3>,
@@ -951,9 +950,8 @@ impl CudnnContext {
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        A: ConvolutionBwdDataAlgo + SupportedConvBwdData<T1, T2, CompType, T3, N>,
         W: GpuBuffer<u8>,
     {
         let w_data = w.as_device_ptr().as_ptr() as *const std::ffi::c_void;
@@ -981,7 +979,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 dy_data,
                 conv_desc.raw,
-                algo.into_raw(),
+                (*algo).into(),
                 work_space_ptr,
                 work_space_size,
                 beta,
@@ -1040,25 +1038,25 @@ impl CudnnContext {
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{FilterAlgo0, FilterDescriptor, TensorDescriptor, TensorFormat};
+    /// use cudnn::{ConvBwdFilterAlgo, FilterDescriptor, ScalarC, TensorDescriptor};
     /// use cust::memory::DeviceBuffer;
     ///
-    /// # use cudnn::{CudnnContext, ConvolutionDescriptor, ConvolutionMode};
+    /// # use cudnn::{CudnnContext, ConvDescriptor, ConvMode};
     /// # let ctx = CudnnContext::new()?;
     /// # let padding = [0, 0];
     /// # let stride = [1, 1];
     /// # let dilation = [1, 1];
-    /// # let mode = ConvolutionMode::CrossCorrelation;
-    /// # let conv_desc = ConvolutionDescriptor::<f32, 2>::new(padding, stride, dilation, mode)?;
+    /// # let mode = ConvMode::CrossCorrelation;
+    /// # let conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
     /// # let data = vec![1.0_f32; 150];
     /// # let x = DeviceBuffer::from_slice(&data)?;
     /// # let mut dw = DeviceBuffer::from_slice(&data[..24])?;
     /// # let dy = DeviceBuffer::from_slice(&data[..144])?;
-    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], TensorFormat::Nchw)?;
-    /// let dw_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], TensorFormat::Nchw)?;
-    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], TensorFormat::Nchw)?;
+    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let dw_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let dy_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
     ///
-    /// let algo = FilterAlgo0;
+    /// let algo = ConvBwdFilterAlgo::Algo0;
     ///
     /// let size = ctx.get_convolution_backward_filter_workspace_size(
     ///     &x_desc,
@@ -1089,15 +1087,15 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn convolution_backward_filter<T1, T2, CompType, T3, A, W, const N: usize>(
+    pub fn convolution_backward_filter<T1, T2, CompType, T3, W>(
         &self,
         alpha: CompType,
         x_desc: &TensorDescriptor<T1>,
         x: &impl GpuBuffer<T1>,
         dy_desc: &TensorDescriptor<T2>,
         y: &impl GpuBuffer<T2>,
-        conv_desc: &ConvolutionDescriptor<CompType, N>,
-        algo: &A,
+        conv_desc: &ConvDescriptor<CompType>,
+        algo: &ConvBwdFilterAlgo,
         work_space: Option<&mut W>,
         beta: CompType,
         dw_desc: &FilterDescriptor<T3>,
@@ -1106,9 +1104,8 @@ impl CudnnContext {
     where
         T1: DataType,
         T2: DataType,
-        CompType: DataType,
+        CompType: SupportedConv<T1, T2, T3>,
         T3: DataType,
-        A: ConvolutionBwdFilterAlgo + SupportedConvBwdFilter<T1, T2, CompType, T3, N>,
         W: GpuBuffer<u8>,
     {
         let x_data = x.as_device_ptr().as_ptr() as *const std::ffi::c_void;
@@ -1136,7 +1133,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 dy_data,
                 conv_desc.raw,
-                algo.into_raw(),
+                (*algo).into(),
                 work_space_ptr,
                 work_space_size,
                 beta,

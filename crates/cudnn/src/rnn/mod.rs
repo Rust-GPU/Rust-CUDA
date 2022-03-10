@@ -1,3 +1,4 @@
+mod forward_mode;
 mod rnn_algo;
 mod rnn_bias_mode;
 mod rnn_clip_mode;
@@ -8,6 +9,7 @@ mod rnn_direction_mode;
 mod rnn_input_mode;
 mod rnn_mode;
 
+pub use forward_mode::*;
 pub use rnn_algo::*;
 pub use rnn_bias_mode::*;
 pub use rnn_clip_mode::*;
@@ -18,9 +20,7 @@ pub use rnn_direction_mode::*;
 pub use rnn_input_mode::*;
 pub use rnn_mode::*;
 
-use crate::{
-    sys, CudnnContext, CudnnError, DataType, ForwardMode, IntoResult, TensorDescriptor, WGradMode,
-};
+use crate::{sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor, WGradMode};
 use cust::memory::GpuBuffer;
 use std::mem::MaybeUninit;
 

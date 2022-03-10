@@ -1,9 +1,4 @@
-use crate::{
-    data_type::DataType,
-    error::{CudnnError, IntoResult},
-    sys,
-    tensor_format::TensorFormat,
-};
+use crate::{sys, CudnnError, DataType, IntoResult, ScalarC};
 use std::{
     marker::PhantomData,
     mem::{self, MaybeUninit},
@@ -29,7 +24,7 @@ where
     ///
     /// * `shape` - slice containing the size of the filter for every dimension.
     ///
-    /// * `format` - tensor format. If set to [`Nchw`](TensorFormat::Nchw), then the layout of the
+    /// * `format` - tensor format. If set to [`Nchw`](ScalarC::Nchw), then the layout of the
     /// filter is as follows: for D = 4, a 4D filter descriptor, the filter layout is in the form of
     /// KCRS, i.e. K represents the number of output feature maps, C is the number of input feature
     /// maps, R is the number of rows per filter, S is the number of columns per filter. For N = 3,
@@ -48,16 +43,16 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{FilterDescriptor, TensorFormat};
+    /// use cudnn::{FilterDescriptor, ScalarC};
     ///
     /// let shape = &[2, 2, 25, 25];
-    /// let format = TensorFormat::Nchw;
+    /// let format = ScalarC::Nchw;
     ///
     /// let desc = FilterDescriptor::<f32>::new(shape, format)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(shape: &[i32], format: TensorFormat) -> Result<Self, CudnnError> {
+    pub fn new(shape: &[i32], format: ScalarC) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
         let ndims = shape.len();
 

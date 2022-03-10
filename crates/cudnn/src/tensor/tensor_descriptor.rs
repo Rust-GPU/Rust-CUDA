@@ -1,8 +1,4 @@
-use crate::{
-    data_type::DataType,
-    error::{CudnnError, IntoResult},
-    sys, TensorFormat,
-};
+use crate::{sys, CudnnError, DataType, IntoResult, ScalarC, TensorFormat, VecType};
 use std::{
     marker::PhantomData,
     mem::{self, MaybeUninit},
@@ -22,7 +18,7 @@ impl<T> TensorDescriptor<T>
 where
     T: DataType,
 {
-    /// Creates a tensor descriptor builder with the given shape and strides.
+    /// Creates a tensor descriptor with the given shape and strides.
     ///
     /// # Arguments
     ///
@@ -76,7 +72,7 @@ where
         }
     }
 
-    /// Creates a tensor descriptor builder with the given shape and format.
+    /// Creates a tensor descriptor with the given shape and format.
     ///
     /// # Arguments
     ///
@@ -90,16 +86,16 @@ where
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{TensorDescriptor, TensorFormat};
+    /// use cudnn::{TensorDescriptor, ScalarC};
     ///
     /// let shape = &[5, 5, 10, 25];
-    /// let format = TensorFormat::Nchw;
+    /// let format = ScalarC::Nchw;
     ///
     /// let desc = TensorDescriptor::<f32>::new_format(shape, format)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new_format(shape: &[i32], format: TensorFormat) -> Result<Self, CudnnError> {
+    pub fn new_format(shape: &[i32], format: ScalarC) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
 
         let ndims = shape.len();
@@ -112,6 +108,57 @@ where
                 raw,
                 format.into(),
                 T::into_raw(),
+                ndims as i32,
+                shape.as_ptr(),
+            )
+            .into_result()?;
+
+            Ok(TensorDescriptor {
+                raw,
+                data_type: PhantomData,
+            })
+        }
+    }
+
+    /// Creates a tensor descriptor with the given shape and vectorized format.
+    ///
+    /// # Arguments
+    ///
+    /// `shape` - slice containing the size of the tensor for every dimension.
+    ///
+    /// **Do note** that the actual vectorized data type must be specified with the associated
+    /// generic.
+    ///
+    /// Check [cuDNN docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#nc32hw32-layout-x32) for more details.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{TensorDescriptor, Vec4};
+    ///
+    /// let shape = &[4, 32, 32, 32];
+    ///
+    /// let desc = TensorDescriptor::<i8>::new_vectorized::<Vec4>(shape)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_vectorized<V: VecType<T>>(shape: &[i32]) -> Result<Self, CudnnError> {
+        let mut raw = MaybeUninit::uninit();
+
+        let ndims = shape.len();
+        let format = TensorFormat::NchwVectC;
+
+        unsafe {
+            sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+            let raw = raw.assume_init();
+
+            sys::cudnnSetTensorNdDescriptorEx(
+                raw,
+                format.into(),
+                V::into_raw(),
                 ndims as i32,
                 shape.as_ptr(),
             )
