@@ -53,8 +53,8 @@ impl CudnnContext {
         x_desc: &RnnDataDescriptor<T1>,
     ) -> Result<(usize, Option<usize>), CudnnError>
     where
-        T1: DataType + RnnDataType,
-        T2: DataType + SupportedPrec<T1>,
+        T1: RnnDataType,
+        T2: SupportedRnn<T1>,
     {
         let mut workspace_size = MaybeUninit::uninit();
         let mut reserve_space_size = MaybeUninit::uninit();
@@ -91,8 +91,8 @@ impl CudnnContext {
         rnn_desc: &RnnDescriptor<T1, T2>,
     ) -> Result<usize, CudnnError>
     where
-        T1: DataType + RnnDataType,
-        T2: DataType + SupportedPrec<T1>,
+        T1: RnnDataType,
+        T2: SupportedRnn<T1>,
     {
         let mut size = MaybeUninit::uninit();
 
@@ -217,8 +217,8 @@ impl CudnnContext {
         reserve_space: Option<&mut impl GpuBuffer<u8>>,
     ) -> Result<(), CudnnError>
     where
-        T1: DataType + RnnDataType,
-        T2: DataType + SupportedPrec<T1>,
+        T1: RnnDataType,
+        T2: SupportedRnn<T1>,
     {
         let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_ptr();
 
@@ -420,8 +420,8 @@ impl CudnnContext {
         reserve_space: &mut impl GpuBuffer<u8>,
     ) -> Result<(), CudnnError>
     where
-        T1: DataType + RnnDataType,
-        T2: DataType + SupportedPrec<T1>,
+        T1: RnnDataType,
+        T2: SupportedRnn<T1>,
     {
         let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_ptr();
 
@@ -499,11 +499,11 @@ impl CudnnContext {
     /// buffer should be overwritten with the new results (`WGradMode::Set`).
     ///
     /// All gradient results with respect to weights and biases are written to the `d_weight_space`
-    /// buffer. The size and the organization of the `d_weight_space` buffer is the same as the
+    /// buffer. The size and the organization of the `dweight_space` buffer is the same as the
     /// `weight_space` buffer that holds RNN weights and biases.
     ///
     /// **Do note that** currently, this function supports the `WGradMode::Add` mode only so the
-    /// `d_weight_space` buffer should be zeroed by the user before invoking the routine for the
+    /// `dweight_space` buffer should be zeroed by the user before invoking the routine for the
     /// first time. The same sequence lengths must be specified in the `x_desc` descriptor and in
     /// the device array `device_seq_lengths`.
     ///
@@ -559,8 +559,8 @@ impl CudnnContext {
         reserve_space: &mut impl GpuBuffer<u8>,
     ) -> Result<(), CudnnError>
     where
-        T1: DataType + RnnDataType,
-        T2: DataType + SupportedPrec<T1>,
+        T1: RnnDataType,
+        T2: SupportedRnn<T1>,
     {
         let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_mut_ptr();
 

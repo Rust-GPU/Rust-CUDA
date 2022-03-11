@@ -26,7 +26,7 @@ impl From<SeqDataAxis> for sys::cudnnSeqDataAxis_t {
     }
 }
 
-impl<T: Copy> std::ops::Index<SeqDataAxis> for [T; 4] {
+impl<T> std::ops::Index<SeqDataAxis> for [T; 4] {
     type Output = T;
 
     fn index(&self, index: SeqDataAxis) -> &Self::Output {

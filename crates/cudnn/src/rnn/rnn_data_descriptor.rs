@@ -1,18 +1,18 @@
-use crate::{
-    error::{CudnnError, IntoResult},
-    sys, DataType, RnnDataLayout,
-};
+use crate::{private, sys, CudnnError, DataType, IntoResult, RnnDataLayout};
 use std::{marker::PhantomData, mem::MaybeUninit};
 
 /// Specifies the allowed types for the recurrent neural network inputs and outputs.
-pub trait RnnDataType: DataType {}
+///
+/// As stated in the [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDataDescriptor)
+/// the supported types are `f32` and `f64`.
+pub trait RnnDataType: DataType + private::Sealed {}
 
 impl RnnDataType for f32 {}
 impl RnnDataType for f64 {}
 
 pub struct RnnDataDescriptor<T>
 where
-    T: DataType + RnnDataType,
+    T: RnnDataType,
 {
     pub(crate) raw: sys::cudnnRNNDataDescriptor_t,
     data_type: PhantomData<T>,
@@ -20,14 +20,14 @@ where
 
 impl<T> RnnDataDescriptor<T>
 where
-    T: DataType + RnnDataType,
+    T: RnnDataType,
 {
     /// Initializes a recurrent neural network data descriptor object.
     ///
     /// This data structure is intended to support the unpacked (padded) layout for input and
     /// output of extended RNN inference and training functions.
     ///
-    /// **Do note** that packed (unpadded) layout is also supported for backward compatibility.
+    /// **Do note** that packed (un-padded) layout is also supported for backward compatibility.
     ///
     /// # Arguments
     ///
@@ -35,15 +35,14 @@ where
     ///
     /// * `max_seq_length` - maximum sequence length within this RNN data tensor. In the unpacked
     /// (padded) layout, this should include the padding vectors in each sequence. In the packed
-    /// (unpadded) layout, this should be equal to the greatest element in `seq_lengths`.
+    /// (un-padded) layout, this should be equal to the greatest element in `seq_lengths`.
     ///
     /// * `batch_size` - number of sequences within the mini-batch.
     ///
     /// * `seq_lengths` - an integer slice with `batch_size` number of elements. Describes the
-    /// length (number of time-steps) of each sequence.
-    ///
-    /// Each element in the slice must be greater than or equal to 0 but less than or equal to
-    /// `max_seq_length`. In the packed layout, the elements should be sorted in descending order.
+    /// length (number of time-steps) of each sequence. Each element in the slice must be greater
+    /// than or equal to 0 but less than or equal to `max_seq_length`. In the packed layout, the
+    /// elements should be sorted in descending order.
     ///
     /// * `padding_fill` - user-defined constant for filling the padding position in RNN output.
     /// This is only effective when the descriptor is describing the RNN output, and the unpacked
@@ -105,6 +104,7 @@ where
             seq_lengths.len(),
             batch_size
         );
+
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
@@ -138,7 +138,7 @@ where
 
 impl<T> Drop for RnnDataDescriptor<T>
 where
-    T: DataType + RnnDataType,
+    T: RnnDataType,
 {
     fn drop(&mut self) {
         unsafe {
