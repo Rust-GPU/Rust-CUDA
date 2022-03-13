@@ -1,11 +1,11 @@
 mod pooling_descriptor;
 mod pooling_mode;
 
-use cust::memory::GpuBuffer;
 pub use pooling_descriptor::*;
 pub use pooling_mode::*;
 
 use crate::{private, sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
+use cust::memory::GpuBuffer;
 
 impl CudnnContext {
     /// This function computes the pooling of the input tensor and produces a smaller tensor in
