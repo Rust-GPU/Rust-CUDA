@@ -13,6 +13,7 @@ mod math_type;
 mod nan_propagation;
 mod op_tensor;
 mod rnn;
+mod softmax;
 mod tensor;
 mod w_grad_mode;
 
@@ -27,6 +28,7 @@ pub use math_type::*;
 pub use nan_propagation::*;
 pub use op_tensor::*;
 pub use rnn::*;
+pub use softmax::*;
 pub use tensor::*;
 pub use w_grad_mode::*;
 

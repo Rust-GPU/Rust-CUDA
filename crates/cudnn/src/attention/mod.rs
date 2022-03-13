@@ -180,9 +180,7 @@ impl CudnnContext {
                 reserve_space_size,
                 reserve_space_ptr,
             )
-            .into_result()?;
-
-            Ok(())
+            .into_result()
         }
     }
 }
