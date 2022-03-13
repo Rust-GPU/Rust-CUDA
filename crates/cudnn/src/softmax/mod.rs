@@ -4,7 +4,7 @@ mod softmax_mode;
 pub use softmax_algo::*;
 pub use softmax_mode::*;
 
-use crate::{sys, CudnnContext, CudnnError, DataType, IntoResult, SupportedOp, TensorDescriptor};
+use crate::{private, sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
 use cust::memory::GpuBuffer;
 
 impl CudnnContext {
@@ -45,7 +45,7 @@ impl CudnnContext {
     ) -> Result<(), CudnnError>
     where
         T: DataType,
-        CompT: SupportedOp<T, T, T>,
+        CompT: SupportedSoftmax<T>,
     {
         let alpha_ptr = &alpha as *const CompT as *const _;
         let x_ptr = x.as_device_ptr().as_ptr() as *const _;
@@ -112,7 +112,7 @@ impl CudnnContext {
     ) -> Result<(), CudnnError>
     where
         T: DataType,
-        CompT: SupportedOp<T, T, T>,
+        CompT: SupportedSoftmax<T>,
     {
         let alpha_ptr = &alpha as *const CompT as *const _;
         let y_ptr = y.as_device_ptr().as_ptr() as *const _;
@@ -140,3 +140,9 @@ impl CudnnContext {
         }
     }
 }
+
+/// Supported data type configurations for softmax operations.
+pub trait SupportedSoftmax<T>: DataType + private::Sealed {}
+
+impl SupportedSoftmax<f32> for f32 {}
+impl SupportedSoftmax<f64> for f64 {}
