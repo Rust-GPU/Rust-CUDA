@@ -23,8 +23,8 @@ impl From<sys::cudnnDirectionMode_t> for RnnDirectionMode {
 impl From<RnnDirectionMode> for sys::cudnnDirectionMode_t {
     fn from(mode: RnnDirectionMode) -> Self {
         match mode {
-            RnnDirectionMode::Unidirectional => sys::cudnnDirectionMode_t::CUDNN_UNIDIRECTIONAL,
-            RnnDirectionMode::Bidirectional => sys::cudnnDirectionMode_t::CUDNN_BIDIRECTIONAL,
+            RnnDirectionMode::Unidirectional => Self::CUDNN_UNIDIRECTIONAL,
+            RnnDirectionMode::Bidirectional => Self::CUDNN_BIDIRECTIONAL,
         }
     }
 }

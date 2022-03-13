@@ -1,6 +1,7 @@
 #![allow(warnings, clippy::all)]
 mod sys;
 
+mod attention;
 mod backend;
 mod context;
 mod convolution;
@@ -12,10 +13,10 @@ mod math_type;
 mod nan_propagation;
 mod op_tensor;
 mod rnn;
-mod seq_data_axis;
 mod tensor;
 mod w_grad_mode;
 
+pub use attention::*;
 pub use context::*;
 pub use convolution::*;
 pub use data_type::*;
@@ -26,7 +27,6 @@ pub use math_type::*;
 pub use nan_propagation::*;
 pub use op_tensor::*;
 pub use rnn::*;
-pub use seq_data_axis::*;
 pub use tensor::*;
 pub use w_grad_mode::*;
 

@@ -1,8 +1,6 @@
 use crate::{
-    data_type::DataType,
-    error::{CudnnError, IntoResult},
-    sys, DropoutDescriptor, MathType, NanPropagation, RnnAlgo, RnnBiasMode, RnnClipMode,
-    RnnDirectionMode, RnnInputMode, RnnMode,
+    sys, CudnnError, DataType, DropoutDescriptor, IntoResult, MathType, NanPropagation, RnnAlgo,
+    RnnBiasMode, RnnClipMode, RnnDirectionMode, RnnInputMode, RnnMode,
 };
 use cust::memory::GpuBuffer;
 use std::{marker::PhantomData, mem::MaybeUninit};
@@ -27,7 +25,7 @@ bitflags::bitflags! {
 pub struct RnnDescriptor<T, U>
 where
     T: DataType,
-    U: DataType + SupportedPrec<T>,
+    U: SupportedRnn<T>,
 {
     pub(crate) raw: sys::cudnnRNNDescriptor_t,
     data_type: PhantomData<T>,
@@ -37,7 +35,7 @@ where
 impl<T, U> RnnDescriptor<T, U>
 where
     T: DataType,
-    U: DataType + SupportedPrec<T>,
+    U: SupportedRnn<T>,
 {
     /// Initializes a RNN descriptor object.
     ///
@@ -242,7 +240,7 @@ where
 impl<T, U> Drop for RnnDescriptor<T, U>
 where
     T: DataType,
-    U: DataType + SupportedPrec<T>,
+    U: SupportedRnn<T>,
 {
     fn drop(&mut self) {
         unsafe {
@@ -257,12 +255,12 @@ where
 /// * For input and output in `f32`, the math precision of the model can only be `f32`.
 ///
 /// * For input and output in `f64` the math precision of the model can only be `f64`.
-pub trait SupportedPrec<T>
+pub trait SupportedRnn<T>
 where
     Self: DataType,
     T: DataType,
 {
 }
 
-impl SupportedPrec<f32> for f32 {}
-impl SupportedPrec<f64> for f64 {}
+impl SupportedRnn<f32> for f32 {}
+impl SupportedRnn<f64> for f64 {}

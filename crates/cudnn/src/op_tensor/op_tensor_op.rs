@@ -37,31 +37,3 @@ impl From<BinaryOp> for sys::cudnnOpTensorOp_t {
         }
     }
 }
-
-/// A tensor core operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TensorOp {
-    UnaryOp(UnaryOp),
-    BinaryOp(BinaryOp),
-}
-
-impl From<UnaryOp> for TensorOp {
-    fn from(op: UnaryOp) -> Self {
-        Self::UnaryOp(op)
-    }
-}
-
-impl From<BinaryOp> for TensorOp {
-    fn from(op: BinaryOp) -> Self {
-        Self::BinaryOp(op)
-    }
-}
-
-impl From<TensorOp> for sys::cudnnOpTensorOp_t {
-    fn from(op: TensorOp) -> Self {
-        match op {
-            TensorOp::BinaryOp(op) => op.into(),
-            TensorOp::UnaryOp(op) => op.into(),
-        }
-    }
-}
