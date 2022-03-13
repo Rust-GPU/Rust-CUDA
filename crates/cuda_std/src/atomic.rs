@@ -18,7 +18,7 @@
 //! Therefore we chose to go with the approach of implementing all atomics inside cuda_std. In the future, we may support
 //! a subset of core atomics, but for now, you will have to use cuda_std atomics.
 
-#![allow(unused_unsafe)]
+#![allow(unused_unsafe, warnings)]
 
 pub mod intrinsics;
 pub mod mid;
