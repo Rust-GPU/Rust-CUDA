@@ -34,3 +34,10 @@ impl<T> std::ops::Index<SeqDataAxis> for [T; 4] {
         self.index(raw as usize)
     }
 }
+
+impl<T> std::ops::IndexMut<SeqDataAxis> for [T; 4] {
+    fn index_mut(&mut self, index: SeqDataAxis) -> &mut Self::Output {
+        let raw: sys::cudnnSeqDataAxis_t = index.into();
+        self.index_mut(raw as usize)
+    }
+}
