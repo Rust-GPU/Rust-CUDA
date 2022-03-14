@@ -9,7 +9,7 @@ use std::{marker::PhantomData, mem::MaybeUninit};
 /// **Do note** that N can be either 2 or 3, respectively for a 2-d or a 3-d convolution, and that
 /// the same convolution descriptor can be reused in the backward path provided it corresponds to
 /// the same layer.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ConvDescriptor<T: DataType> {
     pub(crate) raw: sys::cudnnConvolutionDescriptor_t,
     comp_type: PhantomData<T>,

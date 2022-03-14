@@ -5,7 +5,7 @@ use std::{
 };
 
 /// A generic description of an n-dimensional filter dataset.
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct FilterDescriptor<T>
 where
     T: DataType,

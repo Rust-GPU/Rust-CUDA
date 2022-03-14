@@ -1,6 +1,7 @@
 #![allow(warnings, clippy::all)]
 mod sys;
 
+mod activation;
 mod attention;
 mod backend;
 mod context;
@@ -11,13 +12,14 @@ mod dropout;
 mod error;
 mod math_type;
 mod nan_propagation;
-mod op_tensor;
+mod op;
 mod pooling;
 mod rnn;
 mod softmax;
 mod tensor;
 mod w_grad_mode;
 
+pub use activation::*;
 pub use attention::*;
 pub use context::*;
 pub use convolution::*;
@@ -27,7 +29,7 @@ pub use dropout::*;
 pub use error::*;
 pub use math_type::*;
 pub use nan_propagation::*;
-pub use op_tensor::*;
+pub use op::*;
 pub use pooling::*;
 pub use rnn::*;
 pub use softmax::*;

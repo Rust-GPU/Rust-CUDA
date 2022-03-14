@@ -54,6 +54,7 @@ The current line-up of libraries is the following:
 - `cuda_std` for GPU-side functions and utilities, such as thread index queries, memory allocation, warp intrinsics, etc.
   - *Not* a low level library, provides many utility functions to make it easier to write cleaner and more reliable GPU kernels.
   - Closely tied to `rustc_codegen_nvvm` which exposes GPU features through it internally.
+- [`cudnn`](https://github.com/Rust-GPU/Rust-CUDA/tree/master/crates/cudnn) for a collection of GPU-accelerated primitives for deep neural networks.
 - `cust` for CPU-side CUDA features such as launching GPU kernels, GPU memory allocation, device queries, etc.
   - High level with features such as RAII and Rust Results that make it easier and cleaner to manage the interface to the GPU.
   - A high level wrapper for the CUDA Driver API, the lower level version of the more common CUDA Runtime API used from C++.
