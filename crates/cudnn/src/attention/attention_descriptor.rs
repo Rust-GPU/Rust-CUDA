@@ -21,6 +21,7 @@ bitflags::bitflags! {
 }
 
 /// A multi-head attention descriptor.
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct AttentionDescriptor<T, U, D1, D2>
 where
     T: SeqDataType,

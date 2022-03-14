@@ -30,6 +30,7 @@ unsafe fn init_raw_op_descriptor<T: DataType>(
 /// As specified in the cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#scaling-parameters),
 /// admissible types for scaling parameters are `f32` and `f64` for `f32` and `f64` tensors
 /// respectively.
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct UnaryOpTensorDescriptor<T: DataType> {
     pub(crate) raw: sys::cudnnOpTensorDescriptor_t,
     comp_type: PhantomData<T>,
@@ -91,6 +92,7 @@ impl<T: DataType> Drop for UnaryOpTensorDescriptor<T> {
 /// As specified in the cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#scaling-parameters),
 /// admissible types for scaling parameters are `f32` and `f64` for `f32` and `f64` tensors
 /// respectively.
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct BinaryOpTensorDescriptor<T: DataType> {
     pub(crate) raw: sys::cudnnOpTensorDescriptor_t,
     comp_type: PhantomData<T>,

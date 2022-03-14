@@ -2,6 +2,7 @@ use crate::{error::CudnnError, sys, IntoResult};
 use cust::memory::GpuBuffer;
 
 /// The descriptor of a dropout operation.
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct DropoutDescriptor<T>
 where
     T: GpuBuffer<u8>,

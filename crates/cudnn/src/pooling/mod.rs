@@ -31,24 +31,24 @@ impl CudnnContext {
     ///
     /// Returns errors if the batch size or channels dimensions of the two tensor differ or an
     /// invalid combination of arguments is detected.
-    pub fn pooling_forward<T, U>(
+    pub fn pooling_forward<CompT, T>(
         &self,
         pooling_desc: &PoolingDescriptor,
-        alpha: T,
-        x_desc: &TensorDescriptor<U>,
-        x: &impl GpuBuffer<U>,
-        beta: T,
-        y_desc: &TensorDescriptor<U>,
-        y: &mut impl GpuBuffer<U>,
+        alpha: CompT,
+        x_desc: &TensorDescriptor<T>,
+        x: &impl GpuBuffer<T>,
+        beta: CompT,
+        y_desc: &TensorDescriptor<T>,
+        y: &mut impl GpuBuffer<T>,
     ) -> Result<(), CudnnError>
     where
-        T: SupportedPoolFwd<U>,
-        U: DataType,
+        CompT: SupportedPoolFwd<T>,
+        T: DataType,
     {
-        let alpha_ptr = &alpha as *const T as *const _;
+        let alpha_ptr = &alpha as *const CompT as *const _;
         let x_ptr = x.as_device_ptr().as_ptr() as *const _;
 
-        let beta_ptr = &beta as *const T as *const _;
+        let beta_ptr = &beta as *const CompT as *const _;
         let y_ptr = y.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
@@ -82,9 +82,9 @@ impl CudnnContext {
     ///
     /// * `dy` - data foe the differential of the output map.
     ///
-    /// * `x_desc` - tensor descriptor for the dropout input.
+    /// * `x_desc` - tensor descriptor for the pooling input.
     ///
-    /// * `x` - data for the dropout input.
+    /// * `x` - data for the pooling input.
     ///
     /// * `beta` - scaling factor for the destination tensor.
     ///
@@ -97,31 +97,31 @@ impl CudnnContext {
     /// Returns errors if the dimensions or the strides of `y` and `dy` tensors differ or if the
     /// dimensions or the strides of `x` and `dx` tensors differ or if an unsupported combination
     /// of arguments is detected.
-    pub fn pooling_backward<T, U>(
+    pub fn pooling_backward<CompT, T>(
         &self,
         pooling_desc: &PoolingDescriptor,
-        alpha: T,
-        y_desc: &TensorDescriptor<U>,
-        y: &impl GpuBuffer<U>,
-        dy_desc: &TensorDescriptor<U>,
-        dy: &impl GpuBuffer<U>,
-        x_desc: &TensorDescriptor<U>,
-        x: &impl GpuBuffer<U>,
-        beta: T,
-        dx_desc: &TensorDescriptor<U>,
-        dx: &mut impl GpuBuffer<U>,
+        alpha: CompT,
+        y_desc: &TensorDescriptor<T>,
+        y: &impl GpuBuffer<T>,
+        dy_desc: &TensorDescriptor<T>,
+        dy: &impl GpuBuffer<T>,
+        x_desc: &TensorDescriptor<T>,
+        x: &impl GpuBuffer<T>,
+        beta: CompT,
+        dx_desc: &TensorDescriptor<T>,
+        dx: &mut impl GpuBuffer<T>,
     ) -> Result<(), CudnnError>
     where
-        T: SupportedPoolBwd<U>,
-        U: DataType,
+        CompT: SupportedPoolBwd<T>,
+        T: DataType,
     {
-        let alpha_ptr = &alpha as *const T as *const _;
+        let alpha_ptr = &alpha as *const CompT as *const _;
 
         let y_ptr = y.as_device_ptr().as_ptr() as *const _;
         let dy_ptr = dy.as_device_ptr().as_ptr() as *const _;
         let x_ptr = x.as_device_ptr().as_ptr() as *const _;
 
-        let beta_ptr = &beta as *const T as *const _;
+        let beta_ptr = &beta as *const CompT as *const _;
 
         let dx_ptr = dx.as_device_ptr().as_mut_ptr() as *mut _;
 

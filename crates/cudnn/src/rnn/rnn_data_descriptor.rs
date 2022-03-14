@@ -10,6 +10,8 @@ pub trait RnnDataType: DataType + private::Sealed {}
 impl RnnDataType for f32 {}
 impl RnnDataType for f64 {}
 
+/// Descriptor of a recurrent neural network data container.
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RnnDataDescriptor<T>
 where
     T: RnnDataType,

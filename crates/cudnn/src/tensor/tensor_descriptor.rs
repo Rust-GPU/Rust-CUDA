@@ -5,7 +5,7 @@ use std::{
 };
 
 /// A generic description of an n-dimensional dataset.
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct TensorDescriptor<T>
 where
     T: DataType,

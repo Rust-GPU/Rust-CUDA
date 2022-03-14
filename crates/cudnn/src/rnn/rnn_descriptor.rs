@@ -21,7 +21,7 @@ bitflags::bitflags! {
 ///
 /// This descriptor is generic over the data type of the parameters and the inputs, and the one of
 /// the computation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RnnDescriptor<T, U>
 where
     T: DataType,
