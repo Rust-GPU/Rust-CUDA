@@ -1,8 +1,10 @@
 mod attention_descriptor;
+mod attention_weights_kind;
 mod seq_data_axis;
 mod seq_data_descriptor;
 
 pub use attention_descriptor::*;
+pub use attention_weights_kind::*;
 pub use seq_data_axis::*;
 pub use seq_data_descriptor::*;
 
