@@ -6,7 +6,7 @@ The current version of cuDNN targeted by this wrapper is the 8.3.2. You can refe
 
 The legacy API is somewhat complete and it is usable but the backend API is still to be considered a work in progress and its usage is therefore much discouraged. Both APIs are still being developed so expect bugs and reasonable breaking changes whilst using this crate. 
 
-The project is part of the Rust CUDA ecosystem and is actively maintained by @frjnn.
+The project is part of the Rust CUDA ecosystem and is actively maintained by [frjnn](https://github.com/frjnn).
 
 ## Primer 
 
