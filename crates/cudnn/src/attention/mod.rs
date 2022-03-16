@@ -26,6 +26,9 @@ impl CudnnContext {
     ///
     /// `desc` - multi-head attention descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetMultiHeadAttnBuffers)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if invalid arguments are detected.
@@ -111,6 +114,10 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve space buffer in device memory. This argument should be `None` in
     /// inference mode.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnForward)
+    /// may offer additional information about the APi behavior.
+    #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_forward<T, U, D1, D2>(
         &self,
         attn_desc: &AttentionDescriptor<T, U, D1, D2>,
@@ -251,11 +258,15 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve space buffer in device memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardData)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument was encountered, an inconsistent
     /// internal state was encountered, a requested option or a combination of input arguments is
     /// not supported or in case of insufficient amount of shared memory to launch the kernel.
+    #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_backward_data<T, U, D1, D2>(
         &self,
         attn_desc: &AttentionDescriptor<T, U, D1, D2>,
@@ -382,11 +393,15 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve space buffer in device memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardWeights)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument was encountered, an inconsistent
     /// internal state was encountered, a requested option or a combination of input arguments is
     /// not supported or in case of insufficient amount of shared memory to launch the kernel.
+    #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_backward_weights<T, U, D1, D2>(
         &self,
         attn_desc: &AttentionDescriptor<T, U, D1, D2>,

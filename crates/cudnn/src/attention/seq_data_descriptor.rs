@@ -71,6 +71,9 @@ where
     ///
     /// * `seq_lengths` - array that defines all sequence lengths of the underlying container.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetSeqDataDescriptor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the innermost dimension as specified in the `axes` array is not
@@ -127,7 +130,7 @@ where
             sys::cudnnSetSeqDataDescriptor(
                 raw,
                 T::into_raw(),
-                4 as i32,
+                4_i32,
                 dims.as_ptr(),
                 raw_axes.as_ptr(),
                 seq_lengths.len(),

@@ -19,6 +19,9 @@ impl ActivationDescriptor {
     /// * `coefficient` - optional coefficient for the given function. It specifies the clipping
     /// threshold for `ActivationMode::ClippedRelu`.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetActivationDescriptor)
+    /// may offer additional information about the API behavior.
+    ///
     /// # Examples
     ///
     /// ```

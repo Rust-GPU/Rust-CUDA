@@ -29,10 +29,14 @@ impl CudnnContext {
     ///
     /// * `y` - data for the destination tensor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingForward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the batch size or channels dimensions of the two tensor differ or an
     /// invalid combination of arguments is detected.
+    #[allow(clippy::too_many_arguments)]
     pub fn pooling_forward<CompT, T>(
         &self,
         pooling_desc: &PoolingDescriptor,
@@ -94,11 +98,15 @@ impl CudnnContext {
     ///
     /// * `dx` - data for the input differential.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingBackward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the dimensions or the strides of `y` and `dy` tensors differ or if the
     /// dimensions or the strides of `x` and `dx` tensors differ or if an unsupported combination
     /// of arguments is detected.
+    #[allow(clippy::too_many_arguments)]
     pub fn pooling_backward<CompT, T>(
         &self,
         pooling_desc: &PoolingDescriptor,
@@ -147,7 +155,8 @@ impl CudnnContext {
     }
 }
 
-/// Supported type configurations for the pooling backward operation.
+/// Supported type configurations for the pooling backward operation as specified in the cuDNN
+/// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingBackward).
 pub trait SupportedPoolBwd<T>: DataType + private::Sealed
 where
     T: DataType,

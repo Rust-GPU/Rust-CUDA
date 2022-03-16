@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Selects the LSTM cell clipping mode.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNClipMode_t)
+/// may offer additional information about the APi behavior.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RnnClipMode {

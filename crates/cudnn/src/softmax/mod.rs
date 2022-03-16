@@ -28,10 +28,14 @@ impl CudnnContext {
     ///
     /// * `y` - output data in device memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxForward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the configuration in input is not supported, the tensor shapes differ or
     /// the data types of the input and destination tensor are not the same.
+    #[allow(clippy::too_many_arguments)]
     pub fn softmax_forward<T, CompT>(
         &self,
         algo: SoftmaxAlgo,
@@ -93,10 +97,14 @@ impl CudnnContext {
     ///
     /// * `dx` - differential data in device memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxBackward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the configuration in input is not supported, the tensor shapes differ or
     /// the data types of the input and differential tensor are not the same.
+    #[allow(clippy::too_many_arguments)]
     pub fn softmax_backward<T, CompT>(
         &self,
         algo: SoftmaxAlgo,

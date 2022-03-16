@@ -28,6 +28,9 @@ impl CudnnContext {
     ///
     /// * `y` - data for the output.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationForward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the shapes of the `y` and `x` tensors do not match or an unsupported
@@ -66,6 +69,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn activation_forward<CompT, T>(
         &self,
         activation_desc: &ActivationDescriptor,
@@ -127,11 +131,15 @@ impl CudnnContext {
     ///
     /// * `dx` - data for the input differential.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationBackward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the shapes of the `dx` and `x` tensors do not match, the strides of the
     /// tensors and their differential do not match,  or an unsupported configuration of arguments
     /// is detected.
+    #[allow(clippy::too_many_arguments)]
     pub fn activation_backward<CompT, T>(
         &self,
         activation_desc: &ActivationDescriptor,

@@ -49,6 +49,9 @@ impl CudnnContext {
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Examples
     ///
     /// ```
@@ -85,6 +88,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn binary_tensor_op<CompT, T1, T2, T3>(
         &self,
         op_desc: &BinaryOpTensorDescriptor<CompT>,
@@ -160,6 +164,9 @@ impl CudnnContext {
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Examples
     ///
     /// ```
@@ -192,6 +199,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn unary_tensor_op<CompT, T1, T2>(
         &self,
         op_desc: &UnaryOpTensorDescriptor<CompT>,
@@ -256,6 +264,9 @@ impl CudnnContext {
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnAddTensor)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -325,6 +336,9 @@ impl CudnnContext {
     ///
     /// * `value` - value to set. Must be stored in host memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetTensor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns error if an unsupported configurations of arguments is detected.
@@ -379,6 +393,9 @@ impl CudnnContext {
     ///
     /// * `value` - value in the host memory to a single value that all elements of the tensor will
     /// be scaled with.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnScaleTensor)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

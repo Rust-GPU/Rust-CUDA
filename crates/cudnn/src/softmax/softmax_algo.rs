@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies the implementation of the softmax function.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxAlgorithm_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SoftmaxAlgo {
     /// This implementation applies the straightforward softmax operation.

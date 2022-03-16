@@ -3,6 +3,9 @@ use crate::sys;
 /// Describes and indexes active dimensions in the `SeqDataDescriptor` `dim` field. This enum is
 /// also used in the `axis` argument of the `SeqDataDescriptor` constructor to  define the layout
 /// of the sequence data buffer in memory.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSeqDataAxis_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SeqDataAxis {
     /// Identifies the time (sequence length) dimension or specifies the time in the data layout.

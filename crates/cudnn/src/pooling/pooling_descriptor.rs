@@ -22,12 +22,14 @@ impl PoolingDescriptor {
     ///
     /// * `stride` - stride for each dimension.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetPoolingNdDescriptor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid configuration of arguments is detected.
     ///
     /// # Examples
-    ///
     ///
     /// ```
     /// # use std::error::Error;

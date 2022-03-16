@@ -2,6 +2,9 @@ use crate::sys;
 
 /// Selects how buffers holding gradients of the loss function, computed with respect to trainable
 /// parameters, are updated.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnWgradMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WGradMode {
     /// A weight gradient component, corresponding to a new batch of inputs, overwrites previously

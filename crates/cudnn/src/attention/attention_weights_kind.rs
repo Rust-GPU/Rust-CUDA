@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies a group of weights or biases for the multi-head attention layer.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnWeightKind_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AttnWeight {
     /// Selects the input projection weights for queries.

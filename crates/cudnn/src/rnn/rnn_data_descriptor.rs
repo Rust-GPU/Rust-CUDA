@@ -51,6 +51,9 @@ where
     /// layout is specified. The symbol should be in the host memory, and if a `None` is passed in,
     /// then the padding position in the output will be undefined.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDataDescriptor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Panics
     ///
     /// If the length of `seq_lengths` doesn't match `batch_size`.

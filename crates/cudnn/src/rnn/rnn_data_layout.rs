@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// The data layout for input and output of a recurrent neural network.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNDataLayout_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RnnDataLayout {
     /// Data layout is padded, with outer stride from one time-step to the next.

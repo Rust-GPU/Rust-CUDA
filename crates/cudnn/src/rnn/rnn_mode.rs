@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies the type of recurrent neural network used.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RnnMode {
     /// A single-gate recurrent neural network with a ReLU activation function.
@@ -11,17 +14,6 @@ pub enum RnnMode {
     Lstm,
     /// A three-gate network consisting of Gated Recurrent Units.
     Gru,
-}
-
-impl From<sys::cudnnRNNMode_t> for RnnMode {
-    fn from(raw: sys::cudnnRNNMode_t) -> Self {
-        match raw {
-            sys::cudnnRNNMode_t::CUDNN_RNN_RELU => Self::RnnReLu,
-            sys::cudnnRNNMode_t::CUDNN_RNN_TANH => Self::RnnTanh,
-            sys::cudnnRNNMode_t::CUDNN_LSTM => Self::Lstm,
-            sys::cudnnRNNMode_t::CUDNN_GRU => Self::Gru,
-        }
-    }
 }
 
 impl From<RnnMode> for sys::cudnnRNNMode_t {

@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies the pooling method.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PoolingMode {
     /// The maximum value inside the pooling window is used.

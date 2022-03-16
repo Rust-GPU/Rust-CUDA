@@ -42,6 +42,9 @@ impl CudnnContext {
     ///
     /// * `x_desc` - a RNN data descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNTempSpaceSizes)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns an error is an incompatible or unsupported combination of input arguments was
@@ -74,7 +77,7 @@ impl CudnnContext {
                 workspace_size.assume_init(),
                 match reserve_space_size.assume_init() {
                     0 => None,
-                    size @ _ => Some(size),
+                    size => Some(size),
                 },
             ))
         }
@@ -86,6 +89,9 @@ impl CudnnContext {
     /// # Arguments
     ///
     /// `rnn_desc` - an RNN descriptor.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNWeightSpaceSize)
+    /// may offer additional information about the APi behavior.
     pub fn get_rnn_weight_space_size<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -193,10 +199,14 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve-space buffer in GPU memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNForward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors is an unsupported arguments combination is detected or if the supplied
     /// buffers are too small.
+    #[allow(clippy::too_many_arguments)]
     pub fn rnn_forward<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -395,9 +405,13 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve-space buffer in GPU memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNBackwardData_v8)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument was encountered.
+    #[allow(clippy::too_many_arguments)]
     pub fn rnn_backward_data<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -540,9 +554,13 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve-space buffer in GPU memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNBackwardWeights_v8)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument combinations was encountered.
+    #[allow(clippy::too_many_arguments)]
     pub fn rnn_backward_weights<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,

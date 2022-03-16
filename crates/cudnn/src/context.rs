@@ -30,6 +30,9 @@ pub struct CudnnContext {
 impl CudnnContext {
     /// Creates a new cuDNN context, allocating the required memory on both host and device.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnCreate)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Examples
     ///
     /// ```
@@ -54,6 +57,9 @@ impl CudnnContext {
     }
 
     /// Returns the version number of the underlying cuDNN library.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetVersion)
+    /// may offer additional information about the APi behavior.
     pub fn version(&self) -> (u32, u32, u32) {
         unsafe {
             // cudnnGetVersion does not return a state as it never fails.
@@ -69,6 +75,9 @@ impl CudnnContext {
     /// Since The same version of a given cuDNN library can be compiled against different CUDA
     /// toolkit versions, this routine returns the CUDA toolkit version that the currently used
     /// cuDNN library has been compiled against.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetCudartVersion)
+    /// may offer additional information about the APi behavior.
     pub fn cuda_version(&self) -> (u32, u32, u32) {
         unsafe {
             // cudnnGetCudartVersion does not return a state as it never fails.
@@ -93,6 +102,9 @@ impl CudnnContext {
     /// # Arguments
     ///
     /// `stream` - the CUDA stream to be written to the cuDNN handle.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetStream)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

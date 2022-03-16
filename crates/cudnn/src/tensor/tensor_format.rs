@@ -25,6 +25,9 @@ impl From<ScalarC> for sys::cudnnTensorFormat_t {
 }
 
 /// Predefined layouts for tensors.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnTensorFormat_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TensorFormat {
     /// Scalar valued formats.
