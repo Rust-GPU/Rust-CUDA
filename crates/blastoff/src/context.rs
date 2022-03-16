@@ -58,6 +58,11 @@ bitflags::bitflags! {
 /// - [Conjugated Complex Dot Product <span style="float:right;">`dotc`</span>](CublasContext::dotc)
 /// - [Euclidian Norm <span style="float:right;">`nrm2`</span>](CublasContext::nrm2)
 /// - [Rotate points in the xy-plane using a Givens rotation matrix <span style="float:right;">`rot`</span>](CublasContext::rot)
+/// - [Construct the givens rotation matrix that zeros the second entry of a vector<span style="float:right;">`rotg`</span>](CublasContext::rotg)
+/// - [Apply the modified Givens transformation to vectors <span style="float:right;">`rotm`</span>](CublasContext::rotm)
+/// - [Construct the modified givens rotation matrix that zeros the second entry of a vector<span style="float:right;">`rotmg`</span>](CublasContext::rotmg)
+/// - [Scale a vector by a scalar <span style="float:right;">`scal`</span>](CublasContext::scal)
+/// - [Swap two vectors <span style="float:right;">`swap`</span>](CublasContext::swap)
 #[derive(Debug)]
 pub struct CublasContext {
     pub(crate) raw: sys::v2::cublasHandle_t,
