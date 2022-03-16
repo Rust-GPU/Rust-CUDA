@@ -28,7 +28,6 @@ impl CudnnContext {
     ///
     /// * `y` - data for the output.
     ///
-    ///
     /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationForward)
     /// may offer additional information about the APi behavior.
     ///

@@ -63,7 +63,7 @@ pub enum ConvFwdAlgo {
     Fft,
     /// This algorithm uses the Fast-Fourier Transform approach but splits the inputs into tiles.
     /// A significant memory workspace is needed to store intermediate results, but less than
-    /// [`Fft`], for large size images.
+    /// [`ConvFwdAlgo::Fft`], for large size images.
     FftTiling,
     /// This algorithm uses the Winograd Transform approach to compute the convolution. A reasonably
     /// sized workspace is needed to store intermediate results.
@@ -158,7 +158,7 @@ pub enum ConvBwdDataAlgo {
     Fft,
     /// This algorithm uses the Fast-Fourier Transform approach but splits the inputs into tiles.
     /// A significant memory workspace is needed to store intermediate results, but less than
-    /// [`Fft`], for large size images.
+    /// [`ConvBwdDataAlgo::Fft`], for large size images.
     FftTiling,
     /// This algorithm uses the Winograd Transform approach to compute the convolution. A reasonably
     /// sized workspace is needed to store intermediate results.
@@ -240,7 +240,7 @@ pub enum ConvBwdFilterAlgo {
     Fft,
     /// This algorithm uses the Fast-Fourier Transform approach but splits the inputs into tiles.
     /// A significant memory workspace is needed to store intermediate results, but less than
-    /// [`Fft`], for large size images.
+    /// [`ConvBwdFilterAlgo::Fft`], for large size images.
     FftTiling,
     /// This algorithm uses the Winograd Transform approach to compute the convolution. A reasonably
     /// sized workspace is needed to store intermediate results.

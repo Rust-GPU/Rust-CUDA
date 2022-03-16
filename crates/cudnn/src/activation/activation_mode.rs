@@ -21,7 +21,7 @@ pub enum ActivationMode {
     /// Selects no activation.
     ///
     /// **Do note** that this is only valid for an activation descriptor passed to
-    /// [`convolution_bias_act_forward()`](CudnnContext::convolution_bias_act_fwd).
+    /// [`convolution_bias_act_forward()`](crate::CudnnContext::convolution_bias_act_forward).
     Identity,
 }
 

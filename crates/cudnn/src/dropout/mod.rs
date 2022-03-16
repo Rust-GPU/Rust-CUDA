@@ -106,7 +106,7 @@ impl CudnnContext {
     /// * `seed` - seed used to initialize random number generator states.
     ///
     /// **Do note** that the exact amount of memory can be obtained with
-    /// [`get_dropout_states_size()`](CudnnContext::get_dropout_states_sizes).
+    /// [`get_dropout_states_size()`](crate::CudnnContext::get_dropout_states_size).
     ///
     /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetDropoutDescriptor)
     /// may offer additional information about the APi behavior.

@@ -10,10 +10,10 @@ use std::{error::Error, ffi::CStr, fmt::Display};
 pub enum CudnnError {
     /// The cuDNN library was not initialized properly.
     ///
-    /// This error is usually returned when a call to [`CudnnContext::new()`] fails or when `CudnnContext::new()`
-    /// has not been called prior to calling another cuDNN routine. In the former case, it is
-    /// usually due to an error in the CUDA Runtime API called by such a function or by an error in
-    /// the hardware setup.
+    /// This error is usually returned when a call to [`crate::CudnnContext::new()`] fails or when
+    /// `CudnnContext::new()` has not been called prior to calling another cuDNN routine. In the
+    /// former case, it is usually due to an error in the CUDA Runtime API called by such a function
+    /// or by an error in the hardware setup.
     NotInitialized,
     /// Resource allocation failed inside the cuDNN library. This is usually caused by an internal
     /// `cudaMalloc()` failure.

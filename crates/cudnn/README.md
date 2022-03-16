@@ -14,7 +14,7 @@ Here follows a list of useful concepts that should be taken as a handbook for th
 
 ### Device buffers
 
-This crate is built around [`cust`](https://docs.rs/cust/latest/cust/memory/index.html) own memory routines and transfer functions.
+This crate is built around [`cust`](https://docs.rs/cust/latest/cust/index.html) which is the core wrapper for interfacing with the CUDA driver API of our choice.
 
 ### cuDNN statuses and Result
 
@@ -39,7 +39,9 @@ let ctx = CudnnContext::new().unwrap();
 In order to enforce type safety as much as possible at compile time, we shifted away from the original cuDNN enumerated data types and instead opted to leverage Rust's generics. In practice, this means that specifying the data type of a cuDNN tensor descriptor is done as follows:
 
 ```rust
-use cudnn::TensorDescriptor;
+use cudnn::{CudnnContext, TensorDescriptor};
+
+let ctx = CudnnContext::new().unwrap();
 
 let shape = &[5, 5, 10, 25];
 let strides = &[1250, 250, 25, 1];
@@ -53,7 +55,9 @@ This API also allows for using Rust own types as cuDNN data types, which we see 
 Safely manipulating cuDNN data types that do not have any such direct match, such as vectorized ones, whilst still performing compile time compatibility checks can be done as follows:
 
 ```rust
-use cudnn::{TensorDescriptor, Vec4};
+use cudnn::{CudnnContext, TensorDescriptor, Vec4};
+
+let ctx = CudnnContext::new().unwrap();
 
 let shape = &[4, 32, 32, 32];
 
@@ -74,7 +78,7 @@ You can refer to this [extract](https://docs.nvidia.com/deeplearning/cudnn/devel
 We split the original cuDNN tensor format enum, which counts 3 variants, in 2 parts: the `ScalarC` enum and the `TensorFormat::NchwVectC` enum variant. The former stands for "scalar channel" and it encapsulates the `Nchw` and `Nhwc` formats. Scalar channel formats can be both converted to the `TensorFormat` enum with [`.into()`](https://doc.rust-lang.org/std/convert/trait.Into.html).
 
 ```rust
-use cudnn::{TensorFormat, ScalarC};
+use cudnn::{ScalarC, TensorFormat};
 
 let sc_fmt = ScalarC::Nchw;
 

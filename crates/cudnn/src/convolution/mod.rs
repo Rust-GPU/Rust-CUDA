@@ -1082,7 +1082,7 @@ impl CudnnContext {
     ///
     /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
     /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
-    /// dimension can be obtained with [`get_convolution_backward_data_workspace_size`].
+    /// dimension can be obtained with [`get_convolution_backward_data_workspace_size()`](crate::CudnnContext::get_convolution_backward_data_workspace_size).
     ///
     /// * `beta` - scaling parameter.
     ///
@@ -1238,7 +1238,7 @@ impl CudnnContext {
     ///
     /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
     /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
-    /// dimension can be obtained with [`get_convolution_backward_filter_workspace_size()`].
+    /// dimension can be obtained with [`get_convolution_backward_data_workspace_size()`](crate::CudnnContext::get_convolution_backward_data_workspace_size).
     ///
     /// * `beta` - scaling parameter.
     ///
