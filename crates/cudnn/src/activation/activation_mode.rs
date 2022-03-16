@@ -15,6 +15,11 @@ pub enum ActivationMode {
     Elu,
     /// Selects the swish function.
     Swish,
+    /// Selects no activation.
+    ///
+    /// **Do note** that this is only valid for an activation descriptor passed to
+    /// [`convolution_bias_act_forward()`](CudnnContext::convolution_bias_act_fwd).
+    Identity,
 }
 
 impl From<ActivationMode> for sys::cudnnActivationMode_t {
@@ -26,6 +31,7 @@ impl From<ActivationMode> for sys::cudnnActivationMode_t {
             ActivationMode::ClippedRelu => Self::CUDNN_ACTIVATION_CLIPPED_RELU,
             ActivationMode::Elu => Self::CUDNN_ACTIVATION_ELU,
             ActivationMode::Swish => Self::CUDNN_ACTIVATION_SWISH,
+            ActivationMode::Identity => Self::CUDNN_ACTIVATION_IDENTITY,
         }
     }
 }
