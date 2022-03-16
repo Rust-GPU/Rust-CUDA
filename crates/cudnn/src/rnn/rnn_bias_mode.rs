@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies the number of bias vectors for a recurrent neural network function.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNBiasMode_t)
+/// may offer additional information about the APi behavior.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RnnBiasMode {
@@ -14,17 +17,6 @@ pub enum RnnBiasMode {
     /// Applies a recurrent neural network cell formula that uses one recurrent bias vector in the
     /// recurrent GEMM.
     SingleRecurrentBias,
-}
-
-impl From<sys::cudnnRNNBiasMode_t> for RnnBiasMode {
-    fn from(raw: sys::cudnnRNNBiasMode_t) -> Self {
-        match raw {
-            sys::cudnnRNNBiasMode_t::CUDNN_RNN_NO_BIAS => Self::NoBias,
-            sys::cudnnRNNBiasMode_t::CUDNN_RNN_SINGLE_INP_BIAS => Self::SingleInpBias,
-            sys::cudnnRNNBiasMode_t::CUDNN_RNN_DOUBLE_BIAS => Self::DoubleBias,
-            sys::cudnnRNNBiasMode_t::CUDNN_RNN_SINGLE_REC_BIAS => Self::SingleRecurrentBias,
-        }
-    }
 }
 
 impl From<RnnBiasMode> for sys::cudnnRNNBiasMode_t {

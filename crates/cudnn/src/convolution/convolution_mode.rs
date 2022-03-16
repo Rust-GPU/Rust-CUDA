@@ -6,21 +6,15 @@ use crate::sys;
 /// mathematically to a convolution or to a cross-correlation.
 ///
 /// A cross-correlation is equivalent to a convolution with its filter rotated by 180 degrees.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ConvMode {
     /// Convolution operation.
     Convolution,
     /// Cross Correlation operation.
     CrossCorrelation,
-}
-
-impl From<sys::cudnnConvolutionMode_t> for ConvMode {
-    fn from(raw: sys::cudnnConvolutionMode_t) -> Self {
-        match raw {
-            sys::cudnnConvolutionMode_t::CUDNN_CONVOLUTION => Self::Convolution,
-            sys::cudnnConvolutionMode_t::CUDNN_CROSS_CORRELATION => Self::CrossCorrelation,
-        }
-    }
 }
 
 impl From<ConvMode> for sys::cudnnConvolutionMode_t {

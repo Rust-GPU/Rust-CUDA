@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Enum stating whether the use of tensor core operations is permitted in a given library routine.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMathType_t)
+/// may offer additional information about the APi behavior.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MathType {

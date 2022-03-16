@@ -85,6 +85,9 @@ where
     ///
     /// * `max_bream_size` - largest beam expected in any sequential data descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetAttnDescriptor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an unsupported combination of arguments is detected. Some examples

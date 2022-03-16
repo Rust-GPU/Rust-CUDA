@@ -42,6 +42,9 @@ impl CudnnContext {
     ///
     /// * `x_desc` - a RNN data descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNTempSpaceSizes)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns an error is an incompatible or unsupported combination of input arguments was
@@ -86,6 +89,9 @@ impl CudnnContext {
     /// # Arguments
     ///
     /// `rnn_desc` - an RNN descriptor.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNWeightSpaceSize)
+    /// may offer additional information about the APi behavior.
     pub fn get_rnn_weight_space_size<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -192,6 +198,9 @@ impl CudnnContext {
     /// * `work_space` - buffer in GPU memory to store temporary data.
     ///
     /// * `reserve_space` - reserve-space buffer in GPU memory.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNForward)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -396,6 +405,9 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve-space buffer in GPU memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNBackwardData_v8)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument was encountered.
@@ -541,6 +553,9 @@ impl CudnnContext {
     /// * `work_space` - workspace buffer in GPU memory to store temporary data.
     ///
     /// * `reserve_space` - reserve-space buffer in GPU memory.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNBackwardWeights_v8)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

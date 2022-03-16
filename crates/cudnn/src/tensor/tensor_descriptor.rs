@@ -23,6 +23,9 @@ where
     ///
     /// * `strides` - strides for the tensor descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetTensorNdDescriptor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Examples
     ///
     /// ```
@@ -76,6 +79,9 @@ where
     /// * `shape` - slice containing the size of the tensor for every dimension.
     ///
     /// * `format` - format for the tensor descriptor.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetTensorNdDescriptorEx)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Examples
     ///

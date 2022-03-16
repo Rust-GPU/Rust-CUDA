@@ -49,6 +49,9 @@ impl CudnnContext {
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Examples
     ///
     /// ```
@@ -161,6 +164,9 @@ impl CudnnContext {
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Examples
     ///
     /// ```
@@ -259,6 +265,9 @@ impl CudnnContext {
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnAddTensor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns error if an unsupported configurations of arguments is detected.
@@ -327,6 +336,9 @@ impl CudnnContext {
     ///
     /// * `value` - value to set. Must be stored in host memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetTensor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns error if an unsupported configurations of arguments is detected.
@@ -381,6 +393,9 @@ impl CudnnContext {
     ///
     /// * `value` - value in the host memory to a single value that all elements of the tensor will
     /// be scaled with.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnScaleTensor)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

@@ -89,6 +89,9 @@ where
     /// is enabled, layouts `SeqMajorUnpacked` and `BatchMajorUnpacked` are permitted in RNN data
     /// descriptors.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDescriptor_v8)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an incompatible or unsupported combination of input arguments was
@@ -213,6 +216,9 @@ where
     ///
     /// **Do note** that cell clipping is only available if the cell mode associated to this
     /// descriptor is `RnnMode::Lstm`.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNSetClip_v8)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

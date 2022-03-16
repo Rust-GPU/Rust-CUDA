@@ -1,6 +1,9 @@
 use crate::{private, DataType};
 
 /// Supported data types configurations for convolution operations.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionForward)
+/// may offer additional information about the APi behavior.
 pub trait SupportedConv<X, W, Y>: private::Sealed + DataType
 where
     X: DataType,

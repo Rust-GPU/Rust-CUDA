@@ -28,6 +28,9 @@ where
     /// a 3D filter descriptor, the number S (number of columns per filter) is omitted. For N = 5
     /// and greater, the layout of the higher dimensions immediately follows RS.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetFilterNdDescriptor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns an error if at least one of the elements of the array shape was negative or zero,

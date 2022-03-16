@@ -28,6 +28,10 @@ impl CudnnContext {
     ///
     /// * `y` - data for the output.
     ///
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationForward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the shapes of the `y` and `x` tensors do not match or an unsupported
@@ -127,6 +131,9 @@ impl CudnnContext {
     /// * `dx_desc` - tensor descriptor for the input differential.
     ///
     /// * `dx` - data for the input differential.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationBackward)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

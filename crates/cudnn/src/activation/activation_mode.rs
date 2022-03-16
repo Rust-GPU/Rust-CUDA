@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies a neuron activation function.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ActivationMode {
     /// Selects the sigmoid function.

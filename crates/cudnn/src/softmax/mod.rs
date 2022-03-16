@@ -28,6 +28,9 @@ impl CudnnContext {
     ///
     /// * `y` - output data in device memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxForward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the configuration in input is not supported, the tensor shapes differ or
@@ -93,6 +96,9 @@ impl CudnnContext {
     /// * `dx_desc` - differential tensor descriptor.
     ///
     /// * `dx` - differential data in device memory.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxBackward)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

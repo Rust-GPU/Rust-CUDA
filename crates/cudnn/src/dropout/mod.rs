@@ -10,6 +10,9 @@ impl CudnnContext {
     /// This function is used to query the amount of space required to store the states of the
     /// random number generators.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnDropoutGetStatesSize)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns an error if the query was not successful.
@@ -50,8 +53,10 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// `x_desc` - a previously initialized tensor descriptor, describing input to a dropout
-    /// operation.
+    /// `desc` - tensor descriptor.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnDropoutGetReserveSpaceSize)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -63,19 +68,27 @@ impl CudnnContext {
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, TensorDescriptor};
+    /// use cudnn::{CudnnContext, ScalarC, TensorDescriptor};
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let size = ctx.get_dropout_reserved_space_size()?;
+    /// let desc = TensorDescriptor::<f32>::new_format(&[4, 5, 20, 20], ScalarC::Nchw)?;
+    ///
+    /// let size = ctx.get_dropout_reserve_space_size(&desc)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_dropout_reserved_space_size(&self) -> Result<usize, CudnnError> {
+    pub fn get_dropout_reserve_space_size<T>(
+        &self,
+        desc: &TensorDescriptor<T>,
+    ) -> Result<usize, CudnnError>
+    where
+        T: DataType,
+    {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnDropoutGetStatesSize(self.raw, size.as_mut_ptr()).into_result()?;
+            sys::cudnnDropoutGetReserveSpaceSize(desc.raw, size.as_mut_ptr()).into_result()?;
 
             Ok(size.assume_init())
         }
@@ -94,6 +107,9 @@ impl CudnnContext {
     ///
     /// **Do note** that the exact amount of memory can be obtained with
     /// [`get_dropout_states_size()`](CudnnContext::get_dropout_states_sizes).
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetDropoutDescriptor)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -167,6 +183,9 @@ impl CudnnContext {
     /// the contents of `reserved_space` does not change between the `dropout_forward()` and
     /// `dropout_backward()` calls.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnDropoutForward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns an error if the number of elements in `x_data` and `y_data` differs and if
@@ -200,7 +219,7 @@ impl CudnnContext {
     /// let dropout_desc = ctx.create_dropout_descriptor(dropout, states, seed)?;
     ///
     /// let mut reserved_space = {
-    ///     let size = ctx.get_dropout_reserved_space_size()?;
+    ///     let size = ctx.get_dropout_reserve_space_size(&x_desc)?;
     ///     unsafe { DeviceBuffer::uninitialized(size)? }
     /// };
     ///
@@ -263,6 +282,9 @@ impl CudnnContext {
     /// contents of reserveSpace does not change between `dropout_forward()` and
     /// `dropout_backward()` calls.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnDropoutBackward)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns an error if the number of elements in `dx_data` and `dy_data` differs and if
@@ -299,7 +321,7 @@ impl CudnnContext {
     /// # let seed = 123;
     /// # let dropout_desc = ctx.create_dropout_descriptor(dropout, states, seed)?;
     /// # let mut reserved_space = {
-    /// #     let size = ctx.get_dropout_reserved_space_size()?;
+    /// #     let size = ctx.get_dropout_reserve_space_size(&x_desc)?;
     /// #     unsafe { DeviceBuffer::uninitialized(size)? }
     /// # };
     /// # ctx.dropout_forward(&dropout_desc, &x_desc, &x, &y_desc, &mut y, &mut reserved_space)?;

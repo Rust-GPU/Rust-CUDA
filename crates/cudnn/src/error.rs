@@ -2,6 +2,9 @@ use crate::sys;
 use std::{error::Error, ffi::CStr, fmt::Display};
 
 /// Enum encapsulating function status returns. All cuDNN library functions return their status.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnStatus_t)
+/// may offer additional information about the APi behavior.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CudnnError {

@@ -26,7 +26,6 @@ unsafe fn init_raw_op_descriptor<T: DataType>(
 
 /// The description of a unary Tensor Core operation.
 ///
-///
 /// As specified in the cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/developer-guide/index.html#scaling-parameters),
 /// admissible types for scaling parameters are `f32` and `f64` for `f32` and `f64` tensors
 /// respectively.
@@ -48,6 +47,9 @@ where
     /// * `op` - the unary tensor point-wise math operation to be performed.
     ///
     /// * `nan_opt` - a NaN propagation policy.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetOpTensorDescriptor)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Examples
     ///
@@ -110,6 +112,9 @@ where
     /// * `op` - the unary tensor point-wise math operation to be performed.
     ///
     /// * `nan_opt` - a NaN propagation policy.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetOpTensorDescriptor)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Examples
     ///

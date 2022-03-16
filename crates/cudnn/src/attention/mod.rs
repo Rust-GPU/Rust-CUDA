@@ -26,6 +26,9 @@ impl CudnnContext {
     ///
     /// `desc` - multi-head attention descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetMultiHeadAttnBuffers)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if invalid arguments are detected.
@@ -111,6 +114,9 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve space buffer in device memory. This argument should be `None` in
     /// inference mode.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnForward)
+    /// may offer additional information about the APi behavior.
     #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_forward<T, U, D1, D2>(
         &self,
@@ -252,6 +258,9 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve space buffer in device memory.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardData)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument was encountered, an inconsistent
@@ -383,6 +392,9 @@ impl CudnnContext {
     /// * `work_space` - work space buffer in device memory. Used for temporary API storage.
     ///
     /// * `reserve_space` - reserve space buffer in device memory.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardWeights)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

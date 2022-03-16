@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// A unary tensor core operation.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensorOp_t)
+/// may offer additional information about the APi behavior.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOp {
@@ -18,6 +21,9 @@ impl From<UnaryOp> for sys::cudnnOpTensorOp_t {
 }
 
 /// A binary tensor core operation.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensorOp_t)
+/// may offer additional information about the APi behavior.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinaryOp {

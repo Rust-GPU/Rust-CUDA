@@ -36,6 +36,9 @@ impl<T: DataType> ConvDescriptor<T> {
     /// * `math_type` - indicates whether or not the use of tensor op is permitted in the library
     /// routines associated with a given convolution descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetConvolutionNdDescriptor)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// This function returns an error if any element of stride and dilation is negative or 0, if
@@ -123,6 +126,9 @@ impl<T: DataType> ConvDescriptor<T> {
     ///
     /// **Do note** that tensor core operations may not be available on all device architectures.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetConvolutionMathType)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if the math type was not set successfully.
@@ -154,6 +160,9 @@ impl<T: DataType> ConvDescriptor<T> {
     /// # Arguments
     ///
     /// `groups` - group count.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetConvolutionGroupCount)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///

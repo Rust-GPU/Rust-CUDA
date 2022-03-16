@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies how the softmax input must be processed.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SoftmaxMode {
     /// The softmax operation is computed per image (N) across the dimensions C,H,W.

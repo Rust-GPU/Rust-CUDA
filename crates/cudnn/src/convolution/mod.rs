@@ -37,6 +37,9 @@ impl CudnnContext {
     /// math type of the convolution descriptor according to the one of the returned algorithm to
     /// get the best possible performance.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionForwardAlgorithm_v7)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid combination of arguments is passed.
@@ -149,6 +152,9 @@ impl CudnnContext {
     /// **Do note** that the best found algorithm `MathType` must be set manually on the
     /// convolution descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardDataAlgorithm_v7)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid combination of arguments is passed.
@@ -260,6 +266,9 @@ impl CudnnContext {
     ///
     /// **Do note** that the best found algorithm `MathType` must be set manually on the
     /// convolution descriptor.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardFilterAlgorithm_v7)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -380,6 +389,9 @@ impl CudnnContext {
     /// **Do note** that not every algorithm is available for every configuration of the input
     /// tensor and/or every configuration of the convolution descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionForwardWorkspaceSize)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid combination of arguments is passed or the combination of the
@@ -487,6 +499,9 @@ impl CudnnContext {
     ///  **Do note** that not every algorithm is available for every configuration of the input
     /// tensor and/or every configuration of the convolution descriptor.
     ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardDataWorkspaceSize)
+    /// may offer additional information about the APi behavior.
+    ///
     /// # Errors
     ///
     /// Returns errors if an invalid combination of arguments is passed or the combination of the
@@ -593,6 +608,9 @@ impl CudnnContext {
     ///
     /// **Do note** that not every algorithm is available for every configuration of the input
     /// tensor and/or every configuration of the convolution descriptor.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardFilterWorkspaceSize)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -713,7 +731,8 @@ impl CudnnContext {
     ///
     /// **Do note** than not all possible configurations of layouts and data types for the operands
     /// are supported by cuDNN. Refer to the following link for the
-    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionForward).
+    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionForward)
+    /// and for in-depth explanation of the API behavior.
     ///
     /// # Errors
     ///
@@ -883,6 +902,9 @@ impl CudnnContext {
     /// * `y` - data for the output map.
     ///
     /// **Do note** that `y_desc` and `z_desc` should match.
+    ///
+    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBiasActivationForward)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -1070,7 +1092,8 @@ impl CudnnContext {
     ///
     /// **Do note** than not all possible configurations of layouts and data types for the operands
     /// are supported by cuDNN. Refer to the following link for the
-    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardData).
+    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardData) and
+    /// for an in-depth explanation of the API behavior.
     ///
     /// # Errors
     ///
@@ -1225,7 +1248,8 @@ impl CudnnContext {
     ///
     /// **Do note** than not all possible configurations of layouts and data types for the operands
     /// are supported by cuDNN. Refer to the following link for the
-    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardFilter).
+    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardFilter)
+    /// and for an in-depth explanation of the API behavior.
     ///
     /// # Errors
     ///
