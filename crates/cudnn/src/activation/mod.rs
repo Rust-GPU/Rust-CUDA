@@ -8,7 +8,6 @@ use crate::{
     private, sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
 };
 use cust::memory::GpuBuffer;
-use std::mem::MaybeUninit;
 
 impl CudnnContext {
     /// Applies a specific neuron activation functions element wise of the provided tensor.

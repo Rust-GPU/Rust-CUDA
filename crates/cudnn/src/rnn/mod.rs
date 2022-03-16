@@ -20,7 +20,7 @@ pub use rnn_direction_mode::*;
 pub use rnn_input_mode::*;
 pub use rnn_mode::*;
 
-use crate::{sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor, WGradMode};
+use crate::{sys, CudnnContext, CudnnError, IntoResult, TensorDescriptor, WGradMode};
 use cust::memory::GpuBuffer;
 use std::mem::MaybeUninit;
 
@@ -565,7 +565,7 @@ impl CudnnContext {
         let device_sequence_lengths_ptr = device_seq_lengths.as_device_ptr().as_mut_ptr();
 
         let x_ptr = x.as_device_ptr().as_ptr() as *const std::ffi::c_void;
-        let hx_ptr = x.as_device_ptr().as_ptr() as *const std::ffi::c_void;
+        let hx_ptr = hx.as_device_ptr().as_ptr() as *const std::ffi::c_void;
         let y_ptr = y.as_device_ptr().as_ptr() as *const std::ffi::c_void;
 
         let dweight_space_ptr = dweight_space.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;

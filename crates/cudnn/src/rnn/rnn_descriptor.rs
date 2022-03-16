@@ -160,7 +160,7 @@ where
         unsafe {
             sys::cudnnCreateRNNDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             let proj_size = projection_size.into().unwrap_or(0);
             let dropout_desc = dropout_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);

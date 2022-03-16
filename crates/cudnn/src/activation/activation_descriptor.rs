@@ -1,4 +1,4 @@
-use crate::{sys, ActivationMode, CudnnContext, CudnnError, IntoResult, NanPropagation};
+use crate::{sys, ActivationMode, CudnnError, IntoResult, NanPropagation};
 use std::mem::MaybeUninit;
 
 /// The descriptor of a neuron activation operation.
@@ -47,7 +47,7 @@ impl ActivationDescriptor {
         unsafe {
             sys::cudnnCreateActivationDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             let coefficient = coefficient.into().unwrap_or_else(|| match mode {
                 ActivationMode::ClippedRelu => std::f64::MAX,

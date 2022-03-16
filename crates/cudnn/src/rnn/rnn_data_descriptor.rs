@@ -112,7 +112,7 @@ where
         unsafe {
             sys::cudnnCreateRNNDataDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             let fill: *mut T = padding_fill
                 .into()

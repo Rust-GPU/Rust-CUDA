@@ -1,4 +1,4 @@
-use crate::{sys, SoftmaxAlgo};
+use crate::sys;
 
 /// Specifies how the softmax input must be processed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

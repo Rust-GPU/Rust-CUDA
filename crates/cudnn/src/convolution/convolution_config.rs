@@ -1,4 +1,4 @@
-use crate::{private, sys, DataType};
+use crate::{private, DataType};
 
 /// Supported data types configurations for convolution operations.
 pub trait SupportedConv<X, W, Y>: private::Sealed + DataType

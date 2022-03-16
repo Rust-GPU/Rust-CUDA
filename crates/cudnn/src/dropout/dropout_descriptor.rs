@@ -1,4 +1,4 @@
-use crate::{error::CudnnError, sys, IntoResult};
+use crate::sys;
 use cust::memory::GpuBuffer;
 
 /// The descriptor of a dropout operation.

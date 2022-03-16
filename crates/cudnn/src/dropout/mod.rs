@@ -67,19 +67,11 @@ impl CudnnContext {
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let desc = TensorDescriptor::<f32>::new_strides(&[1, 1, 5], &[5, 5, 1])?;
-    ///
-    /// let size = ctx.get_dropout_reserved_space_size(&desc)?;
+    /// let size = ctx.get_dropout_reserved_space_size()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_dropout_reserved_space_size<T>(
-        &self,
-        x_desc: &TensorDescriptor<T>,
-    ) -> Result<usize, CudnnError>
-    where
-        T: DataType,
-    {
+    pub fn get_dropout_reserved_space_size(&self) -> Result<usize, CudnnError> {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
@@ -141,7 +133,7 @@ impl CudnnContext {
         unsafe {
             sys::cudnnCreateDropoutDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             sys::cudnnSetDropoutDescriptor(raw, self.raw, dropout, states_ptr, states_size, seed)
                 .into_result()?;
@@ -208,7 +200,7 @@ impl CudnnContext {
     /// let dropout_desc = ctx.create_dropout_descriptor(dropout, states, seed)?;
     ///
     /// let mut reserved_space = {
-    ///     let size = ctx.get_dropout_reserved_space_size(&x_desc)?;
+    ///     let size = ctx.get_dropout_reserved_space_size()?;
     ///     unsafe { DeviceBuffer::uninitialized(size)? }
     /// };
     ///
@@ -307,7 +299,7 @@ impl CudnnContext {
     /// # let seed = 123;
     /// # let dropout_desc = ctx.create_dropout_descriptor(dropout, states, seed)?;
     /// # let mut reserved_space = {
-    /// #     let size = ctx.get_dropout_reserved_space_size(&x_desc)?;
+    /// #     let size = ctx.get_dropout_reserved_space_size()?;
     /// #     unsafe { DeviceBuffer::uninitialized(size)? }
     /// # };
     /// # ctx.dropout_forward(&dropout_desc, &x_desc, &x, &y_desc, &mut y, &mut reserved_space)?;

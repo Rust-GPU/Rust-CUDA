@@ -1,6 +1,3 @@
-#![allow(warnings, clippy::all)]
-mod sys;
-
 mod activation;
 mod attention;
 mod backend;
@@ -16,6 +13,7 @@ mod op;
 mod pooling;
 mod rnn;
 mod softmax;
+mod sys;
 mod tensor;
 mod w_grad_mode;
 

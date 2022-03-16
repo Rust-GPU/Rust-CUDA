@@ -1,8 +1,5 @@
 use crate::{sys, CudnnError, DataType, IntoResult, ScalarC, TensorFormat, VecType};
-use std::{
-    marker::PhantomData,
-    mem::{self, MaybeUninit},
-};
+use std::{marker::PhantomData, mem::MaybeUninit};
 
 /// A generic description of an n-dimensional dataset.
 #[derive(Debug, PartialEq, Eq, Hash)]

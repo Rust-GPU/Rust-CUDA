@@ -1,6 +1,5 @@
 use crate::{sys, CudnnError, IntoResult};
-use cust::memory::{GpuBox, GpuBuffer};
-use std::mem::{self, MaybeUninit};
+use std::mem::MaybeUninit;
 
 /// cuDNN library context. It's the central structure required to interact with cuDNN.
 /// It holds and manages internal memory allocations.

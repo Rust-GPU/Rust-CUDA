@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 mod conv_bwd_data;
 mod conv_bwd_filter;
 mod conv_cfg;

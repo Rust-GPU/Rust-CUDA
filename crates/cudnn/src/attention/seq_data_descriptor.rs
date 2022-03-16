@@ -120,7 +120,7 @@ where
         unsafe {
             sys::cudnnCreateSeqDataDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             let raw_axes = axes.map(SeqDataAxis::into);
 

@@ -8,7 +8,7 @@ pub use attention_weights_kind::*;
 pub use seq_data_axis::*;
 pub use seq_data_descriptor::*;
 
-use crate::{sys, CudnnContext, CudnnError, DataType, IntoResult, WGradMode};
+use crate::{sys, CudnnContext, CudnnError, IntoResult, WGradMode};
 use cust::memory::GpuBuffer;
 use std::mem::MaybeUninit;
 
@@ -259,7 +259,6 @@ impl CudnnContext {
     pub fn multi_head_attn_backward_data<T, U, D1, D2>(
         &self,
         attn_desc: &AttentionDescriptor<T, U, D1, D2>,
-        current_idx: i32,
         lo_win_idx: &[i32],
         hi_win_idx: &[i32],
         device_seq_lengths_dqdo: &impl GpuBuffer<i32>,
@@ -288,7 +287,7 @@ impl CudnnContext {
         let device_seq_lengths_dqdo_ptr =
             device_seq_lengths_dqdo.as_device_ptr().as_ptr() as *const _;
         let device_seq_lengths_dkdv_ptr =
-            device_seq_lengths_dqdo.as_device_ptr().as_ptr() as *const _;
+            device_seq_lengths_dkdv.as_device_ptr().as_ptr() as *const _;
 
         let d_out_ptr = d_out.as_device_ptr().as_ptr() as *const _;
 

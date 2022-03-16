@@ -1,6 +1,4 @@
-use crate::{
-    sys, ConvMode, DataType, MathType, TensorFormat, {CudnnError, IntoResult},
-};
+use crate::{sys, ConvMode, CudnnError, DataType, IntoResult, MathType};
 
 use std::{marker::PhantomData, mem::MaybeUninit};
 
@@ -97,7 +95,7 @@ impl<T: DataType> ConvDescriptor<T> {
         unsafe {
             sys::cudnnCreateConvolutionDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut conv_desc = Self {
+            let conv_desc = Self {
                 raw: raw.assume_init(),
                 comp_type: PhantomData,
             };

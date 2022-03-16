@@ -1,10 +1,4 @@
-use crate::{
-    data_type::DataType,
-    determinism::Determinism,
-    error::{CudnnError, IntoResult},
-    math_type::MathType,
-    private, sys, TensorFormat,
-};
+use crate::{sys, CudnnError, Determinism, IntoResult, MathType};
 
 /// The best suited algorithm according to the layer specifications obtained through a heuristic.
 #[derive(Debug, Clone, Copy, PartialEq)]

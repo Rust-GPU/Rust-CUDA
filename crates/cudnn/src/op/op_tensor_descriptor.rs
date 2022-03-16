@@ -18,7 +18,7 @@ unsafe fn init_raw_op_descriptor<T: DataType>(
 
     sys::cudnnCreateOpTensorDescriptor(raw.as_mut_ptr()).into_result()?;
 
-    let mut raw = raw.assume_init();
+    let raw = raw.assume_init();
 
     sys::cudnnSetOpTensorDescriptor(raw, op, T::into_raw(), nan_opt).into_result()?;
     Ok(raw)

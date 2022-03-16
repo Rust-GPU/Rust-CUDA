@@ -1,4 +1,4 @@
-use crate::{sys, RnnDataDescriptor};
+use crate::sys;
 
 /// The data layout for input and output of a recurrent neural network.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

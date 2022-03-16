@@ -60,7 +60,7 @@ impl PoolingDescriptor {
         unsafe {
             sys::cudnnCreatePoolingDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             sys::cudnnSetPoolingNdDescriptor(
                 raw,

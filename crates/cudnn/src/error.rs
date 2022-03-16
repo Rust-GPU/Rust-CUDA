@@ -1,4 +1,4 @@
-use crate::sys::{self, cudnnStatus_t};
+use crate::sys;
 use std::{error::Error, ffi::CStr, fmt::Display};
 
 /// Enum encapsulating function status returns. All cuDNN library functions return their status.

@@ -1,8 +1,5 @@
 use crate::{sys, CudnnError, DataType, IntoResult, ScalarC};
-use std::{
-    marker::PhantomData,
-    mem::{self, MaybeUninit},
-};
+use std::{marker::PhantomData, mem::MaybeUninit};
 
 /// A generic description of an n-dimensional filter dataset.
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -58,6 +55,7 @@ where
 
         unsafe {
             sys::cudnnCreateFilterDescriptor(raw.as_mut_ptr()).into_result()?;
+
             let raw = raw.assume_init();
 
             sys::cudnnSetFilterNdDescriptor(
