@@ -111,6 +111,7 @@ impl CudnnContext {
     ///
     /// * `reserve_space` - reserve space buffer in device memory. This argument should be `None` in
     /// inference mode.
+    #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_forward<T, U, D1, D2>(
         &self,
         attn_desc: &AttentionDescriptor<T, U, D1, D2>,
@@ -256,6 +257,7 @@ impl CudnnContext {
     /// Returns errors if an invalid or incompatible input argument was encountered, an inconsistent
     /// internal state was encountered, a requested option or a combination of input arguments is
     /// not supported or in case of insufficient amount of shared memory to launch the kernel.
+    #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_backward_data<T, U, D1, D2>(
         &self,
         attn_desc: &AttentionDescriptor<T, U, D1, D2>,
@@ -387,6 +389,7 @@ impl CudnnContext {
     /// Returns errors if an invalid or incompatible input argument was encountered, an inconsistent
     /// internal state was encountered, a requested option or a combination of input arguments is
     /// not supported or in case of insufficient amount of shared memory to launch the kernel.
+    #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_backward_weights<T, U, D1, D2>(
         &self,
         attn_desc: &AttentionDescriptor<T, U, D1, D2>,

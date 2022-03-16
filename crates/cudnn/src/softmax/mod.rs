@@ -32,6 +32,7 @@ impl CudnnContext {
     ///
     /// Returns errors if the configuration in input is not supported, the tensor shapes differ or
     /// the data types of the input and destination tensor are not the same.
+    #[allow(clippy::too_many_arguments)]
     pub fn softmax_forward<T, CompT>(
         &self,
         algo: SoftmaxAlgo,
@@ -97,6 +98,7 @@ impl CudnnContext {
     ///
     /// Returns errors if the configuration in input is not supported, the tensor shapes differ or
     /// the data types of the input and differential tensor are not the same.
+    #[allow(clippy::too_many_arguments)]
     pub fn softmax_backward<T, CompT>(
         &self,
         algo: SoftmaxAlgo,

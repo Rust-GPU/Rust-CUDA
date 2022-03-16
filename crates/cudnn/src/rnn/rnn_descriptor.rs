@@ -138,6 +138,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn new<S>(
         algo: RnnAlgo,
         cell_mode: RnnMode,

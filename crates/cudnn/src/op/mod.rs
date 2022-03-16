@@ -85,6 +85,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn binary_tensor_op<CompT, T1, T2, T3>(
         &self,
         op_desc: &BinaryOpTensorDescriptor<CompT>,
@@ -192,6 +193,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn unary_tensor_op<CompT, T1, T2>(
         &self,
         op_desc: &UnaryOpTensorDescriptor<CompT>,

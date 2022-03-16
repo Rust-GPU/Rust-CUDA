@@ -126,7 +126,7 @@ impl CudnnContext {
                     let algo = results[0];
                     Ok(algo)
                 }
-                _ => return Err(CudnnError::BadParam),
+                _ => Err(CudnnError::BadParam),
             }
         }
     }
@@ -238,7 +238,7 @@ impl CudnnContext {
                     let algo = results[0];
                     Ok(algo)
                 }
-                _ => return Err(CudnnError::BadParam),
+                _ => Err(CudnnError::BadParam),
             }
         }
     }
@@ -350,7 +350,7 @@ impl CudnnContext {
                     let algo = results[0];
                     Ok(algo)
                 }
-                _ => return Err(CudnnError::BadParam),
+                _ => Err(CudnnError::BadParam),
             }
         }
     }
@@ -457,7 +457,7 @@ impl CudnnContext {
 
             Ok(match size.assume_init() {
                 0 => None,
-                size @ _ => Some(size),
+                size => Some(size),
             })
         }
     }
@@ -564,7 +564,7 @@ impl CudnnContext {
 
             Ok(match size.assume_init() {
                 0 => None,
-                size @ _ => Some(size),
+                size => Some(size),
             })
         }
     }
@@ -671,7 +671,7 @@ impl CudnnContext {
 
             Ok(match size.assume_init() {
                 0 => None,
-                size @ _ => Some(size),
+                size => Some(size),
             })
         }
     }
@@ -779,6 +779,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn convolution_forward<T1, T2, CompT, T3, W>(
         &self,
         alpha: CompT,
@@ -963,6 +964,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn convolution_bias_act_forward<T1, T2, CompT, T3, W>(
         &self,
         alpha: CompT,
@@ -1129,6 +1131,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn convolution_backward_data<T1, T2, CompT, T3, W>(
         &self,
         alpha: CompT,
@@ -1283,6 +1286,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn convolution_backward_filter<T1, T2, CompT, T3, W>(
         &self,
         alpha: CompT,

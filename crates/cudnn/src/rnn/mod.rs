@@ -74,7 +74,7 @@ impl CudnnContext {
                 workspace_size.assume_init(),
                 match reserve_space_size.assume_init() {
                     0 => None,
-                    size @ _ => Some(size),
+                    size => Some(size),
                 },
             ))
         }
@@ -197,6 +197,7 @@ impl CudnnContext {
     ///
     /// Returns errors is an unsupported arguments combination is detected or if the supplied
     /// buffers are too small.
+    #[allow(clippy::too_many_arguments)]
     pub fn rnn_forward<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -398,6 +399,7 @@ impl CudnnContext {
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument was encountered.
+    #[allow(clippy::too_many_arguments)]
     pub fn rnn_backward_data<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -543,6 +545,7 @@ impl CudnnContext {
     /// # Errors
     ///
     /// Returns errors if an invalid or incompatible input argument combinations was encountered.
+    #[allow(clippy::too_many_arguments)]
     pub fn rnn_backward_weights<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,

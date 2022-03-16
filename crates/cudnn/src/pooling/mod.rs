@@ -33,6 +33,7 @@ impl CudnnContext {
     ///
     /// Returns errors if the batch size or channels dimensions of the two tensor differ or an
     /// invalid combination of arguments is detected.
+    #[allow(clippy::too_many_arguments)]
     pub fn pooling_forward<CompT, T>(
         &self,
         pooling_desc: &PoolingDescriptor,
@@ -99,6 +100,7 @@ impl CudnnContext {
     /// Returns errors if the dimensions or the strides of `y` and `dy` tensors differ or if the
     /// dimensions or the strides of `x` and `dx` tensors differ or if an unsupported combination
     /// of arguments is detected.
+    #[allow(clippy::too_many_arguments)]
     pub fn pooling_backward<CompT, T>(
         &self,
         pooling_desc: &PoolingDescriptor,

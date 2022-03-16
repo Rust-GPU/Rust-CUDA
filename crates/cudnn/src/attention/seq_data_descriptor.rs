@@ -127,7 +127,7 @@ where
             sys::cudnnSetSeqDataDescriptor(
                 raw,
                 T::into_raw(),
-                4 as i32,
+                4_i32,
                 dims.as_ptr(),
                 raw_axes.as_ptr(),
                 seq_lengths.len(),

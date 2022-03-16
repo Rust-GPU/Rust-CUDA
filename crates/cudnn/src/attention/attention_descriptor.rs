@@ -100,7 +100,7 @@ where
     ///
     /// * one or more of the following arguments were negative: `q_proj_size`, `k_proj_size`,
     /// `v_proj_size`, `sm_scaler`.
-    ///
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         mode: AttnModeFlags,
         n_heads: i32,
