@@ -10,7 +10,9 @@ pub use convolution_descriptor::*;
 pub use convolution_mode::*;
 pub use filter_descriptor::*;
 
-use crate::{sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
+use crate::{
+    sys, ActivationDescriptor, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor,
+};
 use cust::memory::GpuBuffer;
 use std::mem::MaybeUninit;
 
@@ -72,17 +74,17 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_forward_algorithm<T1, T2, CompType, T3>(
+    pub fn get_convolution_forward_algorithm<T1, T2, CompT, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         w_desc: &FilterDescriptor<T2>,
         y_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvDescriptor<CompType>,
+        conv_desc: &ConvDescriptor<CompT>,
     ) -> Result<BestHeuristic<ConvFwdAlgo>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
@@ -184,17 +186,17 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_data_algorithm<T1, T2, CompType, T3>(
+    pub fn get_convolution_backward_data_algorithm<T1, T2, CompT, T3>(
         &self,
         w_desc: &FilterDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dx_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvDescriptor<CompType>,
+        conv_desc: &ConvDescriptor<CompT>,
     ) -> Result<BestHeuristic<ConvBwdDataAlgo>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
@@ -296,17 +298,17 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_filter_algorithm<T1, T2, CompType, T3>(
+    pub fn get_convolution_backward_filter_algorithm<T1, T2, CompT, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dw_desc: &FilterDescriptor<T3>,
-        conv_desc: &ConvDescriptor<CompType>,
+        conv_desc: &ConvDescriptor<CompT>,
     ) -> Result<BestHeuristic<ConvBwdFilterAlgo>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
     {
         let mut returned_algo_count = MaybeUninit::uninit();
@@ -418,25 +420,25 @@ impl CudnnContext {
     ///     &w_desc,
     ///     &y_desc,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     /// )?;
     ///
     /// let workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_forward_workspace_size<T1, T2, CompType, T3>(
+    pub fn get_convolution_forward_workspace_size<T1, T2, CompT, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         w_desc: &FilterDescriptor<T2>,
         y_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvDescriptor<CompType>,
-        algo: &ConvFwdAlgo,
+        conv_desc: &ConvDescriptor<CompT>,
+        algo: ConvFwdAlgo,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
     {
         let mut size = MaybeUninit::uninit();
@@ -448,7 +450,7 @@ impl CudnnContext {
                 w_desc.raw,
                 conv_desc.raw,
                 y_desc.raw,
-                (*algo).into(),
+                algo.into(),
                 size.as_mut_ptr(),
             )
             .into_result()?;
@@ -525,25 +527,25 @@ impl CudnnContext {
     ///     &dy_desc,
     ///     &dx_desc,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     /// )?;
     ///
     /// let workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_data_workspace_size<T1, T2, CompType, T3>(
+    pub fn get_convolution_backward_data_workspace_size<T1, T2, CompT, T3>(
         &self,
         w_desc: &FilterDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dx_desc: &TensorDescriptor<T3>,
-        conv_desc: &ConvDescriptor<CompType>,
-        algo: &ConvBwdDataAlgo,
+        conv_desc: &ConvDescriptor<CompT>,
+        algo: ConvBwdDataAlgo,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
     {
         let mut size = MaybeUninit::uninit();
@@ -555,7 +557,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 conv_desc.raw,
                 dx_desc.raw,
-                (*algo).into(),
+                algo.into(),
                 size.as_mut_ptr(),
             )
             .into_result()?;
@@ -632,25 +634,25 @@ impl CudnnContext {
     ///     &dy_desc,
     ///     &dw_desc,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     /// )?;
     ///
     /// let workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_convolution_backward_filter_workspace_size<T1, T2, CompType, T3>(
+    pub fn get_convolution_backward_filter_workspace_size<T1, T2, CompT, T3>(
         &self,
         x_desc: &TensorDescriptor<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dw_desc: &FilterDescriptor<T3>,
-        conv_desc: &ConvDescriptor<CompType>,
-        algo: &ConvBwdFilterAlgo,
+        conv_desc: &ConvDescriptor<CompT>,
+        algo: ConvBwdFilterAlgo,
     ) -> Result<Option<usize>, CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
     {
         let mut size = MaybeUninit::uninit();
@@ -662,7 +664,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 conv_desc.raw,
                 dw_desc.raw,
-                (*algo).into(),
+                algo.into(),
                 size.as_mut_ptr(),
             )
             .into_result()?;
@@ -753,7 +755,7 @@ impl CudnnContext {
     ///     &w_desc,
     ///     &y_desc,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     /// )?;
     ///
     /// let mut workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
@@ -768,7 +770,7 @@ impl CudnnContext {
     ///     &w_desc,
     ///     &w,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     ///     workspace.as_mut(),
     ///     beta,
     ///     &y_desc,
@@ -777,24 +779,24 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn convolution_forward<T1, T2, CompType, T3, W>(
+    pub fn convolution_forward<T1, T2, CompT, T3, W>(
         &self,
-        alpha: CompType,
+        alpha: CompT,
         x_desc: &TensorDescriptor<T1>,
         x: &impl GpuBuffer<T1>,
         w_desc: &FilterDescriptor<T2>,
         w: &impl GpuBuffer<T2>,
-        conv_desc: &ConvDescriptor<CompType>,
-        algo: &ConvFwdAlgo,
+        conv_desc: &ConvDescriptor<CompT>,
+        algo: ConvFwdAlgo,
         work_space: Option<&mut W>,
-        beta: CompType,
+        beta: CompT,
         y_desc: &TensorDescriptor<T3>,
         y: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
         W: GpuBuffer<u8>,
     {
@@ -802,8 +804,8 @@ impl CudnnContext {
         let w_data = w.as_device_ptr().as_ptr() as *const std::ffi::c_void;
         let y_data = y.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
 
-        let alpha = &alpha as *const CompType as *const std::ffi::c_void;
-        let beta = &beta as *const CompType as *const std::ffi::c_void;
+        let alpha = &alpha as *const CompT as *const std::ffi::c_void;
+        let beta = &beta as *const CompT as *const std::ffi::c_void;
 
         // If the size is 0 then the algorithm can work in-place and cuDNN expects a null
         // pointer.
@@ -825,10 +827,204 @@ impl CudnnContext {
                 w_desc.raw,
                 w_data,
                 conv_desc.raw,
-                (*algo).into(),
+                algo.into(),
                 work_space_ptr,
                 work_space_size,
                 beta,
+                y_desc.raw,
+                y_data,
+            )
+            .into_result()
+        }
+    }
+
+    /// This function applies a bias and then an activation to the convolutions or
+    /// cross-correlation output:
+    ///
+    /// y = act ( alpha * conv(x) + beta * z + bias )
+    ///
+    /// Results are returned in y.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - scaling parameter.
+    ///
+    /// * `x_desc` - input map descriptor.
+    ///
+    /// * `x` - input map data.
+    ///
+    /// * `w_desc` - filter descriptor.
+    ///
+    /// * `w` - filter data.
+    ///
+    /// * `conv_desc` - convolution descriptor.
+    ///
+    /// * `algo` - convolution algorithm that should be used to compute the result.
+    ///
+    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
+    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
+    /// dimension can be obtained with `get_convolution_forward_workspace_size`.
+    ///
+    /// * `beta` - scaling parameter.
+    ///
+    /// * `z_desc` - descriptor for the z tensor.
+    ///
+    /// * `z` - data for the z tensor.
+    ///
+    /// * `bias_desc` - descriptor for the bias tensor.
+    ///
+    /// * `bias` - data for the bias tensor.
+    ///
+    /// * `activation_desc` - neuron activation function descriptor.
+    ///
+    /// * `y_desc` - output map descriptor.
+    ///
+    /// * `y` - data for the output map.
+    ///
+    /// **Do note** that `y_desc` and `z_desc` should match.
+    ///
+    /// # Errors
+    ///
+    /// Returns errors if an invalid or unsupported combination of argument is passed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{
+    ///     ActivationDescriptor, ActivationMode, ConvDescriptor, ConvFwdAlgo, ConvMode,
+    ///     CudnnContext, FilterDescriptor, NanPropagation, ScalarC, TensorDescriptor
+    /// };
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let padding = [0, 0];
+    /// let stride = [1, 1];
+    /// let dilation = [1, 1];
+    /// let mode = ConvMode::CrossCorrelation;
+    ///
+    /// let conv_desc = ConvDescriptor::<f32>::new(padding, stride, dilation, mode)?;
+    ///
+    /// # let data = vec![1.0_f32; 150];
+    /// # let x = DeviceBuffer::from_slice(&data)?;
+    /// # let w = DeviceBuffer::from_slice(&data[..24])?;
+    /// # let z = DeviceBuffer::from_slice(&data[..144])?;
+    /// # let bias = DeviceBuffer::from_slice(&data[..3])?;
+    /// # let mut y = DeviceBuffer::from_slice(&data[..144])?;
+    /// let x_desc = TensorDescriptor::<f32>::new_format(&[3, 2, 5, 5,], ScalarC::Nchw)?;
+    /// let w_desc = FilterDescriptor::<f32>::new(&[3, 2, 2, 2], ScalarC::Nchw)?;
+    /// let y_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
+    ///
+    /// let algo = ConvFwdAlgo::ImplicitPrecompGemm;
+    ///
+    /// let size = ctx.get_convolution_forward_workspace_size(
+    ///     &x_desc,
+    ///     &w_desc,
+    ///     &y_desc,
+    ///     &conv_desc,
+    ///     algo,
+    /// )?;
+    ///
+    /// let mut workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
+    ///
+    /// let alpha = 1.;
+    /// let beta = 0.;
+    ///
+    /// let z_desc = TensorDescriptor::<f32>::new_format(&[3, 3, 4, 4], ScalarC::Nchw)?;
+    /// let bias_desc = TensorDescriptor::<f32>::new_format(&[1, 3, 1, 1], ScalarC::Nchw)?;
+    ///
+    /// let mode = ActivationMode::Relu;
+    /// let nan_opt = NanPropagation::NotPropagateNaN;
+    /// let coefficient = None;
+    ///
+    /// let activation_desc = ActivationDescriptor::new(mode, nan_opt, coefficient)?;
+    ///
+    /// ctx.convolution_bias_act_forward(
+    ///     alpha,
+    ///     &x_desc,
+    ///     &x,
+    ///     &w_desc,
+    ///     &w,
+    ///     &conv_desc,
+    ///     algo,
+    ///     workspace.as_mut(),
+    ///     beta,
+    ///     &z_desc,
+    ///     &z,
+    ///     &bias_desc,
+    ///     &bias,
+    ///     &activation_desc,
+    ///     &y_desc,
+    ///     &mut y
+    /// )?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn convolution_bias_act_forward<T1, T2, CompT, T3, W>(
+        &self,
+        alpha: CompT,
+        x_desc: &TensorDescriptor<T1>,
+        x: &impl GpuBuffer<T1>,
+        w_desc: &FilterDescriptor<T2>,
+        w: &impl GpuBuffer<T2>,
+        conv_desc: &ConvDescriptor<CompT>,
+        algo: ConvFwdAlgo,
+        work_space: Option<&mut W>,
+        beta: CompT,
+        z_desc: &TensorDescriptor<T3>,
+        z: &impl GpuBuffer<T3>,
+        bias_desc: &TensorDescriptor<CompT>,
+        bias: &impl GpuBuffer<CompT>,
+        activation_desc: &ActivationDescriptor,
+        y_desc: &TensorDescriptor<T3>,
+        y: &mut impl GpuBuffer<T3>,
+    ) -> Result<(), CudnnError>
+    where
+        T1: DataType,
+        T2: DataType,
+        CompT: SupportedConv<T1, T2, T3>,
+        T3: DataType,
+        W: GpuBuffer<u8>,
+    {
+        let x_data = x.as_device_ptr().as_ptr() as *const std::ffi::c_void;
+        let w_data = w.as_device_ptr().as_ptr() as *const std::ffi::c_void;
+        let z_data = z.as_device_ptr().as_ptr() as *const std::ffi::c_void;
+        let bias_data = bias.as_device_ptr().as_ptr() as *const std::ffi::c_void;
+        let y_data = y.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
+
+        let alpha = &alpha as *const CompT as *const std::ffi::c_void;
+        let beta = &beta as *const CompT as *const std::ffi::c_void;
+
+        let (work_space_ptr, work_space_size) = {
+            work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
+                (
+                    work_space.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void,
+                    work_space.len(),
+                )
+            })
+        };
+
+        unsafe {
+            sys::cudnnConvolutionBiasActivationForward(
+                self.raw,
+                alpha,
+                x_desc.raw,
+                x_data,
+                w_desc.raw,
+                w_data,
+                conv_desc.raw,
+                algo.into(),
+                work_space_ptr,
+                work_space_size,
+                beta,
+                z_desc.raw,
+                z_data,
+                bias_desc.raw,
+                bias_data,
+                activation_desc.raw,
                 y_desc.raw,
                 y_data,
             )
@@ -909,7 +1105,7 @@ impl CudnnContext {
     ///     &dy_desc,
     ///     &dx_desc,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     /// )?;
     ///
     /// let mut workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
@@ -924,7 +1120,7 @@ impl CudnnContext {
     ///     &dy_desc,
     ///     &dy,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     ///     workspace.as_mut(),
     ///     beta,
     ///     &dx_desc,
@@ -933,24 +1129,24 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn convolution_backward_data<T1, T2, CompType, T3, W>(
+    pub fn convolution_backward_data<T1, T2, CompT, T3, W>(
         &self,
-        alpha: CompType,
+        alpha: CompT,
         w_desc: &FilterDescriptor<T1>,
         w: &impl GpuBuffer<T1>,
         dy_desc: &TensorDescriptor<T2>,
         dy: &impl GpuBuffer<T2>,
-        conv_desc: &ConvDescriptor<CompType>,
-        algo: &ConvBwdDataAlgo,
+        conv_desc: &ConvDescriptor<CompT>,
+        algo: ConvBwdDataAlgo,
         work_space: Option<&mut W>,
-        beta: CompType,
+        beta: CompT,
         dx_desc: &TensorDescriptor<T3>,
         dx: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
         W: GpuBuffer<u8>,
     {
@@ -958,8 +1154,8 @@ impl CudnnContext {
         let dy_data = dy.as_device_ptr().as_ptr() as *const std::ffi::c_void;
         let dx_data = dx.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
 
-        let alpha = &alpha as *const CompType as *const std::ffi::c_void;
-        let beta = &beta as *const CompType as *const std::ffi::c_void;
+        let alpha = &alpha as *const CompT as *const std::ffi::c_void;
+        let beta = &beta as *const CompT as *const std::ffi::c_void;
 
         let (work_space_ptr, work_space_size) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
@@ -979,7 +1175,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 dy_data,
                 conv_desc.raw,
-                (*algo).into(),
+                algo.into(),
                 work_space_ptr,
                 work_space_size,
                 beta,
@@ -1063,7 +1259,7 @@ impl CudnnContext {
     ///     &dy_desc,
     ///     &dw_desc,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     /// )?;
     ///
     /// let mut workspace = size.map(|size| unsafe { DeviceBuffer::<u8>::uninitialized(size).unwrap() });
@@ -1078,7 +1274,7 @@ impl CudnnContext {
     ///     &dy_desc,
     ///     &dy,
     ///     &conv_desc,
-    ///     &algo,
+    ///     algo,
     ///     workspace.as_mut(),
     ///     beta,
     ///     &dw_desc,
@@ -1087,24 +1283,24 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn convolution_backward_filter<T1, T2, CompType, T3, W>(
+    pub fn convolution_backward_filter<T1, T2, CompT, T3, W>(
         &self,
-        alpha: CompType,
+        alpha: CompT,
         x_desc: &TensorDescriptor<T1>,
         x: &impl GpuBuffer<T1>,
         dy_desc: &TensorDescriptor<T2>,
         y: &impl GpuBuffer<T2>,
-        conv_desc: &ConvDescriptor<CompType>,
-        algo: &ConvBwdFilterAlgo,
+        conv_desc: &ConvDescriptor<CompT>,
+        algo: ConvBwdFilterAlgo,
         work_space: Option<&mut W>,
-        beta: CompType,
+        beta: CompT,
         dw_desc: &FilterDescriptor<T3>,
         dw: &mut impl GpuBuffer<T3>,
     ) -> Result<(), CudnnError>
     where
         T1: DataType,
         T2: DataType,
-        CompType: SupportedConv<T1, T2, T3>,
+        CompT: SupportedConv<T1, T2, T3>,
         T3: DataType,
         W: GpuBuffer<u8>,
     {
@@ -1112,8 +1308,8 @@ impl CudnnContext {
         let dy_data = y.as_device_ptr().as_ptr() as *const std::ffi::c_void;
         let dw_data = dw.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
 
-        let alpha = &alpha as *const CompType as *const std::ffi::c_void;
-        let beta = &beta as *const CompType as *const std::ffi::c_void;
+        let alpha = &alpha as *const CompT as *const std::ffi::c_void;
+        let beta = &beta as *const CompT as *const std::ffi::c_void;
 
         let (work_space_ptr, work_space_size) = {
             work_space.map_or((std::ptr::null_mut(), 0), |work_space| {
@@ -1133,7 +1329,7 @@ impl CudnnContext {
                 dy_desc.raw,
                 dy_data,
                 conv_desc.raw,
-                (*algo).into(),
+                algo.into(),
                 work_space_ptr,
                 work_space_size,
                 beta,

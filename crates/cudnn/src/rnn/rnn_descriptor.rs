@@ -108,7 +108,7 @@ where
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let algo = RnnAlgo::AlgoStandard;
+    /// let algo = RnnAlgo::Standard;
     /// let cell_mode = RnnMode::Lstm;
     /// let bias_mode = RnnBiasMode::SingleRecurrentBias;
     /// let dir_mode = RnnDirectionMode::Unidirectional;

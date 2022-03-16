@@ -511,7 +511,7 @@ impl CudnnContext {
     ///
     /// * `rnn_desc` - RNN descriptor.
     ///
-    /// * `add_grad` -  weight gradient output mode. Only `WGradMode::Add` is supported.
+    /// * `grad_mode` -  weight gradient output mode. Only `WGradMode::Add` is supported.
     ///
     /// * `device_seq_lengths` -  a copy of `seq_lengths` from `x_desc` or `y_desc` RNN data
     /// descriptors. The `device_seq_lengths` array must be stored in GPU memory as it is accessed
@@ -546,7 +546,7 @@ impl CudnnContext {
     pub fn rnn_backward_weights<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
-        add_grad: WGradMode,
+        grad_mode: WGradMode,
         device_seq_lengths: &impl GpuBuffer<i32>,
         x_desc: &RnnDataDescriptor<T1>,
         x: &impl GpuBuffer<T1>,
@@ -576,7 +576,7 @@ impl CudnnContext {
             sys::cudnnRNNBackwardWeights_v8(
                 self.raw,
                 rnn_desc.raw,
-                add_grad.into(),
+                grad_mode.into(),
                 device_sequence_lengths_ptr,
                 x_desc.raw,
                 x_ptr,

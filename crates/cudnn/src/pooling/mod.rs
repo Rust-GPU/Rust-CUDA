@@ -4,7 +4,9 @@ mod pooling_mode;
 pub use pooling_descriptor::*;
 pub use pooling_mode::*;
 
-use crate::{private, sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
+use crate::{
+    private, sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
+};
 use cust::memory::GpuBuffer;
 
 impl CudnnContext {
@@ -42,7 +44,7 @@ impl CudnnContext {
         y: &mut impl GpuBuffer<T>,
     ) -> Result<(), CudnnError>
     where
-        CompT: SupportedPoolFwd<T>,
+        CompT: ScalingDataType<T>,
         T: DataType,
     {
         let alpha_ptr = &alpha as *const CompT as *const _;
@@ -144,27 +146,6 @@ impl CudnnContext {
         }
     }
 }
-
-/// Supported data type configurations for the pooling forward operation.
-pub trait SupportedPoolFwd<T>: DataType + private::Sealed
-where
-    T: DataType,
-{
-}
-
-impl SupportedPoolFwd<i8> for f32 {}
-impl SupportedPoolFwd<u8> for f32 {}
-impl SupportedPoolFwd<i32> for f32 {}
-impl SupportedPoolFwd<i64> for f32 {}
-impl SupportedPoolFwd<f32> for f32 {}
-impl SupportedPoolFwd<f64> for f32 {}
-
-impl SupportedPoolFwd<i8> for f64 {}
-impl SupportedPoolFwd<u8> for f64 {}
-impl SupportedPoolFwd<i32> for f64 {}
-impl SupportedPoolFwd<i64> for f64 {}
-impl SupportedPoolFwd<f32> for f64 {}
-impl SupportedPoolFwd<f64> for f64 {}
 
 /// Supported type configurations for the pooling backward operation.
 pub trait SupportedPoolBwd<T>: DataType + private::Sealed

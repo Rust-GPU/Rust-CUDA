@@ -4,7 +4,9 @@ mod activation_mode;
 pub use activation_descriptor::*;
 pub use activation_mode::*;
 
-use crate::{private, sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
+use crate::{
+    private, sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
+};
 use cust::memory::GpuBuffer;
 use std::mem::MaybeUninit;
 
@@ -49,11 +51,11 @@ impl CudnnContext {
     ///
     /// let desc = ActivationDescriptor::new(mode, nan_opt, coefficient)?;
     ///
-    /// let alpha: f32 = 1.0;
+    /// let alpha = 1.0;
     /// let x_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
     /// let x = DeviceBuffer::<i8>::from_slice(&[10, 10, 10, 10, 10])?;
     ///
-    /// let beta: f32 = 0.0;
+    /// let beta = 0.0;
     /// let y_desc = TensorDescriptor::<i8>::new_strides(&[1, 1, 1, 5], &[5, 5, 5, 1])?;
     /// let mut y = DeviceBuffer::<i8>::from_slice(&[0, 0, 0, 0, 0])?;
     ///
@@ -76,7 +78,7 @@ impl CudnnContext {
         y: &mut impl GpuBuffer<T>,
     ) -> Result<(), CudnnError>
     where
-        CompT: SupportedActFwd<T>,
+        CompT: ScalingDataType<T>,
         T: DataType,
     {
         let alpha_ptr = &alpha as *const CompT as *const _;
@@ -178,27 +180,6 @@ impl CudnnContext {
         }
     }
 }
-
-/// Supported data type configurations for the activation forward operation.
-pub trait SupportedActFwd<T>: DataType + private::Sealed
-where
-    T: DataType,
-{
-}
-
-impl SupportedActFwd<i8> for f32 {}
-impl SupportedActFwd<u8> for f32 {}
-impl SupportedActFwd<i32> for f32 {}
-impl SupportedActFwd<i64> for f32 {}
-impl SupportedActFwd<f32> for f32 {}
-impl SupportedActFwd<f64> for f32 {}
-
-impl SupportedActFwd<i8> for f64 {}
-impl SupportedActFwd<u8> for f64 {}
-impl SupportedActFwd<i32> for f64 {}
-impl SupportedActFwd<i64> for f64 {}
-impl SupportedActFwd<f32> for f64 {}
-impl SupportedActFwd<f64> for f64 {}
 
 /// Supported type configurations for the activation backward operation.
 pub trait SupportedActBwd<T>: DataType + private::Sealed

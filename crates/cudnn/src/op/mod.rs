@@ -4,7 +4,9 @@ mod op_tensor_op;
 pub use op_tensor_descriptor::*;
 pub use op_tensor_op::*;
 
-use crate::{sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
+use crate::{
+    sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
+};
 use cust::memory::GpuBuffer;
 
 impl CudnnContext {
@@ -255,6 +257,10 @@ impl CudnnContext {
     /// to dimension five (5) are supported. This routine does not support tensor formats beyond
     /// these dimensions.
     ///
+    /// # Errors
+    ///
+    /// Returns error if an unsupported configurations of arguments is detected.
+    ///
     /// # Examples
     ///
     /// ```
@@ -282,19 +288,18 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn add_assign<CompT, T1, T2>(
+    pub fn add_assign<CompT, T1>(
         &self,
         alpha: CompT,
         a_desc: &TensorDescriptor<T1>,
         a: &impl GpuBuffer<T1>,
         gamma: CompT,
-        c_desc: &TensorDescriptor<T2>,
-        c: &mut impl GpuBuffer<T2>,
+        c_desc: &TensorDescriptor<T1>,
+        c: &mut impl GpuBuffer<T1>,
     ) -> Result<(), CudnnError>
     where
-        CompT: SupportedOp<T1, T1, T2>,
+        CompT: ScalingDataType<T1>,
         T1: DataType,
-        T2: DataType,
     {
         let a_data = a.as_device_ptr().as_ptr() as *const std::ffi::c_void;
         let c_data = c.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
@@ -320,7 +325,9 @@ impl CudnnContext {
     ///
     /// * `value` - value to set. Must be stored in host memory.
     ///
-    /// **Do note** that this routine is only available for `f32` and `f64` tensors.
+    /// # Errors
+    ///
+    /// Returns error if an unsupported configurations of arguments is detected.
     ///
     /// # Examples
     ///
@@ -345,19 +352,75 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn set<T>(
+    pub fn set<CompT, T>(
         &self,
         desc: &TensorDescriptor<T>,
         data: &mut impl GpuBuffer<T>,
-        value: T,
+        value: CompT,
     ) -> Result<(), CudnnError>
     where
+        CompT: ScalingDataType<T>,
         T: DataType,
     {
         let data = data.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
 
-        let value = &value as *const T as *const std::ffi::c_void;
+        let value = &value as *const CompT as *const std::ffi::c_void;
 
         unsafe { sys::cudnnSetTensor(self.raw, desc.raw, data, value).into_result() }
+    }
+
+    /// This function scales all the element of a tensor by a given value.
+    ///
+    /// # Arguments
+    ///
+    /// * `desc` - descriptor of the tensor to scale.
+    ///
+    /// * `data` - data of the tensor.
+    ///
+    /// * `value` - value in the host memory to a single value that all elements of the tensor will
+    /// be scaled with.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if an unsupported configurations of arguments is detected.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use cudnn::{CudnnContext, ScalarC, TensorDescriptor};
+    /// use cust::memory::DeviceBuffer;
+    ///
+    /// let ctx = CudnnContext::new()?;
+    ///
+    /// let value = 7.0;
+    /// let desc = TensorDescriptor::<i8>::new_format(&[1, 1, 1, 5], ScalarC::Nchw)?;
+    /// let mut data = DeviceBuffer::<i8>::from_slice(&[2, 2, 2, 2, 2])?;
+    ///
+    /// ctx.scale(&desc, &mut data, value)?;
+    ///
+    /// let data_host = data.as_host_vec()?;
+    ///
+    /// assert!(data_host.iter().all(|x| *x == 14));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn scale<CompT, T>(
+        &self,
+        desc: &TensorDescriptor<T>,
+        data: &mut impl GpuBuffer<T>,
+        value: CompT,
+    ) -> Result<(), CudnnError>
+    where
+        CompT: ScalingDataType<T>,
+        T: DataType,
+    {
+        let data = data.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
+
+        let value = &value as *const CompT as *const std::ffi::c_void;
+
+        unsafe { sys::cudnnScaleTensor(self.raw, desc.raw, data, value).into_result() }
     }
 }
