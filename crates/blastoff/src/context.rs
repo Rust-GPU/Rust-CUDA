@@ -63,6 +63,9 @@ bitflags::bitflags! {
 /// - [Construct the modified givens rotation matrix that zeros the second entry of a vector<span style="float:right;">`rotmg`</span>](CublasContext::rotmg)
 /// - [Scale a vector by a scalar <span style="float:right;">`scal`</span>](CublasContext::scal)
 /// - [Swap two vectors <span style="float:right;">`swap`</span>](CublasContext::swap)
+///
+/// ## Level 3 Methods (Matrix-based operations)
+/// - [Matrix Multiplication <span style="float:right;">`gemm`</span>](CublasContext::gemm)
 #[derive(Debug)]
 pub struct CublasContext {
     pub(crate) raw: sys::v2::cublasHandle_t,

@@ -10,6 +10,7 @@ bitflags = "1.3.2"
 cublas_sys = { version = "0.1", path = "../cublas_sys" }
 cust = { version = "0.3", path = "../cust", features = ["impl_num_complex"] }
 num-complex = "0.4.0"
+half = { version = "1.8.0", optional = true }
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", "katex-header.html"]
+rustdoc-args = ["--html-in-header", "katex-header.html", "--cfg", "docsrs"]

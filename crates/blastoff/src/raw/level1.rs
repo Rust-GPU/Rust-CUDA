@@ -1,7 +1,6 @@
-use std::os::raw::c_int;
-
 use crate::{sys::v2::*, BlasDatatype};
 use num_complex::{Complex32, Complex64};
+use std::os::raw::c_int;
 
 pub trait Level1: BlasDatatype {
     unsafe fn amax(
