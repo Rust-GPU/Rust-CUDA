@@ -4,6 +4,7 @@ use crate::sys;
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationMode_t)
 /// may offer additional information about the APi behavior.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ActivationMode {
     /// Selects the sigmoid function.

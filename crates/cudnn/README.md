@@ -69,7 +69,7 @@ The previous tensor descriptor can be used together with a `i8` device buffer an
 
 Currently this crate does not support `f16` and `bf16` data types.
 
-### Tensor formats
+### cuDNN tensor formats
 
 We decided not to check tensor format configurations at compile time, since it is too strong of a requirement. As a consequence, should you mess up, the program will fail at run-time. A proper understanding of the cuDNN API mechanics is thus fundamental to properly use this crate. 
 
