@@ -168,6 +168,7 @@ impl CudnnContext {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn reduce<CompT, U, V>(
         &self,
         desc: &ReductionDescriptor<CompT>,
