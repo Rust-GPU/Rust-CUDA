@@ -31,6 +31,7 @@ use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
 use std::hash::BuildHasherDefault;
 use std::os::raw::c_char;
+use std::path::PathBuf;
 use std::ptr::null;
 use std::str::FromStr;
 use tracing::{debug, trace};
@@ -523,6 +524,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 pub struct CodegenArgs {
     pub nvvm_options: Vec<NvvmOption>,
     pub override_libm: bool,
+    pub final_module_path: Option<PathBuf>,
 }
 
 impl CodegenArgs {
@@ -535,11 +537,15 @@ impl CodegenArgs {
         // TODO: replace this with a "proper" arg parser.
         let mut cg_args = Self::default();
 
-        for arg in args {
+        for (idx, arg) in args.iter().enumerate() {
             if let Ok(flag) = NvvmOption::from_str(arg) {
                 cg_args.nvvm_options.push(flag);
             } else if arg == "--override-libm" {
                 cg_args.override_libm = true;
+            } else if arg == "--final-module-path" {
+                cg_args.final_module_path = Some(PathBuf::from(
+                    args.get(idx + 1).expect("No path for --final-module-path"),
+                ));
             }
         }
 

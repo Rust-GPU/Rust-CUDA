@@ -136,6 +136,9 @@ pub struct CudaBuilder {
     pub debug: DebugInfo,
     /// Additional arguments passed to cargo during `cargo build`.
     pub build_args: Vec<String>,
+    /// An optional path where to dump LLVM IR of the final output the codegen will feed to libnvvm. Usually
+    /// used for debugging.
+    pub final_module_path: Option<PathBuf>,
 }
 
 impl CudaBuilder {
@@ -156,6 +159,7 @@ impl CudaBuilder {
             override_libm: true,
             debug: DebugInfo::None,
             build_args: vec![],
+            final_module_path: None,
         }
     }
 
@@ -282,6 +286,13 @@ impl CudaBuilder {
         self
     }
 
+    /// An optional path where to dump LLVM IR of the final output the codegen will feed to libnvvm. Usually
+    /// used for debugging.
+    pub fn final_module_path(mut self, path: impl AsRef<Path>) -> Self {
+        self.final_module_path = Some(path.as_ref().to_path_buf());
+        self
+    }
+
     /// Runs rustc to build the codegen and codegens the gpu crate, returning the path of the final
     /// ptx file. If [`ptx_file_copy_path`](Self::ptx_file_copy_path) is set, this returns the copied path.
     pub fn build(self) -> Result<PathBuf, CudaBuilderError> {
@@ -402,6 +413,11 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
 
     if builder.override_libm {
         llvm_args.push("--override-libm".to_string());
+    }
+
+    if let Some(path) = &builder.final_module_path {
+        llvm_args.push("--final-module-path".to_string());
+        llvm_args.push(path.to_str().unwrap().to_string());
     }
 
     if builder.debug != DebugInfo::None {

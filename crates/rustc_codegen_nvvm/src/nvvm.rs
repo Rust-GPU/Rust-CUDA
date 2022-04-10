@@ -1,11 +1,14 @@
 //! Final steps in codegen, coalescing modules and feeding them to libnvvm.
 
+use crate::back::demangle_callback;
 use crate::builder::unnamed;
+use crate::context::CodegenArgs;
 use crate::llvm::*;
 use crate::lto::ThinBuffer;
 use find_cuda_helper::find_cuda_root;
 use nvvm::*;
 use rustc_codegen_ssa::traits::ThinBufferMethods;
+use rustc_fs_util::path_to_c_string;
 use rustc_session::{config::DebugInfo, Session};
 use std::ffi::OsStr;
 use std::fmt::Display;
@@ -50,7 +53,7 @@ impl Display for CodegenErr {
 /// Note that this will implicitly try to find libdevice and add it, so don't do that
 /// step before this. It will fatal error if it cannot find it.
 pub fn codegen_bitcode_modules(
-    opts: &[NvvmOption],
+    args: &CodegenArgs,
     sess: &Session,
     modules: Vec<Vec<u8>>,
     llcx: &Context,
@@ -89,7 +92,16 @@ pub fn codegen_bitcode_modules(
         let node = LLVMMDNodeInContext(llcx, vals.as_ptr(), vals.len() as u32);
 
         LLVMAddNamedMetadataOperand(module, "nvvmir.version\0".as_ptr().cast(), node);
+
+        if let Some(path) = &args.final_module_path {
+            let out_c = path_to_c_string(path);
+            let result = LLVMRustPrintModule(module, out_c.as_ptr(), demangle_callback);
+            result
+                .into_result()
+                .expect("Failed to write final llvm module output");
+        }
     }
+
     let buf = ThinBuffer::new(module);
 
     prog.add_module(buf.data(), "merged".to_string())?;
@@ -122,7 +134,7 @@ pub fn codegen_bitcode_modules(
         );
     }
 
-    let res = match prog.compile(opts) {
+    let res = match prog.compile(&args.nvvm_options) {
         Ok(b) => b,
         Err(error) => {
             // this should never happen, if it does, something went really bad or its a bug on libnvvm's end
