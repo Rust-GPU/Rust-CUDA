@@ -317,10 +317,10 @@ pub(crate) unsafe fn create_module<'ll>(
     let mod_name = CString::new(mod_name).expect("nul in module name");
     let llmod = llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), llcx);
 
-    let data_layout = CString::new(target::data_layout()).unwrap();
+    let data_layout = CString::new(target::DATA_LAYOUT).unwrap();
     llvm::LLVMSetDataLayout(llmod, data_layout.as_ptr());
 
-    let target = CString::new(target::target_triple()).unwrap();
+    let target = CString::new(target::TARGET_TRIPLE).unwrap();
     llvm::LLVMSetTarget(llmod, target.as_ptr());
 
     llmod

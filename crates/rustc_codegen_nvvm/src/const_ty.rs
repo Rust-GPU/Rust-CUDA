@@ -1,5 +1,5 @@
 use crate::llvm::{self, Bool, False, True, Type, Value};
-use crate::{consts::const_alloc_to_llvm, context::CodegenCx, target, ty::LayoutLlvmExt};
+use crate::{consts::const_alloc_to_llvm, context::CodegenCx, ty::LayoutLlvmExt};
 use abi::Primitive::Pointer;
 use libc::c_uint;
 use rustc_ast::Mutability;
@@ -59,13 +59,6 @@ impl<'ll, 'tcx> ConstMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn const_usize(&self, i: u64) -> &'ll Value {
-        let bit_size = target::pointer_size();
-        if bit_size == 32 {
-            // shouldnt happen but make sure it doesnt overflow
-            // and the entire codegen burns down to the ground
-            assert!(i < (1 << bit_size));
-        }
-
         self.const_uint(self.isize_ty, i)
     }
 

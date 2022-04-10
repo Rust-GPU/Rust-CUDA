@@ -110,7 +110,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             llvm_module.llmod.as_ref().unwrap()
         });
 
-        let isize_ty = Type::ix_llcx(llcx, target::pointer_size() as u64);
+        let isize_ty = Type::ix_llcx(llcx, target::POINTER_WIDTH as u64);
         // the eh_personality function doesnt make sense on the GPU, but we still need to give
         // rustc something, so we just give it an empty function
         let eh_personality = unsafe {

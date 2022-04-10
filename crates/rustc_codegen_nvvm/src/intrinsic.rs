@@ -152,11 +152,8 @@ fn get_simple_intrinsic<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, name: Symbol) -> O
 
 fn int_type_width_signed(ty: Ty<'_>, _cx: &CodegenCx<'_, '_>) -> Option<(u64, bool)> {
     match ty.kind() {
-        ty::Int(t) => Some((t.bit_width().unwrap_or(target::pointer_size() as u64), true)),
-        ty::Uint(t) => Some((
-            t.bit_width().unwrap_or(target::pointer_size() as u64),
-            false,
-        )),
+        ty::Int(t) => Some((t.bit_width().unwrap_or(target::POINTER_WIDTH as u64), true)),
+        ty::Uint(t) => Some((t.bit_width().unwrap_or(target::POINTER_WIDTH as u64), false)),
         _ => None,
     }
 }

@@ -63,10 +63,6 @@ pub struct CudaBuilder {
     /// Whether to compile the gpu crate for release.
     /// `true` by default.
     pub release: bool,
-    /// Whether to use 32 bit nvptx. Note that this is not tested much, so
-    /// it may break in certain cases. You should always use 64 bit nvptx.
-    /// `false` by default.
-    pub nvptx_32: bool,
     /// An optional path to copy the final ptx file to.
     pub ptx_file_copy_path: Option<PathBuf>,
 
@@ -147,7 +143,6 @@ impl CudaBuilder {
         Self {
             path_to_crate: path_to_crate_root.as_ref().to_owned(),
             release: true,
-            nvptx_32: false,
             ptx_file_copy_path: None,
             generate_line_info: true,
             nvvm_opts: true,
@@ -181,13 +176,6 @@ impl CudaBuilder {
     pub fn release(mut self, release: bool) -> Self {
         self.release = release;
         self.nvvm_opts = release;
-        self
-    }
-
-    /// Whether to use 32 bit nvptx. Note that this is not tested much, so
-    /// it may break in certain cases. You should always use 64 bit nvptx.
-    pub fn nvptx_32(mut self, nvptx_32: bool) -> Self {
-        self.nvptx_32 = nvptx_32;
         self
     }
 
@@ -427,12 +415,6 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         rustflags.push(["-Cllvm-args=", &llvm_args].concat());
     }
 
-    let target = if builder.nvptx_32 {
-        "nvptx-nvidia-cuda"
-    } else {
-        "nvptx64-nvidia-cuda"
-    };
-
     let mut cargo = Command::new("cargo");
     cargo.args(&[
         "build",
@@ -440,7 +422,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         "--message-format=json-render-diagnostics",
         "-Zbuild-std=core,alloc",
         "--target",
-        target,
+        "nvptx64-nvidia-cuda",
     ]);
 
     cargo.args(&builder.build_args);

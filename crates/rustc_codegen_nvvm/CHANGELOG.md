@@ -5,6 +5,7 @@ Notable changes to this project will be documented in this file.
 ## Unreleased
 
 - Added symbols for cuda_std to link to for warp intrinsics.
+- Completely remove support for 32-bit CUDA (it was broken and it is essentially unused nowadays).
 
 ## 0.2.3 - 1/2/22
 
