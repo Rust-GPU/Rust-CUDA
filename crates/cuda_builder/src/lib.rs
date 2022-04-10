@@ -501,7 +501,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     let stdout = String::from_utf8(build.stdout).unwrap();
     let artifact = get_last_artifact(&stdout);
     if build.status.success() {
-        Ok(artifact.expect("Artifact created when compilation succeeded"))
+        Ok(artifact.expect("Artifact created when compilation succeeded (Did you forget to mark the crate-type as lib/rlib?)"))
     } else {
         Err(CudaBuilderError::BuildFailed)
     }
