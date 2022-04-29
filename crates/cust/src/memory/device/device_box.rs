@@ -7,7 +7,7 @@ use crate::memory::{cuda_free_async, cuda_malloc_async, DeviceCopy};
 use crate::stream::Stream;
 use crate::sys as cuda;
 use std::fmt::{self, Pointer};
-use std::mem::{self, ManuallyDrop};
+use std::mem::{self, ManuallyDrop, MaybeUninit};
 
 use std::os::raw::c_void;
 
@@ -131,12 +131,15 @@ impl<T: DeviceCopy> DeviceBox<T> {
     }
 }
 
-impl<T: DeviceCopy + Default> DeviceBox<T> {
+impl<T: DeviceCopy> DeviceBox<T> {
     /// Read the data back from the GPU into host memory.
     pub fn as_host_value(&self) -> CudaResult<T> {
-        let mut val = T::default();
-        self.copy_to(&mut val)?;
-        Ok(val)
+        let mut val = MaybeUninit::uninit();
+        // SAFETY: We do not read from the uninitialized reference.
+        unsafe {
+            self.copy_to(val.assume_init_mut())?;
+            Ok(val.assume_init())
+        }
     }
 }
 
