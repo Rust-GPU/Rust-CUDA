@@ -10,6 +10,7 @@ use bytemuck::{Pod, Zeroable};
 use std::mem::{self, size_of};
 use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 use std::os::raw::c_void;
+use std::slice;
 
 /// Fixed-size device-side slice.
 #[derive(Debug, Copy, Clone)]
@@ -21,14 +22,6 @@ pub struct DeviceSlice<T: DeviceCopy> {
 
 unsafe impl<T: Send + DeviceCopy> Send for DeviceSlice<T> {}
 unsafe impl<T: Sync + DeviceCopy> Sync for DeviceSlice<T> {}
-
-impl<T: DeviceCopy + Default + Clone> DeviceSlice<T> {
-    pub fn as_host_vec(&self) -> CudaResult<Vec<T>> {
-        let mut vec = vec![T::default(); self.len()];
-        self.copy_to(&mut vec)?;
-        Ok(vec)
-    }
-}
 
 // This works by faking a regular slice out of the device raw-pointer and the length and transmuting
 // I have no idea if this is safe or not. Probably not, though I can't imagine how the compiler
@@ -79,6 +72,17 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// ```
     pub fn as_device_ptr(&self) -> DevicePointer<T> {
         self.ptr
+    }
+
+    pub fn as_host_vec(&self) -> CudaResult<Vec<T>> {
+        let mut vec = Vec::with_capacity(self.len());
+        // SAFETY: The slice points to uninitialized memory, but we only write to it. Once it is
+        // written, all values are valid, so we can (and must) change the length of the vector.
+        unsafe {
+            self.copy_to(slice::from_raw_parts_mut(vec.as_mut_ptr(), self.len()))?;
+            vec.set_len(self.len())
+        }
+        Ok(vec)
     }
 
     /* TODO (AL): keep these?
