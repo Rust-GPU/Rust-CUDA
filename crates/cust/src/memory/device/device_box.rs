@@ -129,9 +129,7 @@ impl<T: DeviceCopy> DeviceBox<T> {
         // you keep around a pointer, but in that case, we cannot guarantee safety.
         unsafe { cuda_free_async(stream, me.ptr) }
     }
-}
 
-impl<T: DeviceCopy> DeviceBox<T> {
     /// Read the data back from the GPU into host memory.
     pub fn as_host_value(&self) -> CudaResult<T> {
         let mut val = MaybeUninit::uninit();
