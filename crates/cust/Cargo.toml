@@ -24,7 +24,7 @@ vek = { version = "0.15.1", optional = true, default-features = false }
 bytemuck = { version = "1.7.3", optional = true }
 
 [features]
-default= ["bytemuck"]
+default= ["bytemuck", "impl_glam", "impl_mint", "impl_vek"]
 impl_glam = ["cust_core/glam", "glam"]
 impl_mint = ["cust_core/mint", "mint"]
 impl_vek = ["cust_core/vek", "vek"]
