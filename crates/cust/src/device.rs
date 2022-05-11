@@ -346,7 +346,7 @@ impl Device {
         unsafe {
             cuDeviceGetUuid(&mut cu_uuid, self.device).to_result()?;
         }
-        let uuid: [u8; 16] = cu_uuid.bytes.map(|byte| byte.to_ne_bytes()[0]);
+        let uuid: [u8; 16] = cu_uuid.bytes.map(|byte| byte as u8);
         Ok(uuid)
     }
 
