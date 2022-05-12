@@ -327,6 +327,29 @@ impl Device {
         }
     }
 
+    /// Returns the UUID of this device.
+    ///
+    /// # Example
+    /// ```
+    /// # use cust::*;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # init(CudaFlags::empty())?;
+    /// use cust::device::Device;
+    /// let device = Device::get_device(0)?;
+    /// println!("Device UUID: {:?}", device.uuid()?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn uuid(self) -> CudaResult<[u8; 16]> {
+        let mut cu_uuid = CUuuid { bytes: [0i8; 16] };
+        unsafe {
+            cuDeviceGetUuid(&mut cu_uuid, self.device).to_result()?;
+        }
+        let uuid: [u8; 16] = cu_uuid.bytes.map(|byte| byte as u8);
+        Ok(uuid)
+    }
+
     /// Returns information about this device.
     ///
     /// # Example
