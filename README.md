@@ -7,7 +7,7 @@
   </p>
 
   <h3>
-    <a href="guide">Guide</a>
+    <a href="https://rust-gpu.github.io/Rust-CUDA/guide/index.html">Guide</a>
     <span> | </span>
     <a href="guide/src/guide/getting_started.md">Getting Started</a>
     <span> | </span>
