@@ -194,6 +194,20 @@ static PTX: &str = include_str!("some/path.ptx");
 
 Then execute it using cust.
 
+Don't forget to include the current `rust-toolchain` in the top of your project:
+
+```toml
+# If you see this, run `rustup self update` to get rustup 1.23 or newer.
+
+# NOTE: above comment is for older `rustup` (before TOML support was added),
+# which will treat the first line as the toolchain name, and therefore show it
+# to the user in the error, instead of "error: invalid channel name '[toolchain]'".
+
+[toolchain]
+channel = "nightly-2021-12-04"
+components = ["rust-src", "rustc-dev", "llvm-tools-preview"]
+```
+
 ## Docker
 
 There is also a [Dockerfile](Dockerfile) prepared as a quickstart with all the necessary libraries for base cuda development.
