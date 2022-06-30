@@ -65,6 +65,8 @@ Before we can write any GPU kernels, we must add a few directives to our `lib.rs
     feature(register_attr),
     register_attr(nvvm_internal)
 )]
+
+use cuda_std::*;
 ```
 
 This does a couple of things:
@@ -72,6 +74,7 @@ This does a couple of things:
 - It declares the crate to be `no_std` on CUDA targets.
 - It registers a special attribute required by the codegen for things like figuring out
 what functions are GPU kernels.
+- It explicitly includes `kernel` macro and `thread`
 
 If you would like to use `alloc` or things like printing from GPU kernels (which requires alloc) then you need to declare `alloc` too:
 
