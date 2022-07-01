@@ -65,6 +65,8 @@ Before we can write any GPU kernels, we must add a few directives to our `lib.rs
     feature(register_attr),
     register_attr(nvvm_internal)
 )]
+
+use cuda_std::*;
 ```
 
 This does a couple of things:
@@ -72,6 +74,7 @@ This does a couple of things:
 - It declares the crate to be `no_std` on CUDA targets.
 - It registers a special attribute required by the codegen for things like figuring out
 what functions are GPU kernels.
+- It explicitly includes `kernel` macro and `thread`
 
 If you would like to use `alloc` or things like printing from GPU kernels (which requires alloc) then you need to declare `alloc` too:
 
@@ -190,6 +193,20 @@ static PTX: &str = include_str!("some/path.ptx");
 ```
 
 Then execute it using cust.
+
+Don't forget to include the current `rust-toolchain` in the top of your project:
+
+```toml
+# If you see this, run `rustup self update` to get rustup 1.23 or newer.
+
+# NOTE: above comment is for older `rustup` (before TOML support was added),
+# which will treat the first line as the toolchain name, and therefore show it
+# to the user in the error, instead of "error: invalid channel name '[toolchain]'".
+
+[toolchain]
+channel = "nightly-2021-12-04"
+components = ["rust-src", "rustc-dev", "llvm-tools-preview"]
+```
 
 ## Docker
 
