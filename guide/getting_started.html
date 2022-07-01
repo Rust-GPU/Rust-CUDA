@@ -193,6 +193,8 @@ edition = &quot;2021&quot;
     feature(register_attr),
     register_attr(nvvm_internal)
 )]
+
+use cuda_std::*;
 </code></pre>
 <p>This does a couple of things:</p>
 <ul>
@@ -200,6 +202,7 @@ edition = &quot;2021&quot;
 <li>It declares the crate to be <code>no_std</code> on CUDA targets.</li>
 <li>It registers a special attribute required by the codegen for things like figuring out
 what functions are GPU kernels.</li>
+<li>It explicitly includes <code>kernel</code> macro and <code>thread</code></li>
 </ul>
 <p>If you would like to use <code>alloc</code> or things like printing from GPU kernels (which requires alloc) then you need to declare <code>alloc</code> too:</p>
 <pre><code class="language-rs">extern crate alloc;
@@ -291,6 +294,17 @@ from scratch, but after the first compile, incremental will make it much faster.
 <pre><code class="language-rs">static PTX: &amp;str = include_str!(&quot;some/path.ptx&quot;);
 </code></pre>
 <p>Then execute it using cust.</p>
+<p>Don't forget to include the current <code>rust-toolchain</code> in the top of your project:</p>
+<pre><code class="language-toml"># If you see this, run `rustup self update` to get rustup 1.23 or newer.
+
+# NOTE: above comment is for older `rustup` (before TOML support was added),
+# which will treat the first line as the toolchain name, and therefore show it
+# to the user in the error, instead of &quot;error: invalid channel name '[toolchain]'&quot;.
+
+[toolchain]
+channel = &quot;nightly-2021-12-04&quot;
+components = [&quot;rust-src&quot;, &quot;rustc-dev&quot;, &quot;llvm-tools-preview&quot;]
+</code></pre>
 <h2 id="docker"><a class="header" href="#docker">Docker</a></h2>
 <p>There is also a <a href="Dockerfile">Dockerfile</a> prepared as a quickstart with all the necessary libraries for base cuda development.</p>
 <p>You can use it as follows (assuming your clone of Rust-CUDA is at the absolute path <code>RUST_CUDA</code>):</p>
