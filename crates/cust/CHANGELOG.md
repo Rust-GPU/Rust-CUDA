@@ -5,6 +5,7 @@ Notable changes to this project will be documented in this file.
 ## Unreleased
 
  - Add `memory::memcpy_dtoh` to allow copying from device to host.
+ - Add support in `memory` for pitched malloc and 2D memcpy between device and host.
 
 ## 0.3.2 - 2/16/22
 

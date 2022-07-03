@@ -6,7 +6,7 @@ authors = [
     "Riccardo D'Ambrosio <rdambrosio016@gmail.com>",
     "Brook Heisler <brookheisler@gmail.com>",
 ]
-edition = "2018"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "High level bindings to the CUDA Driver API"
 repository = "https://github.com/Rust-GPU/Rust-CUDA"
