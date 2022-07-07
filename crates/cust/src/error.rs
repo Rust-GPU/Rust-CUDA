@@ -52,6 +52,7 @@ pub enum CudaError {
     InvalidPtx = 218,
     InvalidGraphicsContext = 219,
     NvlinkUncorrectable = 220,
+    UnsupportedPtxVersion = 222,
     InvalidSource = 300,
     FileNotFound = 301,
     SharedObjectSymbolNotFound = 302,
@@ -159,6 +160,9 @@ impl ToResult for cudaError_enum {
             }
             cudaError_enum::CUDA_ERROR_PEER_ACCESS_UNSUPPORTED => {
                 Err(CudaError::PeerAccessUnsupported)
+            }
+            cudaError_enum::CUDA_ERROR_UNSUPPORTED_PTX_VERSION => {
+                Err(CudaError::UnsupportedPtxVersion)
             }
             cudaError_enum::CUDA_ERROR_INVALID_PTX => Err(CudaError::InvalidPtx),
             cudaError_enum::CUDA_ERROR_INVALID_GRAPHICS_CONTEXT => {
