@@ -401,13 +401,13 @@ impl<T: DeviceCopy> Deref for DeviceBuffer<T> {
     type Target = DeviceSlice<T>;
 
     fn deref(&self) -> &DeviceSlice<T> {
-        unsafe { &*(self as *const _ as *const DeviceSlice<T>) }
+        unsafe { DeviceSlice::from_raw_parts(self.buf, self.len) }
     }
 }
 
 impl<T: DeviceCopy> DerefMut for DeviceBuffer<T> {
     fn deref_mut(&mut self) -> &mut DeviceSlice<T> {
-        unsafe { &mut *(self as *mut _ as *mut DeviceSlice<T>) }
+        unsafe { DeviceSlice::from_raw_parts_mut(self.buf, self.len) }
     }
 }
 

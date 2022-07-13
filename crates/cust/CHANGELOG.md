@@ -4,7 +4,15 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
- - Add `memory::memcpy_dtoh` to allow copying from device to host.
+- Add `memory::memcpy_dtoh` to allow copying from device to host.
+- `DeviceSlice` is represented as a slice again, but as `[()]` instead of `[T]`.
+- Reimplemented `Index` and `IndexMut` for `DeviceSlice` and removed `DeviceSlice::index`.
+- Methods that returned `DeviceSlice` by value now return references:
+    - `DeviceSlice::from_raw_parts`
+    - `DeviceSlice::from_raw_parts_mut`
+    - `DeviceSliceIndex::index`
+    - `DeviceSliceIndex::get_unchecked`
+- Added `DeviceSliceIndex::index_mut` and `DeviceSliceIndex::get_unchecked_mut`.
 
 ## 0.3.2 - 2/16/22
 
