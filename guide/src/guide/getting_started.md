@@ -11,8 +11,26 @@ GPU crates, to execute built PTX you only need CUDA 9+.
 - LLVM 7.x (7.0 to 7.4), The codegen searches multiple places for LLVM:
   - If `LLVM_CONFIG` is present, it will use that path as `llvm-config`.
   - Or, if `llvm-config` is present as a binary, it will use that, assuming that `llvm-config --version` returns `7.x.x`.
-  - Finally, if neither are present or unusable, it will attempt to download and use prebuilt LLVM. This currently only
+  - If neither are present or unusable, it will attempt to download and use prebuilt LLVM. This currently only
   works on Windows however.
+  - Finally, on some operating systems you might have to build LLVM from source if no prebuilt binaries are available and the package repositories do not support the 7.x versions. The build process depends on the exact operating system. The commands below demonstrate the process on Ubuntu 22.04 with LLVM 7.1:
+```sh
+    # Download and unpack the source code, see https://releases.llvm.org/
+    wget https://releases.llvm.org/download.html#7.1.0
+    tar -xvf llvm-7.1.0.src.tar.xz
+ 
+    # Create a build directory inside the source directory
+    cd llvm-7.1.0.src
+    mkdir build
+    cd build
+ 
+    # Build from source
+    cmake ..
+    make
+ 
+    # Install
+    sudo make install
+  ```
 
 - The OptiX SDK if using the optix library (the pathtracer example uses it for denoising).
 
