@@ -78,6 +78,7 @@ pub enum CudaError {
     InvalidAddressSpace = 717,
     InvalidProgramCounter = 718,
     LaunchFailed = 719,
+    CooperativeLaunchTooLarge = 720,
     NotPermitted = 800,
     NotSupported = 801,
     UnknownError = 999,
@@ -209,9 +210,12 @@ impl ToResult for cudaError_enum {
             cudaError_enum::CUDA_ERROR_INVALID_ADDRESS_SPACE => Err(CudaError::InvalidAddressSpace),
             cudaError_enum::CUDA_ERROR_INVALID_PC => Err(CudaError::InvalidProgramCounter),
             cudaError_enum::CUDA_ERROR_LAUNCH_FAILED => Err(CudaError::LaunchFailed),
+            cudaError_enum::CUDA_ERROR_COOPERATIVE_LAUNCH_TOO_LARGE => {
+                Err(CudaError::CooperativeLaunchTooLarge)
+            }
             cudaError_enum::CUDA_ERROR_NOT_PERMITTED => Err(CudaError::NotPermitted),
             cudaError_enum::CUDA_ERROR_NOT_SUPPORTED => Err(CudaError::NotSupported),
-            _ => Err(CudaError::UnknownError),
+            err => Err(CudaError::UnknownError),
         }
     }
 }

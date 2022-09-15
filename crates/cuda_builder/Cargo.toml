@@ -1,6 +1,6 @@
 [package]
 name = "cuda_builder"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Riccardo D'Ambrosio <rdambrosio016@gmail.com>", "The rust-gpu Authors"]
 license = "MIT OR Apache-2.0"
@@ -9,8 +9,16 @@ repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 
 [dependencies]
+anyhow = "1"
+thiserror = "1"
+cc = { version = "1", default-features = false, optional = true }
+cust = { path = "../cust", optional = true }
 rustc_codegen_nvvm = { version = "0.3", path = "../rustc_codegen_nvvm" }
 nvvm = { path = "../nvvm", version = "0.1" }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
 find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
+
+[features]
+default = []
+cooperative_groups = ["cc", "cust"]
