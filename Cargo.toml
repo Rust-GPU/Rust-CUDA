@@ -14,7 +14,7 @@ members = [
 ]
 
 exclude = [
-    "crates/optix/examples/common"
+    "crates/optix/examples/common",
 ]
 
 [profile.dev.package.rustc_codegen_nvvm]
