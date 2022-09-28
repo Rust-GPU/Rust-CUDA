@@ -342,7 +342,7 @@ impl Device {
     /// # }
     /// ```
     pub fn uuid(self) -> CudaResult<[u8; 16]> {
-        let mut cu_uuid = CUuuid { bytes: [0i8; 16] };
+        let mut cu_uuid = CUuuid { bytes: [0; 16] };
         unsafe {
             cuDeviceGetUuid(&mut cu_uuid, self.device).to_result()?;
         }
