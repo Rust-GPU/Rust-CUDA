@@ -1,5 +1,6 @@
 //! Tiny crate for common logic for finding and including CUDA.
 
+use std::process::Command;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -131,6 +132,7 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
         candidates.push(e)
     }
     candidates.push(PathBuf::from("/usr/lib/cuda"));
+    candidates.push(detect_cuda_root_via_which_nvcc());
 
     let mut valid_paths = vec![];
     for base in &candidates {
@@ -148,6 +150,24 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
         }
     }
     valid_paths
+}
+
+#[cfg(not(target_os = "windows"))]
+fn detect_cuda_root_via_which_nvcc() -> PathBuf {
+    let output = Command::new("which")
+        .arg("nvcc")
+        .output()
+        .expect("Command `which` must be available on *nix like systems.")
+        .stdout;
+
+    let path: PathBuf = String::from_utf8(output)
+        .expect("Result must be valid UTF-8")
+        .trim()
+        .to_string()
+        .into();
+
+    // The above finds `CUDASDK/bin/nvcc`, so we have to go 2 up for the SDK root.
+    path.parent().unwrap().parent().unwrap().to_path_buf()
 }
 
 #[cfg(target_os = "windows")]
