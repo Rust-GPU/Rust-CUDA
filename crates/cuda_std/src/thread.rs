@@ -17,7 +17,7 @@
 //! The most important structure after threads, thread blocks arrange
 
 // TODO: write some docs about the terms used in this module.
-
+use core::arch::asm;
 use cuda_std_macros::gpu_only;
 use vek::{Vec2, Vec3};
 

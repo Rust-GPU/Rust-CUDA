@@ -27,7 +27,8 @@ fn should_override<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) -
     if !is_libm {
         return false;
     }
-    let name = cx.tcx.item_name(func.def_id()).as_str();
+    let name_id = cx.tcx.item_name(func.def_id());
+    let name = name_id.as_str();
     let intrinsics = cx.intrinsics_map.borrow();
     let is_known_intrinsic = intrinsics.contains_key(format!("__nv_{}", name).as_str());
 
@@ -48,7 +49,8 @@ fn is_unsupported_libdevice_fn(name: &str) -> bool {
 }
 
 fn override_libm_function<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) {
-    let name = cx.tcx.item_name(func.def_id()).as_str();
+    let name_id = cx.tcx.item_name(func.def_id());
+    let name = name_id.as_str();
     let nv_name = format!("__nv_{}", name);
     let intrinsic = cx.get_intrinsic(&nv_name);
 
@@ -57,6 +59,6 @@ fn override_libm_function<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, '
     let mut bx = Builder::build(cx, start);
 
     let params = llvm::get_params(llfn);
-    let llcall = bx.call(cx.type_i1(), intrinsic, &params, None);
+    let llcall = bx.call(cx.type_i1(), None, intrinsic, &params, None);
     bx.ret(llcall);
 }

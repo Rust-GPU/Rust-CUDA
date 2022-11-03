@@ -172,7 +172,7 @@ pub mod _hidden {
 
     #[cfg(feature = "glam")]
     impl_device_copy! {
-        glam::Vec2, glam::Vec3, glam::Vec4, glam::IVec2, glam::IVec3, glam::IVec4,
+        glam::Vec2, glam::Vec3, glam::Vec4, glam::IVec2, glam::IVec3, glam::IVec4, glam::Mat3, glam::Mat4
     }
 
     #[cfg(feature = "mint")]

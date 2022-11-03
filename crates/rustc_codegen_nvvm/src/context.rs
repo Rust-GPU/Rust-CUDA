@@ -1,11 +1,12 @@
 use crate::abi::FnAbiLlvmExt;
 use crate::attributes::{self, NvvmAttributes, Symbols};
 use crate::debug_info::{self, compile_unit_metadata, CrateDebugContext};
+use crate::llvm::MetadataType::MD_kcfi_type;
 use crate::llvm::{self, BasicBlock, Type, Value};
 use crate::{target, LlvmMod};
 use nvvm::NvvmOption;
 use rustc_codegen_ssa::traits::{BackendTypes, BaseTypeMethods, CoverageInfoMethods, MiscMethods};
-use rustc_codegen_ssa::traits::{ConstMethods, DerivedTypeMethods};
+use rustc_codegen_ssa::traits::{ConstMethods, DerivedTypeMethods, TypeMembershipMethods};
 use rustc_data_structures::base_n;
 use rustc_hash::FxHashMap;
 use rustc_middle::dep_graph::DepContext;
@@ -13,7 +14,7 @@ use rustc_middle::ty::layout::{
     FnAbiError, FnAbiOf, FnAbiRequest, HasParamEnv, HasTyCtxt, LayoutError, TyAndLayout,
 };
 use rustc_middle::ty::layout::{FnAbiOfHelpers, LayoutOfHelpers};
-use rustc_middle::ty::{Ty, TypeFoldable};
+use rustc_middle::ty::{Ty, TypeFoldable, TypeVisitable};
 use rustc_middle::{bug, span_bug, ty};
 use rustc_middle::{
     mir::mono::CodegenUnit,
@@ -31,6 +32,7 @@ use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
 use std::hash::BuildHasherDefault;
 use std::os::raw::c_char;
+use std::os::raw::c_uint;
 use std::path::PathBuf;
 use std::ptr::null;
 use std::str::FromStr;
@@ -49,7 +51,7 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     /// A cache of the generated vtables for trait objects
     pub vtables: RefCell<FxHashMap<(Ty<'tcx>, Option<PolyExistentialTraitRef<'tcx>>), &'ll Value>>,
     /// A cache of constant strings and their values
-    pub const_cstr_cache: RefCell<FxHashMap<Symbol, &'ll Value>>,
+    pub const_str_cache: RefCell<FxHashMap<String, &'ll Value>>,
     /// A map of functions which have parameters at specific indices replaced with an int-remapped type.
     /// such as i128 --> <2 x i64>
     #[allow(clippy::type_complexity)]
@@ -137,7 +139,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             codegen_unit,
             instances: Default::default(),
             vtables: Default::default(),
-            const_cstr_cache: Default::default(),
+            const_str_cache: Default::default(),
             remapped_integer_args: Default::default(),
             const_globals: Default::default(),
             statics_to_rauw: RefCell::new(Vec::new()),
@@ -154,10 +156,11 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 BuildHasherDefault::default(),
             )),
             local_gen_sym_counter: Cell::new(0),
-            nvptx_data_layout: TargetDataLayout::parse(&target::target()).unwrap(),
+            nvptx_data_layout: target::target().parse_data_layout().unwrap_or_default(),
             nvptx_target: target::target(),
             eh_personality,
             symbols: Symbols {
+                rust_cuda: Symbol::intern("rust_cuda"),
                 nvvm_internal: Symbol::intern("nvvm_internal"),
                 kernel: Symbol::intern("kernel"),
                 addrspace: Symbol::intern("addrspace"),
@@ -179,7 +182,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         self.fatal(&format!("{} is unsupported", thing))
     }
 
-    fn create_used_variable_impl(&self, name: *const c_char, values: &[&'ll Value]) {
+    pub fn create_used_variable_impl(&self, name: *const c_char, values: &[&'ll Value]) {
         let section = "llvm.metadata\0".as_ptr().cast();
         let array = self.const_array(self.type_ptr_to(self.type_i8()), values);
 
@@ -232,21 +235,6 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         self.codegen_unit
     }
 
-    fn used_statics(&self) -> &RefCell<Vec<&'ll Value>> {
-        &self.used_statics
-    }
-
-    fn create_used_variable(&self) {
-        self.create_used_variable_impl("llvm.used\0".as_ptr().cast(), &*self.used_statics.borrow());
-    }
-
-    fn create_compiler_used_variable(&self) {
-        self.create_used_variable_impl(
-            "llvm.compiler.used\0".as_ptr().cast(),
-            &*self.compiler_used_statics.borrow(),
-        );
-    }
-
     fn declare_c_main(&self, _fn_type: Self::Type) -> Option<Self::Function> {
         // no point for gpu kernels
         None
@@ -254,10 +242,6 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
     fn apply_target_cpu_attr(&self, _llfn: Self::Function) {
         // no point if we are running on the gpu ;)
-    }
-
-    fn compiler_used_statics(&self) -> &RefCell<Vec<Self::Value>> {
-        &self.compiler_used_statics
     }
 
     fn set_frame_pointer_type(&self, _llfn: Self::Function) {}
@@ -268,8 +252,8 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub fn static_addrspace(&self, instance: Instance<'tcx>) -> AddressSpace {
         let ty = instance.ty(self.tcx, ty::ParamEnv::reveal_all());
         let is_mutable = self.tcx().is_mutable_static(instance.def_id());
-        let attrs = self.tcx.get_attrs(instance.def_id());
-        let nvvm_attrs = NvvmAttributes::parse(self, attrs);
+        let attrs = self.tcx.get_attrs_unchecked(instance.def_id());
+        let nvvm_attrs = NvvmAttributes::parse(self, &attrs);
 
         if let Some(addr) = nvvm_attrs.addrspace {
             return AddressSpace(addr as u32);
@@ -656,5 +640,29 @@ impl<'ll, 'tcx> CoverageInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
     fn get_pgo_func_name_var(&self, _instance: Instance<'tcx>) -> Self::Value {
         todo!()
+    }
+}
+
+impl<'ll, 'tcx> TypeMembershipMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+    fn set_type_metadata(&self, function: &'ll Value, typeid: String) {
+        let typeid_metadata = self.typeid_metadata(typeid);
+        let v = [self.const_usize(0), typeid_metadata];
+        unsafe {
+            llvm::LLVMSetMetadata(
+                function,
+                llvm::MetadataType::MD_type as c_uint,
+                llvm::LLVMMDNodeInContext(self.llcx, v.as_ptr(), v.len() as c_uint),
+            )
+        }
+    }
+
+    fn typeid_metadata(&self, typeid: String) -> &'ll Value {
+        unsafe {
+            llvm::LLVMMDStringInContext(
+                self.llcx,
+                typeid.as_ptr() as *const c_char,
+                typeid.len() as c_uint,
+            )
+        }
     }
 }

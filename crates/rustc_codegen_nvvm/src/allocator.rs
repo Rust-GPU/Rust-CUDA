@@ -11,7 +11,7 @@ pub(crate) unsafe fn codegen(
     _tcx: TyCtxt<'_>,
     mods: &mut LlvmMod,
     kind: AllocatorKind,
-    has_alloc_error_handler: bool,
+    alloc_error_handler_kind: AllocatorKind,
 ) {
     let llcx = &*mods.llcx;
     let llmod = mods.llmod.as_ref().unwrap();
@@ -94,11 +94,7 @@ pub(crate) unsafe fn codegen(
     // -> ! DIFlagNoReturn
     llvm::Attribute::NoReturn.apply_llfn(llvm::AttributePlace::Function, llfn);
 
-    let kind = if has_alloc_error_handler {
-        AllocatorKind::Global
-    } else {
-        AllocatorKind::Default
-    };
+    let kind = alloc_error_handler_kind;
     let callee = kind.fn_name(sym::oom);
     let callee = llvm::LLVMRustGetOrInsertFunction(llmod, callee.as_ptr().cast(), callee.len(), ty);
 

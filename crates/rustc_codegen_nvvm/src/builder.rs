@@ -8,6 +8,7 @@ use libc::{c_char, c_uint};
 use rustc_codegen_ssa::common::{AtomicOrdering, IntPredicate, RealPredicate, TypeKind};
 use rustc_codegen_ssa::mir::operand::{OperandRef, OperandValue};
 use rustc_codegen_ssa::mir::place::PlaceRef;
+use rustc_codegen_ssa::traits::BackendTypes;
 use rustc_codegen_ssa::traits::*;
 use rustc_codegen_ssa::MemFlags;
 use rustc_hir::def_id::DefId;
@@ -186,10 +187,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         unsafe { llvm::LLVMGetInsertBlock(self.llbuilder) }
     }
 
-    fn build_sibling_block(&mut self, name: &str) -> Self {
-        let llbb = self.append_sibling_block(name);
-        Self::build(self.cx, llbb)
-    }
+    // fn build_sibling_block(&mut self, name: &str) -> Self {
+    //     let llbb = self.append_sibling_block(name);
+    //     Self::build(self.cx, llbb)
+    // }
 
     fn set_span(&mut self, _span: Span) {}
 
@@ -257,9 +258,18 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         }
     }
 
+    fn switch_to_block(&mut self, llbb: &'ll BasicBlock) {
+        *self = Self::build(self.cx, llbb)
+    }
+
+    fn cleanup_landing_pad(&mut self, _: &'ll Type, _: &'ll Value) -> &'ll Value {
+        todo!()
+    }
+
     fn invoke(
         &mut self,
         ty: &'ll Type,
+        fn_abi: Option<&FnAbi<'tcx, Ty<'tcx>>>,
         llfn: &'ll Value,
         args: &[&'ll Value],
         then: &'ll BasicBlock,
@@ -267,7 +277,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         funclet: Option<&()>,
     ) -> &'ll Value {
         trace!("invoke");
-        let call = self.call(ty, llfn, args, funclet);
+        let call = self.call(ty, None, llfn, args, funclet);
         // exceptions arent a thing, go directly to the `then` block
         unsafe { llvm::LLVMBuildBr(self.llbuilder, then) };
         call
@@ -426,7 +436,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         let intrinsic = self.get_intrinsic(name);
         // call actually ignores the ty param for now, we just need it for conformance with nightly api
         // so give it a dummy type
-        let res = self.call(self.type_i1(), intrinsic, &[lhs, rhs], None);
+        let res = self.call(self.type_i1(), None, intrinsic, &[lhs, rhs], None);
         (self.extract_value(res, 0), self.extract_value(res, 1))
     }
 
@@ -448,10 +458,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         trace!("Alloca `{:?}`", ty);
         let mut bx = Builder::with_cx(self.cx);
         bx.position_at_start(unsafe { llvm::LLVMGetFirstBasicBlock(self.llfn()) });
-        bx.dynamic_alloca(ty, align)
-    }
-
-    fn dynamic_alloca(&mut self, ty: &'ll Type, align: Align) -> &'ll Value {
+        // bx.dynamic_alloca(ty, align)
         trace!("Dynamic Alloca `{:?}`", ty);
         unsafe {
             let alloca = llvm::LLVMBuildAlloca(self.llbuilder, ty, unnamed());
@@ -460,9 +467,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         }
     }
 
-    fn array_alloca(&mut self, ty: &'ll Type, len: &'ll Value, align: Align) -> &'ll Value {
+    fn byte_array_alloca(&mut self, len: Self::Value, align: Align) -> Self::Value {
         unsafe {
-            let alloca = llvm::LLVMBuildArrayAlloca(self.llbuilder, ty, len, unnamed());
+            let alloca =
+                llvm::LLVMBuildArrayAlloca(self.llbuilder, self.cx().type_i8(), len, unnamed());
             llvm::LLVMSetAlignment(alloca, align.bytes() as c_uint);
             alloca
         }
@@ -510,7 +518,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         // self.call(vprintf, &[formatlist, valist], None);
 
         let trap = self.get_intrinsic("llvm.trap");
-        self.call(ty, trap, &[], None);
+        self.call(ty, None, trap, &[], None);
         unsafe { llvm::LLVMBuildLoad(self.llbuilder, ptr, unnamed()) }
     }
 
@@ -527,13 +535,13 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             load: &'ll Value,
             scalar: &abi::Scalar,
         ) {
-            match scalar.value {
+            match scalar.primitive() {
                 abi::Int(..) => {
                     if !scalar.is_always_valid(bx) {
-                        bx.range_metadata(load, scalar.valid_range);
+                        bx.range_metadata(load, scalar.valid_range(bx));
                     }
                 }
-                abi::Pointer if !scalar.valid_range.contains(0) => {
+                abi::Pointer if !scalar.valid_range(bx).contains(0) => {
                     bx.nonnull_metadata(load);
                 }
                 _ => {}
@@ -563,7 +571,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
             OperandValue::Immediate(self.to_immediate(llval, place.layout))
         } else if let abi::Abi::ScalarPair(ref a, ref b) = place.layout.abi {
-            let b_offset = a.value.size(self).align_to(b.value.align(self).abi);
+            let b_offset = a.size(self).align_to(b.align(self).abi);
             let pair_ty = place.layout.llvm_type(self);
 
             let mut load = |i, scalar: &abi::Scalar, align| {
@@ -589,27 +597,30 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     }
 
     fn write_operand_repeatedly(
-        mut self,
+        &mut self,
         cg_elem: OperandRef<'tcx, &'ll Value>,
         count: u64,
         dest: PlaceRef<'tcx, &'ll Value>,
-    ) -> Self {
+    ) {
         trace!("write operand repeatedly");
         let zero = self.const_usize(0);
         let count = self.const_usize(count);
-        let start = dest.project_index(&mut self, zero).llval;
-        let end = dest.project_index(&mut self, count).llval;
+        let start = dest.project_index(self, zero).llval;
+        let end = dest.project_index(self, count).llval;
 
-        let mut header_bx = self.build_sibling_block("repeat_loop_header");
-        let mut body_bx = self.build_sibling_block("repeat_loop_body");
-        let next_bx = self.build_sibling_block("repeat_loop_next");
+        let header_bb = self.append_sibling_block("repeat_loop_header");
+        let body_bb = self.append_sibling_block("repeat_loop_body");
+        let next_bb = self.append_sibling_block("repeat_loop_next");
 
-        self.br(header_bx.llbb());
+        self.br(header_bb);
+
+        let mut header_bx = Self::build(self.cx, header_bb);
         let current = header_bx.phi(self.val_ty(start), &[start], &[self.llbb()]);
 
         let keep_going = header_bx.icmp(IntPredicate::IntNE, current, end);
-        header_bx.cond_br(keep_going, body_bx.llbb(), next_bx.llbb());
+        header_bx.cond_br(keep_going, body_bb, next_bb);
 
+        let mut body_bx = Self::build(self.cx, body_bb);
         let align = dest
             .align
             .restrict_for_offset(dest.layout.field(self.cx(), 0).size);
@@ -623,10 +634,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             current,
             &[self.const_usize(1)],
         );
-        body_bx.br(header_bx.llbb());
-        header_bx.add_incoming_to_phi(current, next, body_bx.llbb());
+        body_bx.br(header_bb);
+        header_bx.add_incoming_to_phi(current, next, body_bb);
 
-        next_bx
+        *self = Self::build(self.cx, next_bb);
     }
 
     fn range_metadata(&mut self, load: &'ll Value, range: WrappingRange) {
@@ -654,15 +665,6 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 llvm::LLVMMDNodeInContext(self.cx.llcx, ptr::null(), 0),
             );
         }
-    }
-
-    fn type_metadata(&mut self, _function: &'ll Value, _typeid: String) {
-        // LLVM CFI doesnt make sense on the GPU
-    }
-
-    fn typeid_metadata(&mut self, _typeid: String) -> Self::Value {
-        // LLVM CFI doesnt make sense on the GPU
-        self.const_i32(0)
     }
 
     fn store(&mut self, val: &'ll Value, ptr: &'ll Value, align: Align) -> &'ll Value {
@@ -773,17 +775,19 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         unsafe { llvm::LLVMBuildSExt(self.llbuilder, val, dest_ty, unnamed()) }
     }
 
-    fn fptoui_sat(&mut self, _val: &'ll Value, _dest_ty: &'ll Type) -> Option<&'ll Value> {
-        None
+    fn fptoui_sat(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
+        trace!("fptoui_sat {:?} to {:?}", val, dest_ty);
+        // unsafe { llvm::LLVMBuildFPToUISat(self.llbuilder, val, dest_ty, unnamed()) }
+        // todo!();
+        unsafe { llvm::LLVMBuildFPToUI(self.llbuilder, val, dest_ty, unnamed()) }
     }
 
-    fn fptosi_sat(&mut self, _val: &'ll Value, _dest_ty: &'ll Type) -> Option<&'ll Value> {
-        None
+    fn fptosi_sat(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
+        // trace!("fptosi_sat {:?} to {:?}", val, dest_ty);
+        // unsafe { llvm::LLVMBuildFPToSISat(self.llbuilder, val, dest_ty, unnamed()) }
+        // todo!();
+        unsafe { llvm::LLVMBuildFPToSI(self.llbuilder, val, dest_ty, unnamed()) }
     }
-
-    // fn fptosui_may_trap(&self, val: &'ll Value, dest_ty: &'ll Type) -> bool {
-    //     false
-    // }
 
     fn fptoui(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("fptoui {:?} to {:?}", val, dest_ty);
@@ -990,26 +994,15 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         }
     }
 
-    fn landing_pad(
-        &mut self,
-        _ty: &'ll Type,
-        _pers_fn: &'ll Value,
-        _num_clauses: usize,
-    ) -> &'ll Value {
-        todo!();
-    }
-
-    fn set_cleanup(&mut self, _landing_pad: &'ll Value) {}
-
-    fn resume(&mut self, _exn: &'ll Value) -> &'ll Value {
+    fn resume(&mut self, _exn: &'ll Value) {
         self.unsupported("resumes");
     }
 
     fn cleanup_pad(&mut self, _parent: Option<&'ll Value>, _args: &[&'ll Value]) {}
 
-    fn cleanup_ret(&mut self, _funclet: &(), _unwind: Option<&'ll BasicBlock>) -> &'ll Value {
+    fn cleanup_ret(&mut self, _funclet: &(), _unwind: Option<&'ll BasicBlock>) {
         // rustc doesnt actually use this value ;)
-        self.const_bool(false)
+        self.const_bool(false);
     }
 
     fn catch_pad(&mut self, _parent: &'ll Value, _args: &[&'ll Value]) {}
@@ -1018,13 +1011,9 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         &mut self,
         _parent: Option<&'ll Value>,
         _unwind: Option<&'ll BasicBlock>,
-        _num_handlers: usize,
+        _handlers: &[&'ll BasicBlock],
     ) -> &'ll Value {
         self.unsupported("catch switches");
-    }
-
-    fn add_handler(&mut self, _catch_switch: &'ll Value, _handler: &'ll BasicBlock) {
-        todo!();
     }
 
     fn set_personality_fn(&mut self, _personality: &'ll Value) {}
@@ -1093,6 +1082,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn call(
         &mut self,
         _: &'ll Type,
+        _fn_abi: Option<&FnAbi<'tcx, Ty<'tcx>>>,
         llfn: &'ll Value,
         args: &[&'ll Value],
         _funclet: Option<&()>,
@@ -1268,6 +1258,7 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
         let ptr = self.pointercast(ptr, self.cx.type_i8p());
         self.call(
             self.type_i1(),
+            None,
             lifetime_intrinsic,
             &[self.cx.const_u64(size), ptr],
             None,

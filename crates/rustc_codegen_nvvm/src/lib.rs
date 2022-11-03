@@ -3,7 +3,8 @@
 // make our lives a lot easier for llvm ffi with this. And since rustc's core infra
 // relies on it its almost guaranteed to not be removed/broken
 #![feature(extern_types)]
-#![feature(backtrace)]
+#![feature(hash_raw_entry)]
+#![feature(let_chains)]
 
 extern crate rustc_arena;
 extern crate rustc_ast;
@@ -51,6 +52,7 @@ mod ty;
 use abi::readjust_fn_abi;
 use back::target_machine_factory;
 use lto::ThinBuffer;
+use rustc_codegen_llvm::ModuleLlvm;
 use rustc_codegen_ssa::{
     back::{
         lto::{LtoModuleCodegen, SerializedModule, ThinModule},
@@ -59,7 +61,7 @@ use rustc_codegen_ssa::{
     traits::{CodegenBackend, ExtraBackendMethods, WriteBackendMethods},
     CodegenResults, CompiledModule, ModuleCodegen,
 };
-use rustc_errors::{ErrorReported, FatalError, Handler};
+use rustc_errors::{ErrorGuaranteed, FatalError, Handler};
 use rustc_hash::FxHashMap;
 use rustc_metadata::EncodedMetadata;
 use rustc_middle::ty::query;
@@ -67,7 +69,7 @@ use rustc_middle::{
     dep_graph::{WorkProduct, WorkProductId},
     ty::TyCtxt,
 };
-use rustc_session::{cstore::MetadataLoaderDyn, Session};
+use rustc_session::{config::OutputFilenames, cstore::MetadataLoaderDyn, Session};
 use tracing::debug;
 
 use std::ffi::CString;
@@ -109,6 +111,7 @@ impl CodegenBackend for NvvmCodegenBackend {
             let result = (rustc_interface::DEFAULT_QUERY_PROVIDERS.fn_abi_of_instance)(tcx, key);
             Ok(readjust_fn_abi(tcx, result?))
         };
+        providers.global_backend_features = |tcx, ()| vec![];
     }
     fn provide_extern(&self, _providers: &mut query::ExternProviders) {}
 
@@ -132,7 +135,8 @@ impl CodegenBackend for NvvmCodegenBackend {
         &self,
         ongoing_codegen: Box<dyn std::any::Any>,
         sess: &Session,
-    ) -> Result<(CodegenResults, FxHashMap<WorkProductId, WorkProduct>), ErrorReported> {
+        outputs: &OutputFilenames,
+    ) -> Result<(CodegenResults, FxHashMap<WorkProductId, WorkProduct>), ErrorGuaranteed> {
         debug!("Join codegen");
         let (codegen_results, work_products) = ongoing_codegen
             .downcast::<OngoingCodegen<Self>>()
@@ -149,7 +153,7 @@ impl CodegenBackend for NvvmCodegenBackend {
         sess: &rustc_session::Session,
         codegen_results: rustc_codegen_ssa::CodegenResults,
         outputs: &rustc_session::config::OutputFilenames,
-    ) -> Result<(), rustc_errors::ErrorReported> {
+    ) -> Result<(), rustc_errors::ErrorGuaranteed> {
         link::link(
             sess,
             &codegen_results,
@@ -163,7 +167,6 @@ impl CodegenBackend for NvvmCodegenBackend {
 impl WriteBackendMethods for NvvmCodegenBackend {
     type Module = LlvmMod;
     type ModuleBuffer = lto::ModuleBuffer;
-    type Context = llvm::Context;
     type TargetMachine = &'static mut llvm::TargetMachine;
     type ThinData = ();
     type ThinBuffer = ThinBuffer;
@@ -212,9 +215,16 @@ impl WriteBackendMethods for NvvmCodegenBackend {
 
     unsafe fn optimize_thin(
         cgcx: &CodegenContext<Self>,
-        thin_module: &mut ThinModule<Self>,
+        thin_module: ThinModule<Self>,
     ) -> Result<ModuleCodegen<Self::Module>, FatalError> {
         lto::optimize_thin(cgcx, thin_module)
+    }
+
+    fn optimize_fat(
+        _: &CodegenContext<Self>,
+        _: &mut ModuleCodegen<<Self as rustc_codegen_ssa::traits::WriteBackendMethods>::Module>,
+    ) -> Result<(), FatalError> {
+        todo!()
     }
 
     unsafe fn codegen(
@@ -246,39 +256,40 @@ impl WriteBackendMethods for NvvmCodegenBackend {
         }
     }
 
-    fn run_lto_pass_manager(
-        _: &CodegenContext<Self>,
-        _: &ModuleCodegen<Self::Module>,
-        _: &ModuleConfig,
-        _: bool,
-    ) -> Result<(), FatalError> {
-        todo!()
-    }
+    // fn run_lto_pass_manager(
+    //     _: &CodegenContext<Self>,
+    //     _: &ModuleCodegen<Self::Module>,
+    //     _: &ModuleConfig,
+    //     _: bool,
+    // ) -> Result<(), FatalError> {
+    //     todo!()
+    // }
 }
 
 impl ExtraBackendMethods for NvvmCodegenBackend {
-    fn new_metadata(&self, _sess: TyCtxt<'_>, mod_name: &str) -> Self::Module {
-        LlvmMod::new(mod_name)
-    }
+    // fn new_metadata(&self, _sess: TyCtxt<'_>, mod_name: &str) -> Self::Module {
+    //     LlvmMod::new(mod_name)
+    // }
 
-    fn write_compressed_metadata<'tcx>(
-        &self,
-        _tcx: TyCtxt<'tcx>,
-        _metadata: &EncodedMetadata,
-        _llvm_module: &mut Self::Module,
-    ) {
-        todo!()
-    }
+    // fn write_compressed_metadata<'tcx>(
+    //     &self,
+    //     _tcx: TyCtxt<'tcx>,
+    //     _metadata: &EncodedMetadata,
+    //     _llvm_module: &mut Self::Module,
+    // ) {
+    //     todo!()
+    // }
 
     fn codegen_allocator<'tcx>(
         &self,
         tcx: TyCtxt<'tcx>,
-        mods: &mut Self::Module,
-        _module_name: &str,
+        module_name: &str,
         kind: rustc_ast::expand::allocator::AllocatorKind,
-        has_alloc_error_handler: bool,
-    ) {
-        unsafe { allocator::codegen(tcx, mods, kind, has_alloc_error_handler) }
+        alloc_error_handler_kind: rustc_ast::expand::allocator::AllocatorKind,
+    ) -> LlvmMod {
+        let mut module_llvm = LlvmMod::new(module_name);
+        unsafe { allocator::codegen(tcx, &mut module_llvm, kind, alloc_error_handler_kind) }
+        module_llvm
     }
 
     fn compile_codegen_unit(
@@ -293,17 +304,18 @@ impl ExtraBackendMethods for NvvmCodegenBackend {
         &self,
         sess: &Session,
         opt_level: rustc_session::config::OptLevel,
+        target_features: &[String],
     ) -> rustc_codegen_ssa::back::write::TargetMachineFactoryFn<Self> {
         target_machine_factory(sess, opt_level)
     }
 
-    fn target_cpu<'b>(&self, _sess: &'b Session) -> &'b str {
-        todo!()
-    }
+    // fn target_cpu<'b>(&self, _sess: &'b Session) -> &'b str {
+    //     todo!()
+    // }
 
-    fn tune_cpu<'b>(&self, _sess: &'b Session) -> Option<&'b str> {
-        todo!()
-    }
+    // fn tune_cpu<'b>(&self, _sess: &'b Session) -> Option<&'b str> {
+    //     todo!()
+    // }
 }
 
 /// Create the LLVM module for the rest of the compilation, this houses

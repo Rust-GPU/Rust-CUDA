@@ -23,15 +23,11 @@
 
 #![cfg_attr(
     target_os = "cuda",
-    no_std,
     feature(
-        register_attr,
         alloc_error_handler,
-        asm,
         asm_experimental_arch,
         link_llvm_intrinsics
     ),
-    register_attr(nvvm_internal)
 )]
 
 extern crate alloc;
@@ -49,7 +45,7 @@ pub mod cfg;
 pub mod ptr;
 pub mod shared;
 pub mod thread;
-pub mod warp;
+// pub mod warp;
 
 mod float_ext;
 

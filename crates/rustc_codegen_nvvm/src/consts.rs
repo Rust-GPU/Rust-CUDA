@@ -13,7 +13,7 @@ use rustc_middle::mir::interpret::{
 use rustc_middle::{
     bug,
     middle::codegen_fn_attrs::{CodegenFnAttrFlags, CodegenFnAttrs},
-    mir::interpret::{InitChunk, Scalar as InterpScalar},
+    mir::interpret::{ConstAllocation, InitChunk, Scalar as InterpScalar},
     mir::mono::{Linkage, MonoItem},
     span_bug,
     ty::{self, layout::LayoutOf, Instance, Ty},
@@ -42,39 +42,42 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         bytes_in_context(self.llcx, bytes)
     }
 
-    pub(crate) fn const_cstr(&self, s: Symbol, null_terminated: bool) -> &'ll Value {
-        trace!("Const cstr for symbol `{:?}`", s);
-        unsafe {
-            if let Some(&llval) = self.const_cstr_cache.borrow().get(&s) {
-                return llval;
-            }
+    // pub(crate) fn const_cstr(&self, s_str: &str, null_terminated: bool) -> &'ll Value {
+    //     trace!("Const cstr for symbol `{:?}`", s_str);
+    //     unsafe {
+    //         if let Some(&llval) = self.const_str_cache.borrow().get(&s) {
+    //             return llval;
+    //         }
 
-            let s_str = s.as_str();
-            let sc = llvm::LLVMConstStringInContext(
-                self.llcx,
-                s_str.as_ptr() as *const c_char,
-                s_str.len() as c_uint,
-                !null_terminated as Bool,
-            );
-            let sym = self.generate_local_symbol_name("str");
-            let g = self
-                .define_global(&sym[..], self.val_ty(sc), AddressSpace::DATA)
-                .unwrap_or_else(|| {
-                    bug!("symbol `{}` is already defined", sym);
-                });
-            llvm::LLVMSetInitializer(g, sc);
-            llvm::LLVMSetGlobalConstant(g, True);
-            llvm::LLVMRustSetLinkage(g, llvm::Linkage::InternalLinkage);
+    //         let sc = llvm::LLVMConstStringInContext(
+    //             self.llcx,
+    //             s_str.as_ptr() as *const c_char,
+    //             s_str.len() as c_uint,
+    //             !null_terminated as Bool,
+    //         );
+    //         let sym = self.generate_local_symbol_name("str");
+    //         let g = self
+    //             .define_global(&sym[..], self.val_ty(sc), AddressSpace::DATA)
+    //             .unwrap_or_else(|| {
+    //                 bug!("symbol `{}` is already defined", sym);
+    //             });
+    //         llvm::LLVMSetInitializer(g, sc);
+    //         llvm::LLVMSetGlobalConstant(g, True);
+    //         llvm::LLVMRustSetLinkage(g, llvm::Linkage::InternalLinkage);
 
-            self.const_cstr_cache.borrow_mut().insert(s, g);
-            g
-        }
-    }
+    //         self.const_cstr_cache.borrow_mut().insert(s, g);
+    //         g
+    //     }
+    // }
 }
 
-pub(crate) fn const_alloc_to_llvm<'ll>(cx: &CodegenCx<'ll, '_>, alloc: &Allocation) -> &'ll Value {
+pub(crate) fn const_alloc_to_llvm<'ll>(
+    cx: &CodegenCx<'ll, '_>,
+    alloc: &ConstAllocation<'_>,
+) -> &'ll Value {
     trace!("Const alloc to llvm");
-    let mut llvals = Vec::with_capacity(alloc.relocations().len() + 1);
+    let alloc = alloc.inner();
+    let mut llvals = Vec::with_capacity(alloc.provenance().ptrs().len() + 1);
     let dl = cx.data_layout();
     let pointer_size = dl.pointer_size.bytes() as usize;
 
@@ -86,9 +89,7 @@ pub(crate) fn const_alloc_to_llvm<'ll>(cx: &CodegenCx<'ll, '_>, alloc: &Allocati
         alloc: &'a Allocation,
         range: Range<usize>,
     ) {
-        let mut chunks = alloc
-            .init_mask()
-            .range_as_init_chunks(Size::from_bytes(range.start), Size::from_bytes(range.end));
+        let chunks = alloc.init_mask().range_as_init_chunks(range.clone().into());
 
         let chunk_to_llval = move |chunk| match chunk {
             InitChunk::Init(range) => {
@@ -104,37 +105,22 @@ pub(crate) fn const_alloc_to_llvm<'ll>(cx: &CodegenCx<'ll, '_>, alloc: &Allocati
 
         // Generating partially-uninit consts inhibits optimizations, so it is disabled by default.
         // See https://github.com/rust-lang/rust/issues/84565.
-        let allow_partially_uninit = match cx
-            .sess()
-            .opts
-            .debugging_opts
-            .partially_uninit_const_threshold
-        {
-            Some(max) => range.len() <= max,
-            None => false,
-        };
+        let max = cx.sess().opts.unstable_opts.uninit_const_chunk_threshold;
 
-        if allow_partially_uninit {
+        let allow_uninit_chunks = chunks.clone().take(max.saturating_add(1)).count() <= max;
+
+        if allow_uninit_chunks {
             llvals.extend(chunks.map(chunk_to_llval));
         } else {
-            let llval = match (chunks.next(), chunks.next()) {
-                (Some(chunk), None) => {
-                    // exactly one chunk, either fully init or fully uninit
-                    chunk_to_llval(chunk)
-                }
-                _ => {
-                    // partially uninit, codegen as if it was initialized
-                    // (using some arbitrary value for uninit bytes)
-                    let bytes = alloc.inspect_with_uninit_and_ptr_outside_interpreter(range);
-                    cx.const_bytes(bytes)
-                }
-            };
-            llvals.push(llval);
+            // If this allocation contains any uninit bytes, codegen as if it was initialized
+            // (using some arbitrary value for uninit bytes).
+            let bytes = alloc.inspect_with_uninit_and_ptr_outside_interpreter(range);
+            llvals.push(cx.const_bytes(bytes));
         }
     }
 
     let mut next_offset = 0;
-    for &(offset, alloc_id) in alloc.relocations().iter() {
+    for &(offset, alloc_id) in alloc.provenance().ptrs().iter() {
         let offset = offset.bytes();
         assert_eq!(offset as usize as u64, offset);
         let offset = offset as usize;
@@ -156,7 +142,9 @@ pub(crate) fn const_alloc_to_llvm<'ll>(cx: &CodegenCx<'ll, '_>, alloc: &Allocati
 
         let address_space = match cx.tcx.global_alloc(alloc_id) {
             GlobalAlloc::Function(..) => cx.data_layout().instruction_address_space,
-            GlobalAlloc::Static(..) | GlobalAlloc::Memory(..) => AddressSpace::DATA,
+            GlobalAlloc::Static(..) | GlobalAlloc::Memory(..) | GlobalAlloc::VTable(..) => {
+                AddressSpace::DATA
+            }
         };
 
         llvals.push(cx.scalar_to_backend(
@@ -164,9 +152,9 @@ pub(crate) fn const_alloc_to_llvm<'ll>(cx: &CodegenCx<'ll, '_>, alloc: &Allocati
                 Pointer::new(alloc_id, Size::from_bytes(ptr_offset)),
                 &cx.tcx,
             ),
-            Scalar {
+            Scalar::Initialized {
                 value: Primitive::Pointer,
-                valid_range: WrappingRange { start: 0, end: !0 },
+                valid_range: WrappingRange::full(dl.pointer_size),
             },
             cx.type_i8p_ext(address_space),
         ));
@@ -186,9 +174,9 @@ pub(crate) fn const_alloc_to_llvm<'ll>(cx: &CodegenCx<'ll, '_>, alloc: &Allocati
 pub(crate) fn codegen_static_initializer<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     def_id: DefId,
-) -> Result<(&'ll Value, &'tcx Allocation), ErrorHandled> {
+) -> Result<(&'ll Value, ConstAllocation<'tcx>), ErrorHandled> {
     let alloc = cx.tcx.eval_static_initializer(def_id)?;
-    Ok((const_alloc_to_llvm(cx, alloc), alloc))
+    Ok((const_alloc_to_llvm(cx, &alloc), alloc))
 }
 
 pub(crate) fn linkage_to_llvm(linkage: Linkage) -> llvm::Linkage {

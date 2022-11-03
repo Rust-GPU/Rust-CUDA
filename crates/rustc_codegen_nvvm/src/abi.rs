@@ -18,6 +18,24 @@ use rustc_target::abi::{self, HasDataLayout, Int};
 pub use rustc_target::spec::abi::Abi;
 use tracing::trace;
 
+fn clone_pass_mode(original: &PassMode) -> PassMode {
+    match original {
+        PassMode::Ignore => PassMode::Ignore,
+        PassMode::Direct(attrs) => PassMode::Direct(*attrs),
+        PassMode::Pair(attrs1, attrs2) => PassMode::Pair(*attrs1, *attrs2),
+        PassMode::Cast(target, bool) => PassMode::Cast(target.clone(), *bool),
+        PassMode::Indirect {
+            attrs,
+            extra_attrs,
+            on_stack,
+        } => PassMode::Indirect {
+            attrs: *attrs,
+            extra_attrs: *extra_attrs,
+            on_stack: *on_stack,
+        },
+    }
+}
+
 pub(crate) fn readjust_fn_abi<'tcx>(
     tcx: TyCtxt<'tcx>,
     fn_abi: &'tcx FnAbi<'tcx, Ty<'tcx>>,
@@ -29,8 +47,7 @@ pub(crate) fn readjust_fn_abi<'tcx>(
     let readjust_arg_abi = |arg: &ArgAbi<'tcx, Ty<'tcx>>| {
         let mut arg = ArgAbi {
             layout: arg.layout,
-            mode: arg.mode,
-            pad: arg.pad,
+            mode: clone_pass_mode(&arg.mode),
         };
 
         // ignore zsts
@@ -265,7 +282,7 @@ pub(crate) trait FnAbiLlvmExt<'ll, 'tcx> {
 impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
     fn llvm_type(&self, cx: &CodegenCx<'ll, 'tcx>) -> &'ll Type {
         let args_capacity: usize = self.args.iter().map(|arg|
-            if arg.pad.is_some() { 1 } else { 0 } +
+            // if arg.pad.is_some() { 1 } else { 0 } +
             if let PassMode::Pair(_, _) = arg.mode { 2 } else { 1 }
         ).sum();
 
@@ -281,10 +298,10 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             } + args_capacity,
         );
 
-        let mut llreturn_ty = match self.ret.mode {
+        let mut llreturn_ty = match &self.ret.mode {
             PassMode::Ignore => cx.type_void(),
             PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.immediate_llvm_type(cx),
-            PassMode::Cast(cast) => cast.llvm_type(cx),
+            PassMode::Cast(cast, _) => cast.llvm_type(cx),
             PassMode::Indirect { .. } => {
                 idx += 1;
                 llargument_tys.push(cx.type_ptr_to(self.ret.memory_ty(cx)));
@@ -302,13 +319,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
         }
 
         for arg in self.args.iter() {
-            // add padding
-            if let Some(ty) = arg.pad {
-                idx += 1;
-                llargument_tys.push(ty.llvm_type(cx));
-            }
-
-            let llarg_ty = match arg.mode {
+            let llarg_ty = match &arg.mode {
                 PassMode::Ignore => continue,
                 PassMode::Direct(_) => arg.layout.immediate_llvm_type(cx),
                 PassMode::Pair(..) => {
@@ -329,7 +340,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     idx += 2;
                     continue;
                 }
-                PassMode::Cast(cast) => cast.llvm_type(cx),
+                PassMode::Cast(cast, _) => cast.llvm_type(cx),
                 PassMode::Indirect {
                     attrs: _,
                     extra_attrs: None,
@@ -398,10 +409,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             }
             _ => {}
         }
-        for arg in &self.args {
-            if arg.pad.is_some() {
-                apply(&ArgAttributes::new());
-            }
+        for arg in self.args.iter() {
             match arg.mode {
                 PassMode::Ignore => {}
                 PassMode::Indirect {
@@ -436,7 +444,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     apply(a);
                     apply(b);
                 }
-                PassMode::Cast(_) => {
+                PassMode::Cast(..) => {
                     apply(&ArgAttributes::new());
                 }
             }
@@ -476,16 +484,13 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             // If the value is a boolean, the range is 0..2 and that ultimately
             // become 0..0 when the type becomes i1, which would be rejected
             // by the LLVM verifier.
-            if let Int(..) = scalar.value {
+            if scalar.primitive().is_int() {
                 if !scalar.is_bool() && !scalar.is_always_valid(bx) {
-                    bx.range_metadata(callsite, scalar.valid_range);
+                    bx.range_metadata(callsite, scalar.valid_range(bx));
                 }
             }
         }
-        for arg in &self.args {
-            if arg.pad.is_some() {
-                apply(bx.cx, &ArgAttributes::new());
-            }
+        for arg in self.args.iter() {
             match arg.mode {
                 PassMode::Ignore => {}
                 PassMode::Indirect {
@@ -515,7 +520,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     apply(bx.cx, a);
                     apply(bx.cx, b);
                 }
-                PassMode::Cast(_) => {
+                PassMode::Cast(..) => {
                     apply(bx.cx, &ArgAttributes::new());
                 }
             }
@@ -524,10 +529,6 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 }
 
 impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
-    fn apply_attrs_callsite(&mut self, fn_abi: &FnAbi<'tcx, Ty<'tcx>>, callsite: Self::Value) {
-        fn_abi.apply_attrs_callsite(self, callsite)
-    }
-
     fn get_param(&mut self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
         trace!("Get param `{:?}`", val);
@@ -588,7 +589,7 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
             OperandValue::Ref(val, None, self.layout.align.abi).store(bx, dst)
         } else if self.is_unsized_indirect() {
             bug!("unsized `ArgAbi` must be handled through `store_fn_arg`");
-        } else if let PassMode::Cast(cast) = self.mode {
+        } else if let PassMode::Cast(cast, _) = &self.mode {
             let can_store_through_cast_ptr = false;
             if can_store_through_cast_ptr {
                 let cast_ptr_llty = bx.type_ptr_to(cast.llvm_type(bx));
@@ -647,7 +648,7 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
                 extra_attrs: None,
                 on_stack: _,
             }
-            | PassMode::Cast(_) => {
+            | PassMode::Cast(..) => {
                 let next_arg = next();
                 self.store(bx, next_arg, dst);
             }

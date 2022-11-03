@@ -1,8 +1,8 @@
 //! Support for allocating memory and using `alloc` using CUDA memory allocation system-calls.
-
 use crate::gpu_only;
 #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
 use alloc::alloc::*;
+use core::arch::asm;
 #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
 use core::ffi::c_void;
 

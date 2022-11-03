@@ -1,6 +1,7 @@
 use crate::abi::{FnAbiLlvmExt, LlvmType};
 use crate::context::CodegenCx;
 use crate::llvm::{self, Bool, False, True, Type, Value};
+use crate::rustc_middle::ty::TypeVisitable;
 use crate::rustc_target::abi::TyAbiInterface;
 use libc::c_uint;
 use rustc_codegen_ssa::common::TypeKind;
@@ -222,6 +223,10 @@ impl<'ll, 'tcx> BaseTypeMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn val_ty(&self, v: &'ll Value) -> &'ll Type {
         unsafe { llvm::LLVMTypeOf(v) }
     }
+
+    fn type_array(&self, ty: &'ll Type, len: u64) -> &'ll Type {
+        unsafe { llvm::LLVMRustArrayType(ty, len) }
+    }
 }
 
 impl<'ll, 'tcx> LayoutTypeMethods<'tcx> for CodegenCx<'ll, 'tcx> {
@@ -390,7 +395,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         scalar: &Scalar,
         offset: Size,
     ) -> &'a Type {
-        match scalar.value {
+        match scalar.primitive() {
             Int(i, _) => cx.type_from_integer(i),
             F32 => cx.type_f32(),
             F64 => cx.type_f64(),
@@ -453,7 +458,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         let offset = if index == 0 {
             Size::ZERO
         } else {
-            a.value.size(cx).align_to(b.value.align(cx).abi)
+            a.size(cx).align_to(b.align(cx).abi)
         };
         self.scalar_llvm_type_at(cx, scalar, offset)
     }
@@ -519,12 +524,12 @@ fn uncached_llvm_type<'a, 'tcx>(
         // in problematically distinct types due to HRTB and subtyping (see #47638).
         // ty::Dynamic(..) |
         ty::Adt(..) | ty::Closure(..) | ty::Foreign(..) | ty::Generator(..) | ty::Str => {
-            let mut name = with_no_trimmed_paths(|| layout.ty.to_string());
+            let mut name = with_no_trimmed_paths!(layout.ty.to_string());
             if let (&ty::Adt(def, _), &Variants::Single { index }) =
                 (layout.ty.kind(), &layout.variants)
             {
-                if def.is_enum() && !def.variants.is_empty() {
-                    write!(&mut name, "::{}", def.variants[index].ident).unwrap();
+                if def.is_enum() && !def.variants().is_empty() {
+                    write!(&mut name, "::{}", def.variants()[index].ident(cx.tcx)).unwrap();
                 }
             }
             if let (&ty::Generator(_, _, _), &Variants::Single { index }) =
@@ -543,8 +548,8 @@ fn uncached_llvm_type<'a, 'tcx>(
             let packed = false;
             match name {
                 None => cx.type_struct(&[fill], packed),
-                Some(ref name) => {
-                    let llty = cx.type_named_struct(name);
+                Some(name) => {
+                    let llty = cx.type_named_struct(&name);
                     cx.set_struct_body(llty, &[fill], packed);
                     llty
                 }

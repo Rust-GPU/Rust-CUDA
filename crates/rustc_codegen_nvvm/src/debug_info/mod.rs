@@ -1,10 +1,12 @@
 use std::cell::RefCell;
 use std::ffi::CString;
+use std::ops::Range;
 
 use libc::c_uint;
 use rustc_codegen_ssa::debuginfo::type_names;
 use rustc_codegen_ssa::mir::debuginfo::VariableKind::*;
 use rustc_codegen_ssa::mir::debuginfo::{DebugScope, FunctionDebugContext, VariableKind};
+use rustc_codegen_ssa::traits::DebugInfoBuilderMethods;
 use rustc_codegen_ssa::traits::*;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::sync::Lrc;
@@ -13,7 +15,10 @@ use rustc_index::vec::IndexVec;
 use rustc_middle::mir;
 use rustc_middle::ty::layout::HasTyCtxt;
 use rustc_middle::ty::subst::{GenericArgKind, SubstsRef};
-use rustc_middle::ty::{self, Binder, ExistentialTraitRef, Instance, ParamEnv, Ty, TypeFoldable};
+use rustc_middle::ty::{
+    self, Binder, ExistentialTraitRef, Instance, ParamEnv, PolyExistentialTraitRef, Ty,
+    TypeFoldable, TypeVisitable,
+};
 use rustc_session::config::{self, DebugInfo};
 use rustc_span::symbol::Symbol;
 use rustc_span::{self, BytePos, Pos, SourceFile, SourceFileAndLine, Span};
@@ -106,6 +111,7 @@ impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
         variable_alloca: &'ll Value,
         direct_offset: Size,
         indirect_offsets: &[Size],
+        fragment: Option<Range<Size>>,
     ) {
         let op_deref = || unsafe { llvm::LLVMRustDIBuilderCreateOpDeref() };
         let op_plus_uconst = || unsafe { llvm::LLVMRustDIBuilderCreateOpPlusUconst() };
@@ -214,7 +220,7 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         // Initialize fn debug context (including scopes).
         let empty_scope = DebugScope {
-            dbg_scope: None,
+            dbg_scope: self.dbg_scope_fn(instance, fn_abi, Some(llfn)),
             inlined_at: None,
             file_start_pos: BytePos(0),
             file_end_pos: BytePos(0),
@@ -224,15 +230,18 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         };
 
         // Fill in all the scopes, with the information from the MIR body.
-        compute_mir_scopes(
-            self,
-            instance,
-            mir,
-            self.dbg_scope_fn(instance, fn_abi, Some(llfn)),
-            &mut fn_debug_context,
-        );
+        compute_mir_scopes(self, instance, mir, &mut fn_debug_context);
 
         Some(fn_debug_context)
+    }
+
+    fn create_vtable_debuginfo(
+        &self,
+        ty: Ty<'tcx>,
+        trait_ref: Option<PolyExistentialTraitRef<'tcx>>,
+        vtable: &'ll Value,
+    ) {
+        // todo!();
     }
 
     fn dbg_scope_fn(
@@ -416,11 +425,11 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                             ty::Adt(def, ..) if !def.is_box() => {
                                 // Again, only create type information if full debuginfo is enabled
                                 if cx.sess().opts.debuginfo == DebugInfo::Full
-                                    && !impl_self_ty.definitely_needs_subst(cx.tcx)
+                                    && !impl_self_ty.needs_subst()
                                 {
                                     Some(type_metadata(cx, impl_self_ty, rustc_span::DUMMY_SP))
                                 } else {
-                                    Some(namespace::item_namespace(cx, def.did))
+                                    Some(namespace::item_namespace(cx, def.did()))
                                 }
                             }
                             _ => None,
@@ -459,14 +468,14 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         unsafe { llvm::LLVMRustDIBuilderCreateDebugLocation(line, col, scope, inlined_at) }
     }
 
-    fn create_vtable_metadata(
-        &self,
-        ty: Ty<'tcx>,
-        _: Option<Binder<'tcx, ExistentialTraitRef<'tcx>>>,
-        vtable: Self::Value,
-    ) {
-        metadata::create_vtable_metadata(self, ty, vtable)
-    }
+    // fn create_vtable_metadata(
+    //     &self,
+    //     ty: Ty<'tcx>,
+    //     _: Option<Binder<'tcx, ExistentialTraitRef<'tcx>>>,
+    //     vtable: Self::Value,
+    // ) {
+    //     metadata::create_vtable_metadata(self, ty, vtable)
+    // }
 
     fn extend_scope_to_file(
         &self,

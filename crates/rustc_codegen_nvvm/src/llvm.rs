@@ -335,6 +335,8 @@ pub(crate) enum MetadataType {
     MD_invariant_load = 6,
     MD_nontemporal = 9,
     MD_nonnull = 11,
+    MD_type = 19,
+    MD_kcfi_type = 36,
 }
 
 /// LLVMRustAsmDialect
@@ -346,14 +348,14 @@ pub enum AsmDialect {
     Intel,
 }
 
-impl AsmDialect {
-    pub fn from_generic(asm: rustc_ast::LlvmAsmDialect) -> Self {
-        match asm {
-            rustc_ast::LlvmAsmDialect::Att => AsmDialect::Att,
-            rustc_ast::LlvmAsmDialect::Intel => AsmDialect::Intel,
-        }
-    }
-}
+// impl AsmDialect {
+//     pub fn from_generic(asm: rustc_ast::LlvmAsmDialect) -> Self {
+//         match asm {
+//             rustc_ast::LlvmAsmDialect::Att => AsmDialect::Att,
+//             rustc_ast::LlvmAsmDialect::Intel => AsmDialect::Intel,
+//         }
+//     }
+// }
 
 /// LLVMRustDiagnosticKind
 #[derive(Copy, Clone)]
@@ -1585,6 +1587,18 @@ extern "C" {
         DestTy: &'a Type,
         Name: *const c_char,
     ) -> &'a Value;
+    // pub(crate) fn LLVMBuildFPToSISat<'a>(
+    //     B: &Builder<'a>,
+    //     Val: &'a Value,
+    //     DestTy: &'a Type,
+    //     Name: *const c_char,
+    // ) -> &'a Value;
+    // pub(crate) fn LLVMBuildFPToUISat<'a>(
+    //     B: &Builder<'a>,
+    //     Val: &'a Value,
+    //     DestTy: &'a Type,
+    //     Name: *const c_char,
+    // ) -> &'a Value;
     pub(crate) fn LLVMBuildUIToFP<'a>(
         B: &Builder<'a>,
         Val: &'a Value,

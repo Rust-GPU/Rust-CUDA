@@ -1,7 +1,7 @@
 use crate::llvm::{self, AttributePlace::*, Value};
-use rustc_ast::{Attribute, Lit, LitKind};
+use rustc_ast::{ast::MetaItemLit, ast::NestedMetaItem, Attribute, LitKind, AttrKind};
 use rustc_attr::{InlineAttr, OptimizeAttr};
-use rustc_middle::{middle::codegen_fn_attrs::CodegenFnAttrFlags, ty};
+use rustc_middle::{middle::codegen_fn_attrs::CodegenFnAttrFlags, ty, ty::Attributes};
 use rustc_session::{config::OptLevel, Session};
 use rustc_span::{sym, Symbol};
 
@@ -91,6 +91,7 @@ pub(crate) fn from_fn_attrs<'ll, 'tcx>(
 }
 
 pub struct Symbols {
+    pub rust_cuda: Symbol,
     pub nvvm_internal: Symbol,
     pub kernel: Symbol,
     pub addrspace: Symbol,
@@ -108,32 +109,43 @@ impl NvvmAttributes {
     pub fn parse<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, attrs: &'tcx [Attribute]) -> Self {
         let mut nvvm_attrs = Self::default();
 
-        for attr in attrs {
-            if attr.has_name(cx.symbols.nvvm_internal) {
-                let args = attr.meta_item_list().unwrap_or_default();
-                if let Some(arg) = args.first() {
-                    if arg.has_name(cx.symbols.kernel) {
-                        nvvm_attrs.kernel = true;
-                    }
-                    if arg.has_name(sym::used) {
-                        nvvm_attrs.used = true;
-                    }
-                    if arg.has_name(cx.symbols.addrspace) {
-                        let args = arg.meta_item_list().unwrap_or_default();
-                        if let Some(arg) = args.first() {
-                            let lit = arg.literal();
-                            if let Some(Lit {
-                                kind: LitKind::Int(val, _),
-                                ..
-                            }) = lit
-                            {
-                                nvvm_attrs.addrspace = Some(*val as u8);
-                            } else {
-                                panic!();
+        for attr in attrs.into_iter() {
+            match attr.kind {
+                AttrKind::Normal(ref normal) => {
+                    let s = &normal.item.path.segments;
+                    if s.len() > 1 && s[0].ident.name == cx.symbols.rust_cuda {
+                        // #[rust_cuda ...]
+                        if s.len() != 2 || s[1].ident.name != cx.symbols.nvvm_internal {
+                            // #[rust_cuda::...] but not #[rust_cuda::nvvm_internal]
+                        }
+                        else if let Some(args) = attr.meta_item_list()  {
+                            if let Some(arg) = args.first() {
+                                if arg.has_name(cx.symbols.kernel) {
+                                    nvvm_attrs.kernel = true;
+                                }
+                                if arg.has_name(sym::used) {
+                                    nvvm_attrs.used = true;
+                                }
+                                if arg.has_name(cx.symbols.addrspace) {
+                                    let args = arg.meta_item_list().unwrap_or_default();
+                                    if let Some(arg) = args.first() {
+                                        let lit = arg.lit();
+                                        if let Some(MetaItemLit {
+                                            kind: LitKind::Int(val, _),
+                                            ..
+                                        }) = lit
+                                        {
+                                            nvvm_attrs.addrspace = Some(*val as u8);
+                                        } else {
+                                            panic!();
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                AttrKind::DocComment(..) => {}, // doccomment
             }
         }
 
