@@ -64,16 +64,18 @@ impl Drop for Stream {
 #[macro_export]
 macro_rules! launch {
     ($func:ident<<<$grid_dim:expr, $block_dim:expr, $smem_size:expr, $stream:ident>>>($($param:expr),* $(,)?)) => {{
-        let grid_dim = ::$crate::rt::GridDim::from($grid_dim);
-        let block_dim = ::$crate::rt::BlockDim::from($block_dim);
-        let mut buf = ::$crate::rt::sys::cudaGetParameterBufferV2(
+        use $crate::rt::ToResult;
+        use $crate::float::GpuFloat;
+        let grid_dim = $crate::rt::GridSize::from($grid_dim);
+        let block_dim = $crate::rt::BlockSize::from($block_dim);
+        let mut buf = $crate::rt::sys::cudaGetParameterBufferV2(
             &$func as *const _ as *const ::core::ffi::c_void,
-            ::$crate::rt::sys::dim3 {
+            $crate::rt::sys::dim3 {
                 x: grid_dim.x,
                 y: grid_dim.y,
                 z: grid_dim.z
             },
-            ::$crate::rt::sys::dim3 {
+            $crate::rt::sys::dim3 {
                 x: block_dim.x,
                 y: block_dim.y,
                 z: block_dim.z
@@ -84,7 +86,7 @@ macro_rules! launch {
             let mut offset = 0;
             $(
                 let param = $param;
-                let size = ::core::mem::size_of_val(&param)
+                let size = ::core::mem::size_of_val(&param);
                 let mut buf_idx = (offset as f32 / size as f32).ceil() as usize + 1;
                 offset = buf_idx * size;
                 let ptr = &param as *const _ as *const u8;
@@ -95,7 +97,7 @@ macro_rules! launch {
         if false {
             $func($($param),*);
         }
-        $stream.launch(buf as *mut ::core::ffi::c_void).to_result()
+        $stream.launch(buf as *mut ::core::ffi::c_void)
     }};
 }
 
