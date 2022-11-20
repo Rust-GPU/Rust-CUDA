@@ -114,6 +114,28 @@ impl Linker {
         }
     }
 
+    /// Link device runtime lib.
+    pub fn add_libcudadevrt(&mut self) -> CudaResult<()> {
+        let mut bytes = std::fs::read("/usr/local/cuda-11/lib64/libcudadevrt.a")
+            .expect("could not read libcudadevrt.a");
+
+        unsafe {
+            cuda::cuLinkAddData_v2(
+                self.raw,
+                cuda::CUjitInputType::CU_JIT_INPUT_LIBRARY,
+                // cuda_sys wants *mut but from the API docs we know we retain ownership so
+                // this cast is sound.
+                bytes.as_mut_ptr() as *mut _,
+                bytes.len(),
+                UNNAMED.as_ptr().cast(),
+                0,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+            .to_result()
+        }
+    }
+
     /// Runs the linker to generate the final cubin bytes. Also returns a duration
     /// for how long it took to run the linker.
     pub fn complete(self) -> CudaResult<Vec<u8>> {

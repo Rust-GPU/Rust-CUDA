@@ -31,10 +31,15 @@ bitflags::bitflags! {
 
 #[derive(Debug)]
 pub struct Stream {
-    raw: cuda::cudaStream_t,
+    pub raw: cuda::cudaStream_t,
 }
 
 impl Stream {
+    // /// Creates a new stream with flags.
+    // pub fn new(flags: StreamFlags) -> Self {
+    //     Self {}
+    // }
+
     /// Creates a new stream with flags.
     pub fn new(flags: StreamFlags) -> CudaResult<Self> {
         let mut stream = MaybeUninit::uninit();
@@ -47,10 +52,11 @@ impl Stream {
         }
     }
 
-    #[doc(hidden)]
-    pub fn launch(&self, param_buf: *mut c_void) -> CudaResult<()> {
-        unsafe { cuda::cudaLaunchDeviceV2(param_buf, self.raw).to_result() }
-    }
+    // #[doc(hidden)]
+    // pub fn launch(&self, param_buf: *mut c_void) -> CudaResult<()> {
+    //     unsafe { cuda::cudaLaunchDeviceV2(param_buf, core::ptr::null_mut()).to_result() }
+    //     // unsafe { cuda::cudaLaunchDeviceV2(param_buf, self.raw).to_result() }
+    // }
 }
 
 impl Drop for Stream {
@@ -63,13 +69,17 @@ impl Drop for Stream {
 
 #[macro_export]
 macro_rules! launch {
-    ($func:ident<<<$grid_dim:expr, $block_dim:expr, $smem_size:expr, $stream:ident>>>($($param:expr),* $(,)?)) => {{
+    // ($func:ident<<<$grid_dim:expr, $block_dim:expr, $smem_size:expr, $stream:ident>>>($($param:expr),* $(,)?)) => {{
+    ($func:ident<<<$grid_dim:expr, $block_dim:expr, ($smem_size:expr)>>>($($param:expr),* $(,)?)) => {{
         use $crate::rt::ToResult;
         use $crate::float::GpuFloat;
         let grid_dim = $crate::rt::GridSize::from($grid_dim);
         let block_dim = $crate::rt::BlockSize::from($block_dim);
+
+        // Get a device buffer for kernel launch.
+        let fptr = $func as *const ();
         let mut buf = $crate::rt::sys::cudaGetParameterBufferV2(
-            &$func as *const _ as *const ::core::ffi::c_void,
+            fptr as *const ::core::ffi::c_void,
             $crate::rt::sys::dim3 {
                 x: grid_dim.x,
                 y: grid_dim.y,
@@ -80,24 +90,87 @@ macro_rules! launch {
                 y: block_dim.y,
                 z: block_dim.z
             },
-            $smem_size
-        ) as *mut u8;
-        unsafe {
-            let mut offset = 0;
-            $(
-                let param = $param;
-                let size = ::core::mem::size_of_val(&param);
-                let mut buf_idx = (offset as f32 / size as f32).ceil() as usize + 1;
-                offset = buf_idx * size;
-                let ptr = &param as *const _ as *const u8;
-                let dst = buf.add(offset);
-                ::core::ptr::copy_nonoverlapping(&param as *const _ as *const u8, dst, size);
-            )*
+            $smem_size,
+        );
+
+        // Ensure buffer is not a nil ptr.
+        if buf.is_null() {
+            return;
         }
+
+        // Load data into buffer.
+        let mut offset = 0;
+        $(
+            let param = $param;
+            let size = ::core::mem::size_of_val(&param);
+            let param_ptr = &param as *const _ as *const ::core::ffi::c_void;
+            let dst = buf.add(offset).copy_from(param_ptr, size);
+            offset += size;
+        )*
         if false {
             $func($($param),*);
         }
-        $stream.launch(buf as *mut ::core::ffi::c_void)
+        // unsafe {
+        //     let mut offset = 0;
+        //     $(
+        //         let param = $param;
+        //         let size = ::core::mem::size_of_val(&param);
+        //         let mut buf_idx = (offset as f32 / size as f32).ceil() as usize + 1;
+        //         offset = buf_idx * size;
+        //         let ptr = &param as *const _ as *const u8;
+        //         let dst = buf.add(offset);
+        //         ::core::ptr::copy_nonoverlapping(&param as *const _ as *const u8, dst, size);
+        //     )*
+        // }
+        // if false {
+        //     $func($($param),*);
+        // }
+
+        // Launch the kernel.
+        $crate::rt::sys::cudaLaunchDeviceV2(buf as *mut ::core::ffi::c_void, ::core::ptr::null_mut() as *mut _)
+
+        // let mut buf = $crate::rt::sys::cudaGetParameterBuffer(alignment, size) as *mut u8;
+
+        // // Populate the buffer with given arguments.
+        // let mut offset = 0;
+        // $(
+        //     let param = $param;
+        //     let size = ::core::mem::size_of_val(&param);
+        //     let buf_bytes_ptr = (buf as *mut u8).add(offset);
+        //     ::core::ptr::copy_nonoverlapping($param as *const _, buf_bytes_ptr.into(), size);
+        //     offset += size;
+        // )*
+
+        // let mut offset = 0;
+        // $(
+        //     let param = $param;
+        //     let size = ::core::mem::size_of_val(&param);
+        //     let mut buf_idx = (offset as f32 / size as f32).ceil() as usize + 1;
+        //     offset = buf_idx * size;
+        //     let ptr = &param as *const _ as *const u8;
+        //     let dst = buf.add(offset);
+        //     ::core::ptr::copy_nonoverlapping(&param as *const _ as *const u8, dst, size);
+        // )*
+
+        // // Launch the kernel.
+        // let fptr = $func as *const ();
+        // $crate::rt::sys::cudaLaunchDevice(
+        //     fptr as *const ::core::ffi::c_void,
+        //     buf as *mut ::core::ffi::c_void,
+        //     $crate::rt::sys::dim3 {
+        //         x: grid_dim.x,
+        //         y: grid_dim.y,
+        //         z: grid_dim.z
+        //     },
+        //     $crate::rt::sys::dim3 {
+        //         x: block_dim.x,
+        //         y: block_dim.y,
+        //         z: block_dim.z
+        //     },
+        //     $smem_size,
+        //     ::core::ptr::null_mut() as *mut _,
+        //     // $stream.raw,
+        // )
     }};
 }
 
