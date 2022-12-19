@@ -1,9 +1,10 @@
 use libc::c_int;
-use rustc_metadata::dynamic_lib::DynamicLibrary;
+use libloading::Library;
 use rustc_middle::bug;
 use rustc_session::Session;
 use rustc_target::spec::MergeFunctions;
 use std::ffi::CString;
+use tracing::debug;
 
 use std::mem;
 use std::path::Path;
@@ -81,13 +82,13 @@ unsafe fn configure_llvm(sess: &Session) {
         if sess.print_llvm_passes() {
             add("-debug-pass=Structure", false);
         }
-        if !sess.opts.debugging_opts.no_generate_arange_section {
+        if !sess.opts.unstable_opts.no_generate_arange_section {
             add("-generate-arange-section", false);
         }
 
         match sess
             .opts
-            .debugging_opts
+            .unstable_opts
             .merge_functions
             .unwrap_or(sess.target.merge_functions)
         {
@@ -114,14 +115,13 @@ unsafe fn configure_llvm(sess: &Session) {
 
     llvm::LLVMInitializePasses();
 
-    for plugin in &sess.opts.debugging_opts.llvm_plugins {
-        let path = Path::new(plugin);
-        let res = DynamicLibrary::open(path);
-        match res {
-            Ok(_) => {}
-            Err(e) => bug!("couldn't load plugin: {}", e),
-        }
-        mem::forget(res);
+    for plugin in &sess.opts.unstable_opts.llvm_plugins {
+        let lib = Library::new(plugin).unwrap_or_else(|e| bug!("couldn't load plugin: {}", e));
+        debug!("LLVM plugin loaded successfully {:?} ({})", lib, plugin);
+
+        // Intentionally leak the dynamic library. We can't ever unload it
+        // since the library can make things that will live arbitrarily long.
+        mem::forget(lib);
     }
 
     llvm::LLVMInitializeNVPTXTarget();

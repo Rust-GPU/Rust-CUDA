@@ -45,10 +45,5 @@ pub(crate) fn get_namespace_for_item<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     def_id: DefId,
 ) -> &'ll DIScope {
-    item_namespace(
-        cx,
-        cx.tcx
-            .parent(def_id)
-            .expect("get_namespace_for_item: missing parent?"),
-    )
+    item_namespace(cx, cx.tcx.parent(def_id))
 }

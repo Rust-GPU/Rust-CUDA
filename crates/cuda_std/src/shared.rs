@@ -77,7 +77,7 @@ pub fn dynamic_shared_mem<T>() -> *mut T {
     extern "C" {
         // need to use nvvm_internal and not address_space because address_space only parses
         // static definitions, not extern static definitions.
-        #[nvvm_internal(addrspace(3))]
+        #[rust_cuda::nvvm_internal(addrspace(3))]
         #[allow(improper_ctypes)]
         // mangle it a bit to make sure nobody makes the same thing
         #[link_name = "_Zcuda_std_dyn_shared"]

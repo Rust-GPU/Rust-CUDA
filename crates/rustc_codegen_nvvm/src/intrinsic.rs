@@ -1,4 +1,5 @@
 use crate::abi::LlvmType;
+use crate::llvm::TypeKind::Vector;
 use crate::llvm::{self, Value};
 use crate::target;
 use crate::ty::LayoutLlvmExt;
@@ -196,6 +197,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         let llval = match name {
             _ if simple.is_some() => self.call(
                 self.type_i1(),
+                None,
                 simple.unwrap(),
                 &args.iter().map(|arg| arg.immediate()).collect::<Vec<_>>(),
                 None,
@@ -204,6 +206,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 let expect = self.get_intrinsic("llvm.expect.i1");
                 self.call(
                     self.type_i1(),
+                    None,
                     expect,
                     &[args[0].immediate(), self.const_bool(true)],
                     None,
@@ -213,6 +216,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 let expect = self.get_intrinsic("llvm.expect.i1");
                 self.call(
                     self.type_i1(),
+                    None,
                     expect,
                     &[args[0].immediate(), self.const_bool(false)],
                     None,
@@ -222,7 +226,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 let try_func = args[0].immediate();
                 let data = args[1].immediate();
 
-                self.call(self.type_i1(), try_func, &[data], None);
+                self.call(self.type_i1(), None, try_func, &[data], None);
                 let ret_align = self.data_layout().i32_align.abi;
                 self.store(self.const_i32(0), llresult, ret_align)
             }
@@ -234,6 +238,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 let intrinsic = self.cx().get_intrinsic("llvm.va_copy");
                 self.call(
                     self.type_i1(),
+                    None,
                     intrinsic,
                     &[args[0].immediate(), args[1].immediate()],
                     None,
@@ -241,8 +246,8 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
             }
             sym::va_arg => {
                 match fn_abi.ret.layout.abi {
-                    abi::Abi::Scalar(ref scalar) => {
-                        match scalar.value {
+                    abi::Abi::Scalar(abi::Scalar::Initialized { ref value, .. }) => {
+                        match value {
                             Primitive::Int(..) => {
                                 if self.cx().size_of(ret_ty).bytes() < 4 {
                                     // `va_arg` should not be called on a integer type
@@ -275,7 +280,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
             sym::volatile_load | sym::unaligned_volatile_load => {
                 let tp_ty = substs.type_at(0);
                 let mut ptr = args[0].immediate();
-                if let PassMode::Cast(ty) = fn_abi.ret.mode {
+                if let PassMode::Cast(ty, _) = &fn_abi.ret.mode {
                     ptr = self.pointercast(ptr, self.type_ptr_to(ty.llvm_type(self)));
                 }
                 let load = self.volatile_load(self.type_i1(), ptr);
@@ -313,6 +318,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 };
                 self.call(
                     self.type_i1(),
+                    None,
                     expect,
                     &[
                         args[0].immediate(),
@@ -364,16 +370,17 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                         sym::ctlz | sym::cttz => {
                             let y = self.const_bool(false);
                             let llfn = self.get_intrinsic(&format!("llvm.{}.i{}", name, width));
-                            self.call(self.type_i1(), llfn, &[args[0].immediate(), y], None)
+                            self.call(self.type_i1(), None, llfn, &[args[0].immediate(), y], None)
                         }
                         sym::ctlz_nonzero | sym::cttz_nonzero => {
                             let y = self.const_bool(true);
                             let llvm_name = &format!("llvm.{}.i{}", &name_str[..4], width);
                             let llfn = self.get_intrinsic(llvm_name);
-                            self.call(self.type_i1(), llfn, &[args[0].immediate(), y], None)
+                            self.call(self.type_i1(), None, llfn, &[args[0].immediate(), y], None)
                         }
                         sym::ctpop => self.call(
                             self.type_i1(),
+                            None,
                             self.get_intrinsic(&format!("llvm.ctpop.i{}", width)),
                             &[args[0].immediate()],
                             None,
@@ -384,6 +391,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                             } else {
                                 self.call(
                                     self.type_i1(),
+                                    None,
                                     self.get_intrinsic(&format!("llvm.bswap.i{}", width)),
                                     &[args[0].immediate()],
                                     None,
@@ -392,6 +400,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                         }
                         sym::bitreverse => self.call(
                             self.type_i1(),
+                            None,
                             self.get_intrinsic(&format!("llvm.bitreverse.i{}", width)),
                             &[args[0].immediate()],
                             None,
@@ -404,7 +413,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                             let llvm_name =
                                 &format!("llvm.fsh{}.i{}", if is_left { 'l' } else { 'r' }, width);
                             let llfn = self.get_intrinsic(llvm_name);
-                            self.call(self.type_i1(), llfn, &[val, val, raw_shift], None)
+                            self.call(self.type_i1(), None, llfn, &[val, val, raw_shift], None)
                         }
                         sym::saturating_add | sym::saturating_sub => {
                             let is_add = name == sym::saturating_add;
@@ -417,7 +426,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                                 width
                             );
                             let llfn = self.get_intrinsic(llvm_name);
-                            self.call(self.type_i1(), llfn, &[lhs, rhs], None)
+                            self.call(self.type_i1(), None, llfn, &[lhs, rhs], None)
                         }
                         _ => unreachable!(),
                     }
@@ -428,36 +437,36 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 use rustc_codegen_ssa::common::IntPredicate;
                 let tp_ty = substs.type_at(0);
                 let layout = self.layout_of(tp_ty).layout;
-                let use_integer_compare = match layout.abi {
+                let use_integer_compare = match layout.abi() {
                     Scalar(_) | ScalarPair(_, _) => true,
                     Uninhabited | Vector { .. } => false,
                     Aggregate { .. } => {
                         // For rusty ABIs, small aggregates are actually passed
                         // as `RegKind::Integer` (see `FnAbi::adjust_for_abi`),
                         // so we re-use that same threshold here.
-                        layout.size <= self.data_layout().pointer_size * 2
+                        layout.size() <= self.data_layout().pointer_size * 2
                     }
                 };
 
                 let a = args[0].immediate();
                 let b = args[1].immediate();
-                if layout.size.bytes() == 0 {
+                if layout.size().bytes() == 0 {
                     self.const_bool(true)
                 } else if use_integer_compare {
-                    let integer_ty = self.type_ix(layout.size.bits());
+                    let integer_ty = self.type_ix(layout.size().bits());
                     let ptr_ty = self.type_ptr_to(integer_ty);
                     let a_ptr = self.bitcast(a, ptr_ty);
-                    let a_val = self.load(integer_ty, a_ptr, layout.align.abi);
+                    let a_val = self.load(integer_ty, a_ptr, layout.align().abi);
                     let b_ptr = self.bitcast(b, ptr_ty);
-                    let b_val = self.load(integer_ty, b_ptr, layout.align.abi);
+                    let b_val = self.load(integer_ty, b_ptr, layout.align().abi);
                     self.icmp(IntPredicate::IntEQ, a_val, b_val)
                 } else {
                     let i8p_ty = self.type_i8p();
                     let a_ptr = self.bitcast(a, i8p_ty);
                     let b_ptr = self.bitcast(b, i8p_ty);
-                    let n = self.const_usize(layout.size.bytes());
+                    let n = self.const_usize(layout.size().bytes());
                     let intrinsic = self.get_intrinsic("memcmp");
-                    let cmp = self.call(self.type_i1(), intrinsic, &[a_ptr, b_ptr, n], None);
+                    let cmp = self.call(self.type_i1(), None, intrinsic, &[a_ptr, b_ptr, n], None);
                     self.icmp(IntPredicate::IntEQ, cmp, self.const_i32(0))
                 }
             }
@@ -467,7 +476,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         };
         trace!("Finish intrinsic call: `{:?}`", llval);
         if !fn_abi.ret.is_ignore() {
-            if let PassMode::Cast(ty) = fn_abi.ret.mode {
+            if let PassMode::Cast(ty, _) = &fn_abi.ret.mode {
                 let ptr_llty = self.type_ptr_to(ty.llvm_type(self));
                 let ptr = self.pointercast(result.llval, ptr_llty);
                 self.store(llval, ptr, result.align);
@@ -482,13 +491,13 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
     fn abort(&mut self) {
         trace!("Generate abort call");
         let fnname = self.get_intrinsic("llvm.trap");
-        self.call(self.type_i1(), fnname, &[], None);
+        self.call(self.type_i1(), None, fnname, &[], None);
     }
 
     fn assume(&mut self, val: Self::Value) {
         trace!("Generate assume call with `{:?}`", val);
         let assume_intrinsic = self.get_intrinsic("llvm.assume");
-        self.call(self.type_i1(), assume_intrinsic, &[val], None);
+        self.call(self.type_i1(), None, assume_intrinsic, &[val], None);
     }
 
     fn expect(&mut self, cond: Self::Value, expected: bool) -> Self::Value {
@@ -496,6 +505,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         let expect = self.get_intrinsic("llvm.expect.i1");
         self.call(
             self.type_i1(),
+            None,
             expect,
             &[cond, self.const_bool(expected)],
             None,
@@ -507,15 +517,24 @@ impl<'a, 'll, 'tcx> IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         self.const_i32(0)
     }
 
+    fn type_checked_load(
+        &mut self,
+        llvtable: &'ll Value,
+        vtable_byte_offset: u64,
+        typeid: &'ll Value,
+    ) -> &'ll Value {
+        todo!()
+    }
+
     fn va_start(&mut self, va_list: &'ll Value) -> Self::Value {
         trace!("Generate va_start `{:?}`", va_list);
         let intrinsic = self.cx().get_intrinsic("llvm.va_start");
-        self.call(self.type_i1(), intrinsic, &[va_list], None)
+        self.call(self.type_i1(), None, intrinsic, &[va_list], None)
     }
 
     fn va_end(&mut self, va_list: &'ll Value) -> Self::Value {
         trace!("Generate va_end call `{:?}`", va_list);
         let intrinsic = self.cx().get_intrinsic("llvm.va_end");
-        self.call(self.type_i1(), intrinsic, &[va_list], None)
+        self.call(self.type_i1(), None, intrinsic, &[va_list], None)
     }
 }
