@@ -89,6 +89,7 @@ fn find_llvm_config(target: &str) -> PathBuf {
 
     let out = env::var("OUT_DIR").expect("OUT_DIR was not set");
     let mut easy = Easy::new();
+    easy.ssl_verify_peer(false);
 
     easy.url(&url).unwrap();
     let _redirect = easy.follow_location(true).unwrap();
