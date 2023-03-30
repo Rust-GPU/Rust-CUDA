@@ -150,6 +150,16 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     valid_paths
 }
 
+/// Find the location of `libcudadevrt.a`.
+pub fn find_lib_cudadevrt() -> Option<PathBuf> {
+    let root = find_cuda_root()?;
+    let lib = root.join("lib64").join("libcudadevrt.a");
+    if lib.is_file() {
+        return Some(lib);
+    }
+    None
+}
+
 #[cfg(target_os = "windows")]
 pub fn find_optix_root() -> Option<PathBuf> {
     // the optix SDK installer sets OPTIX_ROOT_DIR whenever it installs.

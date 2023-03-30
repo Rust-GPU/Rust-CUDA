@@ -338,7 +338,7 @@ impl Module {
     /// ```
     #[deprecated(
         since = "0.3.0",
-        note = "load_from_string was an inconsistent name with inconsistent params, use from_ptx/from_ptx_cstr, passing 
+        note = "load_from_string was an inconsistent name with inconsistent params, use from_ptx/from_ptx_cstr, passing
     an empty slice of options (usually)
     "
     )]
