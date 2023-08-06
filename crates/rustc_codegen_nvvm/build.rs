@@ -75,6 +75,9 @@ fn find_llvm_config(target: &str) -> PathBuf {
             if version.starts_with(&REQUIRED_MAJOR_LLVM_VERSION.to_string()) {
                 return PathBuf::from(path_to_try);
             }
+            println!("cargo:warning=Prebuilt llvm-config version does not start with {}", REQUIRED_MAJOR_LLVM_VERSION);
+        } else {
+            println!("cargo:warning=Failed to run prebuilt llvm-config");
         }
     }
 
