@@ -210,7 +210,7 @@ components = ["rust-src", "rustc-dev", "llvm-tools-preview"]
 
 ## Docker
 
-There is also a [Dockerfile](Dockerfile) prepared as a quickstart with all the necessary libraries for base cuda development.
+There is also a [Dockerfile](/Dockerfile) prepared as a quickstart with all the necessary libraries for base cuda development.
 
 You can use it as follows (assuming your clone of Rust-CUDA is at the absolute path `RUST_CUDA`):
  - Ensure you have Docker setup to [use gpus](https://docs.docker.com/config/containers/resource_constraints/#gpu)
