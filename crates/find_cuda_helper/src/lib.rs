@@ -42,7 +42,7 @@ pub fn find_cuda_root() -> Option<PathBuf> {
 
     // If it wasn't specified by env var, try the default installation paths
     #[cfg(not(target_os = "windows"))]
-    let default_paths = ["/usr/local/cuda", "/opt/cuda"];
+    let default_paths = ["/usr/lib/cuda", "/usr/local/cuda", "/opt/cuda"];
     #[cfg(target_os = "windows")]
     let default_paths = ["C:/CUDA"]; // TODO (AL): what's the actual path here?
 
