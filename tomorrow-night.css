@@ -1,7 +1,7 @@
 /* Tomorrow Night Theme */
-/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* https://github.com/jmblog/color-themes-for-highlightjs */
 /* Original theme - https://github.com/chriskempson/tomorrow-theme */
-/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* https://github.com/jmblog/color-themes-for-highlightjs */
 
 /* Tomorrow Comment */
 .hljs-comment {
@@ -11,6 +11,7 @@
 /* Tomorrow Red */
 .hljs-variable,
 .hljs-attribute,
+.hljs-attr,
 .hljs-tag,
 .hljs-regexp,
 .ruby .hljs-constant,
@@ -54,6 +55,7 @@
 
 /* Tomorrow Aqua */
 .hljs-title,
+.hljs-section,
 .css .hljs-hexcolor {
   color: #8abeb7;
 }
@@ -81,8 +83,6 @@
   overflow-x: auto;
   background: #1d1f21;
   color: #c5c8c6;
-  padding: 0.5em;
-  -webkit-text-size-adjust: none;
 }
 
 .coffeescript .javascript,
