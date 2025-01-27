@@ -7,5 +7,18 @@ edition = "2021"
 cust = { version = "0.3", path = "../../../../crates/cust" }
 nanorand = "0.6.1"
 
+# We don't depend on these directly, but want to pin them to specific versions.
+# This is because we're bound to a specific rustc version but cargo will chose
+# the newest semver compatible versions anyway.
+log = "=0.4.17"
+regex-syntax = "=0.6.28"
+regex = "=1.7.1"
+thread_local = "=1.1.4"
+jobserver = "=0.1.25"
+cc = "=1.0.78"
+rayon = "=1.5.1"
+rayon-core = "=1.10.0"
+byteorder = "=1.4.0"
+
 [build-dependencies]
 cuda_builder = { version = "0.3", path = "../../../../crates/cuda_builder" }
