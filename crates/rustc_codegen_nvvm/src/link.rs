@@ -26,6 +26,7 @@ use tracing::{debug, trace};
 
 use crate::context::CodegenArgs;
 use crate::LlvmMod;
+use rustc_ast::CRATE_NODE_ID;
 
 pub(crate) struct NvvmMetadataLoader;
 
@@ -75,7 +76,7 @@ pub fn link<'tcx>(
     // largely inspired by rust-gpu
     let output_metadata = sess.opts.output_types.contains_key(&OutputType::Metadata);
     for &crate_type in sess.crate_types().iter() {
-        if (sess.opts.debugging_opts.no_codegen || !sess.opts.output_types.should_codegen())
+        if (sess.opts.unstable_opts.no_codegen || !sess.opts.output_types.should_codegen())
             && !output_metadata
             && crate_type == CrateType::Executable
         {
@@ -91,7 +92,12 @@ pub fn link<'tcx>(
         }
 
         if outputs.outputs.should_codegen() {
-            let out_filename = out_filename(sess, crate_type, outputs, crate_name);
+            let out_filename = out_filename(
+                sess,
+                crate_type,
+                outputs,
+                codegen_results.crate_info.local_crate_name,
+            );
             match crate_type {
                 CrateType::Rlib => {
                     link_rlib(sess, codegen_results, &out_filename);
@@ -136,6 +142,7 @@ fn link_rlib(sess: &Session, codegen_results: &CodegenResults, out_filename: &Pa
             | NativeLibKind::Dylib { .. }
             | NativeLibKind::Framework { .. }
             | NativeLibKind::RawDylib
+            | NativeLibKind::LinkArg
             | NativeLibKind::Unspecified => continue,
         }
         // native libraries in cuda doesnt make much sense, extern functions
@@ -307,11 +314,11 @@ fn link_local_crate_native_libs_and_dependent_crate_libs<'a>(
     crate_type: CrateType,
     codegen_results: &CodegenResults,
 ) {
-    if sess.opts.debugging_opts.link_native_libraries {
+    if sess.opts.unstable_opts.link_native_libraries {
         add_local_native_libraries(sess, codegen_results);
     }
     add_upstream_rust_crates(sess, rlibs, codegen_results, crate_type);
-    if sess.opts.debugging_opts.link_native_libraries {
+    if sess.opts.unstable_opts.link_native_libraries {
         add_upstream_native_libraries(sess, codegen_results, crate_type);
     }
 }
@@ -369,7 +376,7 @@ fn add_upstream_native_libraries(
 
 fn relevant_lib(sess: &Session, lib: &NativeLib) -> bool {
     match lib.cfg {
-        Some(ref cfg) => rustc_attr::cfg_matches(cfg, &sess.parse_sess, None),
+        Some(ref cfg) => rustc_attr::cfg_matches(cfg, &sess.parse_sess, CRATE_NODE_ID, None),
         None => true,
     }
 }

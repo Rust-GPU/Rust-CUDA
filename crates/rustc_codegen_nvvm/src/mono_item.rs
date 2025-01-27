@@ -11,7 +11,7 @@ pub use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::mir::mono::{Linkage, Visibility};
 use rustc_middle::ty::layout::FnAbiOf;
 use rustc_middle::ty::layout::LayoutOf;
-use rustc_middle::ty::{self, Instance, TypeFoldable};
+use rustc_middle::ty::{self, Instance, TypeFoldable, TypeVisitable};
 use tracing::trace;
 
 pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm::Visibility {
@@ -94,8 +94,8 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         attributes::from_fn_attrs(self, lldecl, instance);
 
         let def_id = instance.def_id();
-        let attrs = self.tcx.get_attrs(def_id);
-        let nvvm_attrs = NvvmAttributes::parse(self, attrs);
+        let attrs = self.tcx.get_attrs_unchecked(def_id);
+        let nvvm_attrs = NvvmAttributes::parse(self, &attrs);
 
         unsafe {
             // if this function is marked as being a kernel, add it

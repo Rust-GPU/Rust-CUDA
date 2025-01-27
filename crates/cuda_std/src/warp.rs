@@ -4,6 +4,7 @@
 //! thread blocks and execute in SIMT fashion.
 
 use crate::gpu_only;
+use core::arch::asm;
 use half::{bf16, f16};
 
 /// Synchronizes all of the threads inside of this warp according to `mask`.

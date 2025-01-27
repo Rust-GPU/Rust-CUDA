@@ -1,6 +1,7 @@
 use crate::llvm::{self};
 use crate::override_fns::define_or_override_fn;
 use crate::{builder::Builder, context::CodegenCx, lto::ThinBuffer, LlvmMod, NvvmCodegenBackend};
+use cstr::cstr;
 use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
 use rustc_codegen_ssa::traits::{DebugInfoMethods, MiscMethods};
@@ -86,7 +87,7 @@ pub fn target_machine_factory(
 
     let ffunction_sections = sess
         .opts
-        .debugging_opts
+        .unstable_opts
         .function_sections
         .unwrap_or(sess.target.function_sections);
     let fdata_sections = ffunction_sections;
@@ -98,7 +99,7 @@ pub fn target_machine_factory(
     let features = CString::new("").unwrap();
     let trap_unreachable = sess
         .opts
-        .debugging_opts
+        .unstable_opts
         .trap_unreachable
         .unwrap_or(sess.target.trap_unreachable);
 
@@ -285,11 +286,18 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
             }
 
             // Create the llvm.used and llvm.compiler.used variables.
-            if !cx.used_statics().borrow().is_empty() {
-                cx.create_used_variable();
+            if !cx.used_statics.borrow().is_empty() {
+                // cx.create_used_variable();
+                cx.create_used_variable_impl(
+                    cstr!("llvm.used").as_ptr(),
+                    &*cx.used_statics.borrow(),
+                );
             }
-            if !cx.compiler_used_statics().borrow().is_empty() {
-                cx.create_compiler_used_variable();
+            if !cx.compiler_used_statics.borrow().is_empty() {
+                cx.create_used_variable_impl(
+                    cstr!("llvm.compiler.used").as_ptr(),
+                    &*cx.compiler_used_statics.borrow(),
+                );
             }
 
             // Finalize debuginfo

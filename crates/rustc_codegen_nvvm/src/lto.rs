@@ -148,7 +148,7 @@ pub(crate) fn run_thin(
 
 pub(crate) unsafe fn optimize_thin(
     cgcx: &CodegenContext<NvvmCodegenBackend>,
-    thin_module: &mut ThinModule<NvvmCodegenBackend>,
+    thin_module: ThinModule<NvvmCodegenBackend>,
 ) -> Result<ModuleCodegen<LlvmMod>, FatalError> {
     // essentially does nothing
     let diag_handler = cgcx.create_diag_handler();
