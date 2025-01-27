@@ -36,17 +36,16 @@
 
 extern crate alloc;
 
+pub mod atomic;
+pub mod cfg;
 pub mod float;
 #[allow(warnings)]
 pub mod intrinsics;
 pub mod io;
 pub mod mem;
 pub mod misc;
-// WIP
-// pub mod rt;
-pub mod atomic;
-pub mod cfg;
 pub mod ptr;
+pub mod rt;
 pub mod shared;
 pub mod thread;
 pub mod warp;

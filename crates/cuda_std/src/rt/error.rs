@@ -132,7 +132,7 @@ pub enum CudaError {
 /// Result type for most CUDA functions.
 pub type CudaResult<T> = Result<T, CudaError>;
 
-pub(crate) trait ToResult {
+pub trait ToResult {
     fn to_result(self) -> CudaResult<()>;
 }
 impl ToResult for cudaError_t {

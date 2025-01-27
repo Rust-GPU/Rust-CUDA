@@ -3,9 +3,9 @@
 use std::mem::MaybeUninit;
 use std::ptr::null_mut;
 
+use crate::error::{CudaError, CudaResult, ToResult};
 use crate::sys as cuda;
-
-use crate::error::{CudaResult, ToResult};
+use find_cuda_helper::find_lib_cudadevrt;
 
 static UNNAMED: &str = "\0";
 
@@ -24,6 +24,12 @@ impl Linker {
         // per the docs, cuda expects the options pointers to last as long as CULinkState.
         // Therefore we use box to alloc the memory for us, then into_raw it so we now have ownership
         // of the memory (and dont have any aliasing requirements attached either).
+
+        // // Just take advantage of C memory model and just pass individual elements, as there is only 1.
+        // let num_options: u32 = 1;
+        // let opt = &mut cuda::CUjit_option::CU_JIT_TARGET as *mut _;
+        // let mut opt_val =
+        //     &mut cuda::CUjit_target::CU_TARGET_COMPUTE_75 as *mut _ as *mut ::std::os::raw::c_void;
 
         unsafe {
             let mut raw = MaybeUninit::uninit();
@@ -105,6 +111,28 @@ impl Linker {
                 // this cast is sound.
                 fatbin.as_ptr() as *mut _,
                 fatbin.len(),
+                UNNAMED.as_ptr().cast(),
+                0,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+            .to_result()
+        }
+    }
+
+    /// Link device runtime lib.
+    pub fn add_libcudadevrt(&mut self) -> CudaResult<()> {
+        let path = find_lib_cudadevrt().ok_or_else(|| CudaError::FileNotFound)?;
+        let mut bytes = std::fs::read(path)
+            // TODO: don't panic, update the result type instead.
+            .expect("error linking libcudadevrt.a");
+
+        unsafe {
+            cuda::cuLinkAddData_v2(
+                self.raw,
+                cuda::CUjitInputType::CU_JIT_INPUT_LIBRARY,
+                bytes.as_mut_ptr() as *mut _,
+                bytes.len(),
                 UNNAMED.as_ptr().cast(),
                 0,
                 std::ptr::null_mut(),

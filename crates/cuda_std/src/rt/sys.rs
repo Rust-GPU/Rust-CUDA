@@ -14,6 +14,16 @@ pub use crate::rt::driver_types_sys::*;
 // to share this stuff with cust.
 
 extern "C" {
+    pub fn cudaGetParameterBuffer(alignment: usize, size: usize) -> *mut c_void;
+    pub fn cudaLaunchDevice(
+        func: *const c_void,
+        parameterBuffer: *const c_void,
+        gridDimension: dim3,
+        blockDimension: dim3,
+        sharedMemSize: c_uint,
+        stream: cudaStream_t,
+    ) -> cudaError_t;
+
     pub fn cudaDeviceGetAttribute(
         value: *mut c_int,
         attr: cudaDeviceAttr,
