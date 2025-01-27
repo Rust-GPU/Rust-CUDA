@@ -226,11 +226,11 @@ pub unsafe fn memcpy_dtoh(
 }
 
 /// Similar to `cudaMemcpy2D` with `HostToDevice` copy type.
-/// 
+///
 /// `dpitch`/`spitch` is bytes between the start of two rows.
 /// `width` is the number of *elements* (not bytes) in a row.
 /// `height` is the total number of rows (not bytes).
-/// 
+///
 /// # Examples
 ///
 /// ```
@@ -240,32 +240,32 @@ pub unsafe fn memcpy_dtoh(
 /// unsafe {
 ///     // Allocate space for a 3x3 matrix of f32s
 ///     let (device_buffer, pitch) = cuda_malloc_pitched::<f32>(3, 3)?;
-/// 
+///
 ///     let src_array: [f32; 9] = [
-///         1.0, 2.0, 3.0, 
-///         4.0, 5.0, 6.0, 
+///         1.0, 2.0, 3.0,
+///         4.0, 5.0, 6.0,
 ///         7.0, 8.0, 9.0];
-/// 
+///
 ///     memcpy_2d_htod(
-///         device_buffer, 
-///         pitch, 
+///         device_buffer,
+///         pitch,
 ///         src_array.as_slice().as_ptr(),
 ///         3*std::mem::size_of::<f32>(),
 ///         3,
 ///         3
 ///     )?;
-/// 
+///
 ///     let mut dst_array = [0.0f32; 9];
 ///
 ///     memcpy_2d_dtoh(
 ///         dst_array.as_mut_slice().as_mut_ptr(),
 ///         3*std::mem::size_of::<f32>(),
-///         device_buffer, 
-///         pitch, 
+///         device_buffer,
+///         pitch,
 ///         3,
 ///         3
-///     )?; 
-/// 
+///     )?;
+///
 ///     assert_eq!(dst_array, src_array);
 ///     cuda_free(device_buffer)?;
 /// }
@@ -284,7 +284,8 @@ pub unsafe fn memcpy_2d_htod<T: DeviceCopy>(
 ) -> CudaResult<()> {
     use cust_raw::CUmemorytype;
 
-    let width_in_bytes = width.checked_mul(std::mem::size_of::<T>())
+    let width_in_bytes = width
+        .checked_mul(std::mem::size_of::<T>())
         .ok_or(CudaError::InvalidMemoryAllocation)?;
 
     let pcopy = cust_raw::CUDA_MEMCPY2D_st {
@@ -292,7 +293,7 @@ pub unsafe fn memcpy_2d_htod<T: DeviceCopy>(
         srcY: 0,
         srcMemoryType: CUmemorytype::CU_MEMORYTYPE_HOST,
         srcHost: src as *const c_void,
-        srcDevice: 0, // Ignored
+        srcDevice: 0,                                           // Ignored
         srcArray: std::ptr::null_mut::<cust_raw::CUarray_st>(), // Ignored
         srcPitch: spitch,
         dstXInBytes: 0,
@@ -311,11 +312,11 @@ pub unsafe fn memcpy_2d_htod<T: DeviceCopy>(
 }
 
 /// Similar to `cudaMemcpy2D` with `DeviceToHost` copy type.
-/// 
+///
 /// `dpitch`/`spitch` is bytes between the start of two rows.
 /// `width` is the number of *elements* (not bytes) in a row.
 /// `height` is the total number of rows (not bytes).
-/// 
+///
 /// # Examples
 ///
 /// ```
@@ -325,32 +326,32 @@ pub unsafe fn memcpy_2d_htod<T: DeviceCopy>(
 /// unsafe {
 ///     // Allocate space for a 3x3 matrix of f32s
 ///     let (device_buffer, pitch) = cuda_malloc_pitched::<f32>(3, 3)?;
-/// 
+///
 ///     let src_array: [f32; 9] = [
-///         1.0, 2.0, 3.0, 
-///         4.0, 5.0, 6.0, 
+///         1.0, 2.0, 3.0,
+///         4.0, 5.0, 6.0,
 ///         7.0, 8.0, 9.0];
-/// 
+///
 ///     memcpy_2d_htod(
-///         device_buffer, 
-///         pitch, 
+///         device_buffer,
+///         pitch,
 ///         src_array.as_slice().as_ptr(),
 ///         3*std::mem::size_of::<f32>(),
 ///         3,
 ///         3
 ///     )?;
-/// 
+///
 ///     let mut dst_array = [0.0f32; 9];
 ///
 ///     memcpy_2d_dtoh(
 ///         dst_array.as_mut_slice().as_mut_ptr(),
 ///         3*std::mem::size_of::<f32>(),
-///         device_buffer, 
-///         pitch, 
+///         device_buffer,
+///         pitch,
 ///         3,
 ///         3
-///     )?; 
-/// 
+///     )?;
+///
 ///     assert_eq!(dst_array, src_array);
 ///     cuda_free(device_buffer)?;
 /// }
@@ -369,7 +370,8 @@ pub unsafe fn memcpy_2d_dtoh<T: DeviceCopy>(
 ) -> CudaResult<()> {
     use cust_raw::CUmemorytype;
 
-    let width_in_bytes = width.checked_mul(std::mem::size_of::<T>())
+    let width_in_bytes = width
+        .checked_mul(std::mem::size_of::<T>())
         .ok_or(CudaError::InvalidMemoryAllocation)?;
 
     let pcopy = cust_raw::CUDA_MEMCPY2D_st {
@@ -383,8 +385,8 @@ pub unsafe fn memcpy_2d_dtoh<T: DeviceCopy>(
         dstXInBytes: 0,
         dstY: 0,
         dstMemoryType: CUmemorytype::CU_MEMORYTYPE_HOST,
-        dstHost: dst as *mut c_void, 
-        dstDevice: 0, // Ignored
+        dstHost: dst as *mut c_void,
+        dstDevice: 0,                                           // Ignored
         dstArray: std::ptr::null_mut::<cust_raw::CUarray_st>(), // Ignored
         dstPitch: dpitch,
         WidthInBytes: width_in_bytes,
