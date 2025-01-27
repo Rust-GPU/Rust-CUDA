@@ -78,9 +78,9 @@ Other projects related to using Rust on the GPU:
 - 2016: [glassful](https://github.com/kmcallister/glassful) Subset of Rust that compiles to GLSL.
 - 2017: [inspirv-rust](https://github.com/msiglreith/inspirv-rust) Experimental Rust MIR -> SPIR-V Compiler.
 - 2018: [nvptx](https://github.com/japaric-archived/nvptx) Rust to PTX compiler using the `nvptx` target for rustc (using the LLVM PTX backend).
-- 2020: [accel](https://github.com/termoshtt/accel) Higher level library that relied on the same mechanism that `nvptx` does.
+- 2020: [accel](https://github.com/termoshtt/accel) Higher-level library that relied on the same mechanism that `nvptx` does.
 - 2020: [rlsl](https://github.com/MaikKlein/rlsl) Experimental Rust -> SPIR-V compiler (predecessor to rust-gpu)
-- 2020: [rust-gpu](https://github.com/EmbarkStudios/rust-gpu) Rustc codegen backend to compile Rust to SPIR-V for use in shaders, similar mechanism as our project.
+- 2020: [rust-gpu](https://github.com/Rust-GPU/rust-gpu) `rustc` compiler backend to compile Rust to SPIR-V for use in shaders, similar mechanism as our project.
 
 ## License
 
