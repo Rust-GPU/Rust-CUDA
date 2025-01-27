@@ -149,9 +149,9 @@ pub unsafe fn cuda_malloc_unified<T: DeviceCopy>(count: usize) -> CudaResult<Uni
 }
 
 /// Unsafe wrapper around the `cuMemAllocPitch` function, which allocates device memory in two dimensions
-/// where rows are memory aligned to the containing datatype. 
-/// 
-/// Returns a [`DevicePointer`](struct.DevicePointer.html), pointing to the allocated memory and 
+/// where rows are memory aligned to the containing datatype.
+///
+/// Returns a [`DevicePointer`](struct.DevicePointer.html), pointing to the allocated memory and
 /// an `usize` containing the row pitch in *bytes*. The memory is not cleared.
 ///
 /// Note that `count` is in units of T; thus a `count` of 3 will allocate `3 * size_of::<T>()` bytes
@@ -186,7 +186,10 @@ pub unsafe fn cuda_malloc_unified<T: DeviceCopy>(count: usize) -> CudaResult<Uni
 /// # }
 /// # foo().unwrap();
 /// ```
-pub unsafe fn cuda_malloc_pitched<T: DeviceCopy>(width: usize, height: usize) -> CudaResult<(DevicePointer<T>, usize)> {
+pub unsafe fn cuda_malloc_pitched<T: DeviceCopy>(
+    width: usize,
+    height: usize,
+) -> CudaResult<(DevicePointer<T>, usize)> {
     let element_size: std::os::raw::c_uint = std::mem::size_of::<T>()
         .try_into()
         .map_err(|_| CudaError::InvalidMemoryAllocation)?;
@@ -198,7 +201,8 @@ pub unsafe fn cuda_malloc_pitched<T: DeviceCopy>(width: usize, height: usize) ->
 
     let mut ptr = 0;
     let mut pitch = 0;
-    cuda::cuMemAllocPitch_v2(&mut ptr, &mut pitch, width_bytes, height, element_size).to_result()?;
+    cuda::cuMemAllocPitch_v2(&mut ptr, &mut pitch, width_bytes, height, element_size)
+        .to_result()?;
     Ok((DevicePointer::from_raw(ptr), pitch))
 }
 
