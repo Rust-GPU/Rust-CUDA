@@ -1,36 +1,37 @@
 //! Utility crate for easily building CUDA crates using rustc_codegen_nvvm. Derived from rust-gpu's spirv_builder.
 
+#[cfg(feature = "cooperative_groups")]
+pub mod cg;
+
 pub use nvvm::*;
 use serde::Deserialize;
 use std::{
     borrow::Borrow,
     env,
     ffi::OsString,
-    fmt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
-#[derive(Debug)]
+/// Cuda builder result type.
+pub type CudaBuilderResult<T> = Result<T, CudaBuilderError>;
+
+/// Cuda builder error type.
+#[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum CudaBuilderError {
+    #[error("crate path {0} does not exist")]
     CratePathDoesntExist(PathBuf),
-    FailedToCopyPtxFile(std::io::Error),
+    #[error("build failed")]
     BuildFailed,
-}
-
-impl fmt::Display for CudaBuilderError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CudaBuilderError::CratePathDoesntExist(path) => {
-                write!(f, "Crate path {} does not exist", path.display())
-            }
-            CudaBuilderError::BuildFailed => f.write_str("Build failed"),
-            CudaBuilderError::FailedToCopyPtxFile(err) => {
-                f.write_str(&format!("Failed to copy PTX file: {:?}", err))
-            }
-        }
-    }
+    #[error("failed to copy PTX file: {0:?}")]
+    FailedToCopyPtxFile(#[from] std::io::Error),
+    #[cfg(feature = "cooperative_groups")]
+    #[error("could not find cuda root installation dir")]
+    CudaRootNotFound,
+    #[cfg(feature = "cooperative_groups")]
+    #[error("compilation of the Cooperative Groups API bridge code failed: {0}")]
+    CGError(#[from] anyhow::Error),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

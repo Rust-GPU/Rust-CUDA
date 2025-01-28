@@ -545,3 +545,38 @@ macro_rules! launch {
         }
     };
 }
+
+/// Launch a cooperative kernel function asynchronously.
+///
+/// This macro is the same as `launch!`, except that it will launch kernels using the driver API
+/// `cuLaunchCooperativeKernel` function.
+#[macro_export]
+macro_rules! launch_cooperative {
+    ($module:ident . $function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* $(,)?)) => {
+        {
+            let function = $module.get_function(stringify!($function));
+            match function {
+                Ok(f) => launch_cooperative!(f<<<$grid, $block, $shared, $stream>>>( $($arg),* ) ),
+                Err(e) => Err(e),
+            }
+        }
+    };
+    ($function:ident <<<$grid:expr, $block:expr, $shared:expr, $stream:ident>>>( $( $arg:expr),* $(,)?)) => {
+        {
+            fn assert_impl_devicecopy<T: $crate::memory::DeviceCopy>(_val: T) {}
+            if false {
+                $(
+                    assert_impl_devicecopy($arg);
+                )*
+            };
+
+            $stream.launch_cooperative(&$function, $grid, $block, $shared,
+                &[
+                    $(
+                        &$arg as *const _ as *mut ::std::ffi::c_void,
+                    )*
+                ]
+            )
+        }
+    };
+}
