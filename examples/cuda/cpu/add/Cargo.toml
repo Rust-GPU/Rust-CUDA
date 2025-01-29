@@ -16,8 +16,8 @@ regex = "=1.7.1"
 thread_local = "=1.1.4"
 jobserver = "=0.1.25"
 cc = "=1.0.78"
-rayon = "=1.5.1"
-rayon-core = "=1.10.0"
+rayon = "=1.10"
+rayon-core = "=1.12.1"
 byteorder = "=1.4.0"
 
 [build-dependencies]
