@@ -5,9 +5,9 @@ edition = "2018"
 
 [dependencies]
 vek = { version = "0.17.1", features = ["bytemuck", "mint"] }
-bytemuck = { version = "1.7.2", features = ["derive"] }
+bytemuck = { version = "1.21", features = ["derive"] }
 cust = { version = "0.3", path = "../../../../crates/cust", features = ["impl_vek"] }
-image = "0.23.14"
+image = "0.25.5"
 path_tracer_gpu = { path = "../../gpu/path_tracer_gpu" }
 gpu_rand = { version = "0.1", path = "../../../../crates/gpu_rand" }
 optix = { version = "0.1", path = "../../../../crates/optix" }

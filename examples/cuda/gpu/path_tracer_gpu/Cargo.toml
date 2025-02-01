@@ -5,7 +5,7 @@ edition = "2018"
 
 [dependencies]
 cuda_std = { version = "0.2", path = "../../../../crates/cuda_std" }
-enum_dispatch = "0.3.7"
+enum_dispatch = "0.3.13"
 gpu_rand = { version = "0.1", path = "../../../../crates/gpu_rand" }
 cust_core = { path = "../../../../crates/cust_core" }
 optix_device = { path = "../../../../crates/optix_device" }
