@@ -41,7 +41,7 @@ pub enum TextureFilterMode {
 
 bitflags::bitflags! {
     /// Flags which modify the behavior of CUDA texture creation.
-    #[derive(Default)]
+    #[derive(Default, Debug, Clone, Copy)]
     pub struct TextureDescriptorFlags: c_uint {
         /// Suppresses the default behavior of having the texture promote data to floating point data in the range
         /// of [0, 1]. This flag does nothing if the texture is a texture of `u32`s.
@@ -306,7 +306,7 @@ impl ResourceViewDescriptor {
 
 bitflags::bitflags! {
     /// Flags for a resource descriptor. Currently empty.
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct ResourceDescriptorFlags: c_uint {
         #[doc(hidden)]
         const _ZERO = 0;
