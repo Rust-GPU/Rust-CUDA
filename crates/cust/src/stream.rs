@@ -237,11 +237,11 @@ impl Stream {
     /// event.record(&stream_0)?;
     ///
     /// // wait until the work on stream_0 is finished before continuing stream_1
-    /// stream_1.wait_event(event, StreamWaitEventFlags::DEFAULT)?;
+    /// stream_1.wait_event(&event, StreamWaitEventFlags::DEFAULT)?;
     /// # Ok(())
     /// }
     /// ```
-    pub fn wait_event(&self, event: Event, flags: StreamWaitEventFlags) -> CudaResult<()> {
+    pub fn wait_event(&self, event: &Event, flags: StreamWaitEventFlags) -> CudaResult<()> {
         unsafe { cuda::cuStreamWaitEvent(self.inner, event.as_inner(), flags.bits()).to_result() }
     }
 
