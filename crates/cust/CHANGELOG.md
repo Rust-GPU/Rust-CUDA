@@ -6,6 +6,7 @@ Notable changes to this project will be documented in this file.
 
  - Add `memory::memcpy_dtoh` to allow copying from device to host.
  - Add support in `memory` for pitched malloc and 2D memcpy between device and host.
+ - `Stream::add_callback` now internally uses `cuStreamAddCallback` again, since there are no current plans to remove it (https://stackoverflow.com/a/58173486). As a result, the function again takes a device status as a parameter and *does* execute on context error.
 
 ## 0.3.2 - 2/16/22
 
