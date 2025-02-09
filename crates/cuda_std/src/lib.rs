@@ -46,6 +46,8 @@ pub mod misc;
 // pub mod rt;
 pub mod atomic;
 pub mod cfg;
+#[cfg(feature = "cooperative_groups")]
+pub mod cg;
 pub mod ptr;
 pub mod shared;
 pub mod thread;
