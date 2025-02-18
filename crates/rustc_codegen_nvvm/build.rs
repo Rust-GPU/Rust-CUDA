@@ -54,7 +54,7 @@ fn target_to_llvm_prebuilt(target: &str) -> String {
     let base = match target {
         "x86_64-pc-windows-msvc" => "windows-x86_64",
         // NOTE(RDambrosio016): currently disabled because of weird issues with segfaults and building the C++ shim
-        // "x86_64-unknown-linux-gnu" => "linux-x86_64",
+        "x86_64-unknown-linux-gnu" => "linux-x86_64",
         _ => panic!("Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG", target)
     };
     format!("{}.tar.xz", base)
@@ -90,6 +90,7 @@ fn find_llvm_config(target: &str) -> PathBuf {
         .map(|x| x.to_string_lossy().to_string())
         .unwrap_or_else(|| PREBUILT_LLVM_URL.to_string());
 
+    println!("cargo:warning=Using prebuilt LLVM from {}", url);
     let prebuilt_name = target_to_llvm_prebuilt(target);
     url = format!("{}{}", url, prebuilt_name);
 
