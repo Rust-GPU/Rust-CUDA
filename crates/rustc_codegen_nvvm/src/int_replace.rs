@@ -1,4 +1,3 @@
-use rustc_codegen_ssa::traits::BaseTypeMethods;
 use tracing::trace;
 
 use crate::builder::unnamed;

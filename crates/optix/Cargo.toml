@@ -27,7 +27,7 @@ mint = "0.5.9"
 embed-doc-image = {version = "0.1.4"}
 
 [build-dependencies]
-bindgen = "0.59"
+bindgen = "0.71.1"
 cc = "1.0.71"
 find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
 

@@ -5,7 +5,7 @@ authors = [
     "Riccardo D'Ambrosio <rdambrosio016@gmail.com>",
     "The Rust Project Developers",
 ]
-edition = "2018"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "A codegen backend for Rustc which targets the libnvvm CUDA library"
 repository = "https://github.com/Rust-GPU/Rust-CUDA"
@@ -18,12 +18,19 @@ crate-type = ["dylib"]
 nvvm = { version = "0.1", path = "../nvvm" }
 rustc-demangle = "0.1.24"
 libc = "0.2.169"
+libloading = "0.8.0"
 tar = "0.4.43"
-bitflags = "2.8"
+object = "0.36.7"
+bitflags = "2.8.0"
+# To avoid duplicate dependencies, this should match the version of gimli used
+# by `rustc_codegen_ssa` via its `thorin-dwp` dependency.
+gimli = "0.30"
 tracing = { version = "0.1.41", features = ["release_max_level_debug"] }
 find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 rustc_codegen_nvvm_macros = { version = "0.1", path = "../rustc_codegen_nvvm_macros" }
+smallvec = { version = "1.14.0", features = ["union", "may_dangle"] }
+itertools = "0.14.0"
 
 [build-dependencies]
 build-helper = "0.1.1"

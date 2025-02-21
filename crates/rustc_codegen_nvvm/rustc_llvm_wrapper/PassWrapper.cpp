@@ -96,9 +96,9 @@ static LLVMRustPassKind toRust(PassKind Kind)
   }
 }
 
-extern "C" LLVMPassRef LLVMRustFindAndCreatePass(const char *PassName)
+extern "C" LLVMPassRef LLVMRustFindAndCreatePass(const char *PassName, size_t PassNameLen)
 {
-  StringRef SR(PassName);
+  StringRef SR(PassName, PassNameLen);
   PassRegistry *PR = PassRegistry::getPassRegistry();
 
   const PassInfo *PI = PR->getPassInfo(SR);
@@ -377,7 +377,9 @@ extern "C" void LLVMRustPrintTargetFeatures(LLVMTargetMachineRef)
 #endif
 
 extern "C" LLVMTargetMachineRef LLVMRustCreateTargetMachine(
-    const char *TripleStr, const char *CPU, const char *Feature,
+    const char *TripleStr, size_t TripleStrLen,
+    const char *CPU, size_t CPULen,
+    const char *Feature, size_t FeatureLen,
     LLVMRustCodeModel RustCM, LLVMRustRelocMode RustReloc,
     LLVMRustCodeGenOptLevel RustOptLevel, bool UseSoftFloat,
     bool PositionIndependentExecutable, bool FunctionSections,
@@ -390,7 +392,7 @@ extern "C" LLVMTargetMachineRef LLVMRustCreateTargetMachine(
   auto RM = fromRust(RustReloc);
 
   std::string Error;
-  Triple Trip(Triple::normalize(TripleStr));
+  Triple Trip(Triple::normalize(StringRef(TripleStr, TripleStrLen)));
   const llvm::Target *TheTarget =
       TargetRegistry::lookupTarget(Trip.getTriple(), Error);
   if (TheTarget == nullptr)
@@ -399,7 +401,7 @@ extern "C" LLVMTargetMachineRef LLVMRustCreateTargetMachine(
     return nullptr;
   }
 
-  StringRef RealCPU = CPU;
+  StringRef RealCPU{CPU, CPULen};
   if (RealCPU == "native")
   {
     RealCPU = sys::getHostCPUName();
@@ -437,7 +439,7 @@ extern "C" LLVMTargetMachineRef LLVMRustCreateTargetMachine(
   if (RustCM != LLVMRustCodeModel::None)
     CM = fromRust(RustCM);
   TargetMachine *TM = TheTarget->createTargetMachine(
-      Trip.getTriple(), RealCPU, Feature, Options, RM, CM, OptLevel);
+      Trip.getTriple(), RealCPU, StringRef(Feature, FeatureLen), Options, RM, CM, OptLevel);
   return wrap(TM);
 }
 
@@ -763,11 +765,11 @@ INITIALIZE_PASS(RustPrintModulePass, "print-rust-module",
 // }
 
 extern "C" LLVMRustResult
-LLVMRustPrintModule(LLVMModuleRef M, const char *Path, DemangleFn Demangle)
+LLVMRustPrintModule(LLVMModuleRef M, const char *Path, size_t PathLen, DemangleFn Demangle)
 {
   std::string ErrorInfo;
   std::error_code EC;
-  raw_fd_ostream OS(Path, EC, sys::fs::OF_None);
+  raw_fd_ostream OS(StringRef(Path, PathLen), EC, sys::fs::OF_None);
   if (EC)
     ErrorInfo = EC.message();
   if (ErrorInfo != "")
@@ -936,11 +938,12 @@ LLVMRustPGOAvailable()
 extern "C" bool
 LLVMRustWriteThinBitcodeToFile(LLVMPassManagerRef PMR,
                                LLVMModuleRef M,
-                               const char *BcFile)
+                               const char *BcFile,
+                               size_t BcFileLen)
 {
   llvm::legacy::PassManager *PM = unwrap<llvm::legacy::PassManager>(PMR);
   std::error_code EC;
-  llvm::raw_fd_ostream bc(BcFile, EC, llvm::sys::fs::F_None);
+  llvm::raw_fd_ostream bc(StringRef(BcFile, BcFileLen), EC, llvm::sys::fs::F_None);
   if (EC)
   {
     LLVMRustSetLastError(EC.message().c_str());
@@ -1285,10 +1288,11 @@ extern "C" LLVMModuleRef
 LLVMRustParseBitcodeForLTO(LLVMContextRef Context,
                            const char *data,
                            size_t len,
-                           const char *identifier)
+                           const char *identifier,
+                           size_t idLen)
 {
   StringRef Data(data, len);
-  MemoryBufferRef Buffer(Data, identifier);
+  MemoryBufferRef Buffer{Data, StringRef(identifier, idLen)};
   unwrap(Context)->enableDebugTypeODRUniquing();
   Expected<std::unique_ptr<Module>> SrcOrError =
       parseBitcodeFile(Buffer, *unwrap(Context));
@@ -1393,7 +1397,8 @@ LLVMRustThinLTORemoveAvailableExternally(LLVMModuleRef Mod)
 extern "C" bool
 LLVMRustWriteThinBitcodeToFile(LLVMPassManagerRef PMR,
                                LLVMModuleRef M,
-                               const char *BcFile)
+                               const char *BcFile
+                               size_t BcFileName)
 {
   report_fatal_error("ThinLTO not available");
 }

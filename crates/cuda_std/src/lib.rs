@@ -21,13 +21,12 @@
 //! In order to simplify imports, we provide a prelude module which contains GPU analogues to standard library
 //! structures as well as common imports such as [`thread`].
 
+#![allow(internal_features)]
 #![cfg_attr(
     target_os = "cuda",
     no_std,
     feature(
-        register_attr,
         alloc_error_handler,
-        asm,
         asm_experimental_arch,
         link_llvm_intrinsics
     ),

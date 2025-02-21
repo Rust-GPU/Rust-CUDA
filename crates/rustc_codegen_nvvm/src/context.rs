@@ -1,44 +1,46 @@
-use crate::abi::FnAbiLlvmExt;
-use crate::attributes::{self, NvvmAttributes, Symbols};
-use crate::debug_info::{self, compile_unit_metadata, CrateDebugContext};
-use crate::llvm::{self, BasicBlock, Type, Value};
-use crate::{target, LlvmMod};
-use nvvm::NvvmOption;
-use rustc_codegen_ssa::traits::{BackendTypes, BaseTypeMethods, CoverageInfoMethods, MiscMethods};
-use rustc_codegen_ssa::traits::{ConstMethods, DerivedTypeMethods};
-use rustc_data_structures::base_n;
-use rustc_hash::FxHashMap;
-use rustc_middle::dep_graph::DepContext;
-use rustc_middle::ty::layout::{
-    FnAbiError, FnAbiOf, FnAbiRequest, HasParamEnv, HasTyCtxt, LayoutError, TyAndLayout,
-};
-use rustc_middle::ty::layout::{FnAbiOfHelpers, LayoutOfHelpers};
-use rustc_middle::ty::{Ty, TypeFoldable};
-use rustc_middle::{bug, span_bug, ty};
-use rustc_middle::{
-    mir::mono::CodegenUnit,
-    ty::{Instance, PolyExistentialTraitRef, TyCtxt},
-};
-use rustc_session::config::DebugInfo;
-use rustc_session::Session;
-use rustc_span::{Span, Symbol};
-use rustc_target::abi::call::FnAbi;
-use rustc_target::abi::{
-    AddressSpace, HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx,
-};
-use rustc_target::spec::{HasTargetSpec, Target};
 use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
-use std::hash::BuildHasherDefault;
-use std::os::raw::c_char;
 use std::path::PathBuf;
 use std::ptr::null;
 use std::str::FromStr;
+
+use crate::abi::FnAbiLlvmExt;
+use crate::attributes::{self, NvvmAttributes, Symbols};
+use crate::debug_info::{self, CodegenUnitDebugContext};
+use crate::llvm::{self, BasicBlock, Type, Value};
+use crate::{LlvmMod, target};
+use nvvm::NvvmOption;
+use rustc_abi::AddressSpace;
+use rustc_abi::{HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx};
+use rustc_codegen_ssa::errors as ssa_errors;
+use rustc_codegen_ssa::traits::{
+    BackendTypes, BaseTypeCodegenMethods, CoverageInfoBuilderMethods, DerivedTypeCodegenMethods, MiscCodegenMethods
+};
+use rustc_data_structures::base_n::{ALPHANUMERIC_ONLY, ToBaseN};
+use rustc_errors::DiagMessage;
+use rustc_hash::FxHashMap;
+use rustc_middle::dep_graph::DepContext;
+use rustc_middle::ty::layout::{
+    FnAbiError, FnAbiOf, FnAbiRequest, HasTyCtxt, HasTypingEnv, LayoutError,
+};
+use rustc_middle::ty::layout::{FnAbiOfHelpers, LayoutOfHelpers};
+use rustc_middle::ty::{Ty, TypeVisitableExt};
+use rustc_middle::{bug, span_bug, ty};
+use rustc_middle::{
+    mir::mono::CodegenUnit,
+    ty::{Instance, TyCtxt},
+};
+use rustc_session::Session;
+use rustc_session::config::DebugInfo;
+use rustc_span::source_map::Spanned;
+use rustc_span::{Span, Symbol};
+use rustc_target::callconv::FnAbi;
+
+use rustc_target::spec::{HasTargetSpec, Target};
 use tracing::{debug, trace};
 
 pub(crate) struct CodegenCx<'ll, 'tcx> {
     pub tcx: TyCtxt<'tcx>,
-    pub check_overflow: bool,
 
     pub llmod: &'ll llvm::Module,
     pub llcx: &'ll llvm::Context,
@@ -47,9 +49,9 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     /// Map of MIR functions to LLVM function values
     pub instances: RefCell<FxHashMap<Instance<'tcx>, &'ll Value>>,
     /// A cache of the generated vtables for trait objects
-    pub vtables: RefCell<FxHashMap<(Ty<'tcx>, Option<PolyExistentialTraitRef<'tcx>>), &'ll Value>>,
+    pub vtables: RefCell<FxHashMap<(Ty<'tcx>, Option<ty::ExistentialTraitRef<'tcx>>), &'ll Value>>,
     /// A cache of constant strings and their values
-    pub const_cstr_cache: RefCell<FxHashMap<Symbol, &'ll Value>>,
+    pub const_cstr_cache: RefCell<FxHashMap<String, &'ll Value>>,
     /// A map of functions which have parameters at specific indices replaced with an int-remapped type.
     /// such as i128 --> <2 x i64>
     #[allow(clippy::type_complexity)]
@@ -78,10 +80,10 @@ pub(crate) struct CodegenCx<'ll, 'tcx> {
     pub pointee_infos: RefCell<FxHashMap<(Ty<'tcx>, Size), Option<PointeeInfo>>>,
     pub isize_ty: &'ll Type,
 
-    pub dbg_cx: Option<debug_info::CrateDebugContext<'ll, 'tcx>>,
+    pub dbg_cx: Option<debug_info::CodegenUnitDebugContext<'ll, 'tcx>>,
 
     /// A map of the intrinsics we actually declared for usage.
-    pub(crate) intrinsics: RefCell<FxHashMap<String, &'ll Value>>,
+    pub(crate) intrinsics: RefCell<FxHashMap<String, (&'ll Type, &'ll Value)>>,
     /// A map of the intrinsics available but not yet declared.
     pub(crate) intrinsics_map: RefCell<FxHashMap<&'static str, (Vec<&'ll Type>, &'ll Type)>>,
 
@@ -122,8 +124,8 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         };
 
         let dbg_cx = if tcx.sess.opts.debuginfo != DebugInfo::None {
-            let dctx = CrateDebugContext::new(llmod);
-            compile_unit_metadata(tcx, &codegen_unit.name().as_str(), &dctx);
+            let dctx = CodegenUnitDebugContext::new(llmod);
+            debug_info::build_compile_unit_di_node(tcx, &codegen_unit.name().as_str(), &dctx);
             Some(dctx)
         } else {
             None
@@ -131,7 +133,6 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
         let mut cx = CodegenCx {
             tcx,
-            check_overflow,
             llmod,
             llcx,
             codegen_unit,
@@ -151,10 +152,12 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             intrinsics_map: RefCell::new(FxHashMap::with_capacity_and_hasher(
                 // ~319 libdevice intrinsics plus some headroom for llvm
                 350,
-                BuildHasherDefault::default(),
+                Default::default(),
             )),
             local_gen_sym_counter: Cell::new(0),
-            nvptx_data_layout: TargetDataLayout::parse(&target::target()).unwrap(),
+            nvptx_data_layout: TargetDataLayout::parse_from_llvm_datalayout_string(
+                &target::target().data_layout,
+            ).unwrap_or_else(|err| tcx.sess.dcx().emit_fatal(err)),
             nvptx_target: target::target(),
             eh_personality,
             symbols: Symbols {
@@ -170,29 +173,29 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         cx
     }
 
-    pub(crate) fn fatal(&self, msg: &str) -> ! {
-        self.tcx.sess.fatal(msg)
+    pub(crate) fn fatal(&self, msg: impl Into<DiagMessage>) -> ! {
+        self.tcx.sess.dcx().fatal(msg)
     }
 
     // im lazy i know
     pub(crate) fn unsupported(&self, thing: &str) -> ! {
-        self.fatal(&format!("{} is unsupported", thing))
+        self.fatal(format!("{} is unsupported", thing))
     }
 
-    fn create_used_variable_impl(&self, name: *const c_char, values: &[&'ll Value]) {
-        let section = "llvm.metadata\0".as_ptr().cast();
+    pub(crate) fn create_used_variable_impl(&self, name: &'static CStr, values: &[&'ll Value]) {
+        let section = c"llvm.metadata";
         let array = self.const_array(self.type_ptr_to(self.type_i8()), values);
 
         unsafe {
             trace!(
                 "Creating LLVM used variable with name `{}` and values:\n{:#?}",
-                CStr::from_ptr(name).to_str().unwrap(),
+                name.to_str().unwrap(),
                 values
             );
-            let g = llvm::LLVMAddGlobal(self.llmod, self.val_ty(array), name);
+            let g = llvm::LLVMAddGlobal(self.llmod, self.val_ty(array), name.as_ptr());
             llvm::LLVMSetInitializer(g, array);
             llvm::LLVMRustSetLinkage(g, llvm::Linkage::AppendingLinkage);
-            llvm::LLVMSetSection(g, section);
+            llvm::LLVMSetSection(g, section.as_ptr());
         }
     }
 }
@@ -201,10 +204,10 @@ fn sanitize_global_ident(name: &str) -> String {
     name.replace(".", "$")
 }
 
-impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'ll, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn vtables(
         &self,
-    ) -> &RefCell<FxHashMap<(Ty<'tcx>, Option<PolyExistentialTraitRef<'tcx>>), &'ll Value>> {
+    ) -> &RefCell<FxHashMap<(Ty<'tcx>, Option<ty::ExistentialTraitRef<'tcx>>), &'ll Value>> {
         &self.vtables
     }
 
@@ -224,51 +227,38 @@ impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         self.tcx.sess
     }
 
-    fn check_overflow(&self) -> bool {
-        self.check_overflow
-    }
-
     fn codegen_unit(&self) -> &'tcx CodegenUnit<'tcx> {
         self.codegen_unit
     }
 
-    fn used_statics(&self) -> &RefCell<Vec<&'ll Value>> {
-        &self.used_statics
-    }
-
-    fn create_used_variable(&self) {
-        self.create_used_variable_impl("llvm.used\0".as_ptr().cast(), &*self.used_statics.borrow());
-    }
-
-    fn create_compiler_used_variable(&self) {
-        self.create_used_variable_impl(
-            "llvm.compiler.used\0".as_ptr().cast(),
-            &*self.compiler_used_statics.borrow(),
-        );
-    }
-
-    fn declare_c_main(&self, _fn_type: Self::Type) -> Option<Self::Function> {
+    fn declare_c_main(
+        &self,
+        _fn_type: <CodegenCx<'ll, 'tcx> as rustc_codegen_ssa::traits::BackendTypes>::Type,
+    ) -> Option<<CodegenCx<'ll, 'tcx> as rustc_codegen_ssa::traits::BackendTypes>::Function> {
         // no point for gpu kernels
         None
     }
 
-    fn apply_target_cpu_attr(&self, _llfn: Self::Function) {
+    fn apply_target_cpu_attr(
+        &self,
+        _llfn: <CodegenCx<'ll, 'tcx> as rustc_codegen_ssa::traits::BackendTypes>::Function,
+    ) {
         // no point if we are running on the gpu ;)
     }
 
-    fn compiler_used_statics(&self) -> &RefCell<Vec<Self::Value>> {
-        &self.compiler_used_statics
+    fn set_frame_pointer_type(
+        &self,
+        _llfn: <CodegenCx<'ll, 'tcx> as rustc_codegen_ssa::traits::BackendTypes>::Function,
+    ) {
     }
-
-    fn set_frame_pointer_type(&self, _llfn: Self::Function) {}
 }
 
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     /// Computes the address space for a static.
     pub fn static_addrspace(&self, instance: Instance<'tcx>) -> AddressSpace {
-        let ty = instance.ty(self.tcx, ty::ParamEnv::reveal_all());
+        let ty = instance.ty(self.tcx, ty::TypingEnv::fully_monomorphized());
         let is_mutable = self.tcx().is_mutable_static(instance.def_id());
-        let attrs = self.tcx.get_attrs(instance.def_id());
+        let attrs = self.tcx.get_attrs_unchecked(instance.def_id()); // TODO: replace with get_attrs
         let nvvm_attrs = NvvmAttributes::parse(self, attrs);
 
         if let Some(addr) = nvvm_attrs.addrspace {
@@ -371,15 +361,11 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub fn get_defined_value(&self, name: &str) -> Option<&'ll Value> {
         self.get_declared_value(name).and_then(|val| {
             let declaration = unsafe { llvm::LLVMIsDeclaration(val) != 0 };
-            if !declaration {
-                Some(val)
-            } else {
-                None
-            }
+            if !declaration { Some(val) } else { None }
         })
     }
 
-    pub(crate) fn get_intrinsic(&self, key: &str) -> &'ll Value {
+    pub(crate) fn get_intrinsic(&self, key: &str) -> (&'ll Type, &'ll Value) {
         trace!("Retrieving intrinsic with name `{}`", key);
         if let Some(v) = self.intrinsics.borrow().get(key).cloned() {
             return v;
@@ -391,7 +377,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     pub(crate) fn insert_intrinsic(
         &self,
-        name: String,
+        name: &str,
         args: Option<&[&'ll Type]>,
         ret: &'ll Type,
     ) -> &'ll Value {
@@ -402,7 +388,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         };
         let f = self.declare_fn(&name, fn_ty, None);
         llvm::SetUnnamedAddress(f, llvm::UnnamedAddr::No);
-        self.intrinsics.borrow_mut().insert(name, f);
+        self.intrinsics.borrow_mut().insert(name.to_owned(), (fn_ty, f));
         f
     }
 
@@ -414,7 +400,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         let mut name = String::with_capacity(prefix.len() + 6);
         name.push_str(prefix);
         name.push('.');
-        base_n::push_str(idx as u128, base_n::ALPHANUMERIC_ONLY, &mut name);
+        name.push_str(&(idx as u64).to_base(ALPHANUMERIC_ONLY));
         name
     }
 
@@ -422,8 +408,8 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub fn get_fn(&self, instance: Instance<'tcx>) -> &'ll Value {
         let tcx = self.tcx;
 
-        assert!(!instance.substs.needs_infer());
-        assert!(!instance.substs.has_escaping_bound_vars());
+        assert!(!instance.args.has_infer());
+        assert!(!instance.args.has_escaping_bound_vars());
         let sym = tcx.symbol_name(instance).name;
 
         if let Some(&llfn) = self.instances.borrow().get(&instance) {
@@ -454,7 +440,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             unsafe {
                 llvm::LLVMRustSetLinkage(llfn, llvm::Linkage::ExternalLinkage);
 
-                let is_generic = instance.substs.non_erasable_generics().next().is_some();
+                let is_generic = instance.args.non_erasable_generics().next().is_some();
 
                 // nvvm ignores visibility styles, but we still make them just in case it will do something
                 // with them in the future or we want to use that metadata
@@ -559,13 +545,15 @@ impl<'ll, 'tcx> BackendTypes for CodegenCx<'ll, 'tcx> {
 
     type BasicBlock = &'ll BasicBlock;
     type Type = &'ll Type;
-    // not applicable to nvvm, unwinding/exception handling on the gpu
-    // doesnt exist.
+    // not applicable to nvvm, unwinding/exception handling
+    // doesnt exist on the gpu
     type Funclet = ();
 
     type DIScope = &'ll llvm::DIScope;
     type DILocation = &'ll llvm::DILocation;
     type DIVariable = &'ll llvm::DIVariable;
+
+    type Metadata = &'ll llvm::Metadata;
 }
 
 impl<'ll, 'tcx> HasDataLayout for CodegenCx<'ll, 'tcx> {
@@ -586,28 +574,29 @@ impl<'ll, 'tcx> ty::layout::HasTyCtxt<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 }
 
-impl<'ll, 'tcx> LayoutOfHelpers<'tcx> for CodegenCx<'ll, 'tcx> {
-    type LayoutOfResult = TyAndLayout<'tcx>;
+impl<'tcx, 'll> HasTypingEnv<'tcx> for CodegenCx<'ll, 'tcx> {
+    fn typing_env<'a>(&'a self) -> ty::TypingEnv<'tcx> {
+        ty::TypingEnv::fully_monomorphized()
+    }
+}
 
+impl<'tcx> LayoutOfHelpers<'tcx> for CodegenCx<'_, 'tcx> {
     #[inline]
     fn handle_layout_err(&self, err: LayoutError<'tcx>, span: Span, ty: Ty<'tcx>) -> ! {
-        if let LayoutError::SizeOverflow(_) = err {
-            self.sess().span_fatal(span, &err.to_string())
+        if let LayoutError::SizeOverflow(_) | LayoutError::ReferencesError(_) = err {
+            self.tcx.dcx().emit_fatal(Spanned {
+                span,
+                node: err.into_diagnostic(),
+            })
         } else {
-            span_bug!(span, "failed to get layout for `{}`: {}", ty, err)
+            self.tcx
+                .dcx()
+                .emit_fatal(ssa_errors::FailedToGetLayout { span, ty, err })
         }
     }
 }
 
-impl<'tcx, 'll> HasParamEnv<'tcx> for CodegenCx<'ll, 'tcx> {
-    fn param_env(&self) -> ty::ParamEnv<'tcx> {
-        ty::ParamEnv::reveal_all()
-    }
-}
-
 impl<'ll, 'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'ll, 'tcx> {
-    type FnAbiOfResult = &'tcx FnAbi<'tcx, Ty<'tcx>>;
-
     #[inline]
     fn handle_fn_abi_err(
         &self,
@@ -615,17 +604,15 @@ impl<'ll, 'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'ll, 'tcx> {
         span: Span,
         fn_abi_request: FnAbiRequest<'tcx>,
     ) -> ! {
-        if let FnAbiError::Layout(LayoutError::SizeOverflow(_)) = err {
-            self.tcx.sess.span_fatal(span, &err.to_string())
-        } else {
-            match fn_abi_request {
+        match err {
+            FnAbiError::Layout(LayoutError::SizeOverflow(_) | LayoutError::Cycle(_)) => {
+                self.tcx.dcx().emit_fatal(Spanned { span, node: err });
+            }
+            _ => match fn_abi_request {
                 FnAbiRequest::OfFnPtr { sig, extra_args } => {
                     span_bug!(
                         span,
-                        "`fn_abi_of_fn_ptr({}, {:?})` failed: {}",
-                        sig,
-                        extra_args,
-                        err
+                        "`fn_abi_of_fn_ptr({sig}, {extra_args:?})` failed: {err:?}",
                     );
                 }
                 FnAbiRequest::OfInstance {
@@ -634,27 +621,24 @@ impl<'ll, 'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'ll, 'tcx> {
                 } => {
                     span_bug!(
                         span,
-                        "`fn_abi_of_instance({}, {:?})` failed: {}",
-                        instance,
-                        extra_args,
-                        err
+                        "`fn_abi_of_instance({instance}, {extra_args:?})` failed: {err:?}",
                     );
                 }
-            }
+            },
         }
     }
 }
 
-impl<'ll, 'tcx> CoverageInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
-    fn coverageinfo_finalize(&self) {
+impl<'ll, 'tcx> CoverageInfoBuilderMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+    fn init_coverage(&mut self, _instance: Instance<'tcx>) {
         todo!()
     }
 
-    fn define_unused_fn(&self, _def_id: rustc_hir::def_id::DefId) {
-        todo!()
-    }
-
-    fn get_pgo_func_name_var(&self, _instance: Instance<'tcx>) -> Self::Value {
+    fn add_coverage(
+        &mut self,
+        instance: Instance<'tcx>,
+        kind: &rustc_middle::mir::coverage::CoverageKind,
+    ) {
         todo!()
     }
 }

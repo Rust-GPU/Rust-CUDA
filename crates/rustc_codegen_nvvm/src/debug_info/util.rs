@@ -1,12 +1,14 @@
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::DefIdTree;
+use rustc_middle::ty::layout::{HasTypingEnv, LayoutOf};
+use rustc_middle::ty::{self, Ty};
+use tracing::trace;
 
 use crate::context::CodegenCx;
 use crate::llvm;
 use crate::llvm::debuginfo::{DIArray, DIBuilder, DIDescriptor, DIScope};
 
 use super::namespace::item_namespace;
-use super::CrateDebugContext;
+use super::CodegenUnitDebugContext;
 
 pub(crate) fn is_node_local_to_unit(cx: &CodegenCx<'_, '_>, def_id: DefId) -> bool {
     // The is_local_to_unit flag indicates whether a function is local to the
@@ -31,7 +33,7 @@ pub(crate) fn create_DIArray<'ll>(
 #[inline]
 pub(crate) fn debug_context<'a, 'll, 'tcx>(
     cx: &'a CodegenCx<'ll, 'tcx>,
-) -> &'a CrateDebugContext<'ll, 'tcx> {
+) -> &'a CodegenUnitDebugContext<'ll, 'tcx> {
     cx.dbg_cx.as_ref().unwrap()
 }
 
@@ -47,8 +49,54 @@ pub(crate) fn get_namespace_for_item<'ll, 'tcx>(
 ) -> &'ll DIScope {
     item_namespace(
         cx,
-        cx.tcx
-            .parent(def_id)
-            .expect("get_namespace_for_item: missing parent?"),
+        cx.tcx.parent(def_id)
     )
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum WidePtrKind {
+    Slice,
+    Dyn,
+}
+
+/// Determines if `pointee_ty` is slice-like or trait-object-like, i.e.
+/// if the second field of the wide pointer is a length or a vtable-pointer.
+/// If `pointee_ty` does not require a wide pointer (because it is Sized) then
+/// the function returns `None`.
+pub(crate) fn wide_pointer_kind<'ll, 'tcx>(
+    cx: &CodegenCx<'ll, 'tcx>,
+    pointee_ty: Ty<'tcx>,
+) -> Option<WidePtrKind> {
+    let pointee_tail_ty = cx.tcx.struct_tail_for_codegen(pointee_ty, cx.typing_env());
+    let layout = cx.layout_of(pointee_tail_ty);
+    trace!(
+        "wide_pointer_kind: {:?} has layout {:?} (is_unsized? {})",
+        pointee_tail_ty,
+        layout,
+        layout.is_unsized()
+    );
+
+    if layout.is_sized() {
+        return None;
+    }
+
+    match *pointee_tail_ty.kind() {
+        ty::Str | ty::Slice(_) => Some(WidePtrKind::Slice),
+        ty::Dynamic(..) => Some(WidePtrKind::Dyn),
+        ty::Foreign(_) => {
+            // Assert that pointers to foreign types really are thin:
+            assert_eq!(
+                cx.size_of(Ty::new_imm_ptr(cx.tcx, pointee_tail_ty)),
+                cx.size_of(Ty::new_imm_ptr(cx.tcx, cx.tcx.types.u8))
+            );
+            None
+        }
+        _ => {
+            // For all other pointee types we should already have returned None
+            // at the beginning of the function.
+            panic!(
+                "wide_pointer_kind() - Encountered unexpected `pointee_tail_ty`: {pointee_tail_ty:?}"
+            )
+        }
+    }
 }

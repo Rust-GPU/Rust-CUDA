@@ -1,26 +1,30 @@
+use std::cell::OnceCell;
 use std::cell::RefCell;
 use std::ffi::CString;
+use std::iter;
+use std::ops::Range;
+use std::sync::Arc;
 
 use libc::c_uint;
+use rustc_abi::Size;
 use rustc_codegen_ssa::debuginfo::type_names;
 use rustc_codegen_ssa::mir::debuginfo::VariableKind::*;
 use rustc_codegen_ssa::mir::debuginfo::{DebugScope, FunctionDebugContext, VariableKind};
 use rustc_codegen_ssa::traits::*;
-use rustc_data_structures::fx::{FxHashMap, FxHashSet};
-use rustc_data_structures::sync::Lrc;
+use rustc_data_structures::unord::UnordMap;
 use rustc_hir::def_id::{DefId, DefIdMap};
-use rustc_index::vec::IndexVec;
+use rustc_index::IndexVec;
 use rustc_middle::mir;
-use rustc_middle::ty::layout::HasTyCtxt;
-use rustc_middle::ty::subst::{GenericArgKind, SubstsRef};
-use rustc_middle::ty::{self, Binder, ExistentialTraitRef, Instance, ParamEnv, Ty, TypeFoldable};
+use rustc_middle::ty::layout::{HasTyCtxt, HasTypingEnv};
+use rustc_middle::ty::{self, GenericArgKind, GenericArgsRef, Instance, Ty, TypeVisitableExt};
 use rustc_session::config::{self, DebugInfo};
 use rustc_span::symbol::Symbol;
-use rustc_span::{self, BytePos, Pos, SourceFile, SourceFileAndLine, Span};
-use rustc_target::abi::call::FnAbi;
-use rustc_target::abi::{Primitive, Size};
+use rustc_span::{self, BytePos, Pos, SourceFile, SourceFileAndLine, SourceFileHash, Span, StableSourceFileId};
+use rustc_target::callconv::FnAbi;
+use smallvec::SmallVec;
 
 use crate::builder::Builder;
+use crate::common::AsCCharPtr;
 use crate::context::CodegenCx;
 use crate::debug_info::util::{create_DIArray, is_node_local_to_unit};
 use crate::llvm::{self, debuginfo::*, Value};
@@ -30,7 +34,8 @@ use self::util::DIB;
 use create_scope_map::compute_mir_scopes;
 
 mod create_scope_map;
-mod metadata;
+mod dwarf_const;
+pub(crate) mod metadata;
 mod namespace;
 mod util;
 
@@ -41,24 +46,19 @@ const DW_TAG_auto_variable: c_uint = 0x100;
 #[allow(non_upper_case_globals)]
 const DW_TAG_arg_variable: c_uint = 0x101;
 
-pub struct CrateDebugContext<'a, 'tcx> {
+pub struct CodegenUnitDebugContext<'ll, 'tcx> {
     #[allow(dead_code)]
-    llcontext: &'a llvm::Context,
-    llmod: &'a llvm::Module,
-    builder: &'a mut DIBuilder<'a>,
-    #[allow(clippy::type_complexity)]
-    created_files: RefCell<FxHashMap<(Option<String>, Option<String>), &'a DIFile>>,
-    created_enum_disr_types: RefCell<FxHashMap<(DefId, Primitive), &'a DIType>>,
+    llcontext: &'ll llvm::Context,
+    llmod: &'ll llvm::Module,
+    builder: &'ll mut DIBuilder<'ll>,
+    created_files: RefCell<UnordMap<Option<(StableSourceFileId, SourceFileHash)>, &'ll DIFile>>,
 
-    type_map: RefCell<TypeMap<'a, 'tcx>>,
-    namespace_map: RefCell<DefIdMap<&'a DIScope>>,
-
-    // This collection is used to assert that composite types (structs, enums,
-    // ...) have their members only set once:
-    composite_types_completed: RefCell<FxHashSet<&'a DIType>>,
+    type_map: metadata::TypeMap<'ll, 'tcx>,
+    namespace_map: RefCell<DefIdMap<&'ll DIScope>>,
+    recursion_marker_type: OnceCell<&'ll DIType>,
 }
 
-impl<'a, 'tcx> Drop for CrateDebugContext<'a, 'tcx> {
+impl<'a, 'tcx> Drop for CodegenUnitDebugContext<'a, 'tcx> {
     fn drop(&mut self) {
         unsafe {
             llvm::LLVMRustDIBuilderDispose(&mut *(self.builder as *mut _));
@@ -66,37 +66,43 @@ impl<'a, 'tcx> Drop for CrateDebugContext<'a, 'tcx> {
     }
 }
 
-impl<'a, 'tcx> CrateDebugContext<'a, 'tcx> {
+impl<'a, 'tcx> CodegenUnitDebugContext<'a, 'tcx> {
     pub(crate) fn new(llmod: &'a llvm::Module) -> Self {
         let builder = unsafe { llvm::LLVMRustDIBuilderCreate(llmod) };
         // DIBuilder inherits context from the module, so we'd better use the same one
         let llcontext = unsafe { llvm::LLVMGetModuleContext(llmod) };
-        CrateDebugContext {
+        CodegenUnitDebugContext {
             llcontext,
             llmod,
             builder,
             created_files: Default::default(),
-            created_enum_disr_types: Default::default(),
             type_map: Default::default(),
             namespace_map: RefCell::new(Default::default()),
-            composite_types_completed: Default::default(),
+            recursion_marker_type: OnceCell::new(),
         }
     }
 
-    pub fn finalize(&self) {
+    pub(crate) fn finalize(&self) {
         unsafe {
             llvm::LLVMRustDIBuilderFinalize(self.builder);
 
             // Prevent bitcode readers from deleting the debug info.
-            let ptr = "Debug Info Version\0".as_ptr();
             llvm::LLVMRustAddModuleFlag(
                 self.llmod,
-                ptr.cast(),
+                c"Debug Info Version".as_ptr(),
                 llvm::LLVMRustDebugMetadataVersion(),
             );
         }
     }
 }
+
+/// Creates any deferred debug metadata nodes
+pub(crate) fn finalize(cx: &CodegenCx<'_, '_>) {
+    if let Some(dbg_cx) = &cx.dbg_cx {
+        dbg_cx.finalize();
+    }
+}
+
 
 impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
     fn dbg_var_addr(
@@ -106,21 +112,30 @@ impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
         variable_alloca: &'ll Value,
         direct_offset: Size,
         indirect_offsets: &[Size],
+        fragment: Option<Range<Size>>,
     ) {
-        let op_deref = || unsafe { llvm::LLVMRustDIBuilderCreateOpDeref() };
-        let op_plus_uconst = || unsafe { llvm::LLVMRustDIBuilderCreateOpPlusUconst() };
-        let mut addr_ops = Vec::new();
+        use dwarf_const::{DW_OP_LLVM_fragment, DW_OP_deref, DW_OP_plus_uconst};
+
+        let mut addr_ops = SmallVec::<[i64; 8]>::new();
 
         if direct_offset.bytes() > 0 {
-            addr_ops.push(op_plus_uconst());
+            addr_ops.push(DW_OP_plus_uconst);
             addr_ops.push(direct_offset.bytes() as i64);
         }
         for &offset in indirect_offsets {
-            addr_ops.push(op_deref());
+            addr_ops.push(DW_OP_deref);
             if offset.bytes() > 0 {
-                addr_ops.push(op_plus_uconst());
+                addr_ops.push(DW_OP_plus_uconst);
                 addr_ops.push(offset.bytes() as i64);
             }
+        }
+
+        if let Some(fragment) = fragment {
+            // `DW_OP_LLVM_fragment` takes as arguments the fragment's
+            // offset and size, both of them in bits.
+            addr_ops.push(DW_OP_LLVM_fragment);
+            addr_ops.push(fragment.start.bits() as i64);
+            addr_ops.push((fragment.end - fragment.start).bits() as i64);
         }
 
         unsafe {
@@ -139,7 +154,7 @@ impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
     fn set_dbg_loc(&mut self, dbg_loc: &'ll DILocation) {
         unsafe {
             let dbg_loc_as_llval = llvm::LLVMRustMetadataAsValue(self.cx().llcx, dbg_loc);
-            llvm::LLVMSetCurrentDebugLocation(self.llbuilder, dbg_loc_as_llval);
+            llvm::LLVMSetCurrentDebugLocation(self.llbuilder, Some(dbg_loc_as_llval));
         }
     }
 
@@ -168,12 +183,22 @@ impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
             llvm::set_value_name(value, name.as_bytes());
         }
     }
+    
+    fn clear_dbg_loc(&mut self) {
+        unsafe {
+            llvm::LLVMSetCurrentDebugLocation(self.llbuilder, None);
+        }
+    }
+    
+    fn get_dbg_loc(&self) -> Option<Self::DILocation> {
+        None // TODO: implement this
+    }
 }
 
 /// A source code location used to generate debug information.
 pub struct DebugLoc {
     /// Information about the original source file.
-    pub file: Lrc<SourceFile>,
+    pub file: Arc<SourceFile>,
     /// The (1-based) line number.
     pub line: u32,
     /// The (1-based) column number.
@@ -200,27 +225,28 @@ impl<'ll> CodegenCx<'ll, '_> {
     }
 }
 
-impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn create_function_debug_context(
         &self,
         instance: Instance<'tcx>,
         fn_abi: &FnAbi<'tcx, Ty<'tcx>>,
-        llfn: &'ll Value,
+        llfn: Self::Function,
         mir: &mir::Body<'tcx>,
-    ) -> Option<FunctionDebugContext<&'ll DIScope, &'ll DILocation>> {
+    ) -> Option<FunctionDebugContext<'tcx, Self::DIScope, Self::DILocation>> {
         if self.sess().opts.debuginfo == DebugInfo::None {
             return None;
         }
 
         // Initialize fn debug context (including scopes).
         let empty_scope = DebugScope {
-            dbg_scope: None,
+            dbg_scope: self.dbg_scope_fn(instance, fn_abi, Some(llfn)),
             inlined_at: None,
             file_start_pos: BytePos(0),
             file_end_pos: BytePos(0),
         };
         let mut fn_debug_context = FunctionDebugContext {
             scopes: IndexVec::from_elem(empty_scope, &mir.source_scopes),
+            inlined_function_scopes: Default::default(),
         };
 
         // Fill in all the scopes, with the information from the MIR body.
@@ -228,7 +254,6 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
             self,
             instance,
             mir,
-            self.dbg_scope_fn(instance, fn_abi, Some(llfn)),
             &mut fn_debug_context,
         );
 
@@ -241,9 +266,11 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         fn_abi: &FnAbi<'tcx, Ty<'tcx>>,
         maybe_definition_llfn: Option<&'ll Value>,
     ) -> &'ll DIScope {
+        let tcx = self.tcx();
+
         let def_id = instance.def_id();
         let containing_scope = get_containing_scope(self, instance);
-        let span = self.tcx.def_span(def_id);
+        let span = tcx.def_span(def_id);
         let loc = self.lookup_debug_loc(span.lo());
         let file_metadata = file_metadata(self, &loc.file);
 
@@ -253,16 +280,16 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         };
 
         let mut name = String::new();
-        type_names::push_item_name(self.tcx(), def_id, false, &mut name);
+        type_names::push_item_name(tcx, def_id, false, &mut name);
 
         // Find the enclosing function, in case this is a closure.
-        let enclosing_fn_def_id = self.tcx().typeck_root_def_id(def_id);
+        let enclosing_fn_def_id = tcx.typeck_root_def_id(def_id);
 
         // Get_template_parameters() will append a `<...>` clause to the function
         // name if necessary.
-        let generics = self.tcx().generics_of(enclosing_fn_def_id);
-        let substs = instance.substs.truncate_to(self.tcx(), generics);
-        let template_parameters = get_template_parameters(self, generics, substs, &mut name);
+        let generics = tcx.generics_of(enclosing_fn_def_id);
+        let args = instance.args.truncate_to(tcx, generics);
+        let template_parameters = get_template_parameters(self, generics, args);
 
         let linkage_name = &mangled_name_of_instance(self, instance).name;
         // Omit the linkage_name if it is the same as subprogram name.
@@ -278,14 +305,14 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         let mut flags = DIFlags::FlagPrototyped;
 
-        if fn_abi.ret.layout.abi.is_uninhabited() {
+        if fn_abi.ret.layout.backend_repr.is_uninhabited() {
             flags |= DIFlags::FlagNoReturn;
         }
 
         unsafe {
             return llvm::LLVMRustDIBuilderCreateFunction(
                 DIB(self),
-                containing_scope,
+                containing_scope.0,
                 name.as_ptr(),
                 linkage_name.as_ptr(),
                 file_metadata,
@@ -316,18 +343,14 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
             signature.push(if fn_abi.ret.is_ignore() {
                 None
             } else {
-                Some(type_metadata(
-                    cx,
-                    fn_abi.ret.layout.ty,
-                    rustc_span::DUMMY_SP,
-                ))
+                Some(type_di_node(cx, fn_abi.ret.layout.ty,))
             });
 
             signature.extend(
                 fn_abi
                     .args
                     .iter()
-                    .map(|arg| Some(type_metadata(cx, arg.layout.ty, rustc_span::DUMMY_SP))),
+                    .map(|arg| Some(type_di_node(cx, arg.layout.ty))),
             );
 
             create_DIArray(DIB(cx), &signature[..])
@@ -336,38 +359,30 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         fn get_template_parameters<'ll, 'tcx>(
             cx: &CodegenCx<'ll, 'tcx>,
             generics: &ty::Generics,
-            substs: SubstsRef<'tcx>,
-            name_to_append_suffix_to: &mut String,
+            args: GenericArgsRef<'tcx>,
         ) -> &'ll DIArray {
-            type_names::push_generic_params(
-                cx.tcx,
-                cx.tcx
-                    .normalize_erasing_regions(ty::ParamEnv::reveal_all(), substs),
-                name_to_append_suffix_to,
-            );
 
-            if substs.types().next().is_none() {
+            if args.types().next().is_none() {
                 return create_DIArray(DIB(cx), &[]);
             }
 
             // Again, only create type information if full debuginfo is enabled
             let template_params: Vec<_> = if cx.sess().opts.debuginfo == DebugInfo::Full {
                 let names = get_parameter_names(cx, generics);
-                substs
-                    .into_iter()
-                    .zip(names.into_iter())
+                iter::zip(args, names)
                     .filter_map(|(kind, name)| {
                         if let GenericArgKind::Type(ty) = kind.unpack() {
                             let actual_type =
-                                cx.tcx.normalize_erasing_regions(ParamEnv::reveal_all(), ty);
+                                cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
                             let actual_type_metadata =
-                                type_metadata(cx, actual_type, rustc_span::DUMMY_SP);
-                            let name = CString::new(&*name.as_str()).unwrap();
+                                type_di_node(cx, actual_type);
+                            let name = name.as_str();
                             Some(unsafe {
                                 Some(llvm::LLVMRustDIBuilderCreateTemplateTypeParameter(
                                     DIB(cx),
                                     None,
-                                    name.as_ptr().cast(),
+                                    name.as_c_char_ptr(),
+                                    name.len(),
                                     actual_type_metadata,
                                 ))
                             })
@@ -380,71 +395,65 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                 vec![]
             };
 
-            create_DIArray(DIB(cx), &template_params[..])
+            create_DIArray(DIB(cx), &template_params)
         }
 
         fn get_parameter_names(cx: &CodegenCx<'_, '_>, generics: &ty::Generics) -> Vec<Symbol> {
             let mut names = generics.parent.map_or_else(Vec::new, |def_id| {
                 get_parameter_names(cx, cx.tcx.generics_of(def_id))
             });
-            names.extend(generics.params.iter().map(|param| param.name));
+            names.extend(generics.own_params.iter().map(|param| param.name));
             names
         }
 
         fn get_containing_scope<'ll, 'tcx>(
             cx: &CodegenCx<'ll, 'tcx>,
             instance: Instance<'tcx>,
-        ) -> &'ll DIScope {
+        ) -> (&'ll DIScope, bool) {
             // First, let's see if this is a method within an inherent impl. Because
             // if yes, we want to make the result subroutine DIE a child of the
             // subroutine's self-type.
-            let self_type = cx
-                .tcx
-                .impl_of_method(instance.def_id())
-                .and_then(|impl_def_id| {
-                    // If the method does *not* belong to a trait, proceed
-                    if cx.tcx.trait_id_of_impl(impl_def_id).is_none() {
-                        let impl_self_ty = cx.tcx.subst_and_normalize_erasing_regions(
-                            instance.substs,
-                            ty::ParamEnv::reveal_all(),
-                            cx.tcx.type_of(impl_def_id),
-                        );
+            if let Some(impl_def_id) = cx.tcx.impl_of_method(instance.def_id()) {
+                // If the method does *not* belong to a trait, proceed
+                if cx.tcx.trait_id_of_impl(impl_def_id).is_none() {
+                    let impl_self_ty = cx.tcx.instantiate_and_normalize_erasing_regions(
+                        instance.args,
+                        cx.typing_env(),
+                        cx.tcx.type_of(impl_def_id),
+                    );
 
-                        // Only "class" methods are generally understood by LLVM,
-                        // so avoid methods on other types (e.g., `<*mut T>::null`).
-                        match impl_self_ty.kind() {
-                            ty::Adt(def, ..) if !def.is_box() => {
-                                // Again, only create type information if full debuginfo is enabled
-                                if cx.sess().opts.debuginfo == DebugInfo::Full
-                                    && !impl_self_ty.definitely_needs_subst(cx.tcx)
-                                {
-                                    Some(type_metadata(cx, impl_self_ty, rustc_span::DUMMY_SP))
-                                } else {
-                                    Some(namespace::item_namespace(cx, def.did))
-                                }
-                            }
-                            _ => None,
+                    // Only "class" methods are generally understood by LLVM,
+                    // so avoid methods on other types (e.g., `<*mut T>::null`).
+                    if let ty::Adt(def, ..) = impl_self_ty.kind() 
+                        && !def.is_box()
+                    {
+                        // Again, only create type information if full debuginfo is enabled
+                        if cx.sess().opts.debuginfo == DebugInfo::Full
+                        && !impl_self_ty.has_param()
+                        {
+                            return (type_di_node(cx, impl_self_ty), true);
+                        } else {
+                            return (namespace::item_namespace(cx, def.did()), false);
                         }
-                    } else {
-                        // For trait method impls we still use the "parallel namespace"
-                        // strategy
-                        None
                     }
-                });
+                } else {
+                    // For trait method impls we still use the "parallel namespace"
+                    // strategy
+                }
+            }
+            let scope = namespace::item_namespace(
+                cx,
+                DefId {
+                    krate: instance.def_id().krate,
+                    index: cx
+                        .tcx
+                        .def_key(instance.def_id())
+                        .parent
+                        .expect("get_containing_scope: missing parent?"),
+                },
+            );
 
-            self_type.unwrap_or_else(|| {
-                namespace::item_namespace(
-                    cx,
-                    DefId {
-                        krate: instance.def_id().krate,
-                        index: cx
-                            .tcx
-                            .def_key(instance.def_id())
-                            .parent
-                            .expect("get_containing_scope: missing parent?"),
-                    },
-                )
-            })
+            (scope, false)
         }
     }
 
@@ -459,13 +468,13 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         unsafe { llvm::LLVMRustDIBuilderCreateDebugLocation(line, col, scope, inlined_at) }
     }
 
-    fn create_vtable_metadata(
+    fn create_vtable_debuginfo(
         &self,
         ty: Ty<'tcx>,
-        _: Option<Binder<'tcx, ExistentialTraitRef<'tcx>>>,
+        trait_ref: Option<ty::ExistentialTraitRef<'tcx>>,
         vtable: Self::Value,
     ) {
-        metadata::create_vtable_metadata(self, ty, vtable)
+        metadata::create_vtable_di_node(self, ty, trait_ref, vtable)
     }
 
     fn extend_scope_to_file(
@@ -477,9 +486,7 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn debuginfo_finalize(&self) {
-        if let Some(dbg_cx) = &self.dbg_cx {
-            dbg_cx.finalize();
-        }
+        finalize(self)
     }
 
     fn create_dbg_var(
@@ -493,7 +500,7 @@ impl<'ll, 'tcx> DebugInfoMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         let loc = self.lookup_debug_loc(span.lo());
         let file_metadata = file_metadata(self, &loc.file);
 
-        let type_metadata = type_metadata(self, variable_type, span);
+        let type_metadata = type_di_node(self, variable_type);
 
         let (argument_index, dwarf_tag) = match variable_kind {
             ArgumentVariable(index) => (index as c_uint, DW_TAG_arg_variable),

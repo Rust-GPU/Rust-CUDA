@@ -1,6 +1,7 @@
 //! CUDA-specific pointer handling logic.
 
 use crate::gpu_only;
+use core::arch::asm;
 
 /// Special areas of GPU memory where a pointer could reside.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

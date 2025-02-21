@@ -1,6 +1,5 @@
 //! Tiny crate for common logic for finding and including CUDA.
 
-use std::process::Command;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -154,6 +153,7 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
 
 #[cfg(not(target_os = "windows"))]
 fn detect_cuda_root_via_which_nvcc() -> PathBuf {
+    use std::process::Command;
     let output = Command::new("which")
         .arg("nvcc")
         .output()
