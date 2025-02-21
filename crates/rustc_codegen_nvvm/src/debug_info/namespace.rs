@@ -9,7 +9,7 @@ use crate::llvm;
 use crate::llvm::debuginfo::DIScope;
 use rustc_hir::def_id::DefId;
 
-use super::util::{debug_context, DIB};
+use super::util::{DIB, debug_context};
 
 pub(crate) fn mangled_name_of_instance<'a, 'tcx>(
     cx: &CodegenCx<'a, 'tcx>,

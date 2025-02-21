@@ -87,9 +87,11 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
             .or_insert_with(|| {
                 let sc = self.const_bytes(s.as_bytes());
                 let sym = self.generate_local_symbol_name("str");
-                let g = self.define_global(&sym[..], self.val_ty(sc), AddressSpace::DATA).unwrap_or_else(|| {
-                    bug!("symbol `{}` is already defined", sym);
-                });
+                let g = self
+                    .define_global(&sym[..], self.val_ty(sc), AddressSpace::DATA)
+                    .unwrap_or_else(|| {
+                        bug!("symbol `{}` is already defined", sym);
+                    });
                 unsafe {
                     llvm::LLVMSetInitializer(g, sc);
                     llvm::LLVMSetGlobalConstant(g, True);
@@ -129,12 +131,7 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         }
     }
 
-    fn scalar_to_backend(
-        &self,
-        cv: Scalar,
-        layout: abi::Scalar,
-        llty: &'ll Type,
-    ) -> &'ll Value {
+    fn scalar_to_backend(&self, cv: Scalar, layout: abi::Scalar, llty: &'ll Type) -> &'ll Value {
         trace!("Scalar to backend `{:?}`, `{:?}`, `{:?}`", cv, layout, llty);
         let bitsize = if layout.is_bool() {
             1
@@ -188,9 +185,10 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                             (value, AddressSpace::DATA)
                         }
                     }
-                    GlobalAlloc::Function { instance, .. } => {
-                        (self.get_fn_addr(instance), self.data_layout().instruction_address_space)
-                    },
+                    GlobalAlloc::Function { instance, .. } => (
+                        self.get_fn_addr(instance),
+                        self.data_layout().instruction_address_space,
+                    ),
                     GlobalAlloc::VTable(ty, dyn_ty) => {
                         let alloc = self
                             .tcx
@@ -270,13 +268,7 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn const_ptr_byte_offset(&self, base_addr: Self::Value, offset: abi::Size) -> Self::Value {
-        unsafe {
-            llvm::LLVMConstInBoundsGEP(
-                base_addr,
-                &self.const_usize(offset.bytes()),
-                1,
-            )
-        }
+        unsafe { llvm::LLVMConstInBoundsGEP(base_addr, &self.const_usize(offset.bytes()), 1) }
     }
 }
 

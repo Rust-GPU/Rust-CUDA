@@ -2,12 +2,14 @@ use rustc_abi as abi;
 use rustc_abi::{self, Float, HasDataLayout, Primitive};
 use rustc_codegen_ssa::errors::InvalidMonomorphization;
 use rustc_codegen_ssa::mir::{operand::OperandRef, place::PlaceRef};
-use rustc_codegen_ssa::traits::{BuilderMethods, ConstCodegenMethods, IntrinsicCallBuilderMethods, OverflowOp};
+use rustc_codegen_ssa::traits::{
+    BuilderMethods, ConstCodegenMethods, IntrinsicCallBuilderMethods, OverflowOp,
+};
 use rustc_middle::ty::Ty;
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::{bug, ty};
 use rustc_span::symbol::kw;
-use rustc_span::{sym, Span, Symbol};
+use rustc_span::{Span, Symbol, sym};
 use rustc_target::callconv::{FnAbi, PassMode};
 use tracing::trace;
 
@@ -183,15 +185,23 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
 
         let simple = get_simple_intrinsic(self, name);
         let llval = match name {
-            _ if simple.is_some() => self.call(self.type_i1(), None, None, simple.unwrap(), &args.iter().map(|arg| arg.immediate()).collect::<Vec<_>>(), None, None),
-            sym::likely => self.call_intrinsic("llvm.expect.i1", &[
-                args[0].immediate(),
-                self.const_bool(true),
-            ]),
-            sym::unlikely => self.call_intrinsic("llvm.expect.i1", &[
-                args[0].immediate(),
-                self.const_bool(false),
-            ]),
+            _ if simple.is_some() => self.call(
+                self.type_i1(),
+                None,
+                None,
+                simple.unwrap(),
+                &args.iter().map(|arg| arg.immediate()).collect::<Vec<_>>(),
+                None,
+                None,
+            ),
+            sym::likely => self.call_intrinsic(
+                "llvm.expect.i1",
+                &[args[0].immediate(), self.const_bool(true)],
+            ),
+            sym::unlikely => self.call_intrinsic(
+                "llvm.expect.i1",
+                &[args[0].immediate(), self.const_bool(false)],
+            ),
             kw::Try => {
                 let try_func = args[0].immediate();
                 let data = args[1].immediate();
@@ -286,12 +296,15 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                     sym::prefetch_write_instruction => (1, 0),
                     _ => bug!(),
                 };
-                self.call_intrinsic("llvm.prefetch", &[
-                    args[0].immediate(),
-                    self.const_i32(rw),
-                    args[1].immediate(),
-                    self.const_i32(cache_type),
-                ])
+                self.call_intrinsic(
+                    "llvm.prefetch",
+                    &[
+                        args[0].immediate(),
+                        self.const_i32(rw),
+                        args[1].immediate(),
+                        self.const_i32(cache_type),
+                    ],
+                )
             }
             sym::ctlz
             | sym::ctlz_nonzero
@@ -334,22 +347,24 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                             let llvm_name = format!("llvm.{}.i{}", &name_str[..4], width);
                             self.call_intrinsic(&llvm_name, &[args[0].immediate(), y])
                         }
-                        sym::ctpop => self.call_intrinsic(&format!("llvm.ctpop.i{}", width), &[
-                            args[0].immediate(),
-                        ]),
+                        sym::ctpop => self.call_intrinsic(
+                            &format!("llvm.ctpop.i{}", width),
+                            &[args[0].immediate()],
+                        ),
                         sym::bswap => {
                             if width == 8 {
                                 args[0].immediate() // byte swap a u8/i8 is just a no-op
                             } else {
-                                self.call_intrinsic(&format!("llvm.bswap.i{}", width), &[
-                                    args[0].immediate()
-                                ])
+                                self.call_intrinsic(
+                                    &format!("llvm.bswap.i{}", width),
+                                    &[args[0].immediate()],
+                                )
                             }
                         }
-                        sym::bitreverse => self
-                            .call_intrinsic(&format!("llvm.bitreverse.i{}", width), &[
-                                args[0].immediate()
-                            ]),
+                        sym::bitreverse => self.call_intrinsic(
+                            &format!("llvm.bitreverse.i{}", width),
+                            &[args[0].immediate()],
+                        ),
                         sym::rotate_left | sym::rotate_right => {
                             let is_left = name == sym::rotate_left;
                             let val = args[0].immediate();
@@ -418,7 +433,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
         };
         trace!("Finish intrinsic call: `{:?}`", llval);
         if !fn_abi.ret.is_ignore() {
-            if let PassMode::Cast{ cast, .. } = &fn_abi.ret.mode {
+            if let PassMode::Cast { cast, .. } = &fn_abi.ret.mode {
                 let ptr_llty = self.type_ptr_to(cast.llvm_type(self));
                 let ptr = self.pointercast(result.val.llval, ptr_llty);
                 self.store(llval, ptr, result.val.align);

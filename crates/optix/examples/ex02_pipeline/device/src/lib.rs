@@ -1,3 +1,4 @@
+#![feature(asm)]
 #![cfg_attr(
     target_os = "cuda",
     no_std,

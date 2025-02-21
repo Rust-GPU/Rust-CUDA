@@ -488,7 +488,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                 }
             }
         }
-        for arg in self.args.iter() {            
+        for arg in self.args.iter() {
             match &arg.mode {
                 PassMode::Ignore => {}
                 PassMode::Indirect {
@@ -518,7 +518,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     apply(bx.cx, a);
                     apply(bx.cx, b);
                 }
-                PassMode::Cast{ pad_i32, .. } => {
+                PassMode::Cast { pad_i32, .. } => {
                     if *pad_i32 {
                         apply(bx.cx, &ArgAttributes::new());
                     }
@@ -527,7 +527,6 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             }
         }
     }
-
 }
 
 impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {

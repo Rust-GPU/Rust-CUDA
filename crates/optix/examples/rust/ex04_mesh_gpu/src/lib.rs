@@ -1,8 +1,4 @@
-#![cfg_attr(
-    target_os = "cuda",
-    no_std,
-    register_attr(nvvm_internal)
-)]
+#![cfg_attr(target_os = "cuda", no_std, register_attr(nvvm_internal))]
 #![allow(non_snake_case, clippy::missing_safety_doc)]
 
 use cuda_std::kernel;

@@ -19,7 +19,9 @@ use rustc_middle::ty::layout::{HasTyCtxt, HasTypingEnv};
 use rustc_middle::ty::{self, GenericArgKind, GenericArgsRef, Instance, Ty, TypeVisitableExt};
 use rustc_session::config::{self, DebugInfo};
 use rustc_span::symbol::Symbol;
-use rustc_span::{self, BytePos, Pos, SourceFile, SourceFileAndLine, SourceFileHash, Span, StableSourceFileId};
+use rustc_span::{
+    self, BytePos, Pos, SourceFile, SourceFileAndLine, SourceFileHash, Span, StableSourceFileId,
+};
 use rustc_target::callconv::FnAbi;
 use smallvec::SmallVec;
 
@@ -27,7 +29,7 @@ use crate::builder::Builder;
 use crate::common::AsCCharPtr;
 use crate::context::CodegenCx;
 use crate::debug_info::util::{create_DIArray, is_node_local_to_unit};
-use crate::llvm::{self, debuginfo::*, Value};
+use crate::llvm::{self, Value, debuginfo::*};
 
 use self::namespace::*;
 use self::util::DIB;
@@ -102,7 +104,6 @@ pub(crate) fn finalize(cx: &CodegenCx<'_, '_>) {
         dbg_cx.finalize();
     }
 }
-
 
 impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
     fn dbg_var_addr(
@@ -183,13 +184,13 @@ impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
             llvm::set_value_name(value, name.as_bytes());
         }
     }
-    
+
     fn clear_dbg_loc(&mut self) {
         unsafe {
             llvm::LLVMSetCurrentDebugLocation(self.llbuilder, None);
         }
     }
-    
+
     fn get_dbg_loc(&self) -> Option<Self::DILocation> {
         None // TODO: implement this
     }
@@ -250,12 +251,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         };
 
         // Fill in all the scopes, with the information from the MIR body.
-        compute_mir_scopes(
-            self,
-            instance,
-            mir,
-            &mut fn_debug_context,
-        );
+        compute_mir_scopes(self, instance, mir, &mut fn_debug_context);
 
         Some(fn_debug_context)
     }
@@ -343,7 +339,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
             signature.push(if fn_abi.ret.is_ignore() {
                 None
             } else {
-                Some(type_di_node(cx, fn_abi.ret.layout.ty,))
+                Some(type_di_node(cx, fn_abi.ret.layout.ty))
             });
 
             signature.extend(
@@ -361,7 +357,6 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
             generics: &ty::Generics,
             args: GenericArgsRef<'tcx>,
         ) -> &'ll DIArray {
-
             if args.types().next().is_none() {
                 return create_DIArray(DIB(cx), &[]);
             }
@@ -372,10 +367,8 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                 iter::zip(args, names)
                     .filter_map(|(kind, name)| {
                         if let GenericArgKind::Type(ty) = kind.unpack() {
-                            let actual_type =
-                                cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
-                            let actual_type_metadata =
-                                type_di_node(cx, actual_type);
+                            let actual_type = cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
+                            let actual_type_metadata = type_di_node(cx, actual_type);
                             let name = name.as_str();
                             Some(unsafe {
                                 Some(llvm::LLVMRustDIBuilderCreateTemplateTypeParameter(
@@ -424,12 +417,11 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
                     // Only "class" methods are generally understood by LLVM,
                     // so avoid methods on other types (e.g., `<*mut T>::null`).
-                    if let ty::Adt(def, ..) = impl_self_ty.kind() 
+                    if let ty::Adt(def, ..) = impl_self_ty.kind()
                         && !def.is_box()
                     {
                         // Again, only create type information if full debuginfo is enabled
-                        if cx.sess().opts.debuginfo == DebugInfo::Full
-                        && !impl_self_ty.has_param()
+                        if cx.sess().opts.debuginfo == DebugInfo::Full && !impl_self_ty.has_param()
                         {
                             return (type_di_node(cx, impl_self_ty), true);
                         } else {

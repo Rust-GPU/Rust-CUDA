@@ -3,6 +3,7 @@ use std::ops::Range;
 use crate::debug_info;
 use crate::llvm::{self, True, Type, Value};
 use libc::{c_char, c_uint};
+use rustc_abi::{AddressSpace, Align, HasDataLayout, Primitive, Scalar, Size, WrappingRange};
 use rustc_codegen_ssa::traits::*;
 use rustc_hir::def_id::DefId;
 use rustc_middle::mir::interpret::{
@@ -18,9 +19,6 @@ use rustc_middle::{
         mono::{Linkage, MonoItem},
     },
     span_bug,
-};
-use rustc_abi::{
-    AddressSpace, Align, HasDataLayout, Primitive, Scalar, Size, WrappingRange,
 };
 use tracing::trace;
 
@@ -183,9 +181,12 @@ fn check_and_apply_linkage<'ll, 'tcx>(
         // https://docs.nvidia.com/cuda/nvvm-ir-spec/index.html#linkage-types-nvvm
         use Linkage::*;
         match linkage {
-            External | Internal | Common | AvailableExternally | LinkOnceAny
-            | LinkOnceODR | WeakAny | WeakODR => {}
-            _ => cx.sess().dcx().fatal(format!("Unsupported linkage kind: {:?}", linkage)),
+            External | Internal | Common | AvailableExternally | LinkOnceAny | LinkOnceODR
+            | WeakAny | WeakODR => {}
+            _ => cx
+                .sess()
+                .dcx()
+                .fatal(format!("Unsupported linkage kind: {:?}", linkage)),
         }
 
         // If this is a static with a linkage specified, then we need to handle

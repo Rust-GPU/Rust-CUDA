@@ -14,7 +14,8 @@ use rustc_abi::AddressSpace;
 use rustc_abi::{HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx};
 use rustc_codegen_ssa::errors as ssa_errors;
 use rustc_codegen_ssa::traits::{
-    BackendTypes, BaseTypeCodegenMethods, CoverageInfoBuilderMethods, DerivedTypeCodegenMethods, MiscCodegenMethods
+    BackendTypes, BaseTypeCodegenMethods, CoverageInfoBuilderMethods, DerivedTypeCodegenMethods,
+    MiscCodegenMethods,
 };
 use rustc_data_structures::base_n::{ALPHANUMERIC_ONLY, ToBaseN};
 use rustc_errors::DiagMessage;
@@ -157,7 +158,8 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             local_gen_sym_counter: Cell::new(0),
             nvptx_data_layout: TargetDataLayout::parse_from_llvm_datalayout_string(
                 &target::target().data_layout,
-            ).unwrap_or_else(|err| tcx.sess.dcx().emit_fatal(err)),
+            )
+            .unwrap_or_else(|err| tcx.sess.dcx().emit_fatal(err)),
             nvptx_target: target::target(),
             eh_personality,
             symbols: Symbols {
@@ -388,7 +390,9 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         };
         let f = self.declare_fn(&name, fn_ty, None);
         llvm::SetUnnamedAddress(f, llvm::UnnamedAddr::No);
-        self.intrinsics.borrow_mut().insert(name.to_owned(), (fn_ty, f));
+        self.intrinsics
+            .borrow_mut()
+            .insert(name.to_owned(), (fn_ty, f));
         f
     }
 
@@ -425,8 +429,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             if self.val_ty(llfn) != llptrty {
                 trace!(
                     "ptrcasting llfn to different llptrty: `{:?}` --> `{:?}`",
-                    llfn,
-                    llptrty
+                    llfn, llptrty
                 );
                 self.const_ptrcast(llfn, llptrty)
             } else {

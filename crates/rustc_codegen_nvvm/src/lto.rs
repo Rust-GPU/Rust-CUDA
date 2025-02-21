@@ -2,20 +2,20 @@ use std::ffi::CString;
 use std::sync::Arc;
 
 use rustc_codegen_ssa::{
+    ModuleCodegen, ModuleKind,
     back::{
         lto::{LtoModuleCodegen, SerializedModule, ThinModule, ThinShared},
         write::CodegenContext,
     },
     traits::{ModuleBufferMethods, ThinBufferMethods},
-    ModuleCodegen, ModuleKind,
 };
 use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_middle::dep_graph::WorkProduct;
 use tracing::{debug, trace};
 
-use crate::common::AsCCharPtr;
 use crate::NvvmCodegenBackend;
-use crate::{llvm, LlvmMod};
+use crate::common::AsCCharPtr;
+use crate::{LlvmMod, llvm};
 
 pub struct ModuleBuffer(&'static mut llvm::ModuleBuffer);
 
@@ -73,7 +73,7 @@ impl ThinBufferMethods for ThinBuffer {
             std::slice::from_raw_parts(ptr, len)
         }
     }
-    
+
     fn thin_link_data(&self) -> &[u8] {
         todo!()
     }
@@ -161,7 +161,8 @@ pub(crate) unsafe fn optimize_thin(
     let module_name = &thin_module.shared.module_names[thin_module.idx];
 
     let llcx = llvm::LLVMRustContextCreate(cgcx.fewer_names);
-    let llmod = parse_module(llcx, module_name.to_str().unwrap(), thin_module.data(), dcx)? as *const _;
+    let llmod =
+        parse_module(llcx, module_name.to_str().unwrap(), thin_module.data(), dcx)? as *const _;
 
     let module = ModuleCodegen {
         module_llvm: LlvmMod { llmod, llcx },
@@ -178,11 +179,16 @@ pub(crate) fn parse_module<'a>(
     dcx: DiagCtxtHandle<'_>,
 ) -> Result<&'a llvm::Module, FatalError> {
     unsafe {
-        llvm::LLVMRustParseBitcodeForLTO(cx, data.as_ptr(), data.len(), name.as_c_char_ptr(), name.len()).ok_or_else(
-            || {
-                let msg = "failed to parse bitcode for LTO module";
-                crate::back::llvm_err(dcx, msg)
-            },
+        llvm::LLVMRustParseBitcodeForLTO(
+            cx,
+            data.as_ptr(),
+            data.len(),
+            name.as_c_char_ptr(),
+            name.len(),
         )
+        .ok_or_else(|| {
+            let msg = "failed to parse bitcode for LTO module";
+            crate::back::llvm_err(dcx, msg)
+        })
     }
 }

@@ -134,9 +134,7 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                     }
                 }
                 InlineAsmTemplatePiece::Placeholder {
-                    operand_idx,
-                    span,
-                    ..
+                    operand_idx, span, ..
                 } => {
                     match operands[operand_idx] {
                         InlineAsmOperandRef::In { .. }
@@ -158,7 +156,10 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                             // constraints.push("!i".to_owned());
                             // labels.push(label);
 
-                            self.tcx.sess.dcx().span_fatal(span, "Operands with label refs are unsupported");
+                            self.tcx
+                                .sess
+                                .dcx()
+                                .span_fatal(span, "Operands with label refs are unsupported");
                         }
                     }
                 }

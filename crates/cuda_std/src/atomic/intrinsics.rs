@@ -1,8 +1,8 @@
 //! Raw CUDA-specific atomic functions that map to PTX instructions.
 
 use crate::gpu_only;
-use core::concat;
 use core::arch::asm;
+use core::concat;
 use paste::paste;
 
 #[gpu_only]

@@ -769,9 +769,8 @@ unsafe extern "C" {
         SplitNameLen: size_t,
         kind: DebugEmissionKind,
         DWOId: u64,
-        SplitDebugInlining: bool
+        SplitDebugInlining: bool,
     ) -> &'a DIDescriptor;
-
 
     pub(crate) fn LLVMRustDIBuilderCreateFile<'a>(
         Builder: &DIBuilder<'a>,
@@ -1101,7 +1100,10 @@ unsafe extern "C" {
         M: &'a Module,
     );
     pub(crate) fn LLVMRustPassKind(Pass: &Pass) -> PassKind;
-    pub(crate) fn LLVMRustFindAndCreatePass(Pass: *const c_char, PassNameLen: size_t) -> Option<&'static mut Pass>;
+    pub(crate) fn LLVMRustFindAndCreatePass(
+        Pass: *const c_char,
+        PassNameLen: size_t,
+    ) -> Option<&'static mut Pass>;
     pub(crate) fn LLVMRustAddPass<'a>(PM: &'a PassManager, Pass: &'static mut Pass);
 
     /// Writes a module to the specified path. Returns 0 on success.
@@ -1586,14 +1588,14 @@ unsafe extern "C" {
         Name: *const c_char,
     ) -> &'a Value;
     pub(crate) fn LLVMBuildNeg<'a>(B: &Builder<'a>, V: &'a Value, Name: *const c_char)
-        -> &'a Value;
+    -> &'a Value;
     pub(crate) fn LLVMBuildFNeg<'a>(
         B: &Builder<'a>,
         V: &'a Value,
         Name: *const c_char,
     ) -> &'a Value;
     pub(crate) fn LLVMBuildNot<'a>(B: &Builder<'a>, V: &'a Value, Name: *const c_char)
-        -> &'a Value;
+    -> &'a Value;
     pub(crate) fn LLVMRustSetFastMath(Instr: &Value);
     pub(crate) fn LLVMRustSetAlgebraicMath(Instr: &Value);
 
@@ -1742,7 +1744,7 @@ unsafe extern "C" {
 
     // Miscellaneous instructions
     pub(crate) fn LLVMBuildPhi<'a>(B: &Builder<'a>, Ty: &'a Type, Name: *const c_char)
-        -> &'a Value;
+    -> &'a Value;
     pub(crate) fn LLVMRustGetInstrProfIncrementIntrinsic<'a>(M: &Module) -> &'a Value;
     pub(crate) fn LLVMRustBuildMemCpy<'a>(
         B: &Builder<'a>,
