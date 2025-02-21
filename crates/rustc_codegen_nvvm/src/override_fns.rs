@@ -4,7 +4,7 @@
 
 use crate::{builder::Builder, context::CodegenCx, llvm};
 use rustc_codegen_ssa::mono_item::MonoItemExt;
-use rustc_codegen_ssa::traits::{BaseTypeMethods, BuilderMethods};
+use rustc_codegen_ssa::traits::BuilderMethods;
 use rustc_hir::def_id::LOCAL_CRATE;
 use rustc_middle::{mir::mono::MonoItem, ty::Instance};
 
@@ -27,7 +27,8 @@ fn should_override<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) -
     if !is_libm {
         return false;
     }
-    let name = cx.tcx.item_name(func.def_id()).as_str();
+    let sym = cx.tcx.item_name(func.def_id());
+    let name = sym.as_str();
     let intrinsics = cx.intrinsics_map.borrow();
     let is_known_intrinsic = intrinsics.contains_key(format!("__nv_{}", name).as_str());
 
@@ -48,15 +49,15 @@ fn is_unsupported_libdevice_fn(name: &str) -> bool {
 }
 
 fn override_libm_function<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) {
-    let name = cx.tcx.item_name(func.def_id()).as_str();
-    let nv_name = format!("__nv_{}", name);
-    let intrinsic = cx.get_intrinsic(&nv_name);
+    let name = cx.tcx.item_name(func.def_id());
+    let nv_name = format!("__nv_{}", name.as_str());
+    let intrinsic = cx.get_intrinsic(nv_name.as_str());
 
     let llfn = cx.get_fn(func);
     let start = Builder::append_block(cx, llfn, "start");
     let mut bx = Builder::build(cx, start);
 
     let params = llvm::get_params(llfn);
-    let llcall = bx.call(cx.type_i1(), intrinsic, &params, None);
+    let llcall = bx.call(cx.type_i1(), None, None, intrinsic.1, &params, None, None);
     bx.ret(llcall);
 }

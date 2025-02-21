@@ -62,7 +62,6 @@ Before we can write any GPU kernels, we must add a few directives to our `lib.rs
 #![cfg_attr(
     target_os = "cuda",
     no_std,
-    feature(register_attr),
     register_attr(nvvm_internal)
 )]
 

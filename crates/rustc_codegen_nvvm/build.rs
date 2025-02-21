@@ -97,7 +97,7 @@ fn find_llvm_config(target: &str) -> PathBuf {
     let mut easy = Easy::new();
 
     easy.url(&url).unwrap();
-    let _redirect = easy.follow_location(true).unwrap();
+    easy.follow_location(true).unwrap();
     let mut xz_encoded = Vec::with_capacity(20_000_000); // 20mb
     {
         let mut transfer = easy.transfer();

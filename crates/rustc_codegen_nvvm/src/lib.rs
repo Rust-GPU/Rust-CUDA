@@ -3,27 +3,34 @@
 // make our lives a lot easier for llvm ffi with this. And since rustc's core infra
 // relies on it its almost guaranteed to not be removed/broken
 #![feature(extern_types)]
-#![feature(backtrace)]
+#![feature(hash_raw_entry)]
+#![feature(let_chains)]
+#![allow(unsafe_op_in_unsafe_fn, unused_variables)]
 
+extern crate rustc_abi;
 extern crate rustc_arena;
 extern crate rustc_ast;
-extern crate rustc_attr;
-extern crate rustc_codegen_llvm;
+extern crate rustc_attr_parsing;
+// extern crate rustc_codegen_llvm;
 extern crate rustc_codegen_ssa;
 extern crate rustc_data_structures;
 extern crate rustc_driver;
 extern crate rustc_errors;
 extern crate rustc_fs_util;
 extern crate rustc_hash;
+extern crate rustc_hashes;
 extern crate rustc_hir;
 extern crate rustc_index;
 extern crate rustc_interface;
+extern crate rustc_macros;
 extern crate rustc_metadata;
 extern crate rustc_middle;
 extern crate rustc_query_system;
 extern crate rustc_session;
 extern crate rustc_span;
+extern crate rustc_symbol_mangling;
 extern crate rustc_target;
+extern crate rustc_type_ir;
 
 mod abi;
 mod allocator;
@@ -34,6 +41,7 @@ mod builder;
 mod const_ty;
 mod consts;
 mod context;
+mod common;
 mod ctx_intrinsics;
 mod debug_info;
 mod init;
@@ -51,41 +59,60 @@ mod ty;
 use abi::readjust_fn_abi;
 use back::target_machine_factory;
 use lto::ThinBuffer;
+use rustc_ast::expand::allocator::AllocatorKind;
+use rustc_ast::expand::autodiff_attrs::AutoDiffItem;
 use rustc_codegen_ssa::{
+    CodegenResults, CompiledModule, ModuleCodegen,
     back::{
         lto::{LtoModuleCodegen, SerializedModule, ThinModule},
-        write::{CodegenContext, FatLTOInput, ModuleConfig, OngoingCodegen},
+        write::{CodegenContext, FatLtoInput, ModuleConfig, OngoingCodegen},
     },
     traits::{CodegenBackend, ExtraBackendMethods, WriteBackendMethods},
-    CodegenResults, CompiledModule, ModuleCodegen,
 };
-use rustc_errors::{ErrorReported, FatalError, Handler};
-use rustc_hash::FxHashMap;
+use rustc_data_structures::fx::FxIndexMap;
+use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_metadata::EncodedMetadata;
-use rustc_middle::ty::query;
+use rustc_metadata::creader::MetadataLoaderDyn;
+use rustc_middle::util::Providers;
 use rustc_middle::{
     dep_graph::{WorkProduct, WorkProductId},
     ty::TyCtxt,
 };
-use rustc_session::{cstore::MetadataLoaderDyn, Session};
+use rustc_session::{
+    Session,
+    config::{self, OutputFilenames},
+};
 use tracing::debug;
 
 use std::ffi::CString;
 
 // codegen dylib entrypoint
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn __rustc_codegen_backend() -> Box<dyn CodegenBackend> {
-    let _ = std::panic::take_hook();
-    Box::new(NvvmCodegenBackend::default())
+    rustc_driver::install_ice_hook(
+        "https://github.com/Rust-GPU/Rust-CUDA/issues/new",
+        |handler| {
+            handler.handle().note(concat!(
+                "`rust-cuda` version `",
+                env!("CARGO_PKG_VERSION"),
+                "`"
+            ));
+        }
+    );
+    Box::new(NvvmCodegenBackend)
 }
 
-#[derive(Default, Clone)]
-pub struct NvvmCodegenBackend(());
+#[derive(Clone)]
+pub struct NvvmCodegenBackend;
 
 unsafe impl Send for NvvmCodegenBackend {}
 unsafe impl Sync for NvvmCodegenBackend {}
 
 impl CodegenBackend for NvvmCodegenBackend {
+    fn locale_resource(&self) -> &'static str {
+        ""
+    }
+
     fn init(&self, sess: &Session) {
         let filter = tracing_subscriber::EnvFilter::from_env("NVVM_LOG");
         let subscriber = tracing_subscriber::fmt()
@@ -96,11 +123,19 @@ impl CodegenBackend for NvvmCodegenBackend {
         tracing::subscriber::set_global_default(subscriber).expect("no default subscriber");
         init::init(sess);
     }
+
+    // FIXME If we can use the default metadata loader in the LLVM backend
+    // we can remove this and use the default provided impl instead.
     fn metadata_loader(&self) -> Box<MetadataLoaderDyn> {
         Box::new(link::NvvmMetadataLoader)
     }
 
-    fn provide(&self, providers: &mut query::Providers) {
+    fn provide(&self, providers: &mut Providers) {
+        // FIXME(eddyb) this is currently only passed back to us, specifically
+        // into `target_machine_factory` (which is a noop), but it might make
+        // sense to move some of the target feature parsing into here.
+        providers.global_backend_features = |_tcx, ()| vec![];
+
         providers.fn_abi_of_fn_ptr = |tcx, key| {
             let result = (rustc_interface::DEFAULT_QUERY_PROVIDERS.fn_abi_of_fn_ptr)(tcx, key);
             Ok(readjust_fn_abi(tcx, result?))
@@ -110,7 +145,6 @@ impl CodegenBackend for NvvmCodegenBackend {
             Ok(readjust_fn_abi(tcx, result?))
         };
     }
-    fn provide_extern(&self, _providers: &mut query::ExternProviders) {}
 
     fn codegen_crate(
         &self,
@@ -120,9 +154,9 @@ impl CodegenBackend for NvvmCodegenBackend {
     ) -> Box<dyn std::any::Any> {
         debug!("Codegen crate");
         Box::new(rustc_codegen_ssa::base::codegen_crate(
-            NvvmCodegenBackend::default(),
+            Self,
             tcx,
-            String::new(),
+            tcx.sess.opts.cg.target_cpu.clone().unwrap_or_else(|| tcx.sess.target.cpu.to_string()),
             metadata,
             need_metadata_module,
         ))
@@ -132,45 +166,45 @@ impl CodegenBackend for NvvmCodegenBackend {
         &self,
         ongoing_codegen: Box<dyn std::any::Any>,
         sess: &Session,
-    ) -> Result<(CodegenResults, FxHashMap<WorkProductId, WorkProduct>), ErrorReported> {
+        _outputs: &OutputFilenames,
+    ) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>) {
         debug!("Join codegen");
         let (codegen_results, work_products) = ongoing_codegen
             .downcast::<OngoingCodegen<Self>>()
             .expect("Expected OngoingCodegen, found Box<Any>")
             .join(sess);
 
-        sess.compile_status()?;
+        // sess.compile_status();
 
-        Ok((codegen_results, work_products))
+        (codegen_results, work_products)
     }
 
     fn link(
         &self,
         sess: &rustc_session::Session,
         codegen_results: rustc_codegen_ssa::CodegenResults,
-        outputs: &rustc_session::config::OutputFilenames,
-    ) -> Result<(), rustc_errors::ErrorReported> {
+        outputs: &config::OutputFilenames,
+    ) {
         link::link(
             sess,
             &codegen_results,
             outputs,
             &codegen_results.crate_info.local_crate_name.as_str(),
         );
-        Ok(())
     }
 }
 
 impl WriteBackendMethods for NvvmCodegenBackend {
     type Module = LlvmMod;
     type ModuleBuffer = lto::ModuleBuffer;
-    type Context = llvm::Context;
     type TargetMachine = &'static mut llvm::TargetMachine;
+    type TargetMachineError = String;
     type ThinData = ();
     type ThinBuffer = ThinBuffer;
 
     fn run_link(
         _cgcx: &CodegenContext<Self>,
-        _diag_handler: &Handler,
+        _diag_handler: DiagCtxtHandle<'_>,
         _modules: Vec<ModuleCodegen<Self::Module>>,
     ) -> Result<ModuleCodegen<Self::Module>, FatalError> {
         // TODO(Rdambrosio016):
@@ -183,7 +217,7 @@ impl WriteBackendMethods for NvvmCodegenBackend {
 
     fn run_fat_lto(
         _: &CodegenContext<Self>,
-        _: Vec<FatLTOInput<Self>>,
+        _: Vec<FatLtoInput<Self>>,
         _: Vec<(SerializedModule<Self::ModuleBuffer>, WorkProduct)>,
     ) -> Result<LtoModuleCodegen<Self>, FatalError> {
         todo!()
@@ -201,9 +235,13 @@ impl WriteBackendMethods for NvvmCodegenBackend {
         // Not applicable, nvvm doesnt expose pass timing info, maybe we could print llvm pass stuff here.
     }
 
+    fn print_statistics(&self) {
+        // Not applicable, nvvm doesnt expose pass timing info, maybe we could print llvm pass stuff here.
+    }
+
     unsafe fn optimize(
         cgcx: &CodegenContext<Self>,
-        diag_handler: &Handler,
+        diag_handler: DiagCtxtHandle<'_>,
         module: &ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
     ) -> Result<(), FatalError> {
@@ -212,21 +250,24 @@ impl WriteBackendMethods for NvvmCodegenBackend {
 
     unsafe fn optimize_thin(
         cgcx: &CodegenContext<Self>,
-        thin_module: &mut ThinModule<Self>,
+        thin_module: ThinModule<Self>,
     ) -> Result<ModuleCodegen<Self::Module>, FatalError> {
         lto::optimize_thin(cgcx, thin_module)
     }
 
     unsafe fn codegen(
         cgcx: &CodegenContext<Self>,
-        diag_handler: &Handler,
+        diag_handler: DiagCtxtHandle<'_>,
         module: ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
     ) -> Result<CompiledModule, FatalError> {
         back::codegen(cgcx, diag_handler, module, config)
     }
 
-    fn prepare_thin(module: ModuleCodegen<Self::Module>) -> (String, Self::ThinBuffer) {
+    fn prepare_thin(
+        module: ModuleCodegen<Self::Module>,
+        _want_summary: bool,
+    ) -> (String, Self::ThinBuffer) {
         debug!("Prepare thin");
         unsafe {
             (
@@ -246,39 +287,42 @@ impl WriteBackendMethods for NvvmCodegenBackend {
         }
     }
 
-    fn run_lto_pass_manager(
-        _: &CodegenContext<Self>,
-        _: &ModuleCodegen<Self::Module>,
-        _: &ModuleConfig,
-        _: bool,
+    fn optimize_fat(
+        cgcx: &CodegenContext<Self>,
+        llmod: &mut ModuleCodegen<Self::Module>,
+    ) -> Result<(), FatalError> {
+        todo!()
+    }
+
+    fn autodiff(
+        cgcx: &CodegenContext<Self>,
+        module: &ModuleCodegen<Self::Module>,
+        diff_fncs: Vec<AutoDiffItem>,
+        config: &ModuleConfig,
     ) -> Result<(), FatalError> {
         todo!()
     }
 }
 
 impl ExtraBackendMethods for NvvmCodegenBackend {
-    fn new_metadata(&self, _sess: TyCtxt<'_>, mod_name: &str) -> Self::Module {
-        LlvmMod::new(mod_name)
-    }
-
-    fn write_compressed_metadata<'tcx>(
-        &self,
-        _tcx: TyCtxt<'tcx>,
-        _metadata: &EncodedMetadata,
-        _llvm_module: &mut Self::Module,
-    ) {
-        todo!()
-    }
-
     fn codegen_allocator<'tcx>(
         &self,
         tcx: TyCtxt<'tcx>,
-        mods: &mut Self::Module,
-        _module_name: &str,
-        kind: rustc_ast::expand::allocator::AllocatorKind,
-        has_alloc_error_handler: bool,
-    ) {
-        unsafe { allocator::codegen(tcx, mods, kind, has_alloc_error_handler) }
+        module_name: &str,
+        kind: AllocatorKind,
+        alloc_error_handler_kind: AllocatorKind,
+    ) -> LlvmMod {
+        let mut module_llvm = LlvmMod::new(module_name);
+        unsafe {
+            allocator::codegen(
+                tcx,
+                &mut module_llvm,
+                module_name,
+                kind,
+                alloc_error_handler_kind,
+            );
+        }
+        module_llvm
     }
 
     fn compile_codegen_unit(
@@ -292,17 +336,10 @@ impl ExtraBackendMethods for NvvmCodegenBackend {
     fn target_machine_factory(
         &self,
         sess: &Session,
-        opt_level: rustc_session::config::OptLevel,
+        opt_level: config::OptLevel,
+        _target_features: &[String],
     ) -> rustc_codegen_ssa::back::write::TargetMachineFactoryFn<Self> {
         target_machine_factory(sess, opt_level)
-    }
-
-    fn target_cpu<'b>(&self, _sess: &'b Session) -> &'b str {
-        todo!()
-    }
-
-    fn tune_cpu<'b>(&self, _sess: &'b Session) -> Option<&'b str> {
-        todo!()
     }
 }
 

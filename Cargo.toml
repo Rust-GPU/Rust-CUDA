@@ -1,7 +1,5 @@
 [workspace]
-
 resolver = "2"
-
 members = [
   "crates/*",
   "crates/optix/examples/ex*",

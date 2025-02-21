@@ -1,19 +1,19 @@
 use std::os::raw::{c_char, c_uint};
 
+use crate::common::AsCCharPtr;
 use crate::{
     llvm::{self, Value},
     ty::LayoutLlvmExt,
 };
-use rustc_ast::{InlineAsmOptions, InlineAsmTemplatePiece, LlvmAsmDialect};
+use rustc_ast::{InlineAsmOptions, InlineAsmTemplatePiece};
 use rustc_codegen_ssa::{
-    mir::{operand::OperandValue, place::PlaceRef},
+    mir::operand::OperandValue,
     traits::{
-        AsmBuilderMethods, AsmMethods, BaseTypeMethods, BuilderMethods, ConstMethods,
-        GlobalAsmOperandRef, InlineAsmOperandRef,
+        AsmBuilderMethods, AsmCodegenMethods, BaseTypeCodegenMethods, BuilderMethods,
+        ConstCodegenMethods, GlobalAsmOperandRef, InlineAsmOperandRef,
     },
 };
 use rustc_hash::FxHashMap;
-use rustc_hir::LlvmInlineAsmInner;
 use rustc_middle::{span_bug, ty::Instance};
 use rustc_span::{Pos, Span};
 use rustc_target::asm::{InlineAsmRegClass, InlineAsmRegOrRegClass, NvptxInlineAsmRegClass};
@@ -21,97 +21,6 @@ use rustc_target::asm::{InlineAsmRegClass, InlineAsmRegOrRegClass, NvptxInlineAs
 use crate::{builder::Builder, context::CodegenCx};
 
 impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
-    // inline llvm ir is allowed, but the user needs to make sure it doesnt violate
-    // nvvm ir constraints
-    fn codegen_llvm_inline_asm(
-        &mut self,
-        ia: &LlvmInlineAsmInner,
-        outputs: Vec<PlaceRef<'tcx, &'ll Value>>,
-        mut inputs: Vec<&'ll Value>,
-        span: Span,
-    ) -> bool {
-        let mut ext_constraints = vec![];
-        let mut output_types = vec![];
-
-        // Prepare the output operands
-        let mut indirect_outputs = vec![];
-        for (i, (out, &place)) in ia.outputs.iter().zip(&outputs).enumerate() {
-            if out.is_rw {
-                let operand = self.load_operand(place);
-                if let OperandValue::Immediate(_) = operand.val {
-                    inputs.push(operand.immediate());
-                }
-                ext_constraints.push(i.to_string());
-            }
-            if out.is_indirect {
-                let operand = self.load_operand(place);
-                if let OperandValue::Immediate(_) = operand.val {
-                    indirect_outputs.push(operand.immediate());
-                }
-            } else {
-                output_types.push(place.layout.llvm_type(self.cx));
-            }
-        }
-        if !indirect_outputs.is_empty() {
-            indirect_outputs.extend_from_slice(&inputs);
-            inputs = indirect_outputs;
-        }
-
-        let clobbers = ia.clobbers.iter().map(|s| format!("~{{{}}}", &s));
-
-        let all_constraints = ia
-            .outputs
-            .iter()
-            .map(|out| out.constraint.to_string())
-            .chain(ia.inputs.iter().map(|s| s.to_string()))
-            .chain(ext_constraints)
-            .chain(clobbers)
-            .collect::<Vec<String>>()
-            .join(",");
-
-        // Depending on how many outputs we have, the return type is different
-        let num_outputs = output_types.len();
-        let output_type = match num_outputs {
-            0 => self.type_void(),
-            1 => output_types[0],
-            _ => self.type_struct(&output_types, false),
-        };
-
-        let asm = ia.asm.as_str();
-        let r = inline_asm_call(
-            self,
-            &asm,
-            &all_constraints,
-            &inputs,
-            output_type,
-            ia.volatile,
-            ia.alignstack,
-            ia.dialect,
-            &[span],
-        );
-        if r.is_none() {
-            return false;
-        }
-        let r = r.unwrap();
-
-        // Again, based on how many outputs we have
-        let outputs = ia
-            .outputs
-            .iter()
-            .zip(&outputs)
-            .filter(|&(o, _)| !o.is_indirect);
-        for (i, (_, &place)) in outputs.enumerate() {
-            let v = if num_outputs == 1 {
-                r
-            } else {
-                self.extract_value(r, i as u64)
-            };
-            OperandValue::Immediate(v).store(self, place);
-        }
-
-        true
-    }
-
     fn codegen_inline_asm(
         &mut self,
         template: &[InlineAsmTemplatePiece],
@@ -119,6 +28,8 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
         options: rustc_ast::InlineAsmOptions,
         line_spans: &[Span],
         _inst: Instance,
+        _dest: Option<Self::BasicBlock>,
+        _catch_funclet: Option<(Self::BasicBlock, Option<&Self::Funclet>)>,
     ) {
         // Collect the types of output operands
         let mut constraints = vec![];
@@ -224,7 +135,7 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 }
                 InlineAsmTemplatePiece::Placeholder {
                     operand_idx,
-                    span: _,
+                    span,
                     ..
                 } => {
                     match operands[operand_idx] {
@@ -241,6 +152,13 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                         | InlineAsmOperandRef::SymStatic { .. } => {
                             // Only emit the raw symbol name
                             template_str.push_str(&format!("${{{}:c}}", op_idx[&operand_idx]));
+                        }
+                        InlineAsmOperandRef::Label { label } => {
+                            // template_str.push_str(&format!("${{{}:l}}", constraints.len()));
+                            // constraints.push("!i".to_owned());
+                            // labels.push(label);
+
+                            self.tcx.sess.dcx().span_fatal(span, "Operands with label refs are unsupported");
                         }
                     }
                 }
@@ -260,7 +178,7 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
             [ty] => ty,
             tys => self.type_struct(tys, false),
         };
-        let dialect = LlvmAsmDialect::Att;
+        let dialect = llvm::AsmDialect::Att;
         let result = inline_asm_call(
             self,
             &template_str,
@@ -303,7 +221,7 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
     }
 }
 
-impl<'ll, 'tcx> AsmMethods for CodegenCx<'ll, 'tcx> {
+impl<'ll, 'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn codegen_global_asm(
         &self,
         template: &[InlineAsmTemplatePiece],
@@ -328,6 +246,8 @@ impl<'ll, 'tcx> AsmMethods for CodegenCx<'ll, 'tcx> {
                             // here unlike normal inline assembly.
                             template_str.push_str(string);
                         }
+                        GlobalAsmOperandRef::SymFn { instance } => todo!(),
+                        GlobalAsmOperandRef::SymStatic { def_id } => todo!(),
                     }
                 }
             }
@@ -336,10 +256,14 @@ impl<'ll, 'tcx> AsmMethods for CodegenCx<'ll, 'tcx> {
         unsafe {
             llvm::LLVMRustAppendModuleInlineAsm(
                 self.llmod,
-                template_str.as_ptr().cast(),
+                template_str.as_c_char_ptr(),
                 template_str.len(),
             );
         }
+    }
+
+    fn mangled_name(&self, instance: Instance<'tcx>) -> String {
+        todo!()
     }
 }
 
@@ -367,7 +291,7 @@ pub(crate) fn inline_asm_call<'a, 'll, 'tcx>(
     output: &'ll llvm::Type,
     volatile: bool,
     alignstack: bool,
-    dia: LlvmAsmDialect,
+    dia: llvm::AsmDialect,
     line_spans: &[Span],
 ) -> Option<&'ll Value> {
     let volatile = if volatile { llvm::True } else { llvm::False };
@@ -388,9 +312,9 @@ pub(crate) fn inline_asm_call<'a, 'll, 'tcx>(
                 cons.len(),
                 volatile,
                 alignstack,
-                llvm::AsmDialect::from_generic(dia),
+                dia,
             );
-            let call = bx.call(fty, v, inputs, None);
+            let call = bx.call(fty, None, None, v, inputs, None, None);
 
             // Store mark in a metadata node so we can map LLVM errors
             // back to source locations.  See #17552.

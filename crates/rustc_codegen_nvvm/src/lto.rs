@@ -1,4 +1,6 @@
-use crate::{llvm, LlvmMod};
+use std::ffi::CString;
+use std::sync::Arc;
+
 use rustc_codegen_ssa::{
     back::{
         lto::{LtoModuleCodegen, SerializedModule, ThinModule, ThinShared},
@@ -7,15 +9,13 @@ use rustc_codegen_ssa::{
     traits::{ModuleBufferMethods, ThinBufferMethods},
     ModuleCodegen, ModuleKind,
 };
-use rustc_errors::{FatalError, Handler};
+use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_middle::dep_graph::WorkProduct;
-use std::{
-    ffi::{CStr, CString},
-    sync::Arc,
-};
 use tracing::{debug, trace};
 
+use crate::common::AsCCharPtr;
 use crate::NvvmCodegenBackend;
+use crate::{llvm, LlvmMod};
 
 pub struct ModuleBuffer(&'static mut llvm::ModuleBuffer);
 
@@ -72,6 +72,10 @@ impl ThinBufferMethods for ThinBuffer {
 
             std::slice::from_raw_parts(ptr, len)
         }
+    }
+    
+    fn thin_link_data(&self) -> &[u8] {
+        todo!()
     }
 }
 
@@ -148,14 +152,16 @@ pub(crate) fn run_thin(
 
 pub(crate) unsafe fn optimize_thin(
     cgcx: &CodegenContext<NvvmCodegenBackend>,
-    thin_module: &mut ThinModule<NvvmCodegenBackend>,
+    thin_module: ThinModule<NvvmCodegenBackend>,
 ) -> Result<ModuleCodegen<LlvmMod>, FatalError> {
     // essentially does nothing
-    let diag_handler = cgcx.create_diag_handler();
+    let dcx = cgcx.create_dcx();
+    let dcx = dcx.handle();
+
     let module_name = &thin_module.shared.module_names[thin_module.idx];
 
     let llcx = llvm::LLVMRustContextCreate(cgcx.fewer_names);
-    let llmod = parse_module(llcx, module_name, thin_module.data(), &diag_handler)? as *const _;
+    let llmod = parse_module(llcx, module_name.to_str().unwrap(), thin_module.data(), dcx)? as *const _;
 
     let module = ModuleCodegen {
         module_llvm: LlvmMod { llmod, llcx },
@@ -167,15 +173,15 @@ pub(crate) unsafe fn optimize_thin(
 
 pub(crate) fn parse_module<'a>(
     cx: &'a llvm::Context,
-    name: &CStr,
+    name: &str,
     data: &[u8],
-    diag_handler: &Handler,
+    dcx: DiagCtxtHandle<'_>,
 ) -> Result<&'a llvm::Module, FatalError> {
     unsafe {
-        llvm::LLVMRustParseBitcodeForLTO(cx, data.as_ptr(), data.len(), name.as_ptr()).ok_or_else(
+        llvm::LLVMRustParseBitcodeForLTO(cx, data.as_ptr(), data.len(), name.as_c_char_ptr(), name.len()).ok_or_else(
             || {
                 let msg = "failed to parse bitcode for LTO module";
-                crate::back::llvm_err(diag_handler, msg)
+                crate::back::llvm_err(dcx, msg)
             },
         )
     }

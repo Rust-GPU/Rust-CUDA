@@ -7,11 +7,10 @@ use crate::llvm;
 use crate::ty::LayoutLlvmExt;
 use rustc_codegen_ssa::traits::*;
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
-pub use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::mir::mono::{Linkage, Visibility};
-use rustc_middle::ty::layout::FnAbiOf;
-use rustc_middle::ty::layout::LayoutOf;
-use rustc_middle::ty::{self, Instance, TypeFoldable};
+use rustc_middle::ty::layout::{FnAbiOf, HasTypingEnv, LayoutOf};
+use rustc_middle::ty::TypeVisitableExt;
+use rustc_middle::ty::{self, Instance};
 use tracing::trace;
 
 pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm::Visibility {
@@ -22,7 +21,7 @@ pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm::Visibility {
     }
 }
 
-impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'ll, 'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn predefine_static(
         &self,
         def_id: DefId,
@@ -32,16 +31,16 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     ) {
         trace!("Predefining static with name `{}`", symbol_name);
         let instance = Instance::mono(self.tcx, def_id);
-        let ty = instance.ty(self.tcx, ty::ParamEnv::reveal_all());
+        let ty = instance.ty(self.tcx, self.typing_env());
         let llty = self.layout_of(ty).llvm_type(self);
         let addrspace = self.static_addrspace(instance);
 
         let g = self
             .define_global(symbol_name, llty, addrspace)
             .unwrap_or_else(|| {
-                self.sess().span_fatal(
+                self.sess().dcx().span_fatal(
                     self.tcx.def_span(def_id),
-                    &format!("symbol `{}` is already defined", symbol_name),
+                    format!("symbol `{}` is already defined", symbol_name),
                 )
             });
 
@@ -66,7 +65,7 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
             linkage,
             self.tcx.codegen_fn_attrs(instance.def_id())
         );
-        assert!(!instance.substs.needs_infer());
+        assert!(!instance.args.has_infer());
 
         let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty());
 
@@ -78,9 +77,7 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         // compiler-rt, then we want to implicitly compile everything with hidden
         // visibility as we're going to link this object all over the place but
         // don't want the symbols to get exported.
-        if linkage != Linkage::Internal
-            && linkage != Linkage::Private
-            && self.tcx.is_compiler_builtins(LOCAL_CRATE)
+        if linkage != Linkage::Internal && self.tcx.is_compiler_builtins(LOCAL_CRATE)
         {
             unsafe {
                 llvm::LLVMRustSetVisibility(lldecl, llvm::Visibility::Hidden);
@@ -94,7 +91,7 @@ impl<'ll, 'tcx> PreDefineMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         attributes::from_fn_attrs(self, lldecl, instance);
 
         let def_id = instance.def_id();
-        let attrs = self.tcx.get_attrs(def_id);
+        let attrs = self.tcx.get_attrs_unchecked(def_id); // FIXME(jorge): Replace with get_attrs
         let nvvm_attrs = NvvmAttributes::parse(self, attrs);
 
         unsafe {

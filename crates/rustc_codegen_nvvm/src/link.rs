@@ -1,12 +1,14 @@
+use object::{Object, ObjectSection};
+use rustc_ast::CRATE_NODE_ID;
 use rustc_codegen_ssa::CodegenResults;
 use rustc_codegen_ssa::CompiledModule;
 use rustc_codegen_ssa::NativeLib;
-use rustc_data_structures::owning_ref::OwningRef;
-use rustc_data_structures::rustc_erase_owner;
-use rustc_data_structures::sync::MetadataRef;
+use rustc_data_structures::memmap::Mmap;
+use rustc_data_structures::owned_slice::{slice_owned, try_slice_owned, OwnedSlice};
 use rustc_hash::FxHashSet;
+use rustc_middle::bug;
 use rustc_middle::middle::dependency_format::Linkage;
-use rustc_session::cstore::MetadataLoader;
+use rustc_metadata::creader::MetadataLoader;
 use rustc_session::output::out_filename;
 use rustc_session::{
     config::{CrateType, OutputFilenames, OutputType},
@@ -14,7 +16,9 @@ use rustc_session::{
     utils::NativeLibKind,
     Session,
 };
+use rustc_span::Symbol;
 use rustc_target::spec::Target;
+use std::ops::Deref;
 use std::{
     ffi::OsStr,
     fs::File,
@@ -29,30 +33,44 @@ use crate::LlvmMod;
 
 pub(crate) struct NvvmMetadataLoader;
 
+fn load_metadata_with(
+    path: &Path,
+    f: impl for<'a> FnOnce(&'a [u8]) -> Result<&'a [u8], String>,
+) -> Result<OwnedSlice, String> {
+    let file =
+        File::open(path).map_err(|e| format!("failed to open file '{}': {}", path.display(), e))?;
+
+    unsafe { Mmap::map(file) }
+        .map_err(|e| format!("failed to mmap file '{}': {}", path.display(), e))
+        .and_then(|mmap| try_slice_owned(mmap, |mmap| f(mmap)))
+}
+
+// FIXME
 impl MetadataLoader for NvvmMetadataLoader {
-    fn get_rlib_metadata(&self, _target: &Target, filename: &Path) -> Result<MetadataRef, String> {
-        trace!("Retrieving rlib metadata for `{:?}`", filename);
-        read_metadata(filename)
+    fn get_rlib_metadata(&self, target: &Target, path: &Path) -> Result<OwnedSlice, String> {
+        trace!("Retrieving rlib metadata for `{:?}`", path);
+        read_metadata(path)
     }
 
-    fn get_dylib_metadata(&self, target: &Target, filename: &Path) -> Result<MetadataRef, String> {
-        trace!("Retrieving dylib metadata for `{:?}`", filename);
+    fn get_dylib_metadata(&self, target: &Target, path: &Path) -> Result<OwnedSlice, String> {
+        debug!("getting rlib metadata for {}", path.display());
         // This is required for loading metadata from proc macro crates compiled as dylibs for the host target.
-        rustc_codegen_llvm::LlvmCodegenBackend::new()
-            .metadata_loader()
-            .get_dylib_metadata(target, filename)
+        if target.is_like_aix {
+            bug!("aix dynlibs unsupported");
+        } else {
+            load_metadata_with(path, |data| search_for_section(path, data, ".rustc"))
+        }
     }
 }
 
-fn read_metadata(rlib: &Path) -> Result<MetadataRef, String> {
-    let read_meta = || -> Result<Option<MetadataRef>, io::Error> {
+fn read_metadata(rlib: &Path) -> Result<OwnedSlice, String> {
+    let read_meta = || -> Result<Option<OwnedSlice>, io::Error> {
         for entry in Archive::new(File::open(rlib)?).entries()? {
             let mut entry = entry?;
             if entry.path()? == Path::new(".metadata") {
                 let mut bytes = Vec::new();
                 entry.read_to_end(&mut bytes)?;
-                let buf: OwningRef<Vec<u8>, [u8]> = OwningRef::new(bytes);
-                return Ok(Some(rustc_erase_owner!(buf.map_owner_box())));
+                return Ok(Some(slice_owned(bytes, Deref::deref)));
             }
         }
         Ok(None)
@@ -65,6 +83,26 @@ fn read_metadata(rlib: &Path) -> Result<MetadataRef, String> {
     }
 }
 
+fn search_for_section<'a>(
+    path: &Path,
+    bytes: &'a [u8],
+    section: &str,
+) -> Result<&'a [u8], String> {
+    let Ok(file) = object::File::parse(bytes) else {
+        // The parse above could fail for odd reasons like corruption, but for
+        // now we just interpret it as this target doesn't support metadata
+        // emission in object files so the entire byte slice itself is probably
+        // a metadata file. Ideally though if necessary we could at least check
+        // the prefix of bytes to see if it's an actual metadata object and if
+        // not forward the error along here.
+        return Ok(bytes);
+    };
+    file.section_by_name(section)
+        .ok_or_else(|| format!("no `{}` section in '{}'", section, path.display()))?
+        .data()
+        .map_err(|e| format!("failed to read {} section in '{}': {}", section, path.display(), e))
+}
+
 pub fn link<'tcx>(
     sess: &'tcx Session,
     codegen_results: &CodegenResults,
@@ -74,8 +112,8 @@ pub fn link<'tcx>(
     debug!("Linking crate `{}`", crate_name);
     // largely inspired by rust-gpu
     let output_metadata = sess.opts.output_types.contains_key(&OutputType::Metadata);
-    for &crate_type in sess.crate_types().iter() {
-        if (sess.opts.debugging_opts.no_codegen || !sess.opts.output_types.should_codegen())
+    for &crate_type in sess.opts.crate_types.iter() {
+        if (sess.opts.unstable_opts.no_codegen || !sess.opts.output_types.should_codegen())
             && !output_metadata
             && crate_type == CrateType::Executable
         {
@@ -91,21 +129,23 @@ pub fn link<'tcx>(
         }
 
         if outputs.outputs.should_codegen() {
-            let out_filename = out_filename(sess, crate_type, outputs, crate_name);
+            let out_filename = out_filename(sess, crate_type, outputs, Symbol::intern(crate_name));
+            let out_filename_file_for_writing =
+                out_filename.file_for_writing(outputs, OutputType::Exe, None);
             match crate_type {
                 CrateType::Rlib => {
-                    link_rlib(sess, codegen_results, &out_filename);
+                    link_rlib(sess, codegen_results, &out_filename_file_for_writing);
                 }
                 CrateType::Executable | CrateType::Cdylib | CrateType::Dylib => {
                     let _ = link_exe(
                         &codegen_results.allocator_module,
                         sess,
                         crate_type,
-                        &out_filename,
+                        &out_filename_file_for_writing,
                         codegen_results,
                     );
                 }
-                other => sess.fatal(&format!("Invalid crate type: {:?}", other)),
+                other => sess.dcx().fatal(format!("Invalid crate type: {:?}", other)),
             }
         }
     }
@@ -124,29 +164,15 @@ fn link_rlib(sess: &Session, codegen_results: &CodegenResults, out_filename: &Pa
     }
 
     for lib in codegen_results.crate_info.used_libraries.iter() {
-        match lib.kind {
-            NativeLibKind::Static {
-                bundle: None | Some(true),
-                ..
-            } => {}
-            NativeLibKind::Static {
-                bundle: Some(false),
-                ..
-            }
-            | NativeLibKind::Dylib { .. }
-            | NativeLibKind::Framework { .. }
-            | NativeLibKind::RawDylib
-            | NativeLibKind::Unspecified => continue,
-        }
         // native libraries in cuda doesnt make much sense, extern functions
         // do exist in nvvm for stuff like cuda syscalls and cuda provided functions
         // but including libraries doesnt make sense because nvvm would have to translate
         // the binary directly to ptx. We might want to add some way of linking in
         // ptx files or custom bitcode modules as "libraries" perhaps in the future.
-        if let Some(name) = lib.name {
-            sess.err(&format!(
+        if let NativeLibKind::Static { bundle: None | Some(true), .. } = lib.kind {
+            sess.dcx().err(format!(
                 "Adding native libraries to rlib is not supported in CUDA: {}",
-                name
+                lib.name
             ));
         }
     }
@@ -262,7 +288,7 @@ fn codegen_into_ptx_file(
         Ok(bytes) => bytes,
         Err(err) => {
             // TODO(RDambrosio016): maybe include the nvvm log with this fatal error
-            sess.fatal(&err.to_string())
+            sess.dcx().fatal(err.to_string())
         }
     };
 
@@ -271,7 +297,7 @@ fn codegen_into_ptx_file(
 
 fn create_archive(sess: &Session, files: &[&Path], metadata: &[u8], out_filename: &Path) {
     if let Err(err) = try_create_archive(files, metadata, out_filename) {
-        sess.fatal(&format!("Failed to create archive: {}", err));
+        sess.dcx().fatal(format!("Failed to create archive: {}", err));
     }
 }
 
@@ -307,11 +333,11 @@ fn link_local_crate_native_libs_and_dependent_crate_libs<'a>(
     crate_type: CrateType,
     codegen_results: &CodegenResults,
 ) {
-    if sess.opts.debugging_opts.link_native_libraries {
+    if sess.opts.unstable_opts.link_native_libraries {
         add_local_native_libraries(sess, codegen_results);
     }
     add_upstream_rust_crates(sess, rlibs, codegen_results, crate_type);
-    if sess.opts.debugging_opts.link_native_libraries {
+    if sess.opts.unstable_opts.link_native_libraries {
         add_upstream_native_libraries(sess, codegen_results, crate_type);
     }
 }
@@ -335,17 +361,17 @@ fn add_upstream_rust_crates(
         .crate_info
         .dependency_formats
         .iter()
-        .find(|(ty, _)| *ty == crate_type)
+        .find(|(ty, _)| **ty == crate_type)
         .expect("failed to find crate type in dependency format list");
     let deps = &codegen_results.crate_info.used_crates;
     for cnum in deps.iter() {
         let src = &codegen_results.crate_info.used_crate_source[cnum];
-        match data[cnum.as_usize() - 1] {
+        match data[*cnum] {
             Linkage::NotLinked => {}
             Linkage::Static => rlibs.push(src.rlib.as_ref().unwrap().0.clone()),
             // should we just ignore includedFromDylib?
             Linkage::Dynamic | Linkage::IncludedFromDylib => {
-                sess.fatal("Dynamic Linking is not supported in CUDA")
+                sess.dcx().fatal("Dynamic Linking is not supported in CUDA")
             }
         }
     }
@@ -362,14 +388,14 @@ fn add_upstream_native_libraries(
             if !relevant_lib(sess, lib) {
                 continue;
             }
-            sess.fatal("Native libraries are not supported in CUDA");
+            sess.dcx().fatal("Native libraries are not supported in CUDA");
         }
     }
 }
 
 fn relevant_lib(sess: &Session, lib: &NativeLib) -> bool {
-    match lib.cfg {
-        Some(ref cfg) => rustc_attr::cfg_matches(cfg, &sess.parse_sess, None),
+    match &lib.cfg {
+        Some(cfg) => rustc_attr_parsing::cfg_matches(cfg, sess, CRATE_NODE_ID, None),
         None => true,
     }
 }

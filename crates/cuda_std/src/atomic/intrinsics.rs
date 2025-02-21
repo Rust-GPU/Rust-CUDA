@@ -2,6 +2,7 @@
 
 use crate::gpu_only;
 use core::concat;
+use core::arch::asm;
 use paste::paste;
 
 #[gpu_only]

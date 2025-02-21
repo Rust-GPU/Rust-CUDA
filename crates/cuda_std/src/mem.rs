@@ -37,7 +37,7 @@ pub static GLOBAL_ALLOCATOR: CUDAAllocator = CUDAAllocator;
 pub fn dynamic_smem_size() -> u32 {
     let mut out;
     unsafe {
-        asm!(
+        core::arch::asm!(
             "mov.u32 {}, %dynamic_smem_size",
             out(reg32) out
         )
@@ -55,7 +55,7 @@ pub fn dynamic_smem_size() -> u32 {
 pub fn total_smem_size() -> u32 {
     let mut out;
     unsafe {
-        asm!(
+        core::arch::asm!(
             "mov.u32 {}, %total_smem_size",
             out(reg32) out
         )

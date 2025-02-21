@@ -35,7 +35,7 @@ impl_num_complex = ["cust_core/num-complex", "num-complex"]
 find_cuda_helper = { path = "../find_cuda_helper", version = "0.2" }
 
 [dev-dependencies]
-image = "0.23.14"
+image = "0.25.5"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

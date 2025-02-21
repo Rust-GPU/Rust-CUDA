@@ -1,37 +1,36 @@
-use crate::llvm::{self};
-use crate::override_fns::define_or_override_fn;
-use crate::{builder::Builder, context::CodegenCx, lto::ThinBuffer, LlvmMod, NvvmCodegenBackend};
+use std::io::{self, Write};
+use std::slice;
+use std::sync::Arc;
+
 use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
-use rustc_codegen_ssa::traits::{DebugInfoMethods, MiscMethods};
+use rustc_codegen_ssa::traits::{DebugInfoCodegenMethods, MiscCodegenMethods};
 use rustc_codegen_ssa::{
     back::write::{CodegenContext, ModuleConfig},
     base::maybe_create_entry_wrapper,
     mono_item::MonoItemExt,
-    traits::{BaseTypeMethods, ThinBufferMethods},
+    traits::{BaseTypeCodegenMethods, ThinBufferMethods},
     CompiledModule, ModuleCodegen, ModuleKind,
 };
-use rustc_data_structures::small_c_str::SmallCStr;
-use rustc_errors::{FatalError, Handler};
+use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_fs_util::path_to_c_string;
 use rustc_middle::bug;
-use rustc_middle::mir::mono::MonoItem;
+use rustc_middle::mir::mono::{MonoItem, MonoItemData};
 use rustc_middle::{dep_graph, ty::TyCtxt};
 use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_session::Session;
 use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
-use std::ffi::CString;
-use std::sync::Arc;
-use std::{
-    io::{self, Write},
-    slice,
-};
 
-pub fn llvm_err(handler: &Handler, msg: &str) -> FatalError {
+use crate::common::AsCCharPtr;
+use crate::llvm::{self};
+use crate::override_fns::define_or_override_fn;
+use crate::{builder::Builder, context::CodegenCx, lto::ThinBuffer, LlvmMod, NvvmCodegenBackend};
+
+pub fn llvm_err(handle: DiagCtxtHandle, msg: &str) -> FatalError {
     match llvm::last_error() {
-        Some(err) => handler.fatal(&format!("{}: {}", msg, err)),
-        None => handler.fatal(msg),
+        Some(err) => handle.fatal(format!("{}: {}", msg, err)),
+        None => handle.fatal(msg.to_string()),
     }
 }
 
@@ -42,7 +41,7 @@ pub fn to_llvm_opt_settings(
     match cfg {
         No => (llvm::CodeGenOptLevel::None, llvm::CodeGenOptSizeNone),
         Less => (llvm::CodeGenOptLevel::Less, llvm::CodeGenOptSizeNone),
-        Default => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeNone),
+        More => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeNone),
         Aggressive => (llvm::CodeGenOptLevel::Aggressive, llvm::CodeGenOptSizeNone),
         Size => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeDefault),
         SizeMin => (
@@ -86,28 +85,31 @@ pub fn target_machine_factory(
 
     let ffunction_sections = sess
         .opts
-        .debugging_opts
+        .unstable_opts
         .function_sections
         .unwrap_or(sess.target.function_sections);
     let fdata_sections = ffunction_sections;
 
     let code_model = to_llvm_code_model(sess.code_model());
 
-    let triple = SmallCStr::new(&sess.target.llvm_target);
+    let triple = sess.target.llvm_target.clone();
     // let cpu = SmallCStr::new("sm_30");
-    let features = CString::new("").unwrap();
+    let features = "";
     let trap_unreachable = sess
         .opts
-        .debugging_opts
+        .unstable_opts
         .trap_unreachable
         .unwrap_or(sess.target.trap_unreachable);
 
     Arc::new(move |_config: TargetMachineFactoryConfig| {
         let tm = unsafe {
             llvm::LLVMRustCreateTargetMachine(
-                triple.as_ptr(),
+                triple.as_c_char_ptr(),
+                triple.len(),
                 std::ptr::null(),
-                features.as_ptr(),
+                0,
+                features.as_c_char_ptr(),
+                features.len(),
                 code_model,
                 reloc_model,
                 opt_level,
@@ -122,7 +124,7 @@ pub fn target_machine_factory(
         tm.ok_or_else(|| {
             format!(
                 "Could not create LLVM TargetMachine for triple: {}",
-                triple.to_str().unwrap()
+                triple
             )
         })
     })
@@ -160,7 +162,7 @@ pub extern "C" fn demangle_callback(
 /// Compile a single module (in an nvvm context this means getting the llvm bitcode out of it)
 pub(crate) unsafe fn codegen(
     cgcx: &CodegenContext<NvvmCodegenBackend>,
-    diag_handler: &Handler,
+    dcx: DiagCtxtHandle<'_>,
     module: ModuleCodegen<LlvmMod>,
     config: &ModuleConfig,
 ) -> Result<CompiledModule, FatalError> {
@@ -195,13 +197,14 @@ pub(crate) unsafe fn codegen(
         let out = cgcx
             .output_filenames
             .temp_path(OutputType::LlvmAssembly, module_name);
-        let out_c = path_to_c_string(&out);
+        let out = out.to_str().unwrap();
 
-        let result = llvm::LLVMRustPrintModule(llmod, out_c.as_ptr(), demangle_callback);
+
+        let result = llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback);
 
         result.into_result().map_err(|()| {
-            let msg = format!("failed to write NVVM IR to {}", out.display());
-            llvm_err(diag_handler, &msg)
+            let msg = format!("failed to write NVVM IR to {}", out);
+            llvm_err(dcx, &msg)
         })?;
     }
 
@@ -219,7 +222,7 @@ pub(crate) unsafe fn codegen(
 
     if let Err(e) = std::fs::write(&out, data) {
         let msg = format!("failed to write bytecode to {}: {}", out.display(), e);
-        diag_handler.err(&msg);
+        dcx.err(msg);
     }
 
     Ok(CompiledModule {
@@ -228,6 +231,8 @@ pub(crate) unsafe fn codegen(
         object: Some(out),
         dwarf_object: None,
         bytecode: None,
+        assembly: None,
+        llvm_ir: None,
     })
 }
 
@@ -257,7 +262,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
 
             let mono_items = cx.codegen_unit.items_in_deterministic_order(cx.tcx);
 
-            for &(mono_item, (linkage, visibility)) in &mono_items {
+            for &(mono_item, MonoItemData { linkage, visibility, .. }) in &mono_items {
                 mono_item.predefine::<Builder<'_, '_, '_>>(&cx, linkage, visibility);
             }
 
@@ -285,11 +290,11 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
             }
 
             // Create the llvm.used and llvm.compiler.used variables.
-            if !cx.used_statics().borrow().is_empty() {
-                cx.create_used_variable();
+            if !cx.used_statics.borrow().is_empty() {
+                cx.create_used_variable_impl(c"llvm.used", &*cx.used_statics.borrow());
             }
-            if !cx.compiler_used_statics().borrow().is_empty() {
-                cx.create_compiler_used_variable();
+            if !cx.compiler_used_statics.borrow().is_empty() {
+                cx.create_used_variable_impl(c"llvm.compiler.used", &*cx.compiler_used_statics.borrow());
             }
 
             // Finalize debuginfo
@@ -315,7 +320,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
 // any big things were discovered in that timespan that we should modify.
 pub(crate) unsafe fn optimize(
     cgcx: &CodegenContext<NvvmCodegenBackend>,
-    diag_handler: &Handler,
+    diag_handler: DiagCtxtHandle<'_>,
     module: &ModuleCodegen<LlvmMod>,
     config: &ModuleConfig,
 ) -> Result<(), FatalError> {
@@ -338,6 +343,7 @@ pub(crate) unsafe fn optimize(
 
     let tm_factory_config = TargetMachineFactoryConfig {
         split_dwarf_file: None,
+        output_obj_file: None,
     };
 
     let tm = (cgcx.tm_factory)(tm_factory_config).expect("failed to create target machine");
@@ -347,8 +353,7 @@ pub(crate) unsafe fn optimize(
         let mpm = llvm::LLVMCreatePassManager();
 
         let addpass = |pass_name: &str| {
-            let pass_name = CString::new(pass_name).unwrap();
-            let pass = llvm::LLVMRustFindAndCreatePass(pass_name.as_ptr());
+            let pass = llvm::LLVMRustFindAndCreatePass(pass_name.as_c_char_ptr(), pass_name.len());
             if pass.is_none() {
                 return false;
             }
@@ -379,7 +384,7 @@ pub(crate) unsafe fn optimize(
 
         for pass in &config.passes {
             if !addpass(pass) {
-                diag_handler.warn(&format!("unknown pass `{}`, ignoring", pass));
+                diag_handler.warn(format!("unknown pass `{}`, ignoring", pass));
             }
         }
 
@@ -409,7 +414,6 @@ unsafe fn with_llvm_pmb(
     let opt_size = config
         .opt_size
         .map_or(llvm::CodeGenOptSizeNone, |x| to_llvm_opt_settings(x).1);
-    let inline_threshold = config.inline_threshold;
 
     llvm::LLVMRustConfigurePassManagerBuilder(
         builder,
@@ -434,17 +438,14 @@ unsafe fn with_llvm_pmb(
     // always-inline functions (but don't add lifetime intrinsics), at O1 we
     // inline with lifetime intrinsics, and O2+ we add an inliner with a
     // thresholds copied from clang.
-    match (opt_level, opt_size, inline_threshold) {
-        (.., Some(t)) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, t as u32);
-        }
+    match (opt_level, opt_size) {
         (llvm::CodeGenOptLevel::Aggressive, ..) => {
             llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 275);
         }
-        (_, llvm::CodeGenOptSizeDefault, _) => {
+        (_, llvm::CodeGenOptSizeDefault) => {
             llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 75);
         }
-        (_, llvm::CodeGenOptSizeAggressive, _) => {
+        (_, llvm::CodeGenOptSizeAggressive) => {
             llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 25);
         }
         (llvm::CodeGenOptLevel::None, ..) => {
