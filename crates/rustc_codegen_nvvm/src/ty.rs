@@ -4,16 +4,16 @@ use crate::llvm::{self, Bool, False, True, Type, Value};
 use libc::c_uint;
 use rustc_abi::Primitive::{Float, Int, Pointer};
 use rustc_abi::{
-    AddressSpace, Align, BackendRepr, FieldsShape, Integer, PointeeInfo, Reg,
-    Scalar, Size, TyAbiInterface, Variants
+    AddressSpace, Align, BackendRepr, FieldsShape, Integer, PointeeInfo, Reg, Scalar, Size,
+    TyAbiInterface, Variants,
 };
 use rustc_codegen_ssa::common::TypeKind;
 use rustc_codegen_ssa::traits::*;
 use rustc_data_structures::small_c_str::SmallCStr;
 use rustc_middle::bug;
-use rustc_middle::ty::{self, CoroutineArgsExt, Ty, TypeVisitableExt};
 use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
 use rustc_middle::ty::print::with_no_trimmed_paths;
+use rustc_middle::ty::{self, CoroutineArgsExt, Ty, TypeVisitableExt};
 use rustc_target::callconv::{CastTarget, FnAbi};
 use std::ffi::CString;
 use std::fmt::{Debug, Write};
@@ -405,25 +405,22 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         self.llvm_type(cx)
     }
 
-    fn scalar_llvm_type_at<'a>(
-        &self,
-        cx: &CodegenCx<'a, 'tcx>,
-        scalar: Scalar,
-    ) -> &'a Type {
+    fn scalar_llvm_type_at<'a>(&self, cx: &CodegenCx<'a, 'tcx>, scalar: Scalar) -> &'a Type {
         match scalar.primitive() {
             Int(i, _) => cx.type_from_integer(i),
             Float(f) => cx.type_from_float(f),
             Pointer(address_space) => {
                 // If we know the alignment, pick something better than i8.
-                let (pointee, address_space) =
-                    if let Some(PointeeInfo { safe: Some(_), align, .. }) = self.pointee_info_at(cx, Size::ZERO) {
-                        (
-                            cx.type_pointee_for_align(align),
-                            address_space,
-                        )
-                    } else {
-                        (cx.type_i8(), AddressSpace::DATA)
-                    };
+                let (pointee, address_space) = if let Some(PointeeInfo {
+                    safe: Some(_),
+                    align,
+                    ..
+                }) = self.pointee_info_at(cx, Size::ZERO)
+                {
+                    (cx.type_pointee_for_align(align), address_space)
+                } else {
+                    (cx.type_i8(), AddressSpace::DATA)
+                };
                 cx.type_ptr_to_ext(pointee, address_space)
             }
         }
@@ -461,7 +458,10 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         // }
 
         let BackendRepr::ScalarPair(a, b) = self.backend_repr else {
-            bug!("TyAndLayout::scalar_pair_element_llty({:?}): not applicable", self);
+            bug!(
+                "TyAndLayout::scalar_pair_element_llty({:?}): not applicable",
+                self
+            );
         };
         let scalar = [a, b][index];
 

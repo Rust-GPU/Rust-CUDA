@@ -7,8 +7,8 @@ use crate::context::CodegenCx;
 use crate::llvm;
 use crate::llvm::debuginfo::{DIArray, DIBuilder, DIDescriptor, DIScope};
 
-use super::namespace::item_namespace;
 use super::CodegenUnitDebugContext;
+use super::namespace::item_namespace;
 
 pub(crate) fn is_node_local_to_unit(cx: &CodegenCx<'_, '_>, def_id: DefId) -> bool {
     // The is_local_to_unit flag indicates whether a function is local to the
@@ -47,10 +47,7 @@ pub(crate) fn get_namespace_for_item<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     def_id: DefId,
 ) -> &'ll DIScope {
-    item_namespace(
-        cx,
-        cx.tcx.parent(def_id)
-    )
+    item_namespace(cx, cx.tcx.parent(def_id))
 }
 
 #[derive(Debug, PartialEq, Eq)]

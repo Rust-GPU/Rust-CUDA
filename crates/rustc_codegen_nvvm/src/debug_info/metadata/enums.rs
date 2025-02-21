@@ -1,15 +1,17 @@
 use std::borrow::Cow;
 
 use libc::c_uint;
-use rustc_abi::{Size, FieldIdx, TagEncoding, VariantIdx, Variants};
-use rustc_codegen_ssa::debuginfo::{tag_base_type, type_names::compute_debuginfo_type_name, wants_c_like_enum_debuginfo};
+use rustc_abi::{FieldIdx, Size, TagEncoding, VariantIdx, Variants};
+use rustc_codegen_ssa::debuginfo::{
+    tag_base_type, type_names::compute_debuginfo_type_name, wants_c_like_enum_debuginfo,
+};
 use rustc_codegen_ssa::traits::{ConstCodegenMethods, MiscCodegenMethods};
 use rustc_hir::def::CtorKind;
 use rustc_index::IndexSlice;
 use rustc_middle::bug;
 use rustc_middle::mir::CoroutineLayout;
 use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
-use rustc_middle::ty::{self, AdtDef, Ty, CoroutineArgs, CoroutineArgsExt, VariantDef};
+use rustc_middle::ty::{self, AdtDef, CoroutineArgs, CoroutineArgsExt, Ty, VariantDef};
 use rustc_span::Symbol;
 use smallvec::smallvec;
 
@@ -18,16 +20,14 @@ use super::{SmallVec, size_and_align_of};
 use crate::common::AsCCharPtr;
 use crate::context::CodegenCx;
 use crate::debug_info::file_metadata_from_def_id;
-use crate::debug_info::util::{create_DIArray, get_namespace_for_item, DIB};
-use crate::debug_info::metadata::{
-    build_field_di_node, build_generic_type_param_di_nodes, file_metadata, type_di_node, visibility_di_flags,
-    unknown_file_metadata,  NO_GENERICS,
-    UNKNOWN_LINE_NUMBER,
-};
 use crate::debug_info::metadata::type_map::{self, Stub, StubInfo};
-use crate::llvm::{self,};
+use crate::debug_info::metadata::{
+    NO_GENERICS, UNKNOWN_LINE_NUMBER, build_field_di_node, build_generic_type_param_di_nodes,
+    file_metadata, type_di_node, unknown_file_metadata, visibility_di_flags,
+};
+use crate::debug_info::util::{DIB, create_DIArray, get_namespace_for_item};
 use crate::llvm::debuginfo::{DIFile, DIFlags, DIType};
-
+use crate::llvm::{self};
 
 /// Build the debuginfo node for an enum type. The listing below shows how such a
 /// type looks like at the LLVM IR/DWARF level. It is a `DW_TAG_structure_type`
@@ -53,7 +53,10 @@ pub(super) fn build_enum_type_di_node<'ll, 'tcx>(
 ) -> DINodeCreationResult<'ll> {
     let enum_type = unique_type_id.expect_ty();
     let &ty::Adt(enum_adt_def, _) = enum_type.kind() else {
-        bug!("build_enum_type_di_node() called with non-enum type: `{:?}`", enum_type)
+        bug!(
+            "build_enum_type_di_node() called with non-enum type: `{:?}`",
+            enum_type
+        )
     };
 
     let enum_type_and_layout = cx.layout_of(enum_type);
@@ -72,7 +75,6 @@ pub(super) fn build_enum_type_di_node<'ll, 'tcx>(
     } else {
         None
     };
-
 
     type_map::build_type_with_children(
         cx,
@@ -150,13 +152,19 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
 ) -> DINodeCreationResult<'ll> {
     let coroutine_type = unique_type_id.expect_ty();
     let &ty::Coroutine(coroutine_def_id, coroutine_args) = coroutine_type.kind() else {
-        bug!("build_coroutine_di_node() called with non-coroutine type: `{:?}`", coroutine_type)
+        bug!(
+            "build_coroutine_di_node() called with non-coroutine type: `{:?}`",
+            coroutine_type
+        )
     };
 
     let containing_scope = get_namespace_for_item(cx, coroutine_def_id);
     let coroutine_type_and_layout = cx.layout_of(coroutine_type);
 
-    assert!(!wants_c_like_enum_debuginfo(cx.tcx, coroutine_type_and_layout));
+    assert!(!wants_c_like_enum_debuginfo(
+        cx.tcx,
+        coroutine_type_and_layout
+    ));
 
     let coroutine_type_name = compute_debuginfo_type_name(cx.tcx, coroutine_type, false);
 
@@ -184,8 +192,11 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
                 .coroutine_layout(coroutine_def_id, coroutine_args.as_coroutine().kind_ty())
                 .unwrap();
 
-            let Variants::Multiple { tag_encoding: TagEncoding::Direct, ref variants, .. } =
-                coroutine_type_and_layout.variants
+            let Variants::Multiple {
+                tag_encoding: TagEncoding::Direct,
+                ref variants,
+                ..
+            } = coroutine_type_and_layout.variants
             else {
                 bug!(
                     "Encountered coroutine with non-direct-tag layout: {:?}",
@@ -193,8 +204,9 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
                 )
             };
 
-            let common_upvar_names =
-                cx.tcx.closure_saved_names_of_captured_variables(coroutine_def_id);
+            let common_upvar_names = cx
+                .tcx
+                .closure_saved_names_of_captured_variables(coroutine_def_id);
 
             // Build variant struct types
             let variant_struct_type_di_nodes: SmallVec<_> = variants
@@ -216,15 +228,14 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
                     VariantMemberInfo {
                         variant_index,
                         variant_name,
-                        variant_struct_type_di_node:
-                            build_coroutine_variant_struct_type_di_node(
-                                cx,
-                                variant_index,
-                                coroutine_type_and_layout,
-                                coroutine_type_di_node,
-                                coroutine_layout,
-                                common_upvar_names,
-                            ),
+                        variant_struct_type_di_node: build_coroutine_variant_struct_type_di_node(
+                            cx,
+                            variant_index,
+                            coroutine_type_and_layout,
+                            coroutine_type_di_node,
+                            coroutine_layout,
+                            common_upvar_names,
+                        ),
                         source_info,
                     }
                 })
@@ -380,7 +391,10 @@ fn build_discr_member_di_node<'ll, 'tcx>(
                     UNKNOWN_LINE_NUMBER,
                     size.bits(),
                     align.bits() as u32,
-                    enum_or_coroutine_type_and_layout.fields.offset(tag_field).bits(),
+                    enum_or_coroutine_type_and_layout
+                        .fields
+                        .offset(tag_field)
+                        .bits(),
                     DIFlags::FlagArtificial,
                     type_di_node(cx, tag_base_type),
                 ))
@@ -506,10 +520,12 @@ fn build_c_style_enum_di_node<'ll, 'tcx>(
             cx,
             &compute_debuginfo_type_name(cx.tcx, enum_type_and_layout.ty, false),
             tag_base_type(cx.tcx, enum_type_and_layout),
-            enum_adt_def.discriminants(cx.tcx).map(|(variant_index, discr)| {
-                let name = Cow::from(enum_adt_def.variant(variant_index).name.as_str());
-                (name, discr.val)
-            }),
+            enum_adt_def
+                .discriminants(cx.tcx)
+                .map(|(variant_index, discr)| {
+                    let name = Cow::from(enum_adt_def.variant(variant_index).name.as_str());
+                    (name, discr.val)
+                }),
             enum_adt_def_id,
             containing_scope,
         ),
@@ -521,7 +537,7 @@ fn build_c_style_enum_di_node<'ll, 'tcx>(
 /// This is a helper function and does not register anything in the type map by itself.
 ///
 /// `variants` is an iterator of (discr-value, variant-name).
-/// 
+///
 /// NVVM: Discrimant values are mapped from u128 to i64 to conform with LLVM 7's API.
 fn build_enumeration_type_di_node<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
@@ -774,7 +790,10 @@ fn build_coroutine_variant_struct_type_di_node<'ll, 'tcx>(
                 })
                 .collect();
 
-            state_specific_fields.into_iter().chain(common_fields).collect()
+            state_specific_fields
+                .into_iter()
+                .chain(common_fields)
+                .collect()
         },
         |cx| build_generic_type_param_di_nodes(cx, coroutine_type_and_layout.ty),
     )
@@ -791,7 +810,11 @@ enum DiscrResult {
 
 impl DiscrResult {
     fn opt_single_val(&self) -> Option<u128> {
-        if let Self::Value(d) = *self { Some(d) } else { None }
+        if let Self::Value(d) = *self {
+            Some(d)
+        } else {
+            None
+        }
     }
 }
 
@@ -807,11 +830,23 @@ fn compute_discriminant_value<'ll, 'tcx>(
 ) -> DiscrResult {
     match enum_type_and_layout.layout.variants() {
         &Variants::Single { .. } | &Variants::Empty => DiscrResult::NoDiscriminant,
-        &Variants::Multiple { tag_encoding: TagEncoding::Direct, .. } => DiscrResult::Value(
-            enum_type_and_layout.ty.discriminant_for_variant(cx.tcx, variant_index).unwrap().val,
+        &Variants::Multiple {
+            tag_encoding: TagEncoding::Direct,
+            ..
+        } => DiscrResult::Value(
+            enum_type_and_layout
+                .ty
+                .discriminant_for_variant(cx.tcx, variant_index)
+                .unwrap()
+                .val,
         ),
         &Variants::Multiple {
-            tag_encoding: TagEncoding::Niche { ref niche_variants, niche_start, untagged_variant },
+            tag_encoding:
+                TagEncoding::Niche {
+                    ref niche_variants,
+                    niche_start,
+                    untagged_variant,
+                },
             tag,
             ..
         } => {
@@ -840,4 +875,3 @@ fn compute_discriminant_value<'ll, 'tcx>(
         }
     }
 }
-

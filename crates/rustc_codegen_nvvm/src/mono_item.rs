@@ -8,8 +8,8 @@ use crate::ty::LayoutLlvmExt;
 use rustc_codegen_ssa::traits::*;
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_middle::mir::mono::{Linkage, Visibility};
-use rustc_middle::ty::layout::{FnAbiOf, HasTypingEnv, LayoutOf};
 use rustc_middle::ty::TypeVisitableExt;
+use rustc_middle::ty::layout::{FnAbiOf, HasTypingEnv, LayoutOf};
 use rustc_middle::ty::{self, Instance};
 use tracing::trace;
 
@@ -77,8 +77,7 @@ impl<'ll, 'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         // compiler-rt, then we want to implicitly compile everything with hidden
         // visibility as we're going to link this object all over the place but
         // don't want the symbols to get exported.
-        if linkage != Linkage::Internal && self.tcx.is_compiler_builtins(LOCAL_CRATE)
-        {
+        if linkage != Linkage::Internal && self.tcx.is_compiler_builtins(LOCAL_CRATE) {
             unsafe {
                 llvm::LLVMRustSetVisibility(lldecl, llvm::Visibility::Hidden);
             }

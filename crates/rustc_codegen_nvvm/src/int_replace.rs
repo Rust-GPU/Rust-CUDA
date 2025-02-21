@@ -51,9 +51,7 @@ pub(crate) fn get_transformed_type<'ll, 'tcx>(
                     let int_ty = LLVMIntTypeInContext(cx.llcx, width);
                     trace!(
                         "Transforming irregular int type `{:?}` to vector ty `{:?}` with length {}",
-                        ty,
-                        int_ty,
-                        count
+                        ty, int_ty, count
                     );
                     (LLVMVectorType(int_ty, count), true)
                 }

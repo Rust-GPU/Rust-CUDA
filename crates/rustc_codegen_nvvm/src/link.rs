@@ -4,17 +4,17 @@ use rustc_codegen_ssa::CodegenResults;
 use rustc_codegen_ssa::CompiledModule;
 use rustc_codegen_ssa::NativeLib;
 use rustc_data_structures::memmap::Mmap;
-use rustc_data_structures::owned_slice::{slice_owned, try_slice_owned, OwnedSlice};
+use rustc_data_structures::owned_slice::{OwnedSlice, slice_owned, try_slice_owned};
 use rustc_hash::FxHashSet;
+use rustc_metadata::creader::MetadataLoader;
 use rustc_middle::bug;
 use rustc_middle::middle::dependency_format::Linkage;
-use rustc_metadata::creader::MetadataLoader;
 use rustc_session::output::out_filename;
 use rustc_session::{
+    Session,
     config::{CrateType, OutputFilenames, OutputType},
     output::check_file_is_writeable,
     utils::NativeLibKind,
-    Session,
 };
 use rustc_span::Symbol;
 use rustc_target::spec::Target;
@@ -28,8 +28,8 @@ use std::{
 use tar::{Archive, Builder, Header};
 use tracing::{debug, trace};
 
-use crate::context::CodegenArgs;
 use crate::LlvmMod;
+use crate::context::CodegenArgs;
 
 pub(crate) struct NvvmMetadataLoader;
 
@@ -83,11 +83,7 @@ fn read_metadata(rlib: &Path) -> Result<OwnedSlice, String> {
     }
 }
 
-fn search_for_section<'a>(
-    path: &Path,
-    bytes: &'a [u8],
-    section: &str,
-) -> Result<&'a [u8], String> {
+fn search_for_section<'a>(path: &Path, bytes: &'a [u8], section: &str) -> Result<&'a [u8], String> {
     let Ok(file) = object::File::parse(bytes) else {
         // The parse above could fail for odd reasons like corruption, but for
         // now we just interpret it as this target doesn't support metadata
@@ -100,7 +96,14 @@ fn search_for_section<'a>(
     file.section_by_name(section)
         .ok_or_else(|| format!("no `{}` section in '{}'", section, path.display()))?
         .data()
-        .map_err(|e| format!("failed to read {} section in '{}': {}", section, path.display(), e))
+        .map_err(|e| {
+            format!(
+                "failed to read {} section in '{}': {}",
+                section,
+                path.display(),
+                e
+            )
+        })
 }
 
 pub fn link<'tcx>(
@@ -169,7 +172,11 @@ fn link_rlib(sess: &Session, codegen_results: &CodegenResults, out_filename: &Pa
         // but including libraries doesnt make sense because nvvm would have to translate
         // the binary directly to ptx. We might want to add some way of linking in
         // ptx files or custom bitcode modules as "libraries" perhaps in the future.
-        if let NativeLibKind::Static { bundle: None | Some(true), .. } = lib.kind {
+        if let NativeLibKind::Static {
+            bundle: None | Some(true),
+            ..
+        } = lib.kind
+        {
             sess.dcx().err(format!(
                 "Adding native libraries to rlib is not supported in CUDA: {}",
                 lib.name
@@ -229,7 +236,8 @@ fn codegen_into_ptx_file(
     rlibs: &[PathBuf],
     out_filename: &Path,
 ) -> io::Result<()> {
-    debug!("Codegenning crate into PTX, allocator: {}, objects:\n{:#?}, rlibs:\n{:#?}, out_filename:\n{:#?}",
+    debug!(
+        "Codegenning crate into PTX, allocator: {}, objects:\n{:#?}, rlibs:\n{:#?}, out_filename:\n{:#?}",
         allocator.is_some(),
         objects,
         rlibs,
@@ -297,7 +305,8 @@ fn codegen_into_ptx_file(
 
 fn create_archive(sess: &Session, files: &[&Path], metadata: &[u8], out_filename: &Path) {
     if let Err(err) = try_create_archive(files, metadata, out_filename) {
-        sess.dcx().fatal(format!("Failed to create archive: {}", err));
+        sess.dcx()
+            .fatal(format!("Failed to create archive: {}", err));
     }
 }
 
@@ -388,7 +397,8 @@ fn add_upstream_native_libraries(
             if !relevant_lib(sess, lib) {
                 continue;
             }
-            sess.dcx().fatal("Native libraries are not supported in CUDA");
+            sess.dcx()
+                .fatal("Native libraries are not supported in CUDA");
         }
     }
 }

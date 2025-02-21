@@ -25,11 +25,7 @@
 #![cfg_attr(
     target_os = "cuda",
     no_std,
-    feature(
-        alloc_error_handler,
-        asm_experimental_arch,
-        link_llvm_intrinsics
-    ),
+    feature(alloc_error_handler, asm_experimental_arch, link_llvm_intrinsics),
     register_attr(nvvm_internal)
 )]
 

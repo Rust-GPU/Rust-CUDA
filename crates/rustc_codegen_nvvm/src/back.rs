@@ -6,26 +6,26 @@ use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
 use rustc_codegen_ssa::traits::{DebugInfoCodegenMethods, MiscCodegenMethods};
 use rustc_codegen_ssa::{
+    CompiledModule, ModuleCodegen, ModuleKind,
     back::write::{CodegenContext, ModuleConfig},
     base::maybe_create_entry_wrapper,
     mono_item::MonoItemExt,
     traits::{BaseTypeCodegenMethods, ThinBufferMethods},
-    CompiledModule, ModuleCodegen, ModuleKind,
 };
 use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_fs_util::path_to_c_string;
 use rustc_middle::bug;
 use rustc_middle::mir::mono::{MonoItem, MonoItemData};
 use rustc_middle::{dep_graph, ty::TyCtxt};
-use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_session::Session;
+use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
 
 use crate::common::AsCCharPtr;
 use crate::llvm::{self};
 use crate::override_fns::define_or_override_fn;
-use crate::{builder::Builder, context::CodegenCx, lto::ThinBuffer, LlvmMod, NvvmCodegenBackend};
+use crate::{LlvmMod, NvvmCodegenBackend, builder::Builder, context::CodegenCx, lto::ThinBuffer};
 
 pub fn llvm_err(handle: DiagCtxtHandle, msg: &str) -> FatalError {
     match llvm::last_error() {
@@ -121,12 +121,7 @@ pub fn target_machine_factory(
                 false,
             )
         };
-        tm.ok_or_else(|| {
-            format!(
-                "Could not create LLVM TargetMachine for triple: {}",
-                triple
-            )
-        })
+        tm.ok_or_else(|| format!("Could not create LLVM TargetMachine for triple: {}", triple))
     })
 }
 
@@ -199,8 +194,8 @@ pub(crate) unsafe fn codegen(
             .temp_path(OutputType::LlvmAssembly, module_name);
         let out = out.to_str().unwrap();
 
-
-        let result = llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback);
+        let result =
+            llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback);
 
         result.into_result().map_err(|()| {
             let msg = format!("failed to write NVVM IR to {}", out);
@@ -262,7 +257,15 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
 
             let mono_items = cx.codegen_unit.items_in_deterministic_order(cx.tcx);
 
-            for &(mono_item, MonoItemData { linkage, visibility, .. }) in &mono_items {
+            for &(
+                mono_item,
+                MonoItemData {
+                    linkage,
+                    visibility,
+                    ..
+                },
+            ) in &mono_items
+            {
                 mono_item.predefine::<Builder<'_, '_, '_>>(&cx, linkage, visibility);
             }
 
@@ -294,7 +297,10 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
                 cx.create_used_variable_impl(c"llvm.used", &*cx.used_statics.borrow());
             }
             if !cx.compiler_used_statics.borrow().is_empty() {
-                cx.create_used_variable_impl(c"llvm.compiler.used", &*cx.compiler_used_statics.borrow());
+                cx.create_used_variable_impl(
+                    c"llvm.compiler.used",
+                    &*cx.compiler_used_statics.borrow(),
+                );
             }
 
             // Finalize debuginfo

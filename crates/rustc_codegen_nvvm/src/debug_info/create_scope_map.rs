@@ -14,8 +14,8 @@ use rustc_middle::mir::{Body, SourceScope};
 use rustc_middle::ty::{self, Instance};
 use rustc_session::config::DebugInfo;
 
-use rustc_index::bit_set::*;
 use rustc_index::Idx;
+use rustc_index::bit_set::*;
 
 use super::metadata::file_metadata;
 use super::util::DIB;
@@ -30,7 +30,7 @@ pub(crate) fn compute_mir_scopes<'ll, 'tcx>(
     // Find all the scopes with variables defined in them.
     let variables = if cx.sess().opts.debuginfo == DebugInfo::Full {
         // Only consider variables when they're going to be emitted.
-        let mut vars = DenseBitSet::new_empty(mir.source_scopes.len());    
+        let mut vars = DenseBitSet::new_empty(mir.source_scopes.len());
         // FIXME(eddyb) take into account that arguments always have debuginfo,
         // irrespective of their name (assuming full debuginfo is enabled).
         // NOTE(eddyb) actually, on second thought, those are always in the

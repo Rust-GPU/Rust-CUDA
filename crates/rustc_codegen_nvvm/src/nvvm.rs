@@ -9,7 +9,7 @@ use crate::lto::ThinBuffer;
 use find_cuda_helper::find_cuda_root;
 use nvvm::*;
 use rustc_codegen_ssa::traits::ThinBufferMethods;
-use rustc_session::{config::DebugInfo, Session};
+use rustc_session::{Session, config::DebugInfo};
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::marker::PhantomData;
@@ -64,7 +64,8 @@ pub fn codegen_bitcode_modules(
     let (major, minor) = nvvm::ir_version();
 
     if minor < 6 || major < 1 {
-        sess.dcx().fatal("rustc_codegen_nvvm requires at least libnvvm 1.6 (CUDA 11.2)");
+        sess.dcx()
+            .fatal("rustc_codegen_nvvm requires at least libnvvm 1.6 (CUDA 11.2)");
     }
 
     // first, create the nvvm program we will add modules to.
@@ -95,7 +96,8 @@ pub fn codegen_bitcode_modules(
 
         if let Some(path) = &args.final_module_path {
             let out = path.to_str().unwrap();
-            let result = LLVMRustPrintModule(module, out.as_c_char_ptr(), out.len(), demangle_callback);
+            let result =
+                LLVMRustPrintModule(module, out.as_c_char_ptr(), out.len(), demangle_callback);
             result
                 .into_result()
                 .expect("Failed to write final llvm module output");
@@ -112,7 +114,8 @@ pub fn codegen_bitcode_modules(
         // i would put a more helpful error here, but to actually use the codegen
         // it needs to find libnvvm before this, and libdevice is in the nvvm directory
         // so if it can find libnvvm there is almost no way it can't find libdevice.
-        sess.dcx().fatal("Could not find the libdevice library (libdevice.10.bc) in the CUDA directory")
+        sess.dcx()
+            .fatal("Could not find the libdevice library (libdevice.10.bc) in the CUDA directory")
     };
 
     prog.add_lazy_module(&libdevice, "libdevice".to_string())?;

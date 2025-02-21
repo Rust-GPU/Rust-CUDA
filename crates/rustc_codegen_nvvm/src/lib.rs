@@ -38,10 +38,10 @@ mod asm;
 mod attributes;
 mod back;
 mod builder;
+mod common;
 mod const_ty;
 mod consts;
 mod context;
-mod common;
 mod ctx_intrinsics;
 mod debug_info;
 mod init;
@@ -97,7 +97,7 @@ pub fn __rustc_codegen_backend() -> Box<dyn CodegenBackend> {
                 env!("CARGO_PKG_VERSION"),
                 "`"
             ));
-        }
+        },
     );
     Box::new(NvvmCodegenBackend)
 }
@@ -156,7 +156,12 @@ impl CodegenBackend for NvvmCodegenBackend {
         Box::new(rustc_codegen_ssa::base::codegen_crate(
             Self,
             tcx,
-            tcx.sess.opts.cg.target_cpu.clone().unwrap_or_else(|| tcx.sess.target.cpu.to_string()),
+            tcx.sess
+                .opts
+                .cg
+                .target_cpu
+                .clone()
+                .unwrap_or_else(|| tcx.sess.target.cpu.to_string()),
             metadata,
             need_metadata_module,
         ))

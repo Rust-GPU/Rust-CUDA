@@ -55,7 +55,10 @@ fn target_to_llvm_prebuilt(target: &str) -> String {
         "x86_64-pc-windows-msvc" => "windows-x86_64",
         // NOTE(RDambrosio016): currently disabled because of weird issues with segfaults and building the C++ shim
         // "x86_64-unknown-linux-gnu" => "linux-x86_64",
-        _ => panic!("Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG", target)
+        _ => panic!(
+            "Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG",
+            target
+        ),
     };
     format!("{}.tar.xz", base)
 }
