@@ -76,7 +76,7 @@ pub mod prelude {
     };
 }
 
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 #[alloc_error_handler]
 fn alloc_handler(layout: core::alloc::Layout) -> ! {
     core::panic!("Memory allocation of {} bytes failed", layout.size());
@@ -84,7 +84,7 @@ fn alloc_handler(layout: core::alloc::Layout) -> ! {
 
 // FIXME(RDambrosio016): For some very odd reason, this function causes an InvalidAddress error when called,
 // despite it having no reason for doing that. It needs more debugging to see what is causing it exactly. For now we just trap.
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     // use crate::prelude::*;
