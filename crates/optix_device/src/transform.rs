@@ -96,6 +96,7 @@ fn matrix_motion_transform_from_handle_ptr(
 bitflags::bitflags! {
     /// Possible motion flags.
     #[repr(transparent)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MotionFlags: u32 {
         const START_VANISH = 1 << 0;
         const END_VANISH   = 1 << 1;
