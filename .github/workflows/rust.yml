@@ -7,8 +7,6 @@ on:
   push:
     paths-ignore:
       - '**.md'
-    branches:
-      - master
 
 env:
   RUST_LOG: info
