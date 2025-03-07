@@ -27,7 +27,7 @@ pub fn kernel(input: proc_macro::TokenStream, item: proc_macro::TokenStream) -> 
     let mut item = parse_macro_input!(item as ItemFn);
     let no_mangle = parse_quote!(#[no_mangle]);
     item.attrs.push(no_mangle);
-    let internal = parse_quote!(#[cfg_attr(any(target_arch="nvptx", target_arch="nvptx64"), nvvm_internal(kernel(#input)))]);
+    let internal = parse_quote!(#[cfg_attr(target_arch="nvptx64", nvvm_internal(kernel(#input)))]);
     item.attrs.push(internal);
 
     // used to guarantee some things about how params are passed in the codegen.
@@ -170,13 +170,13 @@ pub fn gpu_only(_attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -
     };
 
     let output = quote::quote! {
-        #[cfg(not(any(target_arch="nvptx", target_arch="nvptx64")))]
+        #[cfg(not(target_arch="nvptx64"))]
         #[allow(unused_variables)]
         #(#cloned_attrs)* #vis #sig_cpu {
             unimplemented!(concat!("`", stringify!(#fn_name), "` can only be used on the GPU with rustc_codegen_nvvm"))
         }
 
-        #[cfg(any(target_arch="nvptx", target_arch="nvptx64"))]
+        #[cfg(target_arch="nvptx64")]
         #(#attrs)* #vis #sig {
             #block
         }
