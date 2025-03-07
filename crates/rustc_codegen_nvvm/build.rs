@@ -53,7 +53,7 @@ pub fn output(cmd: &mut Command) -> String {
 fn target_to_llvm_prebuilt(target: &str) -> String {
     let base = match target {
         "x86_64-pc-windows-msvc" => "windows-x86_64",
-        // NOTE(RDambrosio016): currently disabled because of weird issues with segfaults and building the C++ shim
+        // NOTE(LegNeato): was disabled in the past because of weird issues with segfaults and building the C++ shim. Need to investigate if they are still around.
         "x86_64-unknown-linux-gnu" => "linux-x86_64",
         _ => panic!("Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG", target)
     };
