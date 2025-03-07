@@ -19,11 +19,11 @@ impl_half=["cust/impl_half", "half"]
 cust = { version = "0.3", path = "../cust", features=["impl_mint"] }
 cust_raw = { version = "0.11.2", path = "../cust_raw" }
 cfg-if = "1.0.0"
-bitflags = "1.3.2"
-glam = { version = "0.20", features=["cuda", "libm"], default-features=false, optional=true }
-half = { version = "^1.8", optional = true }
-memoffset = "0.6.4"
-mint = "0.5.8"
+bitflags = "2.8"
+glam = { version = "0.29", features=["cuda", "libm"], default-features=false, optional=true }
+half = { version = "2.4.1", optional = true }
+memoffset = "0.9.1"
+mint = "0.5.9"
 embed-doc-image = {version = "0.1.4"}
 
 [build-dependencies]

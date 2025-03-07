@@ -156,7 +156,7 @@ pub fn gpu_only(_attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -
 
     let mut cloned_attrs = attrs.clone();
     cloned_attrs.retain(|a| {
-        !a.path
+        !a.path()
             .get_ident()
             .map(|x| *x == "nvvm_internal")
             .unwrap_or_default()
@@ -199,7 +199,7 @@ pub fn externally_visible(
     let mut func = syn::parse_macro_input!(item as syn::ItemFn);
 
     assert!(
-        func.attrs.iter().any(|a| a.path.is_ident("no_mangle")),
+        func.attrs.iter().any(|a| a.path().is_ident("no_mangle")),
         "#[externally_visible] function should also be #[no_mangle]"
     );
 
