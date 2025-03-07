@@ -329,7 +329,9 @@ impl<A: DeviceCopy + Pod> DeviceBuffer<A> {
                 buf: self.buf.cast(),
                 len: new_len,
             });
-            unsafe{std::mem::forget(self);}
+            unsafe {
+                std::mem::forget(self);
+            }
             ret
         } else {
             Err(PodCastError::OutputSliceWouldHaveSlop)
