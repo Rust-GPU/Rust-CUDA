@@ -82,6 +82,16 @@ Other projects related to using Rust on the GPU:
 - 2020: [rlsl](https://github.com/MaikKlein/rlsl) Experimental Rust -> SPIR-V compiler (predecessor to rust-gpu)
 - 2020: [rust-gpu](https://github.com/Rust-GPU/rust-gpu) `rustc` compiler backend to compile Rust to SPIR-V for use in shaders, similar mechanism as our project.
 
+## Usage
+```bash
+## setup your environment like:
+### export OPTIX_ROOT=/opt/NVIDIA-OptiX-SDK-9.0.0-linux64-x86_64
+### export OPTIX_ROOT_DIR=/opt/NVIDIA-OptiX-SDK-9.0.0-linux64-x86_64
+
+## build proj
+cargo build
+```
+
 ## License
 
 Licensed under either of
