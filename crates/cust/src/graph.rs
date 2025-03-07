@@ -320,7 +320,7 @@ impl Graph {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            cuda::cuGraphCreate(raw.as_mut_ptr(), flags.bits).to_result()?;
+            cuda::cuGraphCreate(raw.as_mut_ptr(), flags.bits()).to_result()?;
 
             Ok(Self {
                 raw: raw.assume_init(),

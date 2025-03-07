@@ -8,9 +8,9 @@ repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 
 [dependencies]
-vek = { version = "0.15.1", default-features=false, features=["libm"], optional = true }
-glam = { version = "0.20", features=["cuda", "libm"], default-features=false, optional=true }
+vek = { version = "0.17.1", default-features=false, features=["libm"], optional = true }
+glam = { version = "0.29.2", features=["cuda", "libm"], default-features=false, optional=true }
 mint = { version = "^0.5", optional = true }
-half = { version = "1.8", optional = true }
-num-complex = { version = "0.4", optional = true }
+half = { version = "2.4.1", optional = true }
+num-complex = { version = "0.4.6", optional = true }
 cust_derive = { path = "../cust_derive", version = "0.2" }

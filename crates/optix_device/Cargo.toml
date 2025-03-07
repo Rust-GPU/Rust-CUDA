@@ -5,9 +5,9 @@ edition = "2021"
 authors = ["Anders Langlands <anderslanglands@gmail.com>", "Riccardo D'Ambrosio <rdambrosio016@gmail.com>"]
 
 [dependencies]
-bitflags = "1.3.2"
+bitflags = "2.8"
 cuda_std = { version = "0.2", path = "../cuda_std" }
-glam = { version = "0.20", features=["cuda", "libm"], default-features=false }
-paste = "1.0.6"
-seq-macro = "0.3.0"
+glam = { version = "0.29", features=["cuda", "libm"], default-features=false }
+paste = "1.0.15"
+seq-macro = "0.3.5"
 cust_core = { version = "0.1", path = "../cust_core" }
