@@ -327,3 +327,9 @@ impl AsMut<[u8]> for Seed512 {
         &mut self.0
     }
 }
+
+impl AsRef<[u8]> for Seed512 {
+    fn as_ref(&self) -> &[u8] {
+        return &self.0;
+    }
+}
