@@ -157,10 +157,13 @@ fn detect_cuda_root_via_which_nvcc() -> PathBuf {
     let output = Command::new("which")
         .arg("nvcc")
         .output()
-        .expect("Command `which` must be available on *nix like systems.")
-        .stdout;
+        .expect("Command `which` must be available on *nix like systems.");
 
-    let path: PathBuf = String::from_utf8(output)
+    if !output.status.success() {
+        panic!("Couldn't find nvcc - `which nvcc` returned non-zero");
+    }
+
+    let path: PathBuf = String::from_utf8(output.stdout)
         .expect("Result must be valid UTF-8")
         .trim()
         .to_string()
