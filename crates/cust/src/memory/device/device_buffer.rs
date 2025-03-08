@@ -314,7 +314,7 @@ impl<A: DeviceCopy + Pod> DeviceBuffer<A> {
     /// whole number of elements. Such as `3` x [`u16`] -> `1.5` x [`u32`].
     /// - If either type is a ZST (but not both).
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
-    pub fn try_cast<B: Pod + DeviceCopy>(mut self) -> Result<DeviceBuffer<B>, PodCastError> {
+    pub fn try_cast<B: Pod + DeviceCopy>(self) -> Result<DeviceBuffer<B>, PodCastError> {
         if align_of::<B>() > align_of::<A>() && (self.buf.as_raw() as usize) % align_of::<B>() != 0
         {
             Err(PodCastError::TargetAlignmentGreaterAndInputNotAligned)
@@ -329,9 +329,7 @@ impl<A: DeviceCopy + Pod> DeviceBuffer<A> {
                 buf: self.buf.cast(),
                 len: new_len,
             });
-            unsafe {
-                std::mem::forget(self);
-            }
+            std::mem::forget(self);
             ret
         } else {
             Err(PodCastError::OutputSliceWouldHaveSlop)

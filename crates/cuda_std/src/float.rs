@@ -54,9 +54,9 @@ mod private {
 
 macro_rules! f32_intrinsic {
     ($self:expr, $func:ident($($param:expr),*)) => {{
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = $self.$func($($param),*);
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = paste::paste! { unsafe { intrinsics::[<$func f>]($self, $($param),*)} };
         val
     }};
@@ -64,15 +64,15 @@ macro_rules! f32_intrinsic {
 
 macro_rules! f64_intrinsic {
     ($self:expr, $func:ident($($param:expr),*)) => {{
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = $self.$func($($param),*);
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = unsafe { intrinsics::$func($self, $($param),*)};
         val
     }};
 }
 
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 use crate::intrinsics;
 
 impl GpuFloat for f32 {
@@ -117,9 +117,9 @@ impl GpuFloat for f32 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn abs(self) -> f32 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.abs();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::fabsf(self) } };
         val
     }
@@ -161,9 +161,9 @@ impl GpuFloat for f32 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn mul_add(self, a: f32, b: f32) -> f32 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.mul_add(a, b);
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::fmaf(self, a, b) } };
         val
     }
@@ -218,9 +218,9 @@ impl GpuFloat for f32 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn powf(self, n: f32) -> f32 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.powf(n);
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::powf(self, n) } };
         val
     }
@@ -252,9 +252,9 @@ impl GpuFloat for f32 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln(self) -> f32 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.ln();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::logf(self) } };
         val
     }
@@ -362,9 +362,9 @@ impl GpuFloat for f32 {
     /// `(sin(x), cos(x))`.
     #[inline]
     fn sin_cos(self) -> (f32, f32) {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.sin_cos();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = {
             let mut sptr = 0.0;
             let mut cptr = 0.0;
@@ -381,9 +381,9 @@ impl GpuFloat for f32 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp_m1(self) -> f32 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.exp_m1();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::expm1f(self) } };
         val
     }
@@ -393,9 +393,9 @@ impl GpuFloat for f32 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln_1p(self) -> f32 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.ln_1p();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::log1pf(self) } };
         val
     }
@@ -485,9 +485,9 @@ impl GpuFloat for f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn abs(self) -> f64 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.abs();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::fabs(self) } };
         val
     }
@@ -529,9 +529,9 @@ impl GpuFloat for f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn mul_add(self, a: f64, b: f64) -> f64 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.mul_add(a, b);
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::fma(self, a, b) } };
         val
     }
@@ -586,9 +586,9 @@ impl GpuFloat for f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn powf(self, n: f64) -> f64 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.powf(n);
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::pow(self, n) } };
         val
     }
@@ -620,9 +620,9 @@ impl GpuFloat for f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln(self) -> f64 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.ln();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::log(self) } };
         val
     }
@@ -730,9 +730,9 @@ impl GpuFloat for f64 {
     /// `(sin(x), cos(x))`.
     #[inline]
     fn sin_cos(self) -> (f64, f64) {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.sin_cos();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = {
             let mut sptr = 0.0;
             let mut cptr = 0.0;
@@ -749,9 +749,9 @@ impl GpuFloat for f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp_m1(self) -> f64 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.exp_m1();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::expm1(self) } };
         val
     }
@@ -761,9 +761,9 @@ impl GpuFloat for f64 {
     #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln_1p(self) -> f64 {
-        #[cfg(not(any(target_arch = "nvptx", target_arch = "nvptx64")))]
+        #[cfg(not(target_arch = "nvptx64"))]
         let val = self.ln_1p();
-        #[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
         let val = { unsafe { intrinsics::log1p(self) } };
         val
     }
