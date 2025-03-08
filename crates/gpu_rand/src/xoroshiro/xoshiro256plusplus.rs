@@ -1,6 +1,6 @@
 use rand_core::impls::fill_bytes_via_next;
 use rand_core::le::read_u64_into;
-use rand_core::{Error, RngCore, SeedableRng};
+use rand_core::{RngCore, SeedableRng};
 
 /// A xoshiro256++ random number generator.
 ///
@@ -111,12 +111,6 @@ impl RngCore for Xoshiro256PlusPlus {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         fill_bytes_via_next(self, dest);
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 
