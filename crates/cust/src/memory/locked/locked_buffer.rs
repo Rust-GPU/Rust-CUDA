@@ -103,7 +103,7 @@ impl<T: DeviceCopy> LockedBuffer<T> {
             ptr::NonNull::dangling().as_ptr()
         };
         Ok(LockedBuffer {
-            buf: ptr as *mut T,
+            buf: ptr,
             capacity: size,
         })
     }
@@ -142,26 +142,26 @@ impl<T: DeviceCopy> LockedBuffer<T> {
         self
     }
 
-    /// Creates a `LockedBuffer<T>` directly from the raw components of another locked buffer.
+    /// Creates a `LockedBuffer<T>` directly from the raw components of another locked
+    /// buffer.
     ///
     /// # Safety
     ///
-    /// This is highly unsafe, due to the number of invariants that aren't
-    /// checked:
+    /// This is highly unsafe, due to the number of invariants that aren't checked:
     ///
-    /// * `ptr` needs to have been previously allocated via `LockedBuffer` or
-    /// [`cuda_malloc_locked`](fn.cuda_malloc_locked.html).
-    /// * `ptr`'s `T` needs to have the same size and alignment as it was allocated with.
-    /// * `capacity` needs to be the capacity that the pointer was allocated with.
+    ///   * `ptr` needs to have been previously allocated via `LockedBuffer` or
+    ///     [`cuda_malloc_locked`](fn.cuda_malloc_locked.html).
+    ///   * `ptr`'s `T` needs to have the same size and alignment as it was allocated
+    ///     with.
+    ///   * `capacity` needs to be the capacity that the pointer was allocated with.
     ///
-    /// Violating these may cause problems like corrupting the CUDA driver's
-    /// internal data structures.
+    /// Violating these may cause problems like corrupting the CUDA driver's internal
+    /// data structures.
     ///
-    /// The ownership of `ptr` is effectively transferred to the
-    /// `LockedBuffer<T>` which may then deallocate, reallocate or change the
-    /// contents of memory pointed to by the pointer at will. Ensure
-    /// that nothing else uses the pointer after calling this
-    /// function.
+    /// The ownership of `ptr` is effectively transferred to the `LockedBuffer<T>` which
+    /// may then deallocate, reallocate or change the contents of memory pointed to by
+    /// the pointer at will. Ensure that nothing else uses the pointer after calling
+    /// this function.
     ///
     /// # Examples
     ///

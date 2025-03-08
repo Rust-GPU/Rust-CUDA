@@ -124,26 +124,26 @@ impl<T: DeviceCopy> DeviceBuffer<T> {
         unsafe { cuda_free_async(stream, me.buf) }
     }
 
-    /// Creates a `DeviceBuffer<T>` directly from the raw components of another device buffer.
+    /// Creates a `DeviceBuffer<T>` directly from the raw components of another device
+    /// buffer.
     ///
     /// # Safety
     ///
-    /// This is highly unsafe, due to the number of invariants that aren't
-    /// checked:
+    /// This is highly unsafe, due to the number of invariants that aren't checked:
     ///
-    /// * `ptr` needs to have been previously allocated via `DeviceBuffer` or
-    /// [`cuda_malloc`](fn.cuda_malloc.html).
-    /// * `ptr`'s `T` needs to have the same size and alignment as it was allocated with.
-    /// * `capacity` needs to be the capacity that the pointer was allocated with.
+    ///   * `ptr` needs to have been previously allocated via `DeviceBuffer` or
+    ///     [`cuda_malloc`](fn.cuda_malloc.html).
+    ///   * `ptr`'s `T` needs to have the same size and alignment as it was allocated
+    ///     with.
+    ///   * `capacity` needs to be the capacity that the pointer was allocated with.
     ///
-    /// Violating these may cause problems like corrupting the CUDA driver's
-    /// internal data structures.
+    /// Violating these may cause problems like corrupting the CUDA driver's internal
+    /// data structures.
     ///
-    /// The ownership of `ptr` is effectively transferred to the
-    /// `DeviceBuffer<T>` which may then deallocate, reallocate or change the
-    /// contents of memory pointed to by the pointer at will. Ensure
-    /// that nothing else uses the pointer after calling this
-    /// function.
+    /// The ownership of `ptr` is effectively transferred to the `DeviceBuffer<T>` which
+    /// may then deallocate, reallocate or change the contents of memory pointed to by
+    /// the pointer at will. Ensure that nothing else uses the pointer after calling
+    /// this function.
     ///
     /// # Examples
     ///
@@ -237,16 +237,18 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
         }
     }
 
-    /// Allocates device memory asynchronously and asynchronously fills it with zeroes (`0u8`).
+    /// Allocates device memory asynchronously and asynchronously fills it with zeroes
+    /// (`0u8`).
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
     ///
     /// # Safety
     ///
-    /// This method enqueues two operations on the stream: An async allocation
-    /// and an async memset. Because of this, you must ensure that:
-    /// - The memory is not used in any way before it is actually allocated on the stream. You
-    /// can ensure this happens by synchronizing the stream explicitly or using events.
+    /// This method enqueues two operations on the stream: An async allocation and an
+    /// async memset. Because of this, you must ensure that:
+    ///   - The memory is not used in any way before it is actually allocated on the
+    ///     stream. You can ensure this happens by synchronizing the stream explicitly
+    ///     or using events.
     ///
     /// # Examples
     ///
@@ -320,7 +322,7 @@ impl<A: DeviceCopy + Pod> DeviceBuffer<A> {
             Err(PodCastError::TargetAlignmentGreaterAndInputNotAligned)
         } else if size_of::<B>() == size_of::<A>() {
             // SAFETY: we made sure sizes were compatible, and DeviceBuffer is repr(C)
-            Ok(unsafe { transmute::<_, DeviceBuffer<B>>(self) })
+            Ok(unsafe { transmute::<DeviceBuffer<A>, DeviceBuffer<B>>(self) })
         } else if size_of::<A>() == 0 || size_of::<B>() == 0 {
             Err(PodCastError::SizeMismatch)
         } else if (size_of::<A>() * self.len) % size_of::<B>() == 0 {

@@ -48,22 +48,23 @@ impl<T: DeviceCopy> DeviceBox<T> {
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
     ///
-    /// If the memory behind `val` is not page-locked (pinned), a staging buffer
-    /// will be allocated using a worker thread. If you are going to be making
-    /// many asynchronous copies, it is generally a good idea to keep the data as a [`crate::memory::LockedBuffer`]
-    /// or [`crate::memory::LockedBox`]. This will ensure the driver does not have to allocate a staging buffer
-    /// on its own.
+    /// If the memory behind `val` is not page-locked (pinned), a staging buffer will be
+    /// allocated using a worker thread. If you are going to be making many asynchronous
+    /// copies, it is generally a good idea to keep the data as a
+    /// [`crate::memory::LockedBuffer`] or [`crate::memory::LockedBox`]. This will
+    /// ensure the driver does not have to allocate a staging buffer on its own.
     ///
     /// However, don't keep all of your data as page-locked, doing so might slow down
     /// the OS because it is unable to page out that memory to disk.
     ///
     /// # Safety
     ///
-    /// This method enqueues two operations on the stream: An async allocation
-    /// and an async memcpy. Because of this, you must ensure that:
-    /// - The memory is not used in any way before it is actually allocated on the stream. You
-    /// can ensure this happens by synchronizing the stream explicitly or using events.
-    /// - `val` is still valid when the memory copy actually takes place.
+    /// This method enqueues two operations on the stream: An async allocation and an
+    /// async memcpy. Because of this, you must ensure that:
+    ///   - The memory is not used in any way before it is actually allocated on the
+    ///     stream. You can ensure this happens by synchronizing the stream explicitly
+    ///     or using events.
+    ///   - `val` is still valid when the memory copy actually takes place.
     ///
     /// # Examples
     ///
@@ -168,16 +169,18 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
         }
     }
 
-    /// Allocates device memory asynchronously and asynchronously fills it with zeroes (`0u8`).
+    /// Allocates device memory asynchronously and asynchronously fills it with zeroes
+    /// (`0u8`).
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
     ///
     /// # Safety
     ///
-    /// This method enqueues two operations on the stream: An async allocation
-    /// and an async memset. Because of this, you must ensure that:
-    /// - The memory is not used in any way before it is actually allocated on the stream. You
-    /// can ensure this happens by synchronizing the stream explicitly or using events.
+    /// This method enqueues two operations on the stream: An async allocation and an
+    /// async memset. Because of this, you must ensure that:
+    ///   - The memory is not used in any way before it is actually allocated on the
+    ///     stream. You can ensure this happens by synchronizing the stream explicitly
+    ///     or using events.
     ///
     /// # Examples
     ///
@@ -436,12 +439,8 @@ impl<T: DeviceCopy> CopyDestination<T> for DeviceBox<T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyDtoH_v2(
-                    val as *const T as *mut c_void,
-                    self.ptr.as_raw() as u64,
-                    size,
-                )
-                .to_result()?
+                cuda::cuMemcpyDtoH_v2(val as *const T as *mut c_void, self.ptr.as_raw(), size)
+                    .to_result()?
             }
         }
         Ok(())
@@ -484,7 +483,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<T> for DeviceBox<T> {
         if size != 0 {
             cuda::cuMemcpyDtoHAsync_v2(
                 val as *mut _ as *mut c_void,
-                self.ptr.as_raw() as u64,
+                self.ptr.as_raw(),
                 size,
                 stream.as_inner(),
             )

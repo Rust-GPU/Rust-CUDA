@@ -109,11 +109,19 @@ impl TextureDescriptor {
             border_color,
         } = self;
         CUDA_TEXTURE_DESC {
-            addressMode: unsafe { transmute(adress_modes) },
-            filterMode: unsafe { transmute(filter_mode) },
+            addressMode: unsafe {
+                transmute::<[TextureAdressingMode; 3], [cust_raw::CUaddress_mode_enum; 3]>(
+                    adress_modes,
+                )
+            },
+            filterMode: unsafe {
+                transmute::<TextureFilterMode, cust_raw::CUfilter_mode_enum>(filter_mode)
+            },
             flags: flags.bits(),
             maxAnisotropy: max_anisotropy,
-            mipmapFilterMode: unsafe { transmute(mipmap_filter_mode) },
+            mipmapFilterMode: unsafe {
+                transmute::<TextureFilterMode, cust_raw::CUfilter_mode_enum>(mipmap_filter_mode)
+            },
             mipmapLevelBias: mipmap_level_bias,
             minMipmapLevelClamp: min_mipmap_level_clamp,
             maxMipmapLevelClamp: max_mipmap_level_clamp,
@@ -291,7 +299,9 @@ impl ResourceViewDescriptor {
         } = self;
 
         CUDA_RESOURCE_VIEW_DESC {
-            format: unsafe { transmute(format) },
+            format: unsafe {
+                transmute::<ResourceViewFormat, cust_raw::CUresourceViewFormat_enum>(format)
+            },
             width,
             height,
             depth,

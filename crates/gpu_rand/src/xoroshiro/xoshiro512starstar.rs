@@ -15,7 +15,6 @@ use crate::xoroshiro::Seed512;
 #[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
-
 pub struct Xoshiro512StarStar {
     s: [u64; 8],
 }

@@ -50,36 +50,43 @@ bitflags::bitflags! {
 
 /// Instantiates a new ray trace into the scene.
 ///
-/// The hardware will perform a query into the scene graph in hardware, running
-/// any required programs as necessary. For example, running the `miss` program if the ray
-/// missed any intersectable object in the scene. Running the `anyhit` and `closesthit` programs if
-/// specified, etc.
+/// The hardware will perform a query into the scene graph in hardware, running any
+/// required programs as necessary. For example, running the `miss` program if the ray
+/// missed any intersectable object in the scene. Running the `anyhit` and `closesthit`
+/// programs if specified, etc.
 ///
 /// # Parameters
 ///
-/// - `handle`: a valid handle to a traversable BVH, usually stored in the launch params and populated by
-/// the host.
-/// - `ray_origin`: the origin of the ray.
-/// - `ray_direction`: the direction of the ray.
-/// - `tmin`: the minimum distance along the ray to accept as a hit.
-/// - `tmax`: the maximum distance along the ray to accept as a hit.
-/// - `ray_time`: the time allocated for motion-aware traversal and material evaluation. If motion is not
-/// enabled in the pipeline compiler options, this argument is ignored.
-/// - `ray_flags`: a set of flags to control the behavior of the ray.
-/// - `visibility_mask`: Controls intersection across configurable masks of instances. An intersection for an instance
-/// will only be computed if there is at least a matching bit in both masks. Usually set to `255` if this masking isn't being used.
-/// - `sbt_offset`: A valid offset into the shader binding table for selecting the sbt record for a ray intersection.
-/// - `sbt_stride`: A valid stride into the shader binding table for selecting the sbt record for a ray intersection.
-/// - `miss_sbt_index`: The index of the sbt record to use for the miss program.
-/// - `payload`: An array of references to 32-bit values for the payload of the ray.
+///  - `handle`: a valid handle to a traversable BVH, usually stored in the launch
+///    params and populated by the host.
+///   - `ray_origin`: the origin of the ray.
+///   - `ray_direction`: the direction of the ray.
+///   - `tmin`: the minimum distance along the ray to accept as a hit.
+///   - `tmax`: the maximum distance along the ray to accept as a hit.
+///   - `ray_time`: the time allocated for motion-aware traversal and material
+///     evaluation. If motion is not enabled in the pipeline compiler options, this
+///     argument is ignored.
+///   - `ray_flags`: a set of flags to control the behavior of the ray.
+///   - `visibility_mask`: Controls intersection across configurable masks of instances.
+///     An intersection for an instance will only be computed if there is at least a
+///     matching bit in both masks. Usually set to `255` if this masking isn't being
+///     used.
+///   - `sbt_offset`: A valid offset into the shader binding table for selecting the sbt
+///     record for a ray intersection.
+///   - `sbt_stride`: A valid stride into the shader binding table for selecting the sbt
+///     record for a ray intersection.
+///   - `miss_sbt_index`: The index of the sbt record to use for the miss program.
+///   - `payload`: An array of references to 32-bit values for the payload of the ray.
 ///
 /// # Notes
 ///
-/// - **OptiX rejects values of infinity for `tmin` and `tmax` and it will throw an exception, use [`f32::MAX`] instead**
+/// - **OptiX rejects values of infinity for `tmin` and `tmax` and it will throw an
+///   exception, use [`f32::MAX`] instead**
 ///
 /// # Safety
 ///
-/// `sbt_offset`, `sbt_stride`, and `miss_sbt_index` must be valid offsets/strides/indices for the shader binding table.
+/// `sbt_offset`, `sbt_stride`, and `miss_sbt_index` must be valid
+/// offsets/strides/indices for the shader binding table.
 #[allow(clippy::too_many_arguments)]
 pub unsafe fn trace<P: TracePayload>(
     handle: TraversableHandle,

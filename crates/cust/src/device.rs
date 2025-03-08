@@ -371,7 +371,7 @@ impl Device {
             cuDeviceGetAttribute(
                 &mut val as *mut i32,
                 // This should be safe, as the repr and values of DeviceAttribute should match.
-                ::std::mem::transmute(attr),
+                ::std::mem::transmute::<DeviceAttribute, cust_raw::CUdevice_attribute_enum>(attr),
                 self.device,
             )
             .to_result()?;
