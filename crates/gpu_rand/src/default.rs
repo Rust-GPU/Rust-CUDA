@@ -38,9 +38,9 @@ impl RngCore for DefaultRand {
         self.inner.fill_bytes(dest)
     }
 
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.inner.try_fill_bytes(dest)
-    }
+    // fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+    //     self.inner.try_fill_bytes(dest)
+    // }
 }
 
 impl SeedableRng for DefaultRand {

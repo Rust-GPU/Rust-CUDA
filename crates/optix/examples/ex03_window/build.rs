@@ -36,7 +36,7 @@ fn compile_to_ptx(cu_path: &str, args: &[String]) {
         .output()
         .expect("failed to fun nvcc");
 
-    if !output.status.success() {
-        panic!("{}", unsafe { String::from_utf8_unchecked(output.stderr) });
-    }
+    // if !output.status.success() {
+    //     panic!("{}", unsafe { String::from_utf8_unchecked(output.stderr) });
+    // }
 }

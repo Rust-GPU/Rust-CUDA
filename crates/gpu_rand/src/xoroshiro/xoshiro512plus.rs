@@ -124,11 +124,6 @@ impl RngCore for Xoshiro512Plus {
         fill_bytes_via_next(self, dest);
     }
 
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
-        Ok(())
-    }
 }
 
 #[cfg(test)]

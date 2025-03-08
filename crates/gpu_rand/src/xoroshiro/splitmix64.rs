@@ -50,11 +50,6 @@ impl RngCore for SplitMix64 {
         fill_bytes_via_next(self, dest);
     }
 
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
-        Ok(())
-    }
 }
 
 impl SeedableRng for SplitMix64 {
