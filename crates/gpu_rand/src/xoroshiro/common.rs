@@ -2,7 +2,7 @@
 macro_rules! from_splitmix {
     ($seed:expr) => {{
         let mut rng = crate::xoroshiro::SplitMix64::seed_from_u64($seed);
-        Self::from_rng(&mut rng).unwrap()
+        Self::from_rng(&mut rng)
     }};
 }
 
