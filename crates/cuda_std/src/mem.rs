@@ -1,12 +1,12 @@
 //! Support for allocating memory and using `alloc` using CUDA memory allocation system-calls.
 
 use crate::gpu_only;
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 use alloc::alloc::*;
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 use core::ffi::c_void;
 
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 extern "C" {
     // implicitly defined by cuda.
     pub fn malloc(size: usize) -> *mut c_void;
@@ -16,7 +16,7 @@ extern "C" {
 
 pub struct CUDAAllocator;
 
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 unsafe impl GlobalAlloc for CUDAAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         malloc(layout.size()) as *mut u8
@@ -26,7 +26,7 @@ unsafe impl GlobalAlloc for CUDAAllocator {
     }
 }
 
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 #[global_allocator]
 pub static GLOBAL_ALLOCATOR: CUDAAllocator = CUDAAllocator;
 
