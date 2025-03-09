@@ -1,6 +1,10 @@
+use std::cmp;
+
 use libc::c_uint;
 use rustc_abi::BackendRepr::Scalar;
+use rustc_abi::Size;
 use rustc_abi::{HasDataLayout, Primitive, Reg, RegKind};
+use rustc_codegen_ssa::mir::operand::OperandRef;
 use rustc_codegen_ssa::mir::operand::OperandValue;
 use rustc_codegen_ssa::mir::place::{PlaceRef, PlaceValue};
 use rustc_codegen_ssa::{MemFlags, traits::*};
@@ -193,42 +197,39 @@ impl LlvmType for Reg {
 impl LlvmType for CastTarget {
     fn llvm_type<'ll>(&self, cx: &CodegenCx<'ll, '_>) -> &'ll Type {
         let rest_ll_unit = self.rest.unit.llvm_type(cx);
-        let (rest_count, rem_bytes) = if self.rest.unit.size.bytes() == 0 {
-            (0, 0)
+        let rest_count = if self.rest.total == Size::ZERO {
+            0
         } else {
-            (
-                self.rest.total.bytes() / self.rest.unit.size.bytes(),
-                self.rest.total.bytes() % self.rest.unit.size.bytes(),
-            )
+            assert_ne!(
+                self.rest.unit.size,
+                Size::ZERO,
+                "total size {:?} cannot be divided into units of zero size",
+                self.rest.total
+            );
+            if self.rest.total.bytes() % self.rest.unit.size.bytes() != 0 {
+                assert_eq!(self.rest.unit.kind, RegKind::Integer, "only int regs can be split");
+            }
+            self.rest.total.bytes().div_ceil(self.rest.unit.size.bytes())
         };
 
+        // Simplify to a single unit or an array if there's no prefix.
+        // This produces the same layout, but using a simpler type.
         if self.prefix.iter().all(|x| x.is_none()) {
-            // Simplify to a single unit when there is no prefix and size <= unit size
-            if self.rest.total <= self.rest.unit.size {
+            // We can't do this if is_consecutive is set and the unit would get
+            // split on the target. Currently, this is only relevant for i128
+            // registers.
+            if rest_count == 1 && (!self.rest.is_consecutive || self.rest.unit != Reg::i128()) {
                 return rest_ll_unit;
             }
 
-            // Simplify to array when all chunks are the same size and type
-            if rem_bytes == 0 {
-                return cx.type_array(rest_ll_unit, rest_count);
-            }
+            return cx.type_array(rest_ll_unit, rest_count);
         }
 
-        // Create list of fields in the main structure
-        let mut args: Vec<_> = self
-            .prefix
-            .iter()
-            .flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)))
-            .chain((0..rest_count).map(|_| rest_ll_unit))
-            .collect();
-
-        // Append final integer
-        if rem_bytes != 0 {
-            // Only integers can be really split further.
-            assert_eq!(self.rest.unit.kind, RegKind::Integer);
-            args.push(cx.type_ix(rem_bytes * 8));
-        }
-
+        // Generate a struct type with the prefix and the "rest" arguments.
+        let prefix_args =
+            self.prefix.iter().flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)));
+        let rest_args = (0..rest_count).map(|_| rest_ll_unit);
+        let args: Vec<_> = prefix_args.chain(rest_args).collect();
         cx.type_struct(&args, false)
     }
 }
@@ -306,7 +307,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             old_ret_ty = None;
         }
 
-        for arg in self.args.iter() {
+        for arg in args {
             let llarg_ty = match &arg.mode {
                 PassMode::Ignore => continue,
                 PassMode::Direct(_) => arg.layout.immediate_llvm_type(cx),
@@ -356,6 +357,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             cx.type_func(&llargument_tys, llreturn_ty)
         };
         if !transformed_types.is_empty() || old_ret_ty.is_some() {
+            trace!("remapping args in {:?} to {:?}", ty, transformed_types);
             cx.remapped_integer_args
                 .borrow_mut()
                 .insert(ty, (old_ret_ty, transformed_types));
@@ -373,7 +375,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
     }
 
     fn apply_attrs_llfn(&self, cx: &CodegenCx<'ll, 'tcx>, llfn: &'ll Value) {
-        if self.ret.layout.backend_repr.is_uninhabited() {
+        if self.ret.layout.is_uninhabited() {
             llvm::Attribute::NoReturn.apply_llfn(llvm::AttributePlace::Function, llfn);
         }
 
@@ -484,6 +486,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             // by the LLVM verifier.
             if let Primitive::Int(..) = scalar.primitive() {
                 if !scalar.is_bool() && !scalar.is_always_valid(bx) {
+                    trace!("apply_attrs_callsite -> range_metadata");
                     bx.range_metadata(callsite, scalar.valid_range(bx));
                 }
             }
@@ -532,9 +535,10 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
     fn get_param(&mut self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
-        trace!("Get param `{:?}`", val);
-        unsafe {
+        // trace!("Get param `{:?}`", val);
+        let val = unsafe {
             let llfnty = LLVMRustGetFunctionType(self.llfn());
+            trace!("llfnty: {:?}", llfnty);
             // destructure so rustc doesnt complain in the call to transmute_llval
             let Self { cx, llbuilder } = self;
             let map = cx.remapped_integer_args.borrow();
@@ -545,7 +549,9 @@ impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 }
             }
             val
-        }
+        };
+        trace!("Get param `{:?}`", val);
+        val
     }
 }
 
@@ -591,7 +597,7 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
                 on_stack: _,
             } => {
                 let align = attrs.pointee_align.unwrap_or(self.layout.align.abi);
-                OperandValue::Ref(PlaceValue::new_sized(val, self.layout.align.pref))
+                OperandValue::Ref(PlaceValue::new_sized(val, align))
                     .store(bx, dst);
             }
             // Unsized indirect arguments
@@ -603,35 +609,40 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
                 bug!("unsized `ArgAbi` must be handled through `store_fn_arg`");
             }
             PassMode::Cast { pad_i32: _, cast } => {
-                let can_store_through_cast_ptr = false;
-                if can_store_through_cast_ptr {
-                    let cast_ptr_llty = bx.type_ptr_to(cast.llvm_type(bx));
-                    let cast_dst = bx.pointercast(dst.val.llval, cast_ptr_llty);
-                    bx.store(val, cast_dst, self.layout.align.abi);
-                } else {
-                    let scratch_size = cast.size(bx);
-                    let scratch_align = cast.align(bx);
-                    let llscratch = bx.alloca(scratch_size, scratch_align);
-                    bx.lifetime_start(llscratch, scratch_size);
+                trace!("store cast");
+                // The ABI mandates that the value is passed as a different struct representation.
+                // Spill and reload it from the stack to convert from the ABI representation to
+                // the Rust representation.
+                let scratch_size = cast.size(bx);
+                let scratch_align = cast.align(bx);
+                // Note that the ABI type may be either larger or smaller than the Rust type,
+                // due to the presence or absence of trailing padding. For example:
+                // - On some ABIs, the Rust layout { f64, f32, <f32 padding> } may omit padding
+                //   when passed by value, making it smaller.
+                // - On some ABIs, the Rust layout { u16, u16, u16 } may be padded up to 8 bytes
+                //   when passed by value, making it larger.
+                let copy_bytes =
+                    cmp::min(cast.unaligned_size(bx).bytes(), self.layout.size.bytes());
+                // Allocate some scratch space...
+                let llscratch = bx.alloca(scratch_size, scratch_align);
+                bx.lifetime_start(llscratch, scratch_size);
+                // ...store the value...
+                bx.store(val, llscratch, scratch_align);
+                // ... and then memcpy it to the intended destination.
+                bx.memcpy(
+                    dst.val.llval,
+                    self.layout.align.abi,
+                    llscratch,
+                    scratch_align,
+                    bx.const_usize(copy_bytes),
+                    MemFlags::empty(),
+                );
 
-                    bx.store(val, llscratch, scratch_align);
-
-                    bx.memcpy(
-                        dst.val.llval,
-                        self.layout.align.abi,
-                        llscratch,
-                        scratch_align,
-                        bx.const_usize(self.layout.size.bytes()),
-                        MemFlags::empty(),
-                    );
-
-                    bx.lifetime_end(llscratch, scratch_size);
-                    bx.lifetime_end(llscratch, scratch_size);
-                    bx.lifetime_end(llscratch, scratch_size);
-                }
+                bx.lifetime_end(llscratch, scratch_size);
+                trace!("store cast end");
             }
             _ => {
-                OperandValue::Immediate(val).store(bx, dst);
+                OperandRef::from_immediate_or_packed_pair(bx, val, self.layout).val.store(bx, dst);
             }
         }
     }
@@ -665,11 +676,7 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
                 OperandValue::Ref(place_val).store(bx, dst);
             }
             PassMode::Direct(_)
-            | PassMode::Indirect {
-                attrs: _,
-                meta_attrs: None,
-                on_stack: _,
-            }
+            | PassMode::Indirect { attrs: _, meta_attrs: None, on_stack: _, }
             | PassMode::Cast { .. } => {
                 let next_arg = next();
                 self.store(bx, next_arg, dst);

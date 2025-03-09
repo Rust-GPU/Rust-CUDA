@@ -151,7 +151,7 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                             // Only emit the raw symbol name
                             template_str.push_str(&format!("${{{}:c}}", op_idx[&operand_idx]));
                         }
-                        InlineAsmOperandRef::Label { label } => {
+                        InlineAsmOperandRef::Label { .. } => {
                             // template_str.push_str(&format!("${{{}:l}}", constraints.len()));
                             // constraints.push("!i".to_owned());
                             // labels.push(label);
@@ -247,8 +247,8 @@ impl<'ll, 'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                             // here unlike normal inline assembly.
                             template_str.push_str(string);
                         }
-                        GlobalAsmOperandRef::SymFn { instance } => todo!(),
-                        GlobalAsmOperandRef::SymStatic { def_id } => todo!(),
+                        GlobalAsmOperandRef::SymFn { .. } => todo!(),
+                        GlobalAsmOperandRef::SymStatic { .. } => todo!(),
                     }
                 }
             }
@@ -263,7 +263,7 @@ impl<'ll, 'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         }
     }
 
-    fn mangled_name(&self, instance: Instance<'tcx>) -> String {
+    fn mangled_name(&self, _instance: Instance<'tcx>) -> String {
         todo!()
     }
 }

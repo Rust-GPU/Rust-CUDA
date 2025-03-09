@@ -6,7 +6,7 @@ use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
 use rustc_codegen_ssa::traits::{DebugInfoCodegenMethods, MiscCodegenMethods};
 use rustc_codegen_ssa::{
-    CompiledModule, ModuleCodegen, ModuleKind,
+    CompiledModule, ModuleCodegen,
     back::write::{CodegenContext, ModuleConfig},
     base::maybe_create_entry_wrapper,
     mono_item::MonoItemExt,
@@ -174,7 +174,7 @@ pub(crate) unsafe fn codegen(
         .prof
         .generic_activity_with_arg("NVVM_module_codegen", &module.name[..]);
 
-    let llmod = module.module_llvm.llmod.as_ref().unwrap();
+    let llmod = unsafe { module.module_llvm.llmod.as_ref().unwrap() };
     let mod_name = module.name.clone();
     let module_name = Some(&mod_name[..]);
 
@@ -195,7 +195,7 @@ pub(crate) unsafe fn codegen(
         let out = out.to_str().unwrap();
 
         let result =
-            llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback);
+            unsafe { llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback) };
 
         result.into_result().map_err(|()| {
             let msg = format!("failed to write NVVM IR to {}", out);
@@ -309,11 +309,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
             }
         }
 
-        ModuleCodegen {
-            name: cgu_name.to_string(),
-            module_llvm: llvm_module,
-            kind: ModuleKind::Regular,
-        }
+        ModuleCodegen::new_regular(cgu_name.to_string(), llvm_module)
     }
 
     // TODO(RDambrosio016): maybe the same cost as the llvm codegen works?
@@ -334,7 +330,7 @@ pub(crate) unsafe fn optimize(
         .prof
         .generic_activity_with_arg("LLVM_module_optimize", &module.name[..]);
 
-    let llmod = &*module.module_llvm.llmod;
+    let llmod = unsafe { &*module.module_llvm.llmod };
 
     let module_name = module.name.clone();
     let module_name = Some(&module_name[..]);
@@ -344,7 +340,7 @@ pub(crate) unsafe fn optimize(
             .output_filenames
             .temp_path_ext("no-opt.bc", module_name);
         let out = path_to_c_string(&out);
-        llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr());
+        unsafe { llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
     }
 
     let tm_factory_config = TargetMachineFactoryConfig {
@@ -354,7 +350,7 @@ pub(crate) unsafe fn optimize(
 
     let tm = (cgcx.tm_factory)(tm_factory_config).expect("failed to create target machine");
 
-    if config.opt_level.is_some() {
+    if config.opt_level.is_some() { unsafe {
         let fpm = llvm::LLVMCreateFunctionPassManagerForModule(llmod);
         let mpm = llvm::LLVMCreatePassManager();
 
@@ -403,7 +399,7 @@ pub(crate) unsafe fn optimize(
         // Deallocate managers that we're now done with
         llvm::LLVMDisposePassManager(fpm);
         llvm::LLVMDisposePassManager(mpm);
-    }
+    } }
 
     Ok(())
 }
@@ -413,7 +409,7 @@ unsafe fn with_llvm_pmb(
     config: &ModuleConfig,
     opt_level: llvm::CodeGenOptLevel,
     f: &mut impl FnMut(&llvm::PassManagerBuilder),
-) {
+) { unsafe {
     use std::ptr;
 
     let builder = llvm::LLVMPassManagerBuilderCreate();
@@ -470,4 +466,4 @@ unsafe fn with_llvm_pmb(
 
     f(builder);
     llvm::LLVMPassManagerBuilderDispose(builder);
-}
+}}

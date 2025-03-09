@@ -2,7 +2,7 @@ use std::ffi::CString;
 use std::sync::Arc;
 
 use rustc_codegen_ssa::{
-    ModuleCodegen, ModuleKind,
+    ModuleCodegen,
     back::{
         lto::{LtoModuleCodegen, SerializedModule, ThinModule, ThinShared},
         write::CodegenContext,
@@ -160,15 +160,14 @@ pub(crate) unsafe fn optimize_thin(
 
     let module_name = &thin_module.shared.module_names[thin_module.idx];
 
-    let llcx = llvm::LLVMRustContextCreate(cgcx.fewer_names);
+    let llcx = unsafe { llvm::LLVMRustContextCreate(cgcx.fewer_names) };
     let llmod =
         parse_module(llcx, module_name.to_str().unwrap(), thin_module.data(), dcx)? as *const _;
 
-    let module = ModuleCodegen {
-        module_llvm: LlvmMod { llmod, llcx },
-        name: thin_module.name().to_string(),
-        kind: ModuleKind::Regular,
-    };
+    let module = ModuleCodegen::new_regular(
+        thin_module.name().to_string(),
+        LlvmMod { llcx, llmod },
+    );
     Ok(module)
 }
 

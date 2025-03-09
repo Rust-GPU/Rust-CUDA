@@ -167,12 +167,12 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
     }
 }
 
-unsafe fn cleanup_dicompileunit(module: &Module) {
+unsafe fn cleanup_dicompileunit(module: &Module) { unsafe {
     let mut cu1 = ptr::null_mut();
     let mut cu2 = ptr::null_mut();
     LLVMRustThinLTOGetDICompileUnit(module, &mut cu1, &mut cu2);
     LLVMRustThinLTOPatchDICompileUnit(module, cu1);
-}
+} }
 
 // Merging and DCE (dead code elimination) logic. Inspired a lot by rust-ptx-linker.
 //
@@ -261,7 +261,7 @@ impl<'a, 'll> Iterator for GlobalIter<'a, 'll> {
     }
 }
 
-unsafe fn internalize_pass(module: &Module, cx: &Context) {
+unsafe fn internalize_pass(module: &Module, cx: &Context) { unsafe {
     // collect the values of all the declared kernels
     let num_operands =
         LLVMGetNamedMetadataNumOperands(module, "nvvm.annotations\0".as_ptr().cast()) as usize;
@@ -334,13 +334,13 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
             LLVMRustSetVisibility(func, Visibility::Default);
         }
     }
-}
+} }
 
-unsafe fn dce_pass(module: &Module) {
+unsafe fn dce_pass(module: &Module) { unsafe {
     let pass_manager = LLVMCreatePassManager();
 
     LLVMAddGlobalDCEPass(pass_manager);
 
     LLVMRunPassManager(pass_manager, module);
     LLVMDisposePassManager(pass_manager);
-}
+} }

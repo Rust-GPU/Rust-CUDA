@@ -9,7 +9,7 @@ pub const POINTER_WIDTH: u32 = 64;
 
 /// The pointer width of the current target
 pub(crate) unsafe fn usize_ty(llcx: &'_ llvm::Context) -> &'_ Type {
-    llvm::LLVMInt64TypeInContext(llcx)
+    unsafe { llvm::LLVMInt64TypeInContext(llcx) }
 }
 
 pub fn target() -> Target {

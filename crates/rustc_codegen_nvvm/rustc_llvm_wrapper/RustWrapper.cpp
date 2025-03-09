@@ -9,14 +9,16 @@
 // except according to those terms.
 
 #include "rustllvm.h"
+#include "llvm/IR/CallSite.h"
+#include "llvm/IR/Constant.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/Support/Casting.h"
 
 #if LLVM_VERSION_GE(5, 0)
@@ -73,11 +75,6 @@ extern "C" LLVMTypeRef LLVMRustGetFunctionType(LLVMValueRef V)
 extern "C" LLVMTypeRef LLVMRustGetFunctionReturnType(LLVMValueRef V)
 {
   return wrap(dyn_cast<llvm::Function>(unwrap<llvm::Value>(V))->getReturnType());
-}
-
-extern "C" LLVMTypeRef LLVMRustGetValueType(LLVMValueRef V)
-{
-  return wrap(unwrap<llvm::Value>(V)->getType());
 }
 
 extern "C" LLVMValueRef
@@ -1088,9 +1085,10 @@ extern "C" LLVMValueRef LLVMRustDIBuilderInsertDeclareAtEnd(
 
 extern "C" LLVMMetadataRef
 LLVMRustDIBuilderCreateEnumerator(LLVMRustDIBuilderRef Builder,
-                                  const char *Name, size_t NameLen, int64_t Val)
+                                  const char *Name, size_t NameLen, int64_t Val,
+                                  bool IsUnsigned)
 {
-  return wrap(Builder->createEnumerator(StringRef(Name, NameLen), Val));
+  return wrap(Builder->createEnumerator(StringRef(Name, NameLen), Val, IsUnsigned));
 }
 
 extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateEnumerationType(
@@ -1895,4 +1893,36 @@ extern "C" LLVMValueRef
 {
   return nullptr;
 }
+#endif
+
+// Backport for LLVM < 8.0
+#if LLVM_VERSION_LT(8, 0)
+extern "C" LLVMValueRef LLVMConstInBoundsGEP2(LLVMTypeRef Ty,
+                                              LLVMValueRef ConstantVal,
+                                              LLVMValueRef *ConstantIndices,
+                                              unsigned NumIndices)
+{
+  ArrayRef<Constant *> IdxList(unwrap<Constant>(ConstantIndices, NumIndices),
+                               NumIndices);
+  Constant* Val = unwrap<Constant>(ConstantVal);
+  return wrap(ConstantExpr::getInBoundsGetElementPtr(unwrap(Ty), Val, IdxList));
+}
+
+extern "C" LLVMValueRef LLVMBuildGEP2(LLVMBuilderRef B, LLVMTypeRef Ty,
+                                      LLVMValueRef Pointer, LLVMValueRef *Indices,
+                                      unsigned NumIndices, const char *Name)
+{
+  ArrayRef<Value *> IdxList(unwrap(Indices), NumIndices);
+  return wrap(unwrap(B)->CreateGEP(unwrap(Ty), unwrap(Pointer), IdxList, Name));
+}
+
+extern "C" LLVMValueRef LLVMBuildInBoundsGEP2(LLVMBuilderRef B, LLVMTypeRef Ty,
+                                              LLVMValueRef Pointer, LLVMValueRef *Indices,
+                                              unsigned NumIndices, const char *Name)
+{
+  ArrayRef<Value *> IdxList(unwrap(Indices), NumIndices);
+  return wrap(
+    unwrap(B)->CreateInBoundsGEP(unwrap(Ty), unwrap(Pointer), IdxList, Name));
+}
+
 #endif

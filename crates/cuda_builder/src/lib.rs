@@ -376,10 +376,13 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
 
     let new_path = get_new_path_var();
 
-    let mut rustflags = vec![format!(
-        "-Zcodegen-backend={}",
-        rustc_codegen_nvvm.display(),
-    )];
+    let mut rustflags = vec![
+        format!("-Zcodegen-backend={}", rustc_codegen_nvvm.display()),
+        "-Zcrate-attr=feature(register_tool)".into(),
+        "-Zcrate-attr=register_tool(rust_cuda)".into(),
+        "-Zcrate-attr=no_std".into(),
+        "-Zsaturating_float_casts=false".into(),
+    ];
 
     if let Some(emit) = &builder.emit {
         let string = match emit {

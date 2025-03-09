@@ -45,9 +45,8 @@ fn load_metadata_with(
         .and_then(|mmap| try_slice_owned(mmap, |mmap| f(mmap)))
 }
 
-// FIXME
 impl MetadataLoader for NvvmMetadataLoader {
-    fn get_rlib_metadata(&self, target: &Target, path: &Path) -> Result<OwnedSlice, String> {
+    fn get_rlib_metadata(&self, _target: &Target, path: &Path) -> Result<OwnedSlice, String> {
         trace!("Retrieving rlib metadata for `{:?}`", path);
         read_metadata(path)
     }

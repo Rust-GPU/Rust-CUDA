@@ -8,7 +8,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     pub(crate) fn declare_intrinsic(&self, key: &str) -> Option<(&'ll Type, &'ll Value)> {
         let map = self.intrinsics_map.borrow();
         let (args, ret) = map.get(key)?;
-        Some((ret, self.insert_intrinsic(key, Some(args), ret)))
+        Some(self.insert_intrinsic(key, Some(args), ret))
     }
 
     #[rustfmt::skip] // stop rustfmt from making this 2k lines

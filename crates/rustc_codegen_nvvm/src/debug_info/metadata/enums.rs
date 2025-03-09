@@ -562,6 +562,7 @@ fn build_enumeration_type_di_node<'ll, 'tcx>(
                 name.as_c_char_ptr(),
                 name.len(),
                 value as i64,
+                is_unsigned
             ))
         })
         .collect();

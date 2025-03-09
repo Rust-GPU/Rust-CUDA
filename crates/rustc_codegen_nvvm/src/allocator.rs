@@ -16,11 +16,11 @@ pub(crate) unsafe fn codegen(
     alloc_error_handler_kind: AllocatorKind,
 ) {
     let llcx = &*mods.llcx;
-    let llmod = mods.llmod.as_ref().unwrap();
-    let usize = target::usize_ty(llcx);
-    let i8 = llvm::LLVMInt8TypeInContext(llcx);
-    let i8p = llvm::LLVMPointerType(i8, 0);
-    let void = llvm::LLVMVoidTypeInContext(llcx);
+    let llmod = unsafe { mods.llmod.as_ref().unwrap() };
+    let usize = unsafe { target::usize_ty(llcx) };
+    let i8 = unsafe { llvm::LLVMInt8TypeInContext(llcx) };
+    let i8p = unsafe { llvm::LLVMPointerType(i8, 0) };
+    let void = unsafe { llvm::LLVMVoidTypeInContext(llcx) };
 
     let mut used = Vec::new();
 
@@ -48,47 +48,49 @@ pub(crate) unsafe fn codegen(
                 }
             };
 
-            let ty = llvm::LLVMFunctionType(
+            let ty = unsafe { llvm::LLVMFunctionType(
                 output.unwrap_or(void),
                 args.as_ptr(),
                 args.len() as c_uint,
                 False,
-            );
+            ) };
             let name = format!("__rust_{}", method.name);
-            let llfn =
-                llvm::LLVMRustGetOrInsertFunction(llmod, name.as_ptr().cast(), name.len(), ty);
+            let llfn = unsafe {
+                llvm::LLVMRustGetOrInsertFunction(llmod, name.as_ptr().cast(), name.len(), ty)
+            };
 
             used.push(llfn);
             // nvvm doesnt support uwtable so dont try to generate it
 
             let callee = default_fn_name(method.name);
-            let callee =
-                llvm::LLVMRustGetOrInsertFunction(llmod, callee.as_ptr().cast(), callee.len(), ty);
-            llvm::LLVMRustSetVisibility(callee, llvm::Visibility::Hidden);
+            let callee = unsafe {
+                llvm::LLVMRustGetOrInsertFunction(llmod, callee.as_ptr().cast(), callee.len(), ty)
+            };
+            unsafe { llvm::LLVMRustSetVisibility(callee, llvm::Visibility::Hidden) };
 
-            let llbb = llvm::LLVMAppendBasicBlockInContext(llcx, llfn, "entry\0".as_ptr().cast());
+            let llbb = unsafe { llvm::LLVMAppendBasicBlockInContext(llcx, llfn, "entry\0".as_ptr().cast()) };
 
-            let llbuilder = llvm::LLVMCreateBuilderInContext(llcx);
-            llvm::LLVMPositionBuilderAtEnd(llbuilder, llbb);
+            let llbuilder = unsafe { llvm::LLVMCreateBuilderInContext(llcx) };
+            unsafe { llvm::LLVMPositionBuilderAtEnd(llbuilder, llbb) };
             let args = args
                 .iter()
                 .enumerate()
-                .map(|(i, _)| llvm::LLVMGetParam(llfn, i as c_uint))
+                .map(|(i, _)| unsafe { llvm::LLVMGetParam(llfn, i as c_uint) })
                 .collect::<Vec<_>>();
-            let ret = llvm::LLVMRustBuildCall(
+            let ret = unsafe { llvm::LLVMRustBuildCall(
                 llbuilder,
                 callee,
                 args.as_ptr(),
                 args.len() as c_uint,
                 None,
-            );
-            llvm::LLVMSetTailCall(ret, True);
+            ) };
+            unsafe { llvm::LLVMSetTailCall(ret, True) };
             if output.is_some() {
-                llvm::LLVMBuildRet(llbuilder, ret);
+                unsafe { llvm::LLVMBuildRet(llbuilder, ret) };
             } else {
-                llvm::LLVMBuildRetVoid(llbuilder);
+                unsafe { llvm::LLVMBuildRetVoid(llbuilder) };
             }
-            llvm::LLVMDisposeBuilder(llbuilder);
+            unsafe { llvm::LLVMDisposeBuilder(llbuilder) };
         }
     }
 

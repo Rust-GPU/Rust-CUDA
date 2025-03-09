@@ -601,11 +601,11 @@ pub(crate) unsafe fn LLVMRustGetOrInsertFunction<'a>(
     Name: *const c_char,
     NameLen: usize,
     FunctionTy: &'a Type,
-) -> &'a Value {
+) -> &'a Value { unsafe {
     let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
     let cstring = CString::new(str).expect("str with nul");
     __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), FunctionTy)
-}
+}}
 
 pub(crate) unsafe fn LLVMRustBuildCall<'a>(
     B: &Builder<'a>,
@@ -613,9 +613,9 @@ pub(crate) unsafe fn LLVMRustBuildCall<'a>(
     Args: *const &'a Value,
     NumArgs: c_uint,
     Bundle: Option<&OperandBundleDef<'a>>,
-) -> &'a Value {
+) -> &'a Value { unsafe {
     __LLVMRustBuildCall(B, Fn, Args, NumArgs, Bundle, unnamed())
-}
+}}
 
 /// LLVMRustCodeGenOptLevel
 #[derive(Copy, Clone, PartialEq)]
@@ -968,6 +968,7 @@ unsafe extern "C" {
         Name: *const c_char,
         NameLen: size_t,
         Val: i64,
+        IsUnsigned: bool,
     ) -> &'a DIEnumerator;
 
     pub(crate) fn LLVMRustDIBuilderCreateEnumerationType<'a>(
@@ -1222,6 +1223,7 @@ unsafe extern "C" {
     pub(crate) fn LLVMGetStructElementTypes<'a>(StructTy: &'a Type, Dest: *mut &'a Type);
     pub(crate) fn LLVMCountStructElementTypes(StructTy: &Type) -> c_uint;
     pub(crate) fn LLVMIsPackedStruct(StructTy: &Type) -> Bool;
+    pub(crate) fn LLVMStructGetTypeAtIndex(StructTy: &Type, i: c_uint) -> &Type;
 
     // Operations on array, pointer, and vector types (sequence types)
     pub(crate) fn LLVMRustArrayType(ElementType: &Type, ElementCount: u64) -> &Type;
@@ -1230,12 +1232,10 @@ unsafe extern "C" {
 
     pub(crate) fn LLVMGetElementType(Ty: &Type) -> &Type;
     pub(crate) fn LLVMGetVectorSize(VectorTy: &Type) -> c_uint;
-    pub(crate) fn LLVMRustGetValueType(V: &Value) -> &Type;
 
     // Operations on other types
     pub(crate) fn LLVMVoidTypeInContext(C: &Context) -> &Type;
     pub(crate) fn LLVMRustMetadataTypeInContext(C: &Context) -> &Type;
-    // pub(crate) fn LLVMPointerTypeInContext(C: &Context, AddressSpace: c_uint) -> &Type;
 
     // Operations on all values
     pub(crate) fn LLVMIsUndef(Val: &Value) -> Bool;
@@ -1301,7 +1301,8 @@ unsafe extern "C" {
     pub(crate) fn LLVMConstVector(ScalarConstantVals: *const &Value, Size: c_uint) -> &Value;
 
     // Constant expressions
-    pub(crate) fn LLVMConstInBoundsGEP<'a>(
+    pub(crate) fn LLVMConstInBoundsGEP2<'a>(
+        Ty: &'a Type,
         ConstantVal: &'a Value,
         ConstantIndices: *const &'a Value,
         NumIndices: c_uint,
@@ -1619,24 +1620,20 @@ unsafe extern "C" {
 
     pub(crate) fn LLVMBuildStore<'a>(B: &Builder<'a>, Val: &'a Value, Ptr: &'a Value) -> &'a Value;
 
-    pub(crate) fn LLVMBuildGEP<'a>(
+    pub(crate) fn LLVMBuildGEP2<'a>(
         B: &Builder<'a>,
+        Ty: &'a Type,
         Pointer: &'a Value,
         Indices: *const &'a Value,
         NumIndices: c_uint,
         Name: *const c_char,
     ) -> &'a Value;
-    pub(crate) fn LLVMBuildInBoundsGEP<'a>(
+    pub(crate) fn LLVMBuildInBoundsGEP2<'a>(
         B: &Builder<'a>,
+        Ty: &'a Type,
         Pointer: &'a Value,
         Indices: *const &'a Value,
         NumIndices: c_uint,
-        Name: *const c_char,
-    ) -> &'a Value;
-    pub(crate) fn LLVMBuildStructGEP<'a>(
-        B: &Builder<'a>,
-        Pointer: &'a Value,
-        Idx: c_uint,
         Name: *const c_char,
     ) -> &'a Value;
 

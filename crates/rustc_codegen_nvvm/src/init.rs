@@ -1,14 +1,14 @@
-use libc::c_int;
-use rustc_middle::bug;
-use rustc_session::Session;
-use rustc_target::spec::MergeFunctions;
 use std::ffi::CString;
-
 use std::mem;
 use std::path::Path;
 use std::str;
 use std::sync::Once;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+use libc::c_int;
+use rustc_middle::bug;
+use rustc_session::Session;
+use rustc_target::spec::MergeFunctions;
 
 use crate::llvm;
 
@@ -112,7 +112,7 @@ unsafe fn configure_llvm(sess: &Session) {
         // }
     }
 
-    llvm::LLVMInitializePasses();
+    unsafe { llvm::LLVMInitializePasses() };
 
     for plugin in &sess.opts.unstable_opts.llvm_plugins {
         let path = Path::new(plugin);
@@ -124,10 +124,12 @@ unsafe fn configure_llvm(sess: &Session) {
         mem::forget(res);
     }
 
-    llvm::LLVMInitializeNVPTXTarget();
-    llvm::LLVMInitializeNVPTXTargetInfo();
-    llvm::LLVMInitializeNVPTXTargetMC();
-    llvm::LLVMInitializeNVPTXAsmPrinter();
+    unsafe {
+        llvm::LLVMInitializeNVPTXTarget();
+        llvm::LLVMInitializeNVPTXTargetInfo();
+        llvm::LLVMInitializeNVPTXTargetMC();
+        llvm::LLVMInitializeNVPTXAsmPrinter();
 
-    llvm::LLVMRustSetLLVMOptions(llvm_args.len() as c_int, llvm_args.as_ptr());
+        llvm::LLVMRustSetLLVMOptions(llvm_args.len() as c_int, llvm_args.as_ptr());
+    }
 }
