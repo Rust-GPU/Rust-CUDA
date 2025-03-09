@@ -11,7 +11,7 @@ use rustc_codegen_ssa::common::TypeKind;
 use rustc_codegen_ssa::traits::*;
 use rustc_data_structures::small_c_str::SmallCStr;
 use rustc_middle::bug;
-use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
+use rustc_middle::ty::layout::{FnAbiOf, LayoutOf, TyAndLayout};
 use rustc_middle::ty::print::with_no_trimmed_paths;
 use rustc_middle::ty::{self, CoroutineArgsExt, Ty, TypeVisitableExt};
 use rustc_target::callconv::{CastTarget, FnAbi};
@@ -302,15 +302,14 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         match self.backend_repr {
             BackendRepr::Scalar(_) | BackendRepr::Vector { .. } => true,
             BackendRepr::ScalarPair(..) => false,
-            BackendRepr::Uninhabited | BackendRepr::Memory { .. } => self.is_zst(),
+            BackendRepr::Memory { .. } => self.is_zst(),
         }
     }
 
     fn is_llvm_scalar_pair(&self) -> bool {
         match self.backend_repr {
             BackendRepr::ScalarPair(..) => true,
-            BackendRepr::Uninhabited
-            | BackendRepr::Scalar(_)
+            BackendRepr::Scalar(_)
             | BackendRepr::Vector { .. }
             | BackendRepr::Memory { .. } => false,
         }
@@ -338,7 +337,18 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
                 return llty;
             }
 
-            let llty = self.scalar_llvm_type_at(cx, scalar);
+            let llty = match *self.ty.kind() {
+                ty::Ref(_, ty, _) | ty::RawPtr(ty, _) => {
+                    cx.type_ptr_to(cx.layout_of(ty).llvm_type(cx))
+                }
+                ty::Adt(def, _) if def.is_box() => {
+                    cx.type_ptr_to(cx.layout_of(self.ty.expect_boxed_ty()).llvm_type(cx))
+                }
+                ty::FnPtr(sig, hdr) => {
+                    cx.fn_ptr_backend_type(cx.fn_abi_of_fn_ptr(sig.with(hdr), ty::List::empty()))
+                }
+                _ =>  self.scalar_llvm_type_at(cx, scalar),
+            };
             cx.scalar_lltypes.borrow_mut().insert(self.ty, llty);
             return llty;
         }
@@ -351,6 +361,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         if let Some(&llty) = cx.lltypes.borrow().get(&(self.ty, variant_index)) {
             return llty;
         }
+
         assert!(
             !self.ty.has_escaping_bound_vars(),
             "{:?} has escaping bound vars",
@@ -360,6 +371,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         // Make sure lifetimes are erased, to avoid generating distinct LLVM
         // types for Rust types that only differ in the choice of lifetimes.
         let normal_ty = cx.tcx.erase_regions(self.ty);
+
         let mut defer = None;
         let llty = if self.ty != normal_ty {
             let mut layout = cx.layout_of(normal_ty);
@@ -370,6 +382,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         } else {
             uncached_llvm_type(cx, *self, &mut defer)
         };
+
         cx.lltypes
             .borrow_mut()
             .insert((self.ty, variant_index), llty);
@@ -438,24 +451,24 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
 
         // HACK(eddyb) special-case fat pointers until LLVM removes
         // pointee types, to avoid bitcasting every `OperandRef::deref`.
-        // match self.ty.kind() {
-        //     ty::Ref(..) | ty::RawPtr(..) => {
-        //         return self.field(cx, index).llvm_type(cx);
-        //     }
-        //     ty::Adt(def, _) if def.is_box() => {
-        //         let ptr_ty = Ty::new_mut_ptr(cx.tcx, self.ty.boxed_ty().unwrap());
-        //         return cx
-        //             .layout_of(ptr_ty)
-        //             .scalar_pair_element_llvm_type(cx, index, immediate);
-        //     }
-        //     // `dyn* Trait` has the same ABI as `*mut dyn Trait`
-        //     ty::Dynamic(bounds, region, ty::DynStar) => {
-        //         let ptr_ty =
-        //             Ty::new_mut_ptr(cx.tcx, Ty::new_dynamic(cx.tcx, bounds, *region, ty::Dyn));
-        //         return cx.layout_of(ptr_ty).scalar_pair_element_llvm_type(cx, index, immediate);
-        //     }
-        //     _ => {}
-        // }
+        match self.ty.kind() {
+            ty::Ref(..) | ty::RawPtr(..) => {
+                return self.field(cx, index).llvm_type(cx);
+            }
+            ty::Adt(def, _) if def.is_box() => {
+                let ptr_ty = Ty::new_mut_ptr(cx.tcx, self.ty.boxed_ty().unwrap());
+                return cx
+                    .layout_of(ptr_ty)
+                    .scalar_pair_element_llvm_type(cx, index, immediate);
+            }
+            // `dyn* Trait` has the same ABI as `*mut dyn Trait`
+            ty::Dynamic(bounds, region, ty::DynStar) => {
+                let ptr_ty =
+                    Ty::new_mut_ptr(cx.tcx, Ty::new_dynamic(cx.tcx, bounds, *region, ty::Dyn));
+                return cx.layout_of(ptr_ty).scalar_pair_element_llvm_type(cx, index, immediate);
+            }
+            _ => {}
+        }
 
         let BackendRepr::ScalarPair(a, b) = self.backend_repr else {
             bug!(
@@ -513,7 +526,7 @@ fn uncached_llvm_type<'a, 'tcx>(
                 false,
             );
         }
-        BackendRepr::Uninhabited | BackendRepr::Memory { .. } => {}
+        BackendRepr::Memory { .. } => {}
     }
 
     let name = match layout.ty.kind() {
@@ -592,15 +605,17 @@ fn struct_llfields<'a, 'tcx>(
 
         assert!(target_offset >= offset);
         let padding = target_offset - offset;
-        let padding_align = prev_effective_align.min(effective_field_align);
-        assert_eq!(offset.align_to(padding_align) + padding, target_offset);
-        result.push(cx.type_padding_filler(padding, padding_align));
+        if padding != Size::ZERO {
+            let padding_align = prev_effective_align.min(effective_field_align);
+            assert_eq!(offset.align_to(padding_align) + padding, target_offset);
+            result.push(cx.type_padding_filler(padding, padding_align));
+        }
 
         result.push(field.llvm_type(cx));
         offset = target_offset + field.size;
         prev_effective_align = effective_field_align;
     }
-    if !layout.is_unsized() && field_count > 0 {
+    if layout.is_sized() && field_count > 0 {
         if offset > layout.size {
             bug!(
                 "layout: {:#?} stride: {:?} offset: {:?}",
@@ -610,10 +625,11 @@ fn struct_llfields<'a, 'tcx>(
             );
         }
         let padding = layout.size - offset;
-        let padding_align = prev_effective_align;
-        assert_eq!(offset.align_to(padding_align) + padding, layout.size);
-        result.push(cx.type_padding_filler(padding, padding_align));
-        assert_eq!(result.len(), 1 + field_count * 2);
+        if padding != Size::ZERO {
+            let padding_align = prev_effective_align;
+            assert_eq!(offset.align_to(padding_align) + padding, layout.size);
+            result.push(cx.type_padding_filler(padding, padding_align));
+        }
     } else {
     }
 

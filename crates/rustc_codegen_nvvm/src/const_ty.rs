@@ -131,7 +131,7 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         }
     }
 
-    fn scalar_to_backend(&self, cv: Scalar, layout: abi::Scalar, llty: &'ll Type) -> &'ll Value {
+    fn scalar_to_backend(&self, cv: Scalar, layout: abi::Scalar, mut llty: &'ll Type) -> &'ll Value {
         trace!("Scalar to backend `{:?}`, `{:?}`, `{:?}`", cv, layout, llty);
         let bitsize = if layout.is_bool() {
             1
@@ -148,7 +148,7 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     self.const_bitcast(llval, llty)
                 }
             }
-            Scalar::Ptr(ptr, _size) => {
+            Scalar::Ptr(ptr, _) => {
                 let (prov, offset) = ptr.into_parts();
                 let (base_addr, base_addr_space) = match self.tcx.global_alloc(prov.alloc_id()) {
                     GlobalAlloc::Memory(alloc) => {
@@ -208,14 +208,16 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                         assert!(!self.tcx.is_thread_local_static(def_id));
                         let val = self.get_static(def_id);
                         let addrspace = unsafe {
-                            llvm::LLVMGetPointerAddressSpace(llvm::LLVMRustGetValueType(val))
+                            llvm::LLVMGetPointerAddressSpace(self.val_ty(val))
                         };
-                        (self.get_static(def_id), AddressSpace(addrspace))
+                        (val, AddressSpace(addrspace))
                     }
                 };
                 let llval = unsafe {
-                    llvm::LLVMConstInBoundsGEP(
-                        self.const_bitcast(base_addr, self.type_i8p_ext(base_addr_space)),
+                    llvm::LLVMConstInBoundsGEP2(
+                        self.type_i8(),
+                        // Cast to the required address space if necessary
+                        self.const_bitcast(base_addr, self.type_ptr_ext(base_addr_space)),
                         &self.const_usize(offset.bytes()),
                         1,
                     )
@@ -227,7 +229,7 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     if base_addr_space != AddressSpace::DATA {
                         unsafe {
                             let element = llvm::LLVMGetElementType(llty);
-                            self.type_ptr_to_ext(element, base_addr_space);
+                            llty = self.type_ptr_to_ext(element, base_addr_space);
                         }
                     }
                     self.const_bitcast(llval, llty)
@@ -259,6 +261,8 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn const_u128(&self, i: u128) -> Self::Value {
+        trace!("const_u128 i = {i:?}");
+        trace!("{}", std::backtrace::Backtrace::force_capture());
         self.const_uint_big(self.type_i128(), i)
     }
 
@@ -267,41 +271,9 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         unsafe { llvm::LLVMConstVector(elts.as_ptr(), len) }
     }
 
-    fn const_ptr_byte_offset(&self, base_addr: Self::Value, offset: abi::Size) -> Self::Value {
-        unsafe { llvm::LLVMConstInBoundsGEP(base_addr, &self.const_usize(offset.bytes()), 1) }
-    }
-}
-
-impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
-    // fn from_const_alloc(
-    //     &self,
-    //     layout: TyAndLayout<'tcx>,
-    //     alloc: &Allocation,
-    //     offset: Size,
-    // ) -> PlaceRef<'tcx, &'ll Value> {
-    //     assert_eq!(alloc.align, layout.align.abi);
-    //     let llty = self.type_ptr_to(layout.llvm_type(self));
-    //     let llval = if layout.size == Size::ZERO {
-    //         let llval = self.const_usize(alloc.align.bytes());
-    //         unsafe { llvm::LLVMConstIntToPtr(llval, llty) }
-    //     } else {
-    //         let init = const_alloc_to_llvm(self, alloc);
-    //         let base_addr = self.static_addr_of(init, alloc.align, None);
-    //
-    //         let llval = unsafe {
-    //             llvm::LLVMConstInBoundsGEP(
-    //                 self.const_bitcast(base_addr, self.type_i8p()),
-    //                 &self.const_usize(offset.bytes()),
-    //                 1,
-    //             )
-    //         };
-    //         self.const_bitcast(llval, llty)
-    //     };
-    //     PlaceRef::new_sized(llval, layout)
-    // }
-
-    pub(crate) fn const_ptrcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
-        unsafe { llvm::LLVMConstPointerCast(val, ty) }
+    fn const_ptr_byte_offset(&self, mut base_addr: Self::Value, offset: abi::Size) -> Self::Value {
+        base_addr = self.const_ptrcast(base_addr, self.type_i8p());
+        unsafe { llvm::LLVMConstInBoundsGEP2(self.type_i8(), base_addr, &self.const_usize(offset.bytes()), 1) }
     }
 }
 

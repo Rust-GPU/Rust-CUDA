@@ -109,7 +109,6 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         llvm_module: &'ll LlvmMod,
     ) -> Self {
         debug!("Creating new CodegenCx");
-        let check_overflow = tcx.sess.overflow_checks();
         let (llcx, llmod) = (&*llvm_module.llcx, unsafe {
             llvm_module.llmod.as_ref().unwrap()
         });
@@ -382,7 +381,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         name: &str,
         args: Option<&[&'ll Type]>,
         ret: &'ll Type,
-    ) -> &'ll Value {
+    ) -> (&'ll Type, &'ll Value) {
         let fn_ty = if let Some(args) = args {
             self.type_func(args, ret)
         } else {
@@ -393,7 +392,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         self.intrinsics
             .borrow_mut()
             .insert(name.to_owned(), (fn_ty, f));
-        f
+        (fn_ty, f)
     }
 
     pub fn generate_local_symbol_name(&self, prefix: &str) -> String {
@@ -414,17 +413,19 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
         assert!(!instance.args.has_infer());
         assert!(!instance.args.has_escaping_bound_vars());
-        let sym = tcx.symbol_name(instance).name;
 
         if let Some(&llfn) = self.instances.borrow().get(&instance) {
             return llfn;
         }
 
-        let abi = self.fn_abi_of_instance(instance, ty::List::empty());
+        let sym = tcx.symbol_name(instance).name;
+        debug!("get_fn({:?}: {:?}) => {}", instance, instance.ty(self.tcx(), self.typing_env()), sym);
+
+        let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty());
 
         let llfn = if let Some(llfn) = self.get_declared_value(sym) {
             trace!("Returning existing llfn `{:?}`", llfn);
-            let llptrty = abi.ptr_to_llvm_type(self);
+            let llptrty = fn_abi.ptr_to_llvm_type(self);
 
             if self.val_ty(llfn) != llptrty {
                 trace!(
@@ -436,7 +437,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 llfn
             }
         } else {
-            let llfn = self.declare_fn(sym, abi.llvm_type(self), Some(abi));
+            let llfn = self.declare_fn(sym, fn_abi.llvm_type(self), Some(fn_abi));
             attributes::from_fn_attrs(self, llfn, instance);
             let def_id = instance.def_id();
 
@@ -639,8 +640,8 @@ impl<'ll, 'tcx> CoverageInfoBuilderMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
     fn add_coverage(
         &mut self,
-        instance: Instance<'tcx>,
-        kind: &rustc_middle::mir::coverage::CoverageKind,
+        _instance: Instance<'tcx>,
+        _kind: &rustc_middle::mir::coverage::CoverageKind,
     ) {
         todo!()
     }

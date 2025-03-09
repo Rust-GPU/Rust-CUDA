@@ -5,13 +5,12 @@
 #![feature(extern_types)]
 #![feature(hash_raw_entry)]
 #![feature(let_chains)]
-#![allow(unsafe_op_in_unsafe_fn, unused_variables)]
+#![feature(slice_as_array)]
 
 extern crate rustc_abi;
 extern crate rustc_arena;
 extern crate rustc_ast;
 extern crate rustc_attr_parsing;
-// extern crate rustc_codegen_llvm;
 extern crate rustc_codegen_ssa;
 extern crate rustc_data_structures;
 extern crate rustc_driver;
@@ -117,6 +116,8 @@ impl CodegenBackend for NvvmCodegenBackend {
         let filter = tracing_subscriber::EnvFilter::from_env("NVVM_LOG");
         let subscriber = tracing_subscriber::fmt()
             .with_env_filter(filter)
+            .without_time()
+            .with_ansi(false)
             .compact()
             .finish();
 
@@ -247,17 +248,17 @@ impl WriteBackendMethods for NvvmCodegenBackend {
     unsafe fn optimize(
         cgcx: &CodegenContext<Self>,
         diag_handler: DiagCtxtHandle<'_>,
-        module: &ModuleCodegen<Self::Module>,
+        module: &mut ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
     ) -> Result<(), FatalError> {
-        back::optimize(cgcx, diag_handler, module, config)
+        unsafe { back::optimize(cgcx, diag_handler, module, config) }
     }
 
     unsafe fn optimize_thin(
         cgcx: &CodegenContext<Self>,
         thin_module: ThinModule<Self>,
     ) -> Result<ModuleCodegen<Self::Module>, FatalError> {
-        lto::optimize_thin(cgcx, thin_module)
+        unsafe { lto::optimize_thin(cgcx, thin_module) }
     }
 
     unsafe fn codegen(
@@ -266,7 +267,7 @@ impl WriteBackendMethods for NvvmCodegenBackend {
         module: ModuleCodegen<Self::Module>,
         config: &ModuleConfig,
     ) -> Result<CompiledModule, FatalError> {
-        back::codegen(cgcx, diag_handler, module, config)
+        unsafe { back::codegen(cgcx, diag_handler, module, config) }
     }
 
     fn prepare_thin(
@@ -293,17 +294,17 @@ impl WriteBackendMethods for NvvmCodegenBackend {
     }
 
     fn optimize_fat(
-        cgcx: &CodegenContext<Self>,
-        llmod: &mut ModuleCodegen<Self::Module>,
+        _cgcx: &CodegenContext<Self>,
+        _llmod: &mut ModuleCodegen<Self::Module>,
     ) -> Result<(), FatalError> {
         todo!()
     }
 
     fn autodiff(
-        cgcx: &CodegenContext<Self>,
-        module: &ModuleCodegen<Self::Module>,
-        diff_fncs: Vec<AutoDiffItem>,
-        config: &ModuleConfig,
+        _cgcx: &CodegenContext<Self>,
+        _module: &ModuleCodegen<Self::Module>,
+        _diff_fncs: Vec<AutoDiffItem>,
+        _config: &ModuleConfig,
     ) -> Result<(), FatalError> {
         todo!()
     }
@@ -357,13 +358,13 @@ pub(crate) unsafe fn create_module<'ll>(
 ) -> &'ll llvm::Module {
     debug!("Creating llvm module with name `{}`", mod_name);
     let mod_name = CString::new(mod_name).expect("nul in module name");
-    let llmod = llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), llcx);
+    let llmod = unsafe { llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), llcx) };
 
     let data_layout = CString::new(target::DATA_LAYOUT).unwrap();
-    llvm::LLVMSetDataLayout(llmod, data_layout.as_ptr());
+    unsafe { llvm::LLVMSetDataLayout(llmod, data_layout.as_ptr()) };
 
     let target = CString::new(target::TARGET_TRIPLE).unwrap();
-    llvm::LLVMSetTarget(llmod, target.as_ptr());
+    unsafe { llvm::LLVMSetTarget(llmod, target.as_ptr()) };
 
     llmod
 }

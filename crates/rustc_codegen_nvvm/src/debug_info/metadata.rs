@@ -18,7 +18,7 @@ use rustc_session::config::{self, DebugInfo};
 use rustc_span::symbol::Symbol;
 use rustc_span::{DUMMY_SP, FileName, FileNameDisplayPreference, SourceFile, hygiene};
 use smallvec::smallvec;
-use tracing::{debug, instrument};
+use tracing::debug;
 
 pub(crate) use self::type_map::TypeMap;
 use self::type_map::{DINodeCreationResult, Stub, UniqueTypeId};
@@ -550,7 +550,6 @@ pub(crate) fn file_metadata<'ll>(cx: &CodegenCx<'ll, '_>, source_file: &SourceFi
         .entry(cache_key)
         .or_insert_with(|| alloc_new_file_metadata(cx, source_file));
 
-    #[instrument(skip(cx, source_file), level = "debug")]
     fn alloc_new_file_metadata<'ll>(
         cx: &CodegenCx<'ll, '_>,
         source_file: &SourceFile,
@@ -891,8 +890,8 @@ fn build_field_di_node<'ll, 'tcx>(
             owner,
             name.as_c_char_ptr(),
             name.len(),
-            unknown_file_metadata(cx),
-            UNKNOWN_LINE_NUMBER,
+            file_metadata,
+            line_number,
             size_and_align.0.bits(),
             size_and_align.1.bits() as u32,
             offset.bits(),

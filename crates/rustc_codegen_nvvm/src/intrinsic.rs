@@ -1,22 +1,23 @@
 use rustc_abi as abi;
 use rustc_abi::{self, Float, HasDataLayout, Primitive};
 use rustc_codegen_ssa::errors::InvalidMonomorphization;
+use rustc_codegen_ssa::mir::operand::OperandValue;
+use rustc_codegen_ssa::mir::place::PlaceValue;
 use rustc_codegen_ssa::mir::{operand::OperandRef, place::PlaceRef};
-use rustc_codegen_ssa::traits::{
-    BuilderMethods, ConstCodegenMethods, IntrinsicCallBuilderMethods, OverflowOp,
-};
-use rustc_middle::ty::Ty;
-use rustc_middle::ty::layout::LayoutOf;
-use rustc_middle::{bug, ty};
+use rustc_codegen_ssa::traits::{BaseTypeCodegenMethods, BuilderMethods, ConstCodegenMethods, IntrinsicCallBuilderMethods, OverflowOp};
+use rustc_middle::{bug, span_bug};
+use rustc_middle::ty::{self, Ty};
+use rustc_middle::ty::layout::{HasTypingEnv, LayoutOf};
 use rustc_span::symbol::kw;
 use rustc_span::{Span, Symbol, sym};
 use rustc_target::callconv::{FnAbi, PassMode};
 use tracing::trace;
 
 use crate::abi::LlvmType;
-use crate::llvm::{self, Metadata, Value};
+use crate::builder::Builder;
+use crate::context::CodegenCx;
+use crate::llvm::{self, Metadata, Type, Value};
 use crate::ty::LayoutLlvmExt;
-use crate::{builder::Builder, context::CodegenCx};
 
 // libnvvm does not support some advanced intrinsics for i128 so we just abort on them for now. In the future
 // we should emulate them in software.
@@ -99,7 +100,7 @@ fn saturating_intrinsic_impl<'a, 'll, 'tcx>(
     }
 }
 
-fn get_simple_intrinsic<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, name: Symbol) -> Option<&'ll Value> {
+fn get_simple_intrinsic<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, name: Symbol) -> Option<(&'ll Type, &'ll Value)> {
     #[rustfmt::skip]
     let llvm_name = match name {
         sym::sqrtf32      => "__nv_sqrtf",
@@ -138,16 +139,14 @@ fn get_simple_intrinsic<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, name: Symbol) -> O
         sym::ceilf64      => "__nv_ceil",
         sym::truncf32     => "__nv_truncf",
         sym::truncf64     => "__nv_trunc",
-        sym::rintf32      => "__nv_rintf",
-        sym::rintf64      => "__nv_rint",
-        sym::nearbyintf32 => "__nv_nearbyintf",
-        sym::nearbyintf64 => "__nv_nearbyint",
         sym::roundf32     => "__nv_roundf",
         sym::roundf64     => "__nv_round",
+        sym::round_ties_even_f32 => "__nv_rintf",
+        sym::round_ties_even_f64 => "__nv_rint",
         _ => return None,
     };
     trace!("Retrieving nv intrinsic `{:?}`", llvm_name);
-    Some(cx.get_intrinsic(llvm_name).1)
+    Some(cx.get_intrinsic(llvm_name))
 }
 
 impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
@@ -160,16 +159,15 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
         span: Span,
     ) -> Result<(), ty::Instance<'tcx>> {
         let tcx = self.tcx;
-        let callee_ty = instance.ty(tcx, ty::TypingEnv::fully_monomorphized());
+        let callee_ty = instance.ty(tcx, self.typing_env());
 
-        let (def_id, substs) = match *callee_ty.kind() {
-            ty::FnDef(def_id, substs) => (def_id, substs),
-            _ => bug!("expected fn item type, found {}", callee_ty),
+        let ty::FnDef(def_id, fn_args) = *callee_ty.kind() else {
+            bug!("expected fn item type, found {}", callee_ty);
         };
 
         let sig = callee_ty.fn_sig(tcx);
         let sig =
-            tcx.normalize_erasing_late_bound_regions(ty::TypingEnv::fully_monomorphized(), sig);
+            tcx.normalize_erasing_late_bound_regions(self.typing_env(), sig);
         let arg_tys = sig.inputs();
         let ret_ty = sig.output();
         let name = tcx.item_name(def_id);
@@ -185,15 +183,48 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
 
         let simple = get_simple_intrinsic(self, name);
         let llval = match name {
-            _ if simple.is_some() => self.call(
-                self.type_i1(),
-                None,
-                None,
-                simple.unwrap(),
-                &args.iter().map(|arg| arg.immediate()).collect::<Vec<_>>(),
-                None,
-                None,
-            ),
+            _ if simple.is_some() => {
+                let (simple_ty, simple_fn) = simple.unwrap();
+                self.call(
+                    simple_ty,
+                    None,
+                    None,
+                    simple_fn,
+                    &args.iter().map(|arg| arg.immediate()).collect::<Vec<_>>(),
+                    None,
+                    Some(instance),
+                )
+            },
+            sym::is_val_statically_known => {
+                // LLVM 7 does not support this intrinsic, so always assume false.
+                self.const_bool(false)
+            }
+            sym::select_unpredictable => {
+                // This should set MD_unpredictable on the select instruction, but
+                // nvvm ignores it, so just use a normal select.
+                let cond = args[0].immediate();
+                assert_eq!(args[1].layout, args[2].layout);
+                match (args[1].val, args[2].val) {
+                    (OperandValue::Ref(true_val), OperandValue::Ref(false_val)) => {
+                        assert!(true_val.llextra.is_none());
+                        assert!(false_val.llextra.is_none());
+                        assert_eq!(true_val.align, false_val.align);
+                        let ptr = self.select(cond, true_val.llval, false_val.llval);
+                        let selected =
+                            OperandValue::Ref(PlaceValue::new_sized(ptr, true_val.align));
+                        selected.store(self, result);
+                        return Ok(());
+                    }
+                    (OperandValue::Immediate(_), OperandValue::Immediate(_))
+                    | (OperandValue::Pair(_, _), OperandValue::Pair(_, _)) => {
+                        let true_val = args[1].immediate_or_packed_pair(self);
+                        let false_val = args[2].immediate_or_packed_pair(self);
+                        self.select(cond, true_val, false_val)
+                    }
+                    (OperandValue::ZeroSized, OperandValue::ZeroSized) => return Ok(()),
+                    _ => span_bug!(span, "Incompatible OperandValue for select_unpredictable"),
+                }
+            }
             sym::likely => self.call_intrinsic(
                 "llvm.expect.i1",
                 &[args[0].immediate(), self.const_bool(true)],
@@ -259,7 +290,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                 }
             }
             sym::volatile_load | sym::unaligned_volatile_load => {
-                let tp_ty = substs.type_at(0);
+                let tp_ty = fn_args.type_at(0);
                 let mut ptr = args[0].immediate();
                 if let PassMode::Cast { cast: ty, .. } = &fn_abi.ret.mode {
                     ptr = self.pointercast(ptr, self.type_ptr_to(ty.llvm_type(self)));
@@ -273,7 +304,10 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                 unsafe {
                     llvm::LLVMSetAlignment(load, align);
                 }
-                self.to_immediate(load, self.layout_of(tp_ty))
+                if !result.layout.is_zst() {
+                    self.store_to_place(load, result.val);
+                }
+                return Ok(());
             }
             sym::volatile_store => {
                 let dst = args[0].deref(self.cx());
@@ -305,6 +339,37 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                         self.const_i32(cache_type),
                     ],
                 )
+            }
+            sym::carrying_mul_add => {
+                let (size, signed) = fn_args.type_at(0).int_size_and_signed(self.tcx);
+
+                let wide_llty = self.type_ix(size.bits() * 2);
+                let args = args.as_array().unwrap();
+                let [a, b, c, d] = args.map(|a| self.intcast(a.immediate(), wide_llty, signed));
+
+                let wide = if signed {
+                    let prod = self.unchecked_smul(a, b);
+                    let acc = self.unchecked_sadd(prod, c);
+                    self.unchecked_sadd(acc, d)
+                } else {
+                    let prod = self.unchecked_umul(a, b);
+                    let acc = self.unchecked_uadd(prod, c);
+                    self.unchecked_uadd(acc, d)
+                };
+
+                let narrow_llty = self.type_ix(size.bits());
+                let low = self.trunc(wide, narrow_llty);
+                let bits_const = self.const_uint(wide_llty, size.bits());
+                // No need for ashr when signed; LLVM changes it to lshr anyway.
+                let high = self.lshr(wide, bits_const);
+                // FIXME: could be `trunc nuw`, even for signed.
+                let high = self.trunc(high, narrow_llty);
+
+                let pair_llty = self.type_struct(&[narrow_llty, narrow_llty], false);
+                let pair = self.const_poison(pair_llty);
+                let pair = self.insert_value(pair, low, 0);
+                let pair = self.insert_value(pair, high, 1);
+                pair
             }
             sym::ctlz
             | sym::ctlz_nonzero
@@ -372,6 +437,11 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                             // rotate = funnel shift with first two args the same
                             let llvm_name =
                                 &format!("llvm.fsh{}.i{}", if is_left { 'l' } else { 'r' }, width);
+
+                            // llvm expects shift to be the same type as the values, but rust
+                            // always uses `u32`.
+                            let raw_shift = self.intcast(raw_shift, self.val_ty(val), false);
+
                             self.call_intrinsic(llvm_name, &[val, val, raw_shift])
                         }
                         sym::saturating_add | sym::saturating_sub => {
@@ -393,11 +463,11 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
             sym::raw_eq => {
                 use abi::BackendRepr::*;
                 use rustc_codegen_ssa::common::IntPredicate;
-                let tp_ty = substs.type_at(0);
+                let tp_ty = fn_args.type_at(0);
                 let layout = self.layout_of(tp_ty).layout;
                 let use_integer_compare = match layout.backend_repr() {
                     Scalar(_) | ScalarPair(_, _) => true,
-                    Uninhabited | Vector { .. } => false,
+                    Vector { .. } => false,
                     Memory { .. } => {
                         // For rusty ABIs, small aggregates are actually passed
                         // as `RegKind::Integer` (see `FnAbi::adjust_for_abi`),
@@ -426,6 +496,44 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                     let cmp = self.call_intrinsic("memcmp", &[a_ptr, b_ptr, n]);
                     self.icmp(IntPredicate::IntEQ, cmp, self.const_i32(0))
                 }
+            }
+            sym::compare_bytes => self.call_intrinsic(
+                    "memcmp",
+                    &[args[0].immediate(), args[1].immediate(), args[2].immediate()],
+                ),
+
+            sym::black_box => {
+                args[0].val.store(self, result);
+                let result_val_span = [result.val.llval];
+                // We need to "use" the argument in some way LLVM can't introspect, and on
+                // targets that support it we can typically leverage inline assembly to do
+                // this. LLVM's interpretation of inline assembly is that it's, well, a black
+                // box. This isn't the greatest implementation since it probably deoptimizes
+                // more than we want, but it's so far good enough.
+                //
+                // For zero-sized types, the location pointed to by the result may be
+                // uninitialized. Do not "use" the result in this case; instead just clobber
+                // the memory.
+                let (constraint, inputs): (&str, &[_]) = if result.layout.is_zst() {
+                    ("~{memory}", &[])
+                } else {
+                    ("r,~{memory}", &result_val_span)
+                };
+                crate::asm::inline_asm_call(
+                    self,
+                    "",
+                    constraint,
+                    inputs,
+                    self.type_void(),
+                    true,
+                    false,
+                    llvm::AsmDialect::Att,
+                    &[span],
+                )
+                .unwrap_or_else(|| bug!("failed to generate inline asm call for `black_box`"));
+
+                // We have copied the value to `result` already.
+                return Ok(());
             }
             // is this even supported by nvvm? i did not find a definitive answer
             _ if name_str.starts_with("simd_") => todo!("simd intrinsics"),
@@ -468,9 +576,9 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
 
     fn type_checked_load(
         &mut self,
-        llvtable: Self::Value,
-        vtable_byte_offset: u64,
-        typeid: Self::Metadata,
+        _llvtable: Self::Value,
+        _vtable_byte_offset: u64,
+        _typeid: Self::Metadata,
     ) -> Self::Value {
         // LLVM CFI doesnt make sense on the GPU
         self.const_i32(0)

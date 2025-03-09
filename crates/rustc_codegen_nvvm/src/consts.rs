@@ -130,7 +130,7 @@ pub(crate) fn const_alloc_to_llvm<'ll>(
                 value: Primitive::Pointer(address_space),
                 valid_range: WrappingRange { start: 0, end: !0 },
             },
-            cx.type_i8p_ext(address_space),
+            cx.type_ptr_ext(address_space),
         ));
         next_offset = offset + pointer_size;
     }
@@ -232,10 +232,15 @@ fn check_and_apply_linkage<'ll, 'tcx>(
     }
 }
 
-impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
+impl<'ll> CodegenCx<'ll, '_> {
     pub(crate) fn const_bitcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
         trace!("Const bitcast: `{:?}` to `{:?}`", val, ty);
         unsafe { llvm::LLVMConstBitCast(val, ty) }
+    }
+
+    pub(crate) fn const_ptrcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
+        trace!("Const ptrcast: `{:?}` to `{:?}`", val, ty);
+        unsafe { llvm::LLVMConstPointerCast(val, ty) }
     }
 
     pub(crate) fn static_addr_of_mut(
@@ -333,6 +338,12 @@ impl<'ll, 'tcx> StaticCodegenMethods for CodegenCx<'ll, 'tcx> {
 
     fn codegen_static(&self, def_id: DefId) {
         unsafe {
+            assert!(
+                llvm::LLVMGetInitializer(
+                    self.instances.borrow().get(&Instance::mono(self.tcx, def_id)).unwrap()
+                )
+                .is_none()
+            );
             let attrs = self.tcx.codegen_fn_attrs(def_id);
 
             let (v, _) = match codegen_static_initializer(self, def_id) {
