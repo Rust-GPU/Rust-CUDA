@@ -51,13 +51,13 @@ fn is_unsupported_libdevice_fn(name: &str) -> bool {
 fn override_libm_function<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) {
     let name = cx.tcx.item_name(func.def_id());
     let nv_name = format!("__nv_{}", name.as_str());
-    let intrinsic = cx.get_intrinsic(nv_name.as_str());
+    let (intrinsic_llfn_ty, intrinsic_llfn) = cx.get_intrinsic(nv_name.as_str());
 
     let llfn = cx.get_fn(func);
     let start = Builder::append_block(cx, llfn, "start");
     let mut bx = Builder::build(cx, start);
 
     let params = llvm::get_params(llfn);
-    let llcall = bx.call(cx.type_i1(), None, None, intrinsic.1, &params, None, None);
+    let llcall = bx.call(intrinsic_llfn_ty, None, None, intrinsic_llfn, &params, None, None);
     bx.ret(llcall);
 }
