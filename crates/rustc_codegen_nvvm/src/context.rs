@@ -419,7 +419,12 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         }
 
         let sym = tcx.symbol_name(instance).name;
-        debug!("get_fn({:?}: {:?}) => {}", instance, instance.ty(self.tcx(), self.typing_env()), sym);
+        debug!(
+            "get_fn({:?}: {:?}) => {}",
+            instance,
+            instance.ty(self.tcx(), self.typing_env()),
+            sym
+        );
 
         let fn_abi = self.fn_abi_of_instance(instance, ty::List::empty());
 

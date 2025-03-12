@@ -478,7 +478,9 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn load_operand(&mut self, place: PlaceRef<'tcx, &'ll Value>) -> OperandRef<'tcx, &'ll Value> {
         if place.layout.is_unsized() {
-            let tail = self.tcx.struct_tail_for_codegen(place.layout.ty, self.typing_env());
+            let tail = self
+                .tcx
+                .struct_tail_for_codegen(place.layout.ty, self.typing_env());
             if matches!(tail.kind(), ty::Foreign(..)) {
                 // Unsized locals and, at least conceptually, even unsized arguments must be copied
                 // around, which requires dynamically determining their size. Therefore, we cannot
@@ -575,7 +577,13 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
             OperandValue::Pair(
                 load(0, a, place.layout, place.val.align, Size::ZERO),
-                load(1, b, place.layout, place.val.align.restrict_for_offset(b_offset), b_offset),
+                load(
+                    1,
+                    b,
+                    place.layout,
+                    place.val.align.restrict_for_offset(b_offset),
+                    b_offset,
+                ),
             )
         } else {
             OperandValue::Ref(place.val)
@@ -659,7 +667,12 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         align: Align,
         flags: MemFlags,
     ) -> &'ll Value {
-        trace!("store_with_flags: {:?} into {:?} with align {:?}", val, ptr, align.bytes());
+        trace!(
+            "store_with_flags: {:?} into {:?} with align {:?}",
+            val,
+            ptr,
+            align.bytes()
+        );
         assert_eq!(self.cx.type_kind(self.cx.val_ty(ptr)), TypeKind::Pointer);
         let ptr = self.check_store(val, ptr);
         unsafe {
@@ -976,9 +989,14 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         if self.cx.type_kind(elt_ty) == TypeKind::Pointer {
             let agg_ty = self.cx.val_ty(agg_val);
             let idx_ty = match self.cx.type_kind(agg_ty) {
-                TypeKind::Struct => unsafe { llvm::LLVMStructGetTypeAtIndex(agg_ty, idx as c_uint) }
-                TypeKind::Array => unsafe { llvm::LLVMGetElementType(agg_ty) }
-                _ => bug!("insert_value: expected struct or array type, found {:?}", self.cx.type_kind(agg_ty)),
+                TypeKind::Struct => unsafe {
+                    llvm::LLVMStructGetTypeAtIndex(agg_ty, idx as c_uint)
+                },
+                TypeKind::Array => unsafe { llvm::LLVMGetElementType(agg_ty) },
+                _ => bug!(
+                    "insert_value: expected struct or array type, found {:?}",
+                    self.cx.type_kind(agg_ty)
+                ),
             };
             assert_eq!(self.cx.type_kind(idx_ty), TypeKind::Pointer);
             if idx_ty != elt_ty {
@@ -986,9 +1004,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             }
         }
 
-        unsafe {
-            llvm::LLVMBuildInsertValue(self.llbuilder, agg_val, elt, idx as c_uint, UNNAMED)
-        }
+        unsafe { llvm::LLVMBuildInsertValue(self.llbuilder, agg_val, elt, idx as c_uint, UNNAMED) }
     }
 
     fn cleanup_landing_pad(&mut self, _pers_fn: &'ll Value) -> (&'ll Value, &'ll Value) {
@@ -1179,9 +1195,9 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
         }
     }
 
-    fn align_metadata(&mut self, _load: &'ll Value, _align: Align) { }
+    fn align_metadata(&mut self, _load: &'ll Value, _align: Align) {}
 
-    fn noundef_metadata(&mut self, _load: &'ll Value) { }
+    fn noundef_metadata(&mut self, _load: &'ll Value) {}
 
     fn check_store(&mut self, val: &'ll Value, ptr: &'ll Value) -> &'ll Value {
         let dest_ptr_ty = self.cx.val_ty(ptr);
@@ -1285,5 +1301,4 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
             llvm::LLVMAddIncoming(phi, &val, &bb, 1);
         }
     }
-
 }

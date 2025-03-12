@@ -167,12 +167,14 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
     }
 }
 
-unsafe fn cleanup_dicompileunit(module: &Module) { unsafe {
-    let mut cu1 = ptr::null_mut();
-    let mut cu2 = ptr::null_mut();
-    LLVMRustThinLTOGetDICompileUnit(module, &mut cu1, &mut cu2);
-    LLVMRustThinLTOPatchDICompileUnit(module, cu1);
-} }
+unsafe fn cleanup_dicompileunit(module: &Module) {
+    unsafe {
+        let mut cu1 = ptr::null_mut();
+        let mut cu2 = ptr::null_mut();
+        LLVMRustThinLTOGetDICompileUnit(module, &mut cu1, &mut cu2);
+        LLVMRustThinLTOPatchDICompileUnit(module, cu1);
+    }
+}
 
 // Merging and DCE (dead code elimination) logic. Inspired a lot by rust-ptx-linker.
 //
@@ -261,86 +263,90 @@ impl<'a, 'll> Iterator for GlobalIter<'a, 'll> {
     }
 }
 
-unsafe fn internalize_pass(module: &Module, cx: &Context) { unsafe {
-    // collect the values of all the declared kernels
-    let num_operands =
-        LLVMGetNamedMetadataNumOperands(module, "nvvm.annotations\0".as_ptr().cast()) as usize;
-    let mut operands = Vec::with_capacity(num_operands);
-    LLVMGetNamedMetadataOperands(
-        module,
-        "nvvm.annotations\0".as_ptr().cast(),
-        operands.as_mut_ptr(),
-    );
-    operands.set_len(num_operands);
-    let mut kernels = Vec::with_capacity(num_operands);
-    let kernel_str = LLVMMDStringInContext(cx, "kernel".as_ptr().cast(), 6);
-
-    for mdnode in operands {
-        let num_operands = LLVMGetMDNodeNumOperands(mdnode) as usize;
+unsafe fn internalize_pass(module: &Module, cx: &Context) {
+    unsafe {
+        // collect the values of all the declared kernels
+        let num_operands =
+            LLVMGetNamedMetadataNumOperands(module, "nvvm.annotations\0".as_ptr().cast()) as usize;
         let mut operands = Vec::with_capacity(num_operands);
-        LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+        LLVMGetNamedMetadataOperands(
+            module,
+            "nvvm.annotations\0".as_ptr().cast(),
+            operands.as_mut_ptr(),
+        );
         operands.set_len(num_operands);
+        let mut kernels = Vec::with_capacity(num_operands);
+        let kernel_str = LLVMMDStringInContext(cx, "kernel".as_ptr().cast(), 6);
 
-        if operands.get(1) == Some(&kernel_str) {
-            kernels.push(operands[0]);
+        for mdnode in operands {
+            let num_operands = LLVMGetMDNodeNumOperands(mdnode) as usize;
+            let mut operands = Vec::with_capacity(num_operands);
+            LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+            operands.set_len(num_operands);
+
+            if operands.get(1) == Some(&kernel_str) {
+                kernels.push(operands[0]);
+            }
         }
-    }
 
-    // see what functions are marked as externally visible by the user.
-    let num_operands =
-        LLVMGetNamedMetadataNumOperands(module, "cg_nvvm_used\0".as_ptr().cast()) as usize;
-    let mut operands = Vec::with_capacity(num_operands);
-    LLVMGetNamedMetadataOperands(
-        module,
-        "cg_nvvm_used\0".as_ptr().cast(),
-        operands.as_mut_ptr(),
-    );
-    operands.set_len(num_operands);
-    let mut used_funcs = Vec::with_capacity(num_operands);
-
-    for mdnode in operands {
-        let num_operands = LLVMGetMDNodeNumOperands(mdnode) as usize;
+        // see what functions are marked as externally visible by the user.
+        let num_operands =
+            LLVMGetNamedMetadataNumOperands(module, "cg_nvvm_used\0".as_ptr().cast()) as usize;
         let mut operands = Vec::with_capacity(num_operands);
-        LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+        LLVMGetNamedMetadataOperands(
+            module,
+            "cg_nvvm_used\0".as_ptr().cast(),
+            operands.as_mut_ptr(),
+        );
         operands.set_len(num_operands);
+        let mut used_funcs = Vec::with_capacity(num_operands);
 
-        used_funcs.push(operands[0]);
-    }
+        for mdnode in operands {
+            let num_operands = LLVMGetMDNodeNumOperands(mdnode) as usize;
+            let mut operands = Vec::with_capacity(num_operands);
+            LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+            operands.set_len(num_operands);
 
-    let iter = FunctionIter::new(&module);
-    for func in iter {
-        let is_kernel = kernels.contains(&func);
-        let is_decl = LLVMIsDeclaration(func) == True;
-        let is_used = used_funcs.contains(&func);
-
-        if !is_decl && !is_kernel {
-            LLVMRustSetLinkage(func, Linkage::InternalLinkage);
-            LLVMRustSetVisibility(func, Visibility::Default);
+            used_funcs.push(operands[0]);
         }
 
-        // explicitly set it to external just in case the codegen set them to internal for some reason
-        if is_used {
-            LLVMRustSetLinkage(func, Linkage::ExternalLinkage);
-            LLVMRustSetVisibility(func, Visibility::Default);
+        let iter = FunctionIter::new(&module);
+        for func in iter {
+            let is_kernel = kernels.contains(&func);
+            let is_decl = LLVMIsDeclaration(func) == True;
+            let is_used = used_funcs.contains(&func);
+
+            if !is_decl && !is_kernel {
+                LLVMRustSetLinkage(func, Linkage::InternalLinkage);
+                LLVMRustSetVisibility(func, Visibility::Default);
+            }
+
+            // explicitly set it to external just in case the codegen set them to internal for some reason
+            if is_used {
+                LLVMRustSetLinkage(func, Linkage::ExternalLinkage);
+                LLVMRustSetVisibility(func, Visibility::Default);
+            }
+        }
+
+        let iter = GlobalIter::new(&module);
+        for func in iter {
+            let is_decl = LLVMIsDeclaration(func) == True;
+
+            if !is_decl {
+                LLVMRustSetLinkage(func, Linkage::InternalLinkage);
+                LLVMRustSetVisibility(func, Visibility::Default);
+            }
         }
     }
+}
 
-    let iter = GlobalIter::new(&module);
-    for func in iter {
-        let is_decl = LLVMIsDeclaration(func) == True;
+unsafe fn dce_pass(module: &Module) {
+    unsafe {
+        let pass_manager = LLVMCreatePassManager();
 
-        if !is_decl {
-            LLVMRustSetLinkage(func, Linkage::InternalLinkage);
-            LLVMRustSetVisibility(func, Visibility::Default);
-        }
+        LLVMAddGlobalDCEPass(pass_manager);
+
+        LLVMRunPassManager(pass_manager, module);
+        LLVMDisposePassManager(pass_manager);
     }
-} }
-
-unsafe fn dce_pass(module: &Module) { unsafe {
-    let pass_manager = LLVMCreatePassManager();
-
-    LLVMAddGlobalDCEPass(pass_manager);
-
-    LLVMRunPassManager(pass_manager, module);
-    LLVMDisposePassManager(pass_manager);
-} }
+}

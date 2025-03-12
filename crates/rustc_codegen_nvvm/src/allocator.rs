@@ -48,12 +48,14 @@ pub(crate) unsafe fn codegen(
                 }
             };
 
-            let ty = unsafe { llvm::LLVMFunctionType(
-                output.unwrap_or(void),
-                args.as_ptr(),
-                args.len() as c_uint,
-                False,
-            ) };
+            let ty = unsafe {
+                llvm::LLVMFunctionType(
+                    output.unwrap_or(void),
+                    args.as_ptr(),
+                    args.len() as c_uint,
+                    False,
+                )
+            };
             let name = format!("__rust_{}", method.name);
             let llfn = unsafe {
                 llvm::LLVMRustGetOrInsertFunction(llmod, name.as_ptr().cast(), name.len(), ty)
@@ -68,7 +70,9 @@ pub(crate) unsafe fn codegen(
             };
             unsafe { llvm::LLVMRustSetVisibility(callee, llvm::Visibility::Hidden) };
 
-            let llbb = unsafe { llvm::LLVMAppendBasicBlockInContext(llcx, llfn, "entry\0".as_ptr().cast()) };
+            let llbb = unsafe {
+                llvm::LLVMAppendBasicBlockInContext(llcx, llfn, "entry\0".as_ptr().cast())
+            };
 
             let llbuilder = unsafe { llvm::LLVMCreateBuilderInContext(llcx) };
             unsafe { llvm::LLVMPositionBuilderAtEnd(llbuilder, llbb) };
@@ -77,13 +81,15 @@ pub(crate) unsafe fn codegen(
                 .enumerate()
                 .map(|(i, _)| unsafe { llvm::LLVMGetParam(llfn, i as c_uint) })
                 .collect::<Vec<_>>();
-            let ret = unsafe { llvm::LLVMRustBuildCall(
-                llbuilder,
-                callee,
-                args.as_ptr(),
-                args.len() as c_uint,
-                None,
-            ) };
+            let ret = unsafe {
+                llvm::LLVMRustBuildCall(
+                    llbuilder,
+                    callee,
+                    args.as_ptr(),
+                    args.len() as c_uint,
+                    None,
+                )
+            };
             unsafe { llvm::LLVMSetTailCall(ret, True) };
             if output.is_some() {
                 unsafe { llvm::LLVMBuildRet(llbuilder, ret) };

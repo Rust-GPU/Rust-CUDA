@@ -164,10 +164,8 @@ pub(crate) unsafe fn optimize_thin(
     let llmod =
         parse_module(llcx, module_name.to_str().unwrap(), thin_module.data(), dcx)? as *const _;
 
-    let module = ModuleCodegen::new_regular(
-        thin_module.name().to_string(),
-        LlvmMod { llcx, llmod },
-    );
+    let module =
+        ModuleCodegen::new_regular(thin_module.name().to_string(), LlvmMod { llcx, llmod });
     Ok(module)
 }
 
