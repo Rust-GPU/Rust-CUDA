@@ -27,7 +27,7 @@ pub fn kernel(input: proc_macro::TokenStream, item: proc_macro::TokenStream) -> 
     let mut item = parse_macro_input!(item as ItemFn);
     let no_mangle = parse_quote!(#[no_mangle]);
     item.attrs.push(no_mangle);
-    let internal = parse_quote!(#[cfg_attr(target_arch="nvptx64", nvvm_internal(kernel(#input)))]);
+    let internal = parse_quote!(#[cfg_attr(target_arch="nvptx64", nvvm_internal::kernel(#input))]);
     item.attrs.push(internal);
 
     // used to guarantee some things about how params are passed in the codegen.
@@ -155,12 +155,7 @@ pub fn gpu_only(_attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -
     } = syn::parse_macro_input!(item as syn::ItemFn);
 
     let mut cloned_attrs = attrs.clone();
-    cloned_attrs.retain(|a| {
-        !a.path()
-            .get_ident()
-            .map(|x| *x == "nvvm_internal")
-            .unwrap_or_default()
-    });
+    cloned_attrs.retain(|a| a.path().segments[0].ident != "nvvm_internal");
 
     let fn_name = sig.ident.clone();
 
@@ -203,7 +198,7 @@ pub fn externally_visible(
         "#[externally_visible] function should also be #[no_mangle]"
     );
 
-    let new_attr = parse_quote!(#[cfg_attr(target_os = "cuda", nvvm_internal(used))]);
+    let new_attr = parse_quote!(#[cfg_attr(target_os = "cuda", nvvm_internal::used)]);
     func.attrs.push(new_attr);
 
     func.into_token_stream().into()
@@ -231,7 +226,7 @@ pub fn address_space(attr: proc_macro::TokenStream, item: proc_macro::TokenStrea
     };
 
     let new_attr =
-        parse_quote!(#[cfg_attr(target_os = "cuda", nvvm_internal(addrspace(#addrspace_num)))]);
+        parse_quote!(#[cfg_attr(target_os = "cuda", nvvm_internal::addrspace(#addrspace_num))]);
     global.attrs.push(new_attr);
 
     global.into_token_stream().into()

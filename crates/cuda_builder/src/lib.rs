@@ -379,7 +379,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     let mut rustflags = vec![
         format!("-Zcodegen-backend={}", rustc_codegen_nvvm.display()),
         "-Zcrate-attr=feature(register_tool)".into(),
-        "-Zcrate-attr=register_tool(rust_cuda)".into(),
+        "-Zcrate-attr=register_tool(nvvm_internal)".into(),
         "-Zcrate-attr=no_std".into(),
         "-Zsaturating_float_casts=false".into(),
     ];
@@ -440,8 +440,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         "--lib",
         "--message-format=json-render-diagnostics",
         "-Zbuild-std=core,alloc",
-        "--target",
-        "nvptx64-nvidia-cuda",
+        "--target=nvptx64-nvidia-cuda",
     ]);
 
     cargo.args(&builder.build_args);

@@ -68,7 +68,7 @@ macro_rules! shared_array {
 /// Gets a pointer to the dynamic shared memory that was allocated by the caller of the kernel. The
 /// data is left uninitialized.
 ///
-/// **Calling this function multiple times will yield the same pointer**.  
+/// **Calling this function multiple times will yield the same pointer**.
 #[gpu_only]
 pub fn dynamic_shared_mem<T>() -> *mut T {
     // it is unclear whether an alignment of 16 is actually required for correctness, however,
@@ -77,7 +77,7 @@ pub fn dynamic_shared_mem<T>() -> *mut T {
     extern "C" {
         // need to use nvvm_internal and not address_space because address_space only parses
         // static definitions, not extern static definitions.
-        #[nvvm_internal(addrspace(3))]
+        #[nvvm_internal::addrspace(3)]
         #[allow(improper_ctypes)]
         // mangle it a bit to make sure nobody makes the same thing
         #[link_name = "_Zcuda_std_dyn_shared"]
