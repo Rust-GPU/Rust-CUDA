@@ -6,43 +6,81 @@
 /// std float intrinsics implemented using libdevice intrinsics so they can be used
 /// from GPU no_std crates. Falls back to stdlib implementation on non-nvptx.
 pub trait GpuFloat: Copy + PartialOrd + private::Sealed {
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn floor(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn ceil(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn round(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn trunc(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn fract(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn abs(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn signum(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn copysign(self, sign: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn mul_add(self, a: Self, b: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn div_euclid(self, rhs: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn rem_euclid(self, rhs: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn powi(self, n: i32) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn powf(self, n: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn sqrt(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn exp(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn exp2(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn ln(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn log(self, base: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn log2(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn log10(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn cbrt(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn hypot(self, other: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn sin(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn cos(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn tan(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn asin(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn acos(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn atan(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn atan2(self, other: Self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn sin_cos(self) -> (Self, Self);
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn exp_m1(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn ln_1p(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn sinh(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn cosh(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn tanh(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn asinh(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn acosh(self) -> Self;
+    #[must_use = "method returns a new number and does not mutate the original value"]
     fn atanh(self) -> Self;
 }
 
@@ -77,14 +115,12 @@ use crate::intrinsics;
 
 impl GpuFloat for f32 {
     /// Returns the largest integer less than or equal to a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn floor(self) -> f32 {
         f32_intrinsic!(self, floor())
     }
 
     /// Returns the smallest integer greater than or equal to a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ceil(self) -> f32 {
         f32_intrinsic!(self, ceil())
@@ -92,21 +128,18 @@ impl GpuFloat for f32 {
 
     /// Returns the nearest integer to a number. Round half-way cases away from
     /// `0.0`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn round(self) -> f32 {
         f32_intrinsic!(self, round())
     }
 
     /// Returns the integer part of a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn trunc(self) -> f32 {
         f32_intrinsic!(self, trunc())
     }
 
     /// Returns the fractional part of a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn fract(self) -> f32 {
         self - self.trunc()
@@ -114,7 +147,6 @@ impl GpuFloat for f32 {
 
     /// Computes the absolute value of `self`. Returns `NAN` if the
     /// number is `NAN`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn abs(self) -> f32 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -129,7 +161,6 @@ impl GpuFloat for f32 {
     /// - `1.0` if the number is positive, `+0.0` or `INFINITY`
     /// - `-1.0` if the number is negative, `-0.0` or `NEG_INFINITY`
     /// - `NAN` if the number is `NAN`intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn signum(self) -> f32 {
         if self.is_nan() {
@@ -145,7 +176,6 @@ impl GpuFloat for f32 {
     /// Equal to `self` if the sign of `self` and `sign` are the same, otherwise
     /// equal to `-self`. If `self` is a `NAN`, then a `NAN` with the sign of
     /// `sign` is returned.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn copysign(self, sign: f32) -> f32 {
         f32_intrinsic!(self, copysign(sign))
@@ -158,7 +188,6 @@ impl GpuFloat for f32 {
     /// the target architecture has a dedicated `fma` CPU instruction. However,
     /// this is not always true, and will be heavily dependant on designing
     /// algorithms with specific target hardware in mind.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn mul_add(self, a: f32, b: f32) -> f32 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -174,7 +203,6 @@ impl GpuFloat for f32 {
     /// `self = n * rhs + self.rem_euclid(rhs)`.
     /// In other words, the result is `self / rhs` rounded to the integer `n`
     /// such that `self >= n * rhs`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn div_euclid(self, rhs: f32) -> f32 {
         let q = (self / rhs).trunc();
@@ -194,7 +222,6 @@ impl GpuFloat for f32 {
     /// closest floating point number in the real numbers and thus fulfills the
     /// property `self == self.div_euclid(rhs) * rhs + self.rem_euclid(rhs)`
     /// approximatively.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn rem_euclid(self, rhs: f32) -> f32 {
         let r = self % rhs;
@@ -208,14 +235,12 @@ impl GpuFloat for f32 {
     /// Raises a number to an integer power.
     ///
     /// Using this function is generally faster than using `powf`intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn powi(self, n: i32) -> f32 {
         f32_intrinsic!(self, powi(n))
     }
 
     /// Raises a number to a floating point power.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn powf(self, n: f32) -> f32 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -228,28 +253,24 @@ impl GpuFloat for f32 {
     /// Returns the square root of a number.
     ///
     /// Returns NaN if `self` is a negative number other than `-0.0`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn sqrt(self) -> f32 {
         f32_intrinsic!(self, sqrt())
     }
 
     /// Returns `e^(self)`, (the exponential function).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp(self) -> f32 {
         f32_intrinsic!(self, exp())
     }
 
     /// Returns `2^(self)`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp2(self) -> f32 {
         f32_intrinsic!(self, exp2())
     }
 
     /// Returns the natural logarithm of the number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln(self) -> f32 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -264,28 +285,24 @@ impl GpuFloat for f32 {
     /// The result might not be correctly rounded owing to implementation details;
     /// `self.log2()` can produce more accurate results for base 2, and
     /// `self.log10()` can produce more accurate results for base 10.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn log(self, base: f32) -> f32 {
         self.ln() / base.ln()
     }
 
     /// Returns the base 2 logarithm of the number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn log2(self) -> f32 {
         f32_intrinsic!(self, log10())
     }
 
     /// Returns the base 10 logarithm of the number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn log10(self) -> f32 {
         f32_intrinsic!(self, log10())
     }
 
     /// Returns the cube root of a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn cbrt(self) -> f32 {
         f32_intrinsic!(self, cbrt())
@@ -293,28 +310,24 @@ impl GpuFloat for f32 {
 
     /// Calculates the length of the hypotenuse of a right-angle triangle given
     /// legs of length `x` and `y`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn hypot(self, other: f32) -> f32 {
         f32_intrinsic!(self, hypot(other))
     }
 
     /// Computes the sine of a number (in radians).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn sin(self) -> f32 {
         f32_intrinsic!(self, sin())
     }
 
     /// Computes the cosine of a number (in radians).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn cos(self) -> f32 {
         f32_intrinsic!(self, cos())
     }
 
     /// Computes the tangent of a number (in radians).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn tan(self) -> f32 {
         f32_intrinsic!(self, tan())
@@ -323,7 +336,6 @@ impl GpuFloat for f32 {
     /// Computes the arcsine of a number. Return value is in radians in
     /// the range [-pi/2, pi/2] or NaN if the number is outside the range
     /// [-1, 1].
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn asin(self) -> f32 {
         f32_intrinsic!(self, asin())
@@ -332,7 +344,6 @@ impl GpuFloat for f32 {
     /// Computes the arccosine of a number. Return value is in radians in
     /// the range [0, pi] or NaN if the number is outside the range
     /// [-1, 1].
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn acos(self) -> f32 {
         f32_intrinsic!(self, acos())
@@ -340,7 +351,6 @@ impl GpuFloat for f32 {
 
     /// Computes the arctangent of a number. Return value is in radians in the
     /// range [-pi/2, pi/2];intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn atan(self) -> f32 {
         f32_intrinsic!(self, atan())
@@ -352,7 +362,6 @@ impl GpuFloat for f32 {
     /// * `x >= 0`: `arctan(y/x)` -> `[-pi/2, pi/2]`
     /// * `y >= 0`: `arctan(y/x) + pi` -> `(pi/2, pi]`
     /// * `y < 0`: `arctan(y/x) - pi` -> `(-pi, -pi/2)`intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn atan2(self, other: f32) -> f32 {
         f32_intrinsic!(self, atan2(other))
@@ -378,7 +387,6 @@ impl GpuFloat for f32 {
 
     /// Returns `e^(self) - 1` in a way that is accurate even if the
     /// number is close to zero.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp_m1(self) -> f32 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -390,7 +398,6 @@ impl GpuFloat for f32 {
 
     /// Returns `ln(1+n)` (natural logarithm) more accurately than if
     /// the operations were performed separately.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln_1p(self) -> f32 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -401,42 +408,36 @@ impl GpuFloat for f32 {
     }
 
     /// Hyperbolic sine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn sinh(self) -> f32 {
         f32_intrinsic!(self, sinh())
     }
 
     /// Hyperbolic cosine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn cosh(self) -> f32 {
         f32_intrinsic!(self, cosh())
     }
 
     /// Hyperbolic tangent function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn tanh(self) -> f32 {
         f32_intrinsic!(self, tanh())
     }
 
     /// Inverse hyperbolic sine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn asinh(self) -> f32 {
         f32_intrinsic!(self, asinh())
     }
 
     /// Inverse hyperbolic cosine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn acosh(self) -> f32 {
         f32_intrinsic!(self, acosh())
     }
 
     /// Inverse hyperbolic tangent function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn atanh(self) -> f32 {
         f32_intrinsic!(self, atanh())
@@ -445,14 +446,12 @@ impl GpuFloat for f32 {
 
 impl GpuFloat for f64 {
     /// Returns the largest integer less than or equal to a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn floor(self) -> f64 {
         f64_intrinsic!(self, floor())
     }
 
     /// Returns the smallest integer greater than or equal to a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ceil(self) -> f64 {
         f64_intrinsic!(self, ceil())
@@ -460,21 +459,18 @@ impl GpuFloat for f64 {
 
     /// Returns the nearest integer to a number. Round half-way cases away from
     /// `0.0`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn round(self) -> f64 {
         f64_intrinsic!(self, round())
     }
 
     /// Returns the integer part of a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn trunc(self) -> f64 {
         f64_intrinsic!(self, trunc())
     }
 
     /// Returns the fractional part of a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn fract(self) -> f64 {
         self - self.trunc()
@@ -482,7 +478,6 @@ impl GpuFloat for f64 {
 
     /// Computes the absolute value of `self`. Returns `NAN` if the
     /// number is `NAN`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn abs(self) -> f64 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -497,7 +492,6 @@ impl GpuFloat for f64 {
     /// - `1.0` if the number is positive, `+0.0` or `INFINITY`
     /// - `-1.0` if the number is negative, `-0.0` or `NEG_INFINITY`
     /// - `NAN` if the number is `NAN`intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn signum(self) -> f64 {
         if self.is_nan() {
@@ -513,7 +507,6 @@ impl GpuFloat for f64 {
     /// Equal to `self` if the sign of `self` and `sign` are the same, otherwise
     /// equal to `-self`. If `self` is a `NAN`, then a `NAN` with the sign of
     /// `sign` is returned.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn copysign(self, sign: f64) -> f64 {
         f64_intrinsic!(self, copysign(sign))
@@ -526,7 +519,6 @@ impl GpuFloat for f64 {
     /// the target architecture has a dedicated `fma` CPU instruction. However,
     /// this is not always true, and will be heavily dependant on designing
     /// algorithms with specific target hardware in mind.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn mul_add(self, a: f64, b: f64) -> f64 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -542,7 +534,6 @@ impl GpuFloat for f64 {
     /// `self = n * rhs + self.rem_euclid(rhs)`.
     /// In other words, the result is `self / rhs` rounded to the integer `n`
     /// such that `self >= n * rhs`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn div_euclid(self, rhs: f64) -> f64 {
         let q = (self / rhs).trunc();
@@ -562,7 +553,6 @@ impl GpuFloat for f64 {
     /// closest floating point number in the real numbers and thus fulfills the
     /// property `self == self.div_euclid(rhs) * rhs + self.rem_euclid(rhs)`
     /// approximatively.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn rem_euclid(self, rhs: f64) -> f64 {
         let r = self % rhs;
@@ -576,14 +566,12 @@ impl GpuFloat for f64 {
     /// Raises a number to an integer power.
     ///
     /// Using this function is generally faster than using `powf`intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn powi(self, n: i32) -> f64 {
         f64_intrinsic!(self, powi(n))
     }
 
     /// Raises a number to a floating point power.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn powf(self, n: f64) -> f64 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -596,28 +584,24 @@ impl GpuFloat for f64 {
     /// Returns the square root of a number.
     ///
     /// Returns NaN if `self` is a negative number other than `-0.0`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn sqrt(self) -> f64 {
         f64_intrinsic!(self, sqrt())
     }
 
     /// Returns `e^(self)`, (the exponential function).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp(self) -> f64 {
         f64_intrinsic!(self, exp())
     }
 
     /// Returns `2^(self)`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp2(self) -> f64 {
         f64_intrinsic!(self, exp2())
     }
 
     /// Returns the natural logarithm of the number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln(self) -> f64 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -632,28 +616,24 @@ impl GpuFloat for f64 {
     /// The result might not be correctly rounded owing to implementation details;
     /// `self.log2()` can produce more accurate results for base 2, and
     /// `self.log10()` can produce more accurate results for base 10.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn log(self, base: f64) -> f64 {
         self.ln() / base.ln()
     }
 
     /// Returns the base 2 logarithm of the number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn log2(self) -> f64 {
         f64_intrinsic!(self, log10())
     }
 
     /// Returns the base 10 logarithm of the number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn log10(self) -> f64 {
         f64_intrinsic!(self, log10())
     }
 
     /// Returns the cube root of a number.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn cbrt(self) -> f64 {
         f64_intrinsic!(self, cbrt())
@@ -661,28 +641,24 @@ impl GpuFloat for f64 {
 
     /// Calculates the length of the hypotenuse of a right-angle triangle given
     /// legs of length `x` and `y`.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn hypot(self, other: f64) -> f64 {
         f64_intrinsic!(self, hypot(other))
     }
 
     /// Computes the sine of a number (in radians).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn sin(self) -> f64 {
         f64_intrinsic!(self, sin())
     }
 
     /// Computes the cosine of a number (in radians).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn cos(self) -> f64 {
         f64_intrinsic!(self, cos())
     }
 
     /// Computes the tangent of a number (in radians).
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn tan(self) -> f64 {
         f64_intrinsic!(self, tan())
@@ -691,7 +667,6 @@ impl GpuFloat for f64 {
     /// Computes the arcsine of a number. Return value is in radians in
     /// the range [-pi/2, pi/2] or NaN if the number is outside the range
     /// [-1, 1].
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn asin(self) -> f64 {
         f64_intrinsic!(self, asin())
@@ -700,7 +675,6 @@ impl GpuFloat for f64 {
     /// Computes the arccosine of a number. Return value is in radians in
     /// the range [0, pi] or NaN if the number is outside the range
     /// [-1, 1].
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn acos(self) -> f64 {
         f64_intrinsic!(self, acos())
@@ -708,7 +682,6 @@ impl GpuFloat for f64 {
 
     /// Computes the arctangent of a number. Return value is in radians in the
     /// range [-pi/2, pi/2];intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn atan(self) -> f64 {
         f64_intrinsic!(self, atan())
@@ -720,7 +693,6 @@ impl GpuFloat for f64 {
     /// * `x >= 0`: `arctan(y/x)` -> `[-pi/2, pi/2]`
     /// * `y >= 0`: `arctan(y/x) + pi` -> `(pi/2, pi]`
     /// * `y < 0`: `arctan(y/x) - pi` -> `(-pi, -pi/2)`intrinsics
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn atan2(self, other: f64) -> f64 {
         f64_intrinsic!(self, atan2(other))
@@ -746,7 +718,6 @@ impl GpuFloat for f64 {
 
     /// Returns `e^(self) - 1` in a way that is accurate even if the
     /// number is close to zero.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn exp_m1(self) -> f64 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -758,7 +729,6 @@ impl GpuFloat for f64 {
 
     /// Returns `ln(1+n)` (natural logarithm) more accurately than if
     /// the operations were performed separately.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn ln_1p(self) -> f64 {
         #[cfg(not(target_arch = "nvptx64"))]
@@ -769,42 +739,36 @@ impl GpuFloat for f64 {
     }
 
     /// Hyperbolic sine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn sinh(self) -> f64 {
         f64_intrinsic!(self, sinh())
     }
 
     /// Hyperbolic cosine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn cosh(self) -> f64 {
         f64_intrinsic!(self, cosh())
     }
 
     /// Hyperbolic tangent function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn tanh(self) -> f64 {
         f64_intrinsic!(self, tanh())
     }
 
     /// Inverse hyperbolic sine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn asinh(self) -> f64 {
         f64_intrinsic!(self, asinh())
     }
 
     /// Inverse hyperbolic cosine function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn acosh(self) -> f64 {
         f64_intrinsic!(self, acosh())
     }
 
     /// Inverse hyperbolic tangent function.
-    #[must_use = "method returns a new number and does not mutate the original value"]
     #[inline]
     fn atanh(self) -> f64 {
         f64_intrinsic!(self, atanh())
