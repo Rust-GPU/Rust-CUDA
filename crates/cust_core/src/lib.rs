@@ -93,7 +93,7 @@ pub mod _hidden {
     unsafe impl<T: DeviceCopy> DeviceCopy for MaybeUninit<T> {}
     unsafe impl<T: DeviceCopy> DeviceCopy for Option<T> {}
     unsafe impl<L: DeviceCopy, R: DeviceCopy> DeviceCopy for Result<L, R> {}
-    unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for PhantomData<T> {}
+    unsafe impl<T: DeviceCopy> DeviceCopy for PhantomData<T> {}
     // Allow DeviceCopy for lifetime constraint markers
     unsafe impl DeviceCopy for PhantomData<&()> {}
     unsafe impl<T: DeviceCopy> DeviceCopy for Wrapping<T> {}
