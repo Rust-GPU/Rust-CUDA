@@ -131,7 +131,12 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         }
     }
 
-    fn scalar_to_backend(&self, cv: Scalar, layout: abi::Scalar, mut llty: &'ll Type) -> &'ll Value {
+    fn scalar_to_backend(
+        &self,
+        cv: Scalar,
+        layout: abi::Scalar,
+        mut llty: &'ll Type,
+    ) -> &'ll Value {
         trace!("Scalar to backend `{:?}`, `{:?}`, `{:?}`", cv, layout, llty);
         let bitsize = if layout.is_bool() {
             1
@@ -207,9 +212,8 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                         assert!(self.tcx.is_static(def_id));
                         assert!(!self.tcx.is_thread_local_static(def_id));
                         let val = self.get_static(def_id);
-                        let addrspace = unsafe {
-                            llvm::LLVMGetPointerAddressSpace(self.val_ty(val))
-                        };
+                        let addrspace =
+                            unsafe { llvm::LLVMGetPointerAddressSpace(self.val_ty(val)) };
                         (val, AddressSpace(addrspace))
                     }
                 };
@@ -273,7 +277,14 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
     fn const_ptr_byte_offset(&self, mut base_addr: Self::Value, offset: abi::Size) -> Self::Value {
         base_addr = self.const_ptrcast(base_addr, self.type_i8p());
-        unsafe { llvm::LLVMConstInBoundsGEP2(self.type_i8(), base_addr, &self.const_usize(offset.bytes()), 1) }
+        unsafe {
+            llvm::LLVMConstInBoundsGEP2(
+                self.type_i8(),
+                base_addr,
+                &self.const_usize(offset.bytes()),
+                1,
+            )
+        }
     }
 }
 

@@ -58,6 +58,14 @@ fn override_libm_function<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, '
     let mut bx = Builder::build(cx, start);
 
     let params = llvm::get_params(llfn);
-    let llcall = bx.call(intrinsic_llfn_ty, None, None, intrinsic_llfn, &params, None, None);
+    let llcall = bx.call(
+        intrinsic_llfn_ty,
+        None,
+        None,
+        intrinsic_llfn,
+        &params,
+        None,
+        None,
+    );
     bx.ret(llcall);
 }

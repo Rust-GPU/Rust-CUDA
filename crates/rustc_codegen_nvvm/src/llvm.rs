@@ -601,11 +601,13 @@ pub(crate) unsafe fn LLVMRustGetOrInsertFunction<'a>(
     Name: *const c_char,
     NameLen: usize,
     FunctionTy: &'a Type,
-) -> &'a Value { unsafe {
-    let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
-    let cstring = CString::new(str).expect("str with nul");
-    __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), FunctionTy)
-}}
+) -> &'a Value {
+    unsafe {
+        let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
+        let cstring = CString::new(str).expect("str with nul");
+        __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), FunctionTy)
+    }
+}
 
 pub(crate) unsafe fn LLVMRustBuildCall<'a>(
     B: &Builder<'a>,
@@ -613,9 +615,9 @@ pub(crate) unsafe fn LLVMRustBuildCall<'a>(
     Args: *const &'a Value,
     NumArgs: c_uint,
     Bundle: Option<&OperandBundleDef<'a>>,
-) -> &'a Value { unsafe {
-    __LLVMRustBuildCall(B, Fn, Args, NumArgs, Bundle, unnamed())
-}}
+) -> &'a Value {
+    unsafe { __LLVMRustBuildCall(B, Fn, Args, NumArgs, Bundle, unnamed()) }
+}
 
 /// LLVMRustCodeGenOptLevel
 #[derive(Copy, Clone, PartialEq)]

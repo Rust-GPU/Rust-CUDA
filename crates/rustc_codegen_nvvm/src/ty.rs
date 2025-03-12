@@ -309,9 +309,9 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
     fn is_llvm_scalar_pair(&self) -> bool {
         match self.backend_repr {
             BackendRepr::ScalarPair(..) => true,
-            BackendRepr::Scalar(_)
-            | BackendRepr::Vector { .. }
-            | BackendRepr::Memory { .. } => false,
+            BackendRepr::Scalar(_) | BackendRepr::Vector { .. } | BackendRepr::Memory { .. } => {
+                false
+            }
         }
     }
 
@@ -347,7 +347,7 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
                 ty::FnPtr(sig, hdr) => {
                     cx.fn_ptr_backend_type(cx.fn_abi_of_fn_ptr(sig.with(hdr), ty::List::empty()))
                 }
-                _ =>  self.scalar_llvm_type_at(cx, scalar),
+                _ => self.scalar_llvm_type_at(cx, scalar),
             };
             cx.scalar_lltypes.borrow_mut().insert(self.ty, llty);
             return llty;
@@ -465,7 +465,9 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
             ty::Dynamic(bounds, region, ty::DynStar) => {
                 let ptr_ty =
                     Ty::new_mut_ptr(cx.tcx, Ty::new_dynamic(cx.tcx, bounds, *region, ty::Dyn));
-                return cx.layout_of(ptr_ty).scalar_pair_element_llvm_type(cx, index, immediate);
+                return cx
+                    .layout_of(ptr_ty)
+                    .scalar_pair_element_llvm_type(cx, index, immediate);
             }
             _ => {}
         }

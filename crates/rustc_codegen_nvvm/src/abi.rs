@@ -207,9 +207,16 @@ impl LlvmType for CastTarget {
                 self.rest.total
             );
             if self.rest.total.bytes() % self.rest.unit.size.bytes() != 0 {
-                assert_eq!(self.rest.unit.kind, RegKind::Integer, "only int regs can be split");
+                assert_eq!(
+                    self.rest.unit.kind,
+                    RegKind::Integer,
+                    "only int regs can be split"
+                );
             }
-            self.rest.total.bytes().div_ceil(self.rest.unit.size.bytes())
+            self.rest
+                .total
+                .bytes()
+                .div_ceil(self.rest.unit.size.bytes())
         };
 
         // Simplify to a single unit or an array if there's no prefix.
@@ -226,8 +233,10 @@ impl LlvmType for CastTarget {
         }
 
         // Generate a struct type with the prefix and the "rest" arguments.
-        let prefix_args =
-            self.prefix.iter().flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)));
+        let prefix_args = self
+            .prefix
+            .iter()
+            .flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)));
         let rest_args = (0..rest_count).map(|_| rest_ll_unit);
         let args: Vec<_> = prefix_args.chain(rest_args).collect();
         cx.type_struct(&args, false)
@@ -597,8 +606,7 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
                 on_stack: _,
             } => {
                 let align = attrs.pointee_align.unwrap_or(self.layout.align.abi);
-                OperandValue::Ref(PlaceValue::new_sized(val, align))
-                    .store(bx, dst);
+                OperandValue::Ref(PlaceValue::new_sized(val, align)).store(bx, dst);
             }
             // Unsized indirect arguments
             PassMode::Indirect {
@@ -642,7 +650,9 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
                 trace!("store cast end");
             }
             _ => {
-                OperandRef::from_immediate_or_packed_pair(bx, val, self.layout).val.store(bx, dst);
+                OperandRef::from_immediate_or_packed_pair(bx, val, self.layout)
+                    .val
+                    .store(bx, dst);
             }
         }
     }
@@ -676,7 +686,11 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
                 OperandValue::Ref(place_val).store(bx, dst);
             }
             PassMode::Direct(_)
-            | PassMode::Indirect { attrs: _, meta_attrs: None, on_stack: _, }
+            | PassMode::Indirect {
+                attrs: _,
+                meta_attrs: None,
+                on_stack: _,
+            }
             | PassMode::Cast { .. } => {
                 let next_arg = next();
                 self.store(bx, next_arg, dst);

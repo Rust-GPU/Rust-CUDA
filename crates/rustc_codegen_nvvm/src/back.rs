@@ -194,8 +194,9 @@ pub(crate) unsafe fn codegen(
             .temp_path(OutputType::LlvmAssembly, module_name);
         let out = out.to_str().unwrap();
 
-        let result =
-            unsafe { llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback) };
+        let result = unsafe {
+            llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback)
+        };
 
         result.into_result().map_err(|()| {
             let msg = format!("failed to write NVVM IR to {}", out);
@@ -350,56 +351,59 @@ pub(crate) unsafe fn optimize(
 
     let tm = (cgcx.tm_factory)(tm_factory_config).expect("failed to create target machine");
 
-    if config.opt_level.is_some() { unsafe {
-        let fpm = llvm::LLVMCreateFunctionPassManagerForModule(llmod);
-        let mpm = llvm::LLVMCreatePassManager();
+    if config.opt_level.is_some() {
+        unsafe {
+            let fpm = llvm::LLVMCreateFunctionPassManagerForModule(llmod);
+            let mpm = llvm::LLVMCreatePassManager();
 
-        let addpass = |pass_name: &str| {
-            let pass = llvm::LLVMRustFindAndCreatePass(pass_name.as_c_char_ptr(), pass_name.len());
-            if pass.is_none() {
-                return false;
-            }
-            let pass = pass.unwrap();
-            let pass_manager = match llvm::LLVMRustPassKind(pass) {
-                llvm::PassKind::Function => &fpm,
-                llvm::PassKind::Module => &mpm,
-                llvm::PassKind::Other => {
-                    diag_handler.err("Encountered LLVM pass kind we can't handle");
-                    return true;
+            let addpass = |pass_name: &str| {
+                let pass =
+                    llvm::LLVMRustFindAndCreatePass(pass_name.as_c_char_ptr(), pass_name.len());
+                if pass.is_none() {
+                    return false;
                 }
+                let pass = pass.unwrap();
+                let pass_manager = match llvm::LLVMRustPassKind(pass) {
+                    llvm::PassKind::Function => &fpm,
+                    llvm::PassKind::Module => &mpm,
+                    llvm::PassKind::Other => {
+                        diag_handler.err("Encountered LLVM pass kind we can't handle");
+                        return true;
+                    }
+                };
+                llvm::LLVMRustAddPass(pass_manager, pass);
+                true
             };
-            llvm::LLVMRustAddPass(pass_manager, pass);
-            true
-        };
 
-        if !config.no_prepopulate_passes {
-            llvm::LLVMRustAddAnalysisPasses(tm, fpm, llmod);
-            llvm::LLVMRustAddAnalysisPasses(tm, mpm, llmod);
-            let opt_level = config
-                .opt_level
-                .map_or(llvm::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
-            with_llvm_pmb(llmod, config, opt_level, &mut |b| {
-                llvm::LLVMPassManagerBuilderPopulateFunctionPassManager(b, fpm);
-                llvm::LLVMPassManagerBuilderPopulateModulePassManager(b, mpm);
-            })
-        }
-
-        for pass in &config.passes {
-            if !addpass(pass) {
-                diag_handler.warn(format!("unknown pass `{}`, ignoring", pass));
+            if !config.no_prepopulate_passes {
+                llvm::LLVMRustAddAnalysisPasses(tm, fpm, llmod);
+                llvm::LLVMRustAddAnalysisPasses(tm, mpm, llmod);
+                let opt_level = config
+                    .opt_level
+                    .map_or(llvm::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
+                with_llvm_pmb(llmod, config, opt_level, &mut |b| {
+                    llvm::LLVMPassManagerBuilderPopulateFunctionPassManager(b, fpm);
+                    llvm::LLVMPassManagerBuilderPopulateModulePassManager(b, mpm);
+                })
             }
+
+            for pass in &config.passes {
+                if !addpass(pass) {
+                    diag_handler.warn(format!("unknown pass `{}`, ignoring", pass));
+                }
+            }
+
+            diag_handler.abort_if_errors();
+
+            // Finally, run the actual optimization passes
+            llvm::LLVMRustRunFunctionPassManager(fpm, llmod);
+            llvm::LLVMRunPassManager(mpm, llmod);
+
+            // Deallocate managers that we're now done with
+            llvm::LLVMDisposePassManager(fpm);
+            llvm::LLVMDisposePassManager(mpm);
         }
-
-        diag_handler.abort_if_errors();
-
-        // Finally, run the actual optimization passes
-        llvm::LLVMRustRunFunctionPassManager(fpm, llmod);
-        llvm::LLVMRunPassManager(mpm, llmod);
-
-        // Deallocate managers that we're now done with
-        llvm::LLVMDisposePassManager(fpm);
-        llvm::LLVMDisposePassManager(mpm);
-    } }
+    }
 
     Ok(())
 }
@@ -409,61 +413,63 @@ unsafe fn with_llvm_pmb(
     config: &ModuleConfig,
     opt_level: llvm::CodeGenOptLevel,
     f: &mut impl FnMut(&llvm::PassManagerBuilder),
-) { unsafe {
-    use std::ptr;
+) {
+    unsafe {
+        use std::ptr;
 
-    let builder = llvm::LLVMPassManagerBuilderCreate();
-    let opt_size = config
-        .opt_size
-        .map_or(llvm::CodeGenOptSizeNone, |x| to_llvm_opt_settings(x).1);
+        let builder = llvm::LLVMPassManagerBuilderCreate();
+        let opt_size = config
+            .opt_size
+            .map_or(llvm::CodeGenOptSizeNone, |x| to_llvm_opt_settings(x).1);
 
-    llvm::LLVMRustConfigurePassManagerBuilder(
-        builder,
-        opt_level,
-        config.merge_functions,
-        config.vectorize_slp,
-        config.vectorize_loop,
-        false,
-        ptr::null(),
-        ptr::null(),
-    );
+        llvm::LLVMRustConfigurePassManagerBuilder(
+            builder,
+            opt_level,
+            config.merge_functions,
+            config.vectorize_slp,
+            config.vectorize_loop,
+            false,
+            ptr::null(),
+            ptr::null(),
+        );
 
-    llvm::LLVMPassManagerBuilderSetSizeLevel(builder, opt_size as u32);
+        llvm::LLVMPassManagerBuilderSetSizeLevel(builder, opt_size as u32);
 
-    if opt_size != llvm::CodeGenOptSizeNone {
-        llvm::LLVMPassManagerBuilderSetDisableUnrollLoops(builder, 1);
+        if opt_size != llvm::CodeGenOptSizeNone {
+            llvm::LLVMPassManagerBuilderSetDisableUnrollLoops(builder, 1);
+        }
+
+        llvm::LLVMRustAddBuilderLibraryInfo(builder, llmod, config.no_builtins);
+
+        // Here we match what clang does (kinda). For O0 we only inline
+        // always-inline functions (but don't add lifetime intrinsics), at O1 we
+        // inline with lifetime intrinsics, and O2+ we add an inliner with a
+        // thresholds copied from clang.
+        match (opt_level, opt_size) {
+            (llvm::CodeGenOptLevel::Aggressive, ..) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 275);
+            }
+            (_, llvm::CodeGenOptSizeDefault) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 75);
+            }
+            (_, llvm::CodeGenOptSizeAggressive) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 25);
+            }
+            (llvm::CodeGenOptLevel::None, ..) => {
+                llvm::LLVMRustAddAlwaysInlinePass(builder, false);
+            }
+            (llvm::CodeGenOptLevel::Less, ..) => {
+                llvm::LLVMRustAddAlwaysInlinePass(builder, true);
+            }
+            (llvm::CodeGenOptLevel::Default, ..) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 225);
+            }
+            (llvm::CodeGenOptLevel::Other, ..) => {
+                bug!("CodeGenOptLevel::Other selected")
+            }
+        }
+
+        f(builder);
+        llvm::LLVMPassManagerBuilderDispose(builder);
     }
-
-    llvm::LLVMRustAddBuilderLibraryInfo(builder, llmod, config.no_builtins);
-
-    // Here we match what clang does (kinda). For O0 we only inline
-    // always-inline functions (but don't add lifetime intrinsics), at O1 we
-    // inline with lifetime intrinsics, and O2+ we add an inliner with a
-    // thresholds copied from clang.
-    match (opt_level, opt_size) {
-        (llvm::CodeGenOptLevel::Aggressive, ..) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 275);
-        }
-        (_, llvm::CodeGenOptSizeDefault) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 75);
-        }
-        (_, llvm::CodeGenOptSizeAggressive) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 25);
-        }
-        (llvm::CodeGenOptLevel::None, ..) => {
-            llvm::LLVMRustAddAlwaysInlinePass(builder, false);
-        }
-        (llvm::CodeGenOptLevel::Less, ..) => {
-            llvm::LLVMRustAddAlwaysInlinePass(builder, true);
-        }
-        (llvm::CodeGenOptLevel::Default, ..) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 225);
-        }
-        (llvm::CodeGenOptLevel::Other, ..) => {
-            bug!("CodeGenOptLevel::Other selected")
-        }
-    }
-
-    f(builder);
-    llvm::LLVMPassManagerBuilderDispose(builder);
-}}
+}

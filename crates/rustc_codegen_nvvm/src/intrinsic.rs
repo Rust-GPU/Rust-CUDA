@@ -4,10 +4,13 @@ use rustc_codegen_ssa::errors::InvalidMonomorphization;
 use rustc_codegen_ssa::mir::operand::OperandValue;
 use rustc_codegen_ssa::mir::place::PlaceValue;
 use rustc_codegen_ssa::mir::{operand::OperandRef, place::PlaceRef};
-use rustc_codegen_ssa::traits::{BaseTypeCodegenMethods, BuilderMethods, ConstCodegenMethods, IntrinsicCallBuilderMethods, OverflowOp};
-use rustc_middle::{bug, span_bug};
-use rustc_middle::ty::{self, Ty};
+use rustc_codegen_ssa::traits::{
+    BaseTypeCodegenMethods, BuilderMethods, ConstCodegenMethods, IntrinsicCallBuilderMethods,
+    OverflowOp,
+};
 use rustc_middle::ty::layout::{HasTypingEnv, LayoutOf};
+use rustc_middle::ty::{self, Ty};
+use rustc_middle::{bug, span_bug};
 use rustc_span::symbol::kw;
 use rustc_span::{Span, Symbol, sym};
 use rustc_target::callconv::{FnAbi, PassMode};
@@ -100,7 +103,10 @@ fn saturating_intrinsic_impl<'a, 'll, 'tcx>(
     }
 }
 
-fn get_simple_intrinsic<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, name: Symbol) -> Option<(&'ll Type, &'ll Value)> {
+fn get_simple_intrinsic<'ll, 'tcx>(
+    cx: &CodegenCx<'ll, 'tcx>,
+    name: Symbol,
+) -> Option<(&'ll Type, &'ll Value)> {
     #[rustfmt::skip]
     let llvm_name = match name {
         sym::sqrtf32      => "__nv_sqrtf",
@@ -166,8 +172,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
         };
 
         let sig = callee_ty.fn_sig(tcx);
-        let sig =
-            tcx.normalize_erasing_late_bound_regions(self.typing_env(), sig);
+        let sig = tcx.normalize_erasing_late_bound_regions(self.typing_env(), sig);
         let arg_tys = sig.inputs();
         let ret_ty = sig.output();
         let name = tcx.item_name(def_id);
@@ -194,7 +199,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                     None,
                     Some(instance),
                 )
-            },
+            }
             sym::is_val_statically_known => {
                 // LLVM 7 does not support this intrinsic, so always assume false.
                 self.const_bool(false)
@@ -498,9 +503,13 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                 }
             }
             sym::compare_bytes => self.call_intrinsic(
-                    "memcmp",
-                    &[args[0].immediate(), args[1].immediate(), args[2].immediate()],
-                ),
+                "memcmp",
+                &[
+                    args[0].immediate(),
+                    args[1].immediate(),
+                    args[2].immediate(),
+                ],
+            ),
 
             sym::black_box => {
                 args[0].val.store(self, result);

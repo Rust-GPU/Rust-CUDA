@@ -340,7 +340,10 @@ impl<'ll, 'tcx> StaticCodegenMethods for CodegenCx<'ll, 'tcx> {
         unsafe {
             assert!(
                 llvm::LLVMGetInitializer(
-                    self.instances.borrow().get(&Instance::mono(self.tcx, def_id)).unwrap()
+                    self.instances
+                        .borrow()
+                        .get(&Instance::mono(self.tcx, def_id))
+                        .unwrap()
                 )
                 .is_none()
             );
