@@ -116,31 +116,23 @@ impl NvvmAttributes {
         let mut nvvm_attrs = Self::default();
 
         for attr in attrs {
-            if attr.has_name(cx.symbols.nvvm_internal) {
+            if attr.path_matches(&[cx.symbols.nvvm_internal, cx.symbols.kernel]) {
+                nvvm_attrs.kernel = true;
+            } else if attr.path_matches(&[cx.symbols.nvvm_internal, sym::used]) {
+                nvvm_attrs.used = true;
+            } else if attr.path_matches(&[cx.symbols.nvvm_internal, cx.symbols.addrspace]) {
                 let args = attr.meta_item_list().unwrap_or_default();
-                if let Some(arg) = args.first() {
-                    if arg.has_name(cx.symbols.kernel) {
-                        nvvm_attrs.kernel = true;
-                    }
-                    if arg.has_name(sym::used) {
-                        nvvm_attrs.used = true;
-                    }
-                    if arg.has_name(cx.symbols.addrspace) {
-                        let args = arg.meta_item_list().unwrap_or_default();
-                        if let Some(MetaItemInner::Lit(MetaItemLit {
-                            kind: LitKind::Int(val, _),
-                            ..
-                        })) = args.first()
-                        {
-                            nvvm_attrs.addrspace = Some(val.get() as u8);
-                        } else {
-                            panic!();
-                        }
-                    }
+                if let Some(MetaItemInner::Lit(MetaItemLit {
+                    kind: LitKind::Int(val, _),
+                    ..
+                })) = args.first()
+                {
+                    nvvm_attrs.addrspace = Some(val.get() as u8);
+                } else {
+                    panic!();
                 }
             }
         }
-
         nvvm_attrs
     }
 }

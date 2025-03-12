@@ -257,7 +257,7 @@ impl<'ll, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     /// Computes the address space for a static.
     pub fn static_addrspace(&self, instance: Instance<'tcx>) -> AddressSpace {
-        let ty = instance.ty(self.tcx, ty::TypingEnv::fully_monomorphized());
+        let ty = instance.ty(self.tcx, self.typing_env());
         let is_mutable = self.tcx().is_mutable_static(instance.def_id());
         let attrs = self.tcx.get_attrs_unchecked(instance.def_id()); // TODO: replace with get_attrs
         let nvvm_attrs = NvvmAttributes::parse(self, attrs);
