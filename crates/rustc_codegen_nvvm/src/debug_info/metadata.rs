@@ -864,7 +864,7 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
         );
 
         unit_metadata
-    };
+    }
 }
 
 /// Creates a `DW_TAG_member` entry inside the DIE represented by the given `type_di_node`.

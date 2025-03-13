@@ -42,7 +42,7 @@ impl Debug for Type {
 
 impl Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (self as *const _).hash(state);
+        (self as *const Type).hash(state);
     }
 }
 

@@ -284,7 +284,7 @@ fn reg_to_llvm(reg: InlineAsmRegOrRegClass) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn inline_asm_call<'_, 'll, '_>(
+pub(crate) fn inline_asm_call<'ll>(
     bx: &mut Builder<'_, 'll, '_>,
     asm: &str,
     cons: &str,
