@@ -93,20 +93,15 @@ pub(crate) mod private {
 
 /// An optional operation to apply to a matrix before a matrix operation. This includes
 /// no operation, transpose, or conjugate transpose.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MatrixOp {
     /// No operation, leave the matrix as is. This is the default.
+    #[default]
     None,
     /// Transpose the matrix in place.
     Transpose,
     /// Conjugate transpose the matrix in place.
     ConjugateTranspose,
-}
-
-impl Default for MatrixOp {
-    fn default() -> Self {
-        MatrixOp::None
-    }
 }
 
 impl MatrixOp {
