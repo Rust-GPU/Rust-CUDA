@@ -461,7 +461,7 @@ pub(crate) fn type_di_node<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, t: Ty<'tcx>) ->
             if def.is_box()
                 && args
                     .get(1)
-                    .map_or(true, |arg| cx.layout_of(arg.expect_ty()).is_1zst()) =>
+                    .is_none_or(|arg| cx.layout_of(arg.expect_ty()).is_1zst()) =>
         {
             build_pointer_or_reference_di_node(cx, t, t.expect_boxed_ty(), unique_type_id)
         }
@@ -507,8 +507,8 @@ pub(crate) fn type_di_node<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, t: Ty<'tcx>) ->
 }
 
 // FIXME(mw): Cache this via a regular UniqueTypeId instead of an extra field in the debug context.
-fn recursion_marker_type_di_node<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>) -> &'ll DIType {
-    *debug_context(cx)
+fn recursion_marker_type_di_node<'ll>(cx: &CodegenCx<'ll, '_>) -> &'ll DIType {
+    debug_context(cx)
         .recursion_marker_type
         .get_or_init(move || {
             unsafe {
@@ -769,7 +769,7 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
         .sess
         .local_crate_source_file()
         .map(|src| {
-            src.for_scope(&tcx.sess, RemapPathScopeComponents::DEBUGINFO)
+            src.for_scope(tcx.sess, RemapPathScopeComponents::DEBUGINFO)
                 .to_path_buf()
         })
         .unwrap_or_else(|| PathBuf::from(tcx.crate_name(LOCAL_CRATE).as_str()));
@@ -863,13 +863,14 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
             tcx.sess.opts.unstable_opts.split_dwarf_inlining,
         );
 
-        return unit_metadata;
-    };
+        unit_metadata
+    }
 }
 
 /// Creates a `DW_TAG_member` entry inside the DIE represented by the given `type_di_node`.
-fn build_field_di_node<'ll, 'tcx>(
-    cx: &CodegenCx<'ll, 'tcx>,
+#[allow(clippy::too_many_arguments)]
+fn build_field_di_node<'ll>(
+    cx: &CodegenCx<'ll, '_>,
     owner: &'ll DIScope,
     name: &str,
     size_and_align: (Size, Align),
@@ -906,11 +907,7 @@ fn build_field_di_node<'ll, 'tcx>(
 /// `DIFlags::Flag{Public,Protected,Private}` correspond to `DW_AT_accessibility`
 /// (public/protected/private) aren't exactly right for Rust, but neither is `DW_AT_visibility`
 /// (local/exported/qualified), and there's no way to set `DW_AT_visibility` in LLVM's API.
-fn visibility_di_flags<'ll, 'tcx>(
-    cx: &CodegenCx<'ll, 'tcx>,
-    did: DefId,
-    type_did: DefId,
-) -> DIFlags {
+fn visibility_di_flags(cx: &CodegenCx<'_, '_>, did: DefId, type_did: DefId) -> DIFlags {
     let parent_did = cx.tcx.parent(type_did);
     let visibility = cx.tcx.visibility(did);
     match visibility {
@@ -1466,7 +1463,7 @@ pub(crate) fn extend_scope_to_file<'ll>(
 }
 
 fn tuple_field_name(field_index: usize) -> Cow<'static, str> {
-    const TUPLE_FIELD_NAMES: [&'static str; 16] = [
+    const TUPLE_FIELD_NAMES: [&str; 16] = [
         "__0", "__1", "__2", "__3", "__4", "__5", "__6", "__7", "__8", "__9", "__10", "__11",
         "__12", "__13", "__14", "__15",
     ];

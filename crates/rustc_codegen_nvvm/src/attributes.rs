@@ -112,7 +112,7 @@ pub(crate) struct NvvmAttributes {
 }
 
 impl NvvmAttributes {
-    pub fn parse<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, attrs: &'tcx [Attribute]) -> Self {
+    pub fn parse<'tcx>(cx: &CodegenCx<'_, 'tcx>, attrs: &'tcx [Attribute]) -> Self {
         let mut nvvm_attrs = Self::default();
 
         for attr in attrs {

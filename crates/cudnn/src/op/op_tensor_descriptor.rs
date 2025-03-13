@@ -6,9 +6,7 @@ use std::{marker::PhantomData, mem::MaybeUninit};
 /// # Arguments
 ///
 /// * `raw` - raw pointer to the descriptor.
-///
 /// * `op` - raw  operation type.
-///
 /// * `nan_opt` - raw nan propagation policy.
 unsafe fn init_raw_op_descriptor<T: DataType>(
     op: sys::cudnnOpTensorOp_t,
@@ -110,7 +108,6 @@ where
     /// # Arguments
     ///
     /// * `op` - the unary tensor point-wise math operation to be performed.
-    ///
     /// * `nan_opt` - a NaN propagation policy.
     ///
     /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetOpTensorDescriptor)

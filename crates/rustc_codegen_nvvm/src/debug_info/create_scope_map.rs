@@ -62,6 +62,7 @@ pub(crate) fn compute_mir_scopes<'ll, 'tcx>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_mir_scope<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     instance: Instance<'tcx>,
@@ -173,7 +174,7 @@ fn make_mir_scope<'ll, 'tcx>(
     });
 
     debug_context.scopes[scope] = DebugScope {
-        dbg_scope: dbg_scope,
+        dbg_scope,
         inlined_at: inlined_at.or(parent_scope.inlined_at),
         file_start_pos: loc.file.start_pos,
         file_end_pos: loc.file.end_position(),

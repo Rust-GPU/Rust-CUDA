@@ -26,23 +26,14 @@ impl CudnnContext {
     /// # Arguments
     ///
     /// * `op_desc` - handle to a previously initialized binary op tensor descriptor.
-    ///
     /// * `alpha` - scaling factor for the left operand.
-    ///
     /// * `a_desc` - tensor descriptor for the left operand.
-    ///
     /// * `a` - data for the left operand.
-    ///
     /// * `beta` - scaling factor for the right operand.
-    ///
     /// * `b_desc` - tensor descriptor for right operand.
-    ///
     /// * `b` - data for the right operand.
-    ///
     /// * `gamma` - scaling factor for the destination tensor.
-    ///
     /// * `c_desc` - tensor descriptor for the destination tensor.
-    ///
     /// * `c` - data for the destination tensor. This tensor is written after being read.
     ///
     /// **Do note** that the scaling factors must be stored in host memory. All tensor formats up
@@ -387,14 +378,13 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `desc` - descriptor of the tensor to scale.
+    ///   * `desc` - descriptor of the tensor to scale.
+    ///   * `data` - data of the tensor.
+    ///   * `value` - value in the host memory to a single value that all elements of
+    ///     the tensor will be scaled with.
     ///
-    /// * `data` - data of the tensor.
-    ///
-    /// * `value` - value in the host memory to a single value that all elements of the tensor will
-    /// be scaled with.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnScaleTensor)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnScaleTensor)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors

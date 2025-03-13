@@ -192,6 +192,7 @@ impl<'ll, 'tcx> StubInfo<'ll, 'tcx> {
 }
 
 /// Create a stub debuginfo node onto which fields and nested types can be attached.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn stub<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     kind: Stub<'ll>,
@@ -286,10 +287,9 @@ pub(super) fn build_type_with_children<'ll, 'tcx>(
 
     let members: SmallVec<_> = members(cx, stub_info.metadata)
         .into_iter()
-        .map(|node| Some(node))
+        .map(Some)
         .collect();
-    let generics: SmallVec<Option<&'ll DIType>> =
-        generics(cx).into_iter().map(|node| Some(node)).collect();
+    let generics: SmallVec<Option<&'ll DIType>> = generics(cx).into_iter().map(Some).collect();
 
     if !(members.is_empty() && generics.is_empty()) {
         unsafe {

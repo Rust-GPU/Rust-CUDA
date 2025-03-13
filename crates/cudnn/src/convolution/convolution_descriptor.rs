@@ -18,31 +18,31 @@ impl<T: DataType> ConvDescriptor<T> {
     ///
     /// # Arguments
     ///
-    /// * `padding` -  array of dimension N containing the zero-padding size for each dimension.
-    /// For every dimension, the padding represents the number of extra zeros implicitly
-    /// concatenated at the start and at the end of every element of that dimension.
+    ///   * `padding` -  array of dimension N containing the zero-padding size for each
+    ///     dimension. For every dimension, the padding represents the number of extra
+    ///     zeros implicitly concatenated at the start and at the end of every element
+    ///     of that dimension.
+    ///   * `stride` -  array of dimension N containing the filter stride for each
+    ///     dimension. For every dimension, the filter stride represents the number of
+    ///     elements to slide to reach the next start of the filtering window of the
+    ///     next point.
+    ///   * `dilation` - array of dimension N containing the dilation factor for each
+    ///     dimension.
+    ///   * `groups` - number of groups to be used in the associated convolution.
+    ///   * `mode` - selects between [`Convolution`](ConvMode::Convolution) and
+    ///     [`CrossCorrelation`](ConvMode::CrossCorrelation).
+    ///   * `math_type` - indicates whether or not the use of tensor op is permitted in
+    ///     the library routines associated with a given convolution descriptor.
     ///
-    /// * `stride` -  array of dimension N containing the filter stride for each dimension.
-    /// For every dimension, the filter stride represents the number of elements to slide to reach
-    /// the next start of the filtering window of the next point.
-    ///
-    /// * `dilation` - array of dimension N containing the dilation factor for each dimension.
-    ///
-    /// * `groups` - number of groups to be used in the associated convolution.
-    ///
-    /// * `mode` - selects between [`Convolution`](ConvMode::Convolution) and
-    /// [`CrossCorrelation`](ConvMode::CrossCorrelation).
-    ///
-    /// * `math_type` - indicates whether or not the use of tensor op is permitted in the library
-    /// routines associated with a given convolution descriptor.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetConvolutionNdDescriptor)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetConvolutionNdDescriptor)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// This function returns an error if any element of stride and dilation is negative or 0, if
-    /// any element of padding is negative or if N is greater than `CUDNN_DIM_MAX`.
+    /// This function returns an error if any element of stride and dilation is negative
+    /// or 0, if any element of padding is negative or if N is greater than
+    /// `CUDNN_DIM_MAX`.
     ///
     /// # Examples
     ///

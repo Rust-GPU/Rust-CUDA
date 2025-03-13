@@ -145,7 +145,7 @@ pub unsafe fn cuda_malloc_unified<T: DeviceCopy>(count: usize) -> CudaResult<Uni
     )
     .to_result()?;
     let ptr = ptr as *mut T;
-    Ok(UnifiedPointer::wrap(ptr as *mut T))
+    Ok(UnifiedPointer::wrap(ptr))
 }
 
 /// Unsafe wrapper around the `cuMemAllocPitch` function, which allocates device memory in two dimensions
@@ -311,7 +311,7 @@ pub unsafe fn cuda_malloc_locked<T>(count: usize) -> CudaResult<*mut T> {
     let mut ptr: *mut c_void = ptr::null_mut();
     cuda::cuMemAllocHost_v2(&mut ptr as *mut *mut c_void, size).to_result()?;
     let ptr = ptr as *mut T;
-    Ok(ptr as *mut T)
+    Ok(ptr)
 }
 
 /// Free page-locked memory allocated with [`cuda_malloc_host`](fn.cuda_malloc_host.html).

@@ -4,7 +4,7 @@ use crate::llvm::Value;
 use rustc_codegen_ssa::traits::BaseTypeCodegenMethods;
 use rustc_session::config::DebugInfo;
 
-impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
+impl<'ll> CodegenCx<'ll, '_> {
     pub(crate) fn declare_intrinsic(&self, key: &str) -> Option<(&'ll Type, &'ll Value)> {
         let map = self.intrinsics_map.borrow();
         let (args, ret) = map.get(key)?;

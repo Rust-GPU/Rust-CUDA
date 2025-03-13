@@ -824,8 +824,8 @@ impl DiscrResult {
 /// Will return `None` if there is less than two variants (because then the enum won't have)
 /// a tag, and if this is the untagged variant of a niche-layout enum (because then there is no
 /// single discriminant value).
-fn compute_discriminant_value<'ll, 'tcx>(
-    cx: &CodegenCx<'ll, 'tcx>,
+fn compute_discriminant_value<'tcx>(
+    cx: &CodegenCx<'_, 'tcx>,
     enum_type_and_layout: TyAndLayout<'tcx>,
     variant_index: VariantIdx,
 ) -> DiscrResult {

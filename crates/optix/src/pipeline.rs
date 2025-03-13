@@ -84,33 +84,29 @@ impl Drop for Pipeline {
 impl Pipeline {
     /// Sets the stack sizes for a pipeline.
     ///
-    /// Users are encouraged to see the programming guide and the
-    /// implementations of the helper functions to understand how to
-    /// construct the stack sizes based on their particular needs.
-    /// If this method is not used, an internal default implementation is used.
-    /// The default implementation is correct (but not necessarily optimal) as
-    /// long as the maximum depth of call trees of CC and DC programs is at most
-    /// 2 and no motion transforms are used.
-    /// The maxTraversableGraphDepth responds to the maximal number of
-    /// traversables visited when calling trace. Every acceleration structure
-    /// and motion transform count as one level of traversal. E.g., for a simple
-    /// IAS (instance acceleration structure) -> GAS (geometry acceleration
-    /// structure) traversal graph, the maxTraversableGraphDepth is two. For
-    /// IAS -> MT (motion transform) -> GAS, the maxTraversableGraphDepth is
-    /// three. Note that it does not matter whether a IAS or GAS has motion
-    /// or not, it always counts as one. Launching optix with exceptions
-    /// turned on (see OPTIX_EXCEPTION_FLAG_TRACE_DEPTH) will throw an
-    /// exception if the specified maxTraversableGraphDepth is too small.
+    /// Users are encouraged to see the programming guide and the implementations of the
+    /// helper functions to understand how to construct the stack sizes based on their
+    /// particular needs. If this method is not used, an internal default implementation
+    /// is used. The default implementation is correct (but not necessarily optimal) as
+    /// long as the maximum depth of call trees of CC and DC programs is at most 2 and
+    /// no motion transforms are used. The maxTraversableGraphDepth responds to the
+    /// maximal number of traversables visited when calling trace. Every acceleration
+    /// structure and motion transform count as one level of traversal. E.g., for a
+    /// simple IAS (instance acceleration structure) -> GAS (geometry acceleration
+    /// structure) traversal graph, the maxTraversableGraphDepth is two. For IAS -> MT
+    /// (motion transform) -> GAS, the maxTraversableGraphDepth is three. Note that it
+    /// does not matter whether a IAS or GAS has motion or not, it always counts as one.
+    /// Launching optix with exceptions turned on (see OPTIX_EXCEPTION_FLAG_TRACE_DEPTH)
+    /// will throw an exception if the specified maxTraversableGraphDepth is too small.
     ///
     /// # Arguments
     /// * `direct_callable_stack_size_from_traversable` - The direct stack size
-    /// requirement for direct callables invoked from IS or AH
-    /// * `direct_callable_stack_size_from_state` - The direct stack size
-    /// requirement for direct callables invoked from RG, MS, or CH.
+    ///   requirement for direct callables invoked from IS or AH
+    /// * `direct_callable_stack_size_from_state` - The direct stack size requirement
+    ///   for direct callables invoked from RG, MS, or CH.
     /// * `continuation_stack_size` - The continuation stack requirement.
-    /// * `max_traversable_graph_depth` - The maximum depth of a traversable
-    ///   graph
-    /// passed to trace
+    /// * `max_traversable_graph_depth` - The maximum depth of a traversable graph
+    ///   passed to trace.
     pub fn set_stack_size(
         &self,
         direct_callable_stack_size_from_traversable: u32,

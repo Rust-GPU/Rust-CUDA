@@ -78,23 +78,14 @@ impl CudnnContext {
     /// # Arguments
     ///
     /// * `algo` - softmax algorithm to compute the gradient of.
-    ///
     /// * `mode` - specifies the softmax mode to compute the gradient of.
-    ///
     /// * `alpha` - scaling factor for the result. Must be stored in host memory.
-    ///
     /// * `y_desc` - tensor descriptor for the operand.
-    ///
     /// * `y` - operand data in device memory.
-    ///
     /// * `dy_desc` - tensor descriptor for the result.
-    ///
     /// * `dy` - output data in device memory.
-    ///
     /// * `beta` - scaling factor for the differential tensor.
-    ///
     /// * `dx_desc` - differential tensor descriptor.
-    ///
     /// * `dx` - differential data in device memory.
     ///
     /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxBackward)

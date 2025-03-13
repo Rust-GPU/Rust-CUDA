@@ -42,7 +42,7 @@ impl Debug for Type {
 
 impl Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (self as *const _ as *const Type).hash(state);
+        (self as *const Type).hash(state);
     }
 }
 
@@ -53,7 +53,7 @@ impl Type {
     }
 }
 
-impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
+impl<'ll> CodegenCx<'ll, '_> {
     pub(crate) fn voidp(&self) -> &'ll Type {
         // llvm uses i8* for void ptrs, void* is invalid
         let i8_ty = self.type_i8();
@@ -596,7 +596,7 @@ fn struct_llfields<'a, 'tcx>(
     let mut prev_effective_align = layout.align.abi;
     let mut result: Vec<_> = Vec::with_capacity(1 + field_count * 2);
     for i in layout.fields.index_by_increasing_offset() {
-        let target_offset = layout.fields.offset(i as usize);
+        let target_offset = layout.fields.offset(i);
         let field = layout.field(cx, i);
         let effective_field_align = layout
             .align
@@ -632,13 +632,12 @@ fn struct_llfields<'a, 'tcx>(
             assert_eq!(offset.align_to(padding_align) + padding, layout.size);
             result.push(cx.type_padding_filler(padding, padding_align));
         }
-    } else {
     }
 
     (result, packed)
 }
 
-impl<'a, 'tcx> CodegenCx<'a, 'tcx> {
+impl<'tcx> CodegenCx<'_, 'tcx> {
     pub fn align_of(&self, ty: Ty<'tcx>) -> Align {
         self.layout_of(ty).align.abi
     }
@@ -653,7 +652,7 @@ impl<'a, 'tcx> CodegenCx<'a, 'tcx> {
     }
 }
 
-impl<'ll, 'tcx> TypeMembershipCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> TypeMembershipCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
     fn add_type_metadata(&self, _function: Self::Function, _typeid: String) {}
 
     fn set_type_metadata(&self, _function: Self::Function, _typeid: String) {}

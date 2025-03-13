@@ -37,8 +37,8 @@ fn struct_type_fields(ty: &Type) -> Vec<&Type> {
 
 /// Transforms a type to an nvvm-friendly vector type if the type is an int over i64.
 /// returns a bool on whether the type was transformed.
-pub(crate) fn get_transformed_type<'ll, 'tcx>(
-    cx: &CodegenCx<'ll, 'tcx>,
+pub(crate) fn get_transformed_type<'ll>(
+    cx: &CodegenCx<'ll, '_>,
     ty: &'ll Type,
 ) -> (&'ll Type, bool) {
     unsafe {
@@ -87,7 +87,7 @@ pub(crate) fn target_vector_width_and_count(int_width: u32) -> (u32, u32) {
 /// transmutes a value to a certain type, accounting for structs.
 pub(crate) fn transmute_llval<'ll>(
     bx: &mut Builder<'ll>,
-    cx: &CodegenCx<'ll, '_>,
+    _cx: &CodegenCx<'ll, '_>,
     a_val: &'ll Value,
     ty: &'ll Type,
 ) -> &'ll Value {
@@ -101,7 +101,7 @@ pub(crate) fn transmute_llval<'ll>(
                 let mut last_val = new_struct;
                 for (idx, field) in struct_type_fields(ty).into_iter().enumerate() {
                     let field_val = LLVMBuildExtractValue(bx, a_val, idx as u32, unnamed());
-                    let new_val = transmute_llval(bx, cx, field_val, field);
+                    let new_val = transmute_llval(bx, _cx, field_val, field);
                     last_val = LLVMBuildInsertValue(bx, last_val, new_val, idx as u32, unnamed());
                 }
                 last_val

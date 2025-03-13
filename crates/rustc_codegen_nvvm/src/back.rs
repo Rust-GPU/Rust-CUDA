@@ -131,14 +131,14 @@ pub extern "C" fn demangle_callback(
     output_ptr: *mut c_char,
     output_len: size_t,
 ) -> size_t {
-    let input = unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len as usize) };
+    let input = unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len) };
 
     let input = match std::str::from_utf8(input) {
         Ok(s) => s,
         Err(_) => return 0,
     };
 
-    let output = unsafe { slice::from_raw_parts_mut(output_ptr as *mut u8, output_len as usize) };
+    let output = unsafe { slice::from_raw_parts_mut(output_ptr as *mut u8, output_len) };
     let mut cursor = io::Cursor::new(output);
 
     let demangled = match rustc_demangle::try_demangle(input) {
@@ -252,7 +252,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
         let cgu = tcx.codegen_unit(cgu_name);
 
         // Instantiate monomorphizations without filling out definitions yet...
-        let llvm_module = LlvmMod::new(&cgu_name.as_str());
+        let llvm_module = LlvmMod::new(cgu_name.as_str());
         {
             let cx = CodegenCx::new(tcx, cgu, &llvm_module);
 
@@ -295,12 +295,12 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
 
             // Create the llvm.used and llvm.compiler.used variables.
             if !cx.used_statics.borrow().is_empty() {
-                cx.create_used_variable_impl(c"llvm.used", &*cx.used_statics.borrow());
+                cx.create_used_variable_impl(c"llvm.used", &cx.used_statics.borrow());
             }
             if !cx.compiler_used_statics.borrow().is_empty() {
                 cx.create_used_variable_impl(
                     c"llvm.compiler.used",
-                    &*cx.compiler_used_statics.borrow(),
+                    &cx.compiler_used_statics.borrow(),
                 );
             }
 

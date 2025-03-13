@@ -71,7 +71,7 @@ pub(crate) unsafe fn codegen(
             unsafe { llvm::LLVMRustSetVisibility(callee, llvm::Visibility::Hidden) };
 
             let llbb = unsafe {
-                llvm::LLVMAppendBasicBlockInContext(llcx, llfn, "entry\0".as_ptr().cast())
+                llvm::LLVMAppendBasicBlockInContext(llcx, llfn, c"entry".as_ptr().cast())
             };
 
             let llbuilder = unsafe { llvm::LLVMCreateBuilderInContext(llcx) };
@@ -124,8 +124,7 @@ pub(crate) unsafe fn codegen(
     llvm::Attribute::NoReturn.apply_llfn(llvm::AttributePlace::Function, callee);
     unsafe { llvm::LLVMRustSetVisibility(callee, llvm::Visibility::Hidden) };
 
-    let llbb =
-        unsafe { llvm::LLVMAppendBasicBlockInContext(llcx, llfn, "entry\0".as_ptr().cast()) };
+    let llbb = unsafe { llvm::LLVMAppendBasicBlockInContext(llcx, llfn, c"entry".as_ptr().cast()) };
 
     let llbuilder = unsafe { llvm::LLVMCreateBuilderInContext(llcx) };
     unsafe { llvm::LLVMPositionBuilderAtEnd(llbuilder, llbb) };
@@ -144,17 +143,13 @@ pub(crate) unsafe fn codegen(
     let ptr_ty = unsafe { llvm::LLVMPointerType(llvm::LLVMInt8TypeInContext(llcx), 0) };
 
     for used in &mut used {
-        *used = unsafe { llvm::LLVMConstBitCast(*used, ptr_ty) };
+        *used = unsafe { llvm::LLVMConstBitCast(used, ptr_ty) };
     }
 
     let section = c"llvm.metadata";
     let array = unsafe { llvm::LLVMConstArray(ptr_ty, used.as_ptr(), used.len() as u32) };
     let g = unsafe {
-        llvm::LLVMAddGlobal(
-            llmod,
-            llvm::LLVMTypeOf(array),
-            "llvm.used\0".as_ptr().cast(),
-        )
+        llvm::LLVMAddGlobal(llmod, llvm::LLVMTypeOf(array), c"llvm.used".as_ptr().cast())
     };
     unsafe { llvm::LLVMSetInitializer(g, array) };
     unsafe { llvm::LLVMRustSetLinkage(g, llvm::Linkage::AppendingLinkage) };

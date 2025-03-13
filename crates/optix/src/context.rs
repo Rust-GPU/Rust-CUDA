@@ -233,18 +233,15 @@ impl DeviceContext {
 
     /// Sets the current log callback method.
     ///
-    /// The following log levels are defined.
+    /// The following log levels are defined:
     /// * 0 - disable: Setting the callback level will disable all messages. The
-    /// callback function will not be called in this case.
-    /// * 1 - fatal: A non-recoverable error. The context and/or OptiX itself
-    ///   might
-    /// no longer be in a usable state.
-    /// * 2 - error: A recoverable error, e.g., when passing invalid call
-    /// parameters.
-    /// * 3 - warning: Hints that OptiX might not behave exactly as requested by
-    /// the user or may perform slower than expected.
-    /// * 4 - print: Status or progress messages.
-    /// Higher levels might occur.
+    ///   callback function will not be called in this case.
+    /// * 1 - fatal: A non-recoverable error. The context and/or OptiX itself might no
+    ///   longer be in a usable state.
+    /// * 2 - error: A recoverable error, e.g., when passing invalid call parameters.
+    /// * 3 - warning: Hints that OptiX might not behave exactly as requested by the
+    ///   user or may perform slower than expected.
+    /// * 4 - print: Status or progress messages. Higher levels might occur.
     pub fn set_log_callback<F>(&mut self, cb: F, level: u32) -> Result<()>
     where
         F: FnMut(u32, &str, &str) + 'static,

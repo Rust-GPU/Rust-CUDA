@@ -24,8 +24,8 @@ fn check_stride<T: BlasDatatype>(x: &impl GpuBuffer<T>, n: usize, stride: Option
     );
 }
 
-/// Scalar and Vector-based operations such as `min`, `max`, `axpy`, `copy`, `dot`, `nrm2`, `rot`, `rotg`, `rotm`, `rotmg`, `scal`, and `swap`.
-
+/// Scalar and Vector-based operations such as `min`, `max`, `axpy`, `copy`, `dot`,
+/// `nrm2`, `rot`, `rotg`, `rotm`, `rotmg`, `scal`, and `swap`.
 impl CublasContext {
     /// Same as [`CublasContext::amin`] but with an explicit stride.
     ///

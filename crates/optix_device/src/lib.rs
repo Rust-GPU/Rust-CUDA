@@ -4,7 +4,6 @@
     feature(asm_experimental_arch),
     register_attr(nvvm_internal)
 )]
-use core::arch::asm;
 
 extern crate alloc;
 

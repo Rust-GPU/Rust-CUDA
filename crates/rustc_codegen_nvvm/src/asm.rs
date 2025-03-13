@@ -20,7 +20,7 @@ use rustc_target::asm::{InlineAsmRegClass, InlineAsmRegOrRegClass, NvptxInlineAs
 
 use crate::{builder::Builder, context::CodegenCx};
 
-impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
+impl<'tcx> AsmBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
     fn codegen_inline_asm(
         &mut self,
         template: &[InlineAsmTemplatePiece],
@@ -222,7 +222,7 @@ impl<'a, 'll, 'tcx> AsmBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
     }
 }
 
-impl<'ll, 'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
     fn codegen_global_asm(
         &self,
         template: &[InlineAsmTemplatePiece],
@@ -284,8 +284,8 @@ fn reg_to_llvm(reg: InlineAsmRegOrRegClass) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn inline_asm_call<'a, 'll, 'tcx>(
-    bx: &mut Builder<'a, 'll, 'tcx>,
+pub(crate) fn inline_asm_call<'ll>(
+    bx: &mut Builder<'_, 'll, '_>,
     asm: &str,
     cons: &str,
     inputs: &[&'ll Value],

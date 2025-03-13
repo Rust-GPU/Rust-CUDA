@@ -26,32 +26,33 @@ where
 {
     /// Initializes a recurrent neural network data descriptor object.
     ///
-    /// This data structure is intended to support the unpacked (padded) layout for input and
-    /// output of extended RNN inference and training functions.
+    /// This data structure is intended to support the unpacked (padded) layout for
+    /// input and output of extended RNN inference and training functions.
     ///
-    /// **Do note** that packed (un-padded) layout is also supported for backward compatibility.
+    /// **Do note** that packed (un-padded) layout is also supported for backward
+    /// compatibility.
     ///
     /// # Arguments
     ///
-    /// * `layout` - memory layout of the RNN data tensor.
+    ///   * `layout` - memory layout of the RNN data tensor.
+    ///   * `max_seq_length` - maximum sequence length within this RNN data tensor. In
+    ///     the unpacked (padded) layout, this should include the padding vectors in
+    ///     each sequence. In the packed (un-padded) layout, this should be equal to the
+    ///     greatest element in `seq_lengths`.
+    ///   * `batch_size` - number of sequences within the mini-batch.
+    ///   * `seq_lengths` - an integer slice with `batch_size` number of elements.
+    ///     Describes the length (number of time-steps) of each sequence. Each element
+    ///     in the slice must be greater than or equal to 0 but less than or equal to
+    ///     `max_seq_length`. In the packed layout, the elements should be sorted in
+    ///     descending order.
+    ///   * `padding_fill` - user-defined constant for filling the padding position in
+    ///     RNN output. This is only effective when the descriptor is describing the RNN
+    ///     output, and the unpacked layout is specified. The symbol should be in the
+    ///     host memory, and if a `None` is passed in, then the padding position in the
+    ///     output will be undefined.
     ///
-    /// * `max_seq_length` - maximum sequence length within this RNN data tensor. In the unpacked
-    /// (padded) layout, this should include the padding vectors in each sequence. In the packed
-    /// (un-padded) layout, this should be equal to the greatest element in `seq_lengths`.
-    ///
-    /// * `batch_size` - number of sequences within the mini-batch.
-    ///
-    /// * `seq_lengths` - an integer slice with `batch_size` number of elements. Describes the
-    /// length (number of time-steps) of each sequence. Each element in the slice must be greater
-    /// than or equal to 0 but less than or equal to `max_seq_length`. In the packed layout, the
-    /// elements should be sorted in descending order.
-    ///
-    /// * `padding_fill` - user-defined constant for filling the padding position in RNN output.
-    /// This is only effective when the descriptor is describing the RNN output, and the unpacked
-    /// layout is specified. The symbol should be in the host memory, and if a `None` is passed in,
-    /// then the padding position in the output will be undefined.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDataDescriptor)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDataDescriptor)
     /// may offer additional information about the APi behavior.
     ///
     /// # Panics
@@ -65,8 +66,8 @@ where
     ///
     /// # Examples
     ///
-    /// A recurrent neural network data descriptor can be used to represent both input and output
-    /// sequences for such model.
+    /// A recurrent neural network data descriptor can be used to represent both input
+    /// and output sequences for such model.
     ///
     /// ```
     /// # use std::error::Error;
