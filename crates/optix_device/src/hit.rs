@@ -1,6 +1,7 @@
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 use cuda_std::gpu_only;
 use glam::Vec3;
-
 /// The type of primitive that a ray hit.
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

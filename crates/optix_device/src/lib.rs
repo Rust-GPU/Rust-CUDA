@@ -1,9 +1,5 @@
-#![cfg_attr(
-    target_arch = "nvptx64",
-    no_std,
-    feature(asm_experimental_arch),
-    register_attr(nvvm_internal)
-)]
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 
 extern crate alloc;
 

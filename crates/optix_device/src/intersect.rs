@@ -1,3 +1,5 @@
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 use cuda_std::gpu_only;
 use paste::paste;
 use seq_macro::seq;

@@ -1,3 +1,5 @@
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 use cuda_std::gpu_only;
 
 /// Retrieves the data past the SBT header for this particular program

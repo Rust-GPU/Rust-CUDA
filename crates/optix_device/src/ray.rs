@@ -1,4 +1,6 @@
 use crate::trace::*;
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 use cuda_std::gpu_only;
 use glam::Vec3;
 
