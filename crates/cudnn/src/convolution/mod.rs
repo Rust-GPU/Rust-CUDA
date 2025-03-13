@@ -694,44 +694,34 @@ impl CudnnContext {
         }
     }
 
-    /// This function executes convolutions or cross-correlations over `x` using a filter specified
-    /// with `w`, returning results in `y`.
+    /// This function executes convolutions or cross-correlations over `x` using a
+    /// filter specified with `w`, returning results in `y`.
     ///
     /// # Arguments
     ///
-    /// * `alpha` - scaling parameter.
+    ///   * `alpha` - scaling parameter.
+    ///   * `x_desc` - input map descriptor.
+    ///   * `x` - input map data.
+    ///   * `w_desc` - filter descriptor.
+    ///   * `w` - filter data.
+    ///   * `conv_desc` - convolution descriptor.
+    ///   * `algo` - convolution algorithm that should be used to compute the result.
+    ///   * `work_space` -  a buffer to GPU memory to a workspace needed to be able to
+    ///     execute the specified algorithm. Must be left to `None` if the algorithm
+    ///     works in-place. The workspace dimension can be obtained with
+    ///     `get_convolution_forward_workspace_size`.
+    ///   * `beta` - scaling parameter.
+    ///   * `y_desc` - output map descriptor.
+    ///   * `y` - output map data. It carries the result of the convolution. Scaling
+    ///     factors `alpha` and `beta` can be used to scale the input tensor and the
+    ///     output tensor respectively. They are used to blend the computation result
+    ///     with prior value in the output layer as follows: y = alpha * result + beta *
+    ///     y
     ///
-    /// * `x_desc` - input map descriptor.
-    ///
-    /// * `x` - input map data.
-    ///
-    /// * `w_desc` - filter descriptor.
-    ///
-    /// * `w` - filter data.
-    ///
-    /// * `conv_desc` - convolution descriptor.
-    ///
-    /// * `algo` - convolution algorithm that should be used to compute the result.
-    ///
-    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
-    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
-    /// dimension can be obtained with `get_convolution_forward_workspace_size`.
-    ///
-    /// * `beta` - scaling parameter.
-    ///
-    /// * `y_desc` - output map descriptor.
-    ///
-    /// * `y` - output map data. It carries the result of the convolution.
-    ///
-    /// Scaling factors `alpha` and `beta` can be used to scale the input tensor and the output
-    /// tensor respectively. They are used to blend the computation result with prior value in the
-    /// output layer as follows:
-    ///
-    /// y = alpha * result + beta * y
-    ///
-    /// **Do note** than not all possible configurations of layouts and data types for the operands
-    /// are supported by cuDNN. Refer to the following link for the
-    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionForward)
+    /// **Do note** than not all possible configurations of layouts and data types for
+    /// the operands are supported by cuDNN. Refer to the following link for the
+    /// [complete
+    /// list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionForward)
     /// and for in-depth explanation of the API behavior.
     ///
     /// # Errors
@@ -867,43 +857,30 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `alpha` - scaling parameter.
-    ///
-    /// * `x_desc` - input map descriptor.
-    ///
-    /// * `x` - input map data.
-    ///
-    /// * `w_desc` - filter descriptor.
-    ///
-    /// * `w` - filter data.
-    ///
-    /// * `conv_desc` - convolution descriptor.
-    ///
-    /// * `algo` - convolution algorithm that should be used to compute the result.
-    ///
-    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
-    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
-    /// dimension can be obtained with `get_convolution_forward_workspace_size`.
-    ///
-    /// * `beta` - scaling parameter.
-    ///
-    /// * `z_desc` - descriptor for the z tensor.
-    ///
-    /// * `z` - data for the z tensor.
-    ///
-    /// * `bias_desc` - descriptor for the bias tensor.
-    ///
-    /// * `bias` - data for the bias tensor.
-    ///
-    /// * `activation_desc` - neuron activation function descriptor.
-    ///
-    /// * `y_desc` - output map descriptor.
-    ///
-    /// * `y` - data for the output map.
+    ///   * `alpha` - scaling parameter.
+    ///   * `x_desc` - input map descriptor.
+    ///   * `x` - input map data.
+    ///   * `w_desc` - filter descriptor.
+    ///   * `w` - filter data.
+    ///   * `conv_desc` - convolution descriptor.
+    ///   * `algo` - convolution algorithm that should be used to compute the result.
+    ///   * `work_space` -  a buffer to GPU memory to a workspace needed to be able to
+    ///     execute the specified algorithm. Must be left to `None` if the algorithm
+    ///     works in-place. The workspace dimension can be obtained with
+    ///     `get_convolution_forward_workspace_size`.
+    ///   * `beta` - scaling parameter.
+    ///   * `z_desc` - descriptor for the z tensor.
+    ///   * `z` - data for the z tensor.
+    ///   * `bias_desc` - descriptor for the bias tensor.
+    ///   * `bias` - data for the bias tensor.
+    ///   * `activation_desc` - neuron activation function descriptor.
+    ///   * `y_desc` - output map descriptor.
+    ///   * `y` - data for the output map.
     ///
     /// **Do note** that `y_desc` and `z_desc` should match.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBiasActivationForward)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBiasActivationForward)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
@@ -1212,43 +1189,37 @@ impl CudnnContext {
         }
     }
 
-    /// This function computes the convolution reserve (filter) gradient of the tensor `dy`, where
-    /// `y` is the output of the forward convolution in `convolution_forward()`.
+    /// This function computes the convolution reserve (filter) gradient of the tensor
+    /// `dy`, where `y` is the output of the forward convolution in
+    /// `convolution_forward()`.
     ///
-    /// It uses the specified `algo`, and returns the results in the output tensor `dw`. Scaling
-    /// factors `alpha` and `beta` can be used to scale the computed result or accumulate with the
-    /// current `dw`.
+    /// It uses the specified `algo`, and returns the results in the output tensor `dw`.
+    /// Scaling factors `alpha` and `beta` can be used to scale the computed result or
+    /// accumulate with the current `dw`.
     ///
     /// # Arguments
     ///
-    /// * `alpha` - scaling parameter.
+    ///   * `alpha` - scaling parameter.
+    ///   * `x_desc` - input ma descriptor.
+    ///   * `x` - input map data.
+    ///   * `dy_desc` - output map gradient descriptor.
+    ///   * `y` - output map gradient data.
+    ///   * `conv_desc` - previously initialized convolution description. The one
+    ///     defined for the forward pass in suitable to be used here provided that it
+    ///     refers to the same layer.
+    ///   * `algo` - convolution algorithm that should be used to compute the result.
+    ///   * `work_space` -  a buffer to GPU memory to a workspace needed to be able to
+    ///     execute the specified algorithm. Must be left to `None` if the algorithm
+    ///     works in-place. The workspace dimension can be obtained with
+    ///     [`get_convolution_backward_data_workspace_size()`](crate::CudnnContext::get_convolution_backward_data_workspace_size).
+    ///   * `beta` - scaling parameter.
+    ///   * `dw_desc` - filter gradient descriptor.
+    ///   * `dw` - filter gradient data.
     ///
-    /// * `x_desc` - input ma descriptor.
-    ///
-    /// * `x` - input map data.
-    ///
-    /// * `dy_desc` - output map gradient descriptor.
-    ///
-    /// * `y` - output map gradient data.
-    ///
-    /// * `conv_desc` - previously initialized convolution description. The one defined for the
-    /// forward pass in suitable to be used here provided that it refers to the same layer.
-    ///
-    /// * `algo` - convolution algorithm that should be used to compute the result.
-    ///
-    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
-    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
-    /// dimension can be obtained with [`get_convolution_backward_data_workspace_size()`](crate::CudnnContext::get_convolution_backward_data_workspace_size).
-    ///
-    /// * `beta` - scaling parameter.
-    ///
-    /// * `dw_desc` - filter gradient descriptor.
-    ///
-    /// * `dw` - filter gradient data.
-    ///
-    /// **Do note** than not all possible configurations of layouts and data types for the operands
-    /// are supported by cuDNN. Refer to the following link for the
-    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardFilter)
+    /// **Do note** than not all possible configurations of layouts and data types for
+    /// the operands are supported by cuDNN. Refer to the following link for the
+    /// [complete
+    /// list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardFilter)
     /// and for an in-depth explanation of the API behavior.
     ///
     /// # Errors

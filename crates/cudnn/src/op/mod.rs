@@ -387,14 +387,13 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `desc` - descriptor of the tensor to scale.
+    ///   * `desc` - descriptor of the tensor to scale.
+    ///   * `data` - data of the tensor.
+    ///   * `value` - value in the host memory to a single value that all elements of
+    ///     the tensor will be scaled with.
     ///
-    /// * `data` - data of the tensor.
-    ///
-    /// * `value` - value in the host memory to a single value that all elements of the tensor will
-    /// be scaled with.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnScaleTensor)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnScaleTensor)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors

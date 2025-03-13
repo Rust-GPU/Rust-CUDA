@@ -12,14 +12,13 @@ impl ActivationDescriptor {
     ///
     /// # Arguments
     ///
-    /// * `mode` - activation function to compute.
+    ///   * `mode` - activation function to compute.
+    ///   * `nan_opt` - NaN propagation policy for the operation.
+    ///   * `coefficient` - optional coefficient for the given function. It specifies
+    ///     the clipping threshold for `ActivationMode::ClippedRelu`.
     ///
-    /// * `nan_opt` - NaN propagation policy for the operation.
-    ///
-    /// * `coefficient` - optional coefficient for the given function. It specifies the clipping
-    /// threshold for `ActivationMode::ClippedRelu`.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetActivationDescriptor)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetActivationDescriptor)
     /// may offer additional information about the API behavior.
     ///
     /// # Examples
@@ -52,8 +51,8 @@ impl ActivationDescriptor {
 
             let raw = raw.assume_init();
 
-            let coefficient = coefficient.into().unwrap_or_else(|| match mode {
-                ActivationMode::ClippedRelu => std::f64::MAX,
+            let coefficient = coefficient.into().unwrap_or(match mode {
+                ActivationMode::ClippedRelu => f64::MAX,
                 _ => 1.0,
             });
 

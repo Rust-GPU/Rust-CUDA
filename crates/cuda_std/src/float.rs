@@ -356,12 +356,13 @@ impl GpuFloat for f32 {
         f32_intrinsic!(self, atan())
     }
 
-    /// Computes the four quadrant arctangent of `self` (`y`) and `other` (`x`) in radians.
+    /// Computes the four quadrant arctangent of `self` (`y`) and `other` (`x`) in
+    /// radians.
     ///
-    /// * `x = 0`, `y = 0`: `0`
-    /// * `x >= 0`: `arctan(y/x)` -> `[-pi/2, pi/2]`
-    /// * `y >= 0`: `arctan(y/x) + pi` -> `(pi/2, pi]`
-    /// * `y < 0`: `arctan(y/x) - pi` -> `(-pi, -pi/2)`intrinsics
+    ///   * `x = 0`, `y = 0`: `0`
+    ///   * `x >= 0`: `arctan(y/x)` -> `[-pi/2, pi/2]`
+    ///   * `y >= 0`: `arctan(y/x) + pi` -> `(pi/2, pi]`
+    ///   * `y < 0`: `arctan(y/x) - pi` -> `(-pi, -pi/2)`intrinsics
     #[inline]
     fn atan2(self, other: f32) -> f32 {
         f32_intrinsic!(self, atan2(other))
@@ -687,12 +688,13 @@ impl GpuFloat for f64 {
         f64_intrinsic!(self, atan())
     }
 
-    /// Computes the four quadrant arctangent of `self` (`y`) and `other` (`x`) in radians.
+    /// Computes the four quadrant arctangent of `self` (`y`) and `other` (`x`) in
+    /// radians.
     ///
-    /// * `x = 0`, `y = 0`: `0`
-    /// * `x >= 0`: `arctan(y/x)` -> `[-pi/2, pi/2]`
-    /// * `y >= 0`: `arctan(y/x) + pi` -> `(pi/2, pi]`
-    /// * `y < 0`: `arctan(y/x) - pi` -> `(-pi, -pi/2)`intrinsics
+    ///   * `x = 0`, `y = 0`: `0`
+    ///   * `x >= 0`: `arctan(y/x)` -> `[-pi/2, pi/2]`
+    ///   * `y >= 0`: `arctan(y/x) + pi` -> `(pi/2, pi]`
+    ///   * `y < 0`: `arctan(y/x) - pi` -> `(-pi, -pi/2)`intrinsics
     #[inline]
     fn atan2(self, other: f64) -> f64 {
         f64_intrinsic!(self, atan2(other))
