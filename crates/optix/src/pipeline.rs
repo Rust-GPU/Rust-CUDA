@@ -208,7 +208,7 @@ cfg_if::cfg_if! {
 }
 
 bitflags::bitflags! {
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Hash)]
     pub struct TraversableGraphFlags: OptixEnumBaseType {
         const ALLOW_ANY = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY;
         const ALLOW_SINGLE_GAS = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;
@@ -217,7 +217,7 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Hash)]
     pub struct ExceptionFlags: OptixEnumBaseType {
         const NONE = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_NONE;
         const STACK_OVERFLOW = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
@@ -228,7 +228,7 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
-    #[derive(Default)]
+    #[derive(Default, Clone, Copy, Debug, PartialEq, Hash)]
     pub struct PrimitiveTypeFlags: i32 {
         const DEFAULT = 0;
         const CUSTOM =  sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
