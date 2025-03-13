@@ -243,7 +243,7 @@ impl LlvmType for CastTarget {
     }
 }
 
-impl<'a, 'll, 'tcx> ArgAbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
+impl<'ll, 'tcx> ArgAbiBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
     fn store_fn_arg(
         &mut self,
         arg_abi: &ArgAbi<'tcx, Ty<'tcx>>,
@@ -541,7 +541,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
     }
 }
 
-impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
+impl<'tcx> AbiBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
     fn get_param(&mut self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
         // trace!("Get param `{:?}`", val);
@@ -554,7 +554,7 @@ impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
             if let Some((_, key)) = map.get(llfnty) {
                 if let Some((_, new_ty)) = key.iter().find(|t| t.0 == index) {
                     trace!("Casting irregular param {:?} to {:?}", val, new_ty);
-                    return transmute_llval(llbuilder, cx, val, *new_ty);
+                    return transmute_llval(llbuilder, cx, val, new_ty);
                 }
             }
             val

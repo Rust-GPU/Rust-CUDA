@@ -31,7 +31,7 @@ pub(crate) fn bytes_in_context<'ll>(llcx: &'ll llvm::Context, bytes: &[u8]) -> &
     }
 }
 
-impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
+impl<'ll> CodegenCx<'ll, '_> {
     pub fn const_array(&self, ty: &'ll Type, elts: &[&'ll Value]) -> &'ll Value {
         unsafe { llvm::LLVMConstArray(ty, elts.as_ptr(), elts.len() as c_uint) }
     }
@@ -64,9 +64,9 @@ pub(crate) fn const_alloc_to_llvm<'ll>(
 
     // Note: this function may call `inspect_with_uninit_and_ptr_outside_interpreter`,
     // so `range` must be within the bounds of `alloc` and not contain or overlap a relocation.
-    fn append_chunks_of_init_and_uninit_bytes<'ll, 'a, 'b>(
+    fn append_chunks_of_init_and_uninit_bytes<'ll, 'a>(
         llvals: &mut Vec<&'ll Value>,
-        cx: &'a CodegenCx<'ll, 'b>,
+        cx: &'a CodegenCx<'ll, '_>,
         alloc: &'a Allocation,
         range: Range<usize>,
     ) {
@@ -195,7 +195,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
         // static and call it a day. Some linkages (like weak) will make it such
         // that the static actually has a null value.
         let llty2 = if let ty::RawPtr(ty2, _) = ty.kind() {
-            cx.layout_of(ty2.clone()).llvm_type(cx)
+            cx.layout_of(*ty2).llvm_type(cx)
         } else {
             cx.sess().dcx().span_fatal(
                 cx.tcx.def_span(span_def_id),
@@ -315,7 +315,7 @@ impl<'ll> CodegenCx<'ll, '_> {
     }
 }
 
-impl<'ll, 'tcx> StaticCodegenMethods for CodegenCx<'ll, 'tcx> {
+impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
     fn static_addr_of(&self, cv: &'ll Value, align: Align, kind: Option<&str>) -> &'ll Value {
         if let Some(&gv) = self.const_globals.borrow().get(&cv) {
             unsafe {

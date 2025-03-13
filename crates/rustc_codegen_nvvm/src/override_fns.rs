@@ -9,7 +9,7 @@ use rustc_hir::def_id::LOCAL_CRATE;
 use rustc_middle::{mir::mono::MonoItem, ty::Instance};
 
 /// Either override or define a function.
-pub(crate) fn define_or_override_fn<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) {
+pub(crate) fn define_or_override_fn<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) {
     if should_override(func, cx) {
         override_libm_function(func, cx);
     } else {
@@ -17,7 +17,7 @@ pub(crate) fn define_or_override_fn<'ll, 'tcx>(func: Instance<'tcx>, cx: &Codege
     }
 }
 
-fn should_override<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) -> bool {
+fn should_override<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) -> bool {
     if !cx.codegen_args.override_libm {
         return false;
     }
@@ -32,7 +32,7 @@ fn should_override<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) -
     let intrinsics = cx.intrinsics_map.borrow();
     let is_known_intrinsic = intrinsics.contains_key(format!("__nv_{}", name).as_str());
 
-    !is_unsupported_libdevice_fn(&name) && is_known_intrinsic
+    !is_unsupported_libdevice_fn(name) && is_known_intrinsic
 }
 
 fn is_unsupported_libdevice_fn(name: &str) -> bool {
@@ -48,7 +48,7 @@ fn is_unsupported_libdevice_fn(name: &str) -> bool {
     UNSUPPORTED.contains(&name)
 }
 
-fn override_libm_function<'ll, 'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'ll, 'tcx>) {
+fn override_libm_function<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) {
     let name = cx.tcx.item_name(func.def_id());
     let nv_name = format!("__nv_{}", name.as_str());
     let (intrinsic_llfn_ty, intrinsic_llfn) = cx.get_intrinsic(nv_name.as_str());

@@ -60,7 +60,7 @@ pub struct CodegenUnitDebugContext<'ll, 'tcx> {
     recursion_marker_type: OnceCell<&'ll DIType>,
 }
 
-impl<'a, 'tcx> Drop for CodegenUnitDebugContext<'a, 'tcx> {
+impl Drop for CodegenUnitDebugContext<'_, '_> {
     fn drop(&mut self) {
         unsafe {
             llvm::LLVMRustDIBuilderDispose(&mut *(self.builder as *mut _));
@@ -68,7 +68,7 @@ impl<'a, 'tcx> Drop for CodegenUnitDebugContext<'a, 'tcx> {
     }
 }
 
-impl<'a, 'tcx> CodegenUnitDebugContext<'a, 'tcx> {
+impl<'a> CodegenUnitDebugContext<'a, '_> {
     pub(crate) fn new(llmod: &'a llvm::Module) -> Self {
         let builder = unsafe { llvm::LLVMRustDIBuilderCreate(llmod) };
         // DIBuilder inherits context from the module, so we'd better use the same one
@@ -105,7 +105,7 @@ pub(crate) fn finalize(cx: &CodegenCx<'_, '_>) {
     }
 }
 
-impl<'a, 'll, 'tcx> DebugInfoBuilderMethods for Builder<'a, 'll, 'tcx> {
+impl<'ll> DebugInfoBuilderMethods for Builder<'_, 'll, '_> {
     fn dbg_var_addr(
         &mut self,
         dbg_var: &'ll DIVariable,
@@ -206,7 +206,7 @@ pub struct DebugLoc {
     pub col: u32,
 }
 
-impl<'ll> CodegenCx<'ll, '_> {
+impl CodegenCx<'_, '_> {
     /// Looks up debug source information about a `BytePos`.
     pub fn lookup_debug_loc(&self, pos: BytePos) -> DebugLoc {
         let (file, line, col) = match self.sess().source_map().lookup_line(pos) {
@@ -500,7 +500,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         };
         let align = self.align_of(variable_type);
 
-        let name = CString::new(&*variable_name.as_str()).unwrap();
+        let name = CString::new(variable_name.as_str()).unwrap();
         unsafe {
             llvm::LLVMRustDIBuilderCreateVariable(
                 DIB(self),

@@ -38,7 +38,7 @@ pub(crate) struct Builder<'a, 'll, 'tcx> {
     pub cx: &'a CodegenCx<'ll, 'tcx>,
 }
 
-impl<'ll, 'tcx, 'a> Drop for Builder<'a, 'll, 'tcx> {
+impl Drop for Builder<'_, '_, '_> {
     fn drop(&mut self) {
         unsafe {
             llvm::LLVMDisposeBuilder(&mut *(self.llbuilder as *mut _));
@@ -86,7 +86,7 @@ impl<'tcx> HasTypingEnv<'tcx> for Builder<'_, '_, 'tcx> {
     }
 }
 
-impl<'tcx> HasTargetSpec for Builder<'_, '_, 'tcx> {
+impl HasTargetSpec for Builder<'_, '_, '_> {
     fn target_spec(&self) -> &Target {
         self.cx.target_spec()
     }
@@ -101,7 +101,7 @@ impl<'tcx> LayoutOfHelpers<'tcx> for Builder<'_, '_, 'tcx> {
     }
 }
 
-impl<'ll, 'tcx> FnAbiOfHelpers<'tcx> for Builder<'_, 'll, 'tcx> {
+impl<'tcx> FnAbiOfHelpers<'tcx> for Builder<'_, '_, 'tcx> {
     type FnAbiOfResult = &'tcx FnAbi<'tcx, Ty<'tcx>>;
 
     #[inline]
@@ -147,7 +147,7 @@ macro_rules! set_math_builder_methods {
     }
 }
 
-impl<'a, 'll, 'tcx> CoverageInfoBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
+impl<'tcx> CoverageInfoBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
     fn add_coverage(
         &mut self,
         _instance: Instance<'tcx>,
@@ -334,7 +334,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         let new_kind = match ty.kind() {
             Int(t @ Isize) => Int(t.normalize(self.tcx.sess.target.pointer_width)),
             Uint(t @ Usize) => Uint(t.normalize(self.tcx.sess.target.pointer_width)),
-            t @ (Uint(_) | Int(_)) => t.clone(),
+            t @ (Uint(_) | Int(_)) => *t,
             _ => panic!("tried to get overflow intrinsic for op applied to non-int type"),
         };
 
@@ -410,7 +410,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         bx.position_at_start(unsafe { llvm::LLVMGetFirstBasicBlock(self.llfn()) });
         let ty = self.cx().type_array(self.cx().type_i8(), size.bytes());
         unsafe {
-            let alloca = llvm::LLVMBuildAlloca(&bx.llbuilder, ty, UNNAMED);
+            let alloca = llvm::LLVMBuildAlloca(bx.llbuilder, ty, UNNAMED);
             llvm::LLVMSetAlignment(alloca, align.bytes() as c_uint);
             // Cast to default addrspace if necessary
             llvm::LLVMBuildPointerCast(bx.llbuilder, alloca, self.cx().type_ptr(), UNNAMED)
@@ -494,8 +494,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             return OperandRef::zero_sized(place.layout);
         }
 
-        fn scalar_load_metadata<'a, 'll, 'tcx>(
-            bx: &mut Builder<'a, 'll, 'tcx>,
+        fn scalar_load_metadata<'ll, 'tcx>(
+            bx: &mut Builder<'_, 'll, 'tcx>,
             load: &'ll Value,
             scalar: abi::Scalar,
             layout: TyAndLayout<'tcx>,
@@ -522,7 +522,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                     }
 
                     if let Some(pointee) = layout.pointee_info_at(bx, offset) {
-                        if let Some(_) = pointee.safe {
+                        if pointee.safe.is_some() {
                             bx.align_metadata(load, pointee.align);
                         }
                     }
@@ -531,7 +531,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             }
         }
 
-        let val = if let Some(_) = place.val.llextra {
+        let val = if place.val.llextra.is_some() {
             // FIXME: Merge with the `else` below?
             OperandValue::Ref(place.val)
         } else if place.layout.is_llvm_immediate() {
@@ -1152,7 +1152,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     }
 }
 
-impl<'a, 'll, 'tcx> StaticBuilderMethods for Builder<'a, 'll, 'tcx> {
+impl<'ll> StaticBuilderMethods for Builder<'_, 'll, '_> {
     fn get_static(&mut self, def_id: DefId) -> &'ll Value {
         unsafe {
             let mut g = self.cx.get_static(def_id);

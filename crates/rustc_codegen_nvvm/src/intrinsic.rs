@@ -24,14 +24,14 @@ use crate::ty::LayoutLlvmExt;
 
 // libnvvm does not support some advanced intrinsics for i128 so we just abort on them for now. In the future
 // we should emulate them in software.
-fn handle_128_bit_intrinsic<'a, 'll, 'tcx>(b: &mut Builder<'a, 'll, 'tcx>) -> &'ll Value {
+fn handle_128_bit_intrinsic<'ll>(b: &mut Builder<'_, 'll, '_>) -> &'ll Value {
     b.abort_and_ret_i128()
 }
 
 // llvm 7 does not have saturating intrinsics, so we reimplement them right here.
 // This is derived from what rustc used to do before the intrinsics. It should map to the same assembly.
-fn saturating_intrinsic_impl<'a, 'll, 'tcx>(
-    b: &mut Builder<'a, 'll, 'tcx>,
+fn saturating_intrinsic_impl<'ll, 'tcx>(
+    b: &mut Builder<'_, 'll, 'tcx>,
     width: u32,
     signed: bool,
     is_add: bool,
@@ -103,8 +103,8 @@ fn saturating_intrinsic_impl<'a, 'll, 'tcx>(
     }
 }
 
-fn get_simple_intrinsic<'ll, 'tcx>(
-    cx: &CodegenCx<'ll, 'tcx>,
+fn get_simple_intrinsic<'ll>(
+    cx: &CodegenCx<'ll, '_>,
     name: Symbol,
 ) -> Option<(&'ll Type, &'ll Value)> {
     #[rustfmt::skip]
@@ -155,7 +155,7 @@ fn get_simple_intrinsic<'ll, 'tcx>(
     Some(cx.get_intrinsic(llvm_name))
 }
 
-impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
+impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
     fn codegen_intrinsic_call(
         &mut self,
         instance: ty::Instance<'tcx>,
@@ -176,7 +176,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
         let arg_tys = sig.inputs();
         let ret_ty = sig.output();
         let name = tcx.item_name(def_id);
-        let name_str = &*name.as_str();
+        let name_str = name.as_str();
 
         trace!(
             "Beginning intrinsic call: `{:?}`, args: `{:?}`, ret: `{:?}`",
@@ -373,8 +373,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                 let pair_llty = self.type_struct(&[narrow_llty, narrow_llty], false);
                 let pair = self.const_poison(pair_llty);
                 let pair = self.insert_value(pair, low, 0);
-                let pair = self.insert_value(pair, high, 1);
-                pair
+                self.insert_value(pair, high, 1)
             }
             sym::ctlz
             | sym::ctlz_nonzero
@@ -459,7 +458,7 @@ impl<'a, 'll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx>
                                 if is_add { "add" } else { "sub" },
                                 width
                             );
-                            self.call_intrinsic(&llvm_name, &[lhs, rhs])
+                            self.call_intrinsic(llvm_name, &[lhs, rhs])
                         }
                         _ => unreachable!(),
                     }

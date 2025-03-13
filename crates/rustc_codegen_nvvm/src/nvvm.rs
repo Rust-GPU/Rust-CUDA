@@ -89,10 +89,10 @@ pub fn codegen_bitcode_modules(
         let minor = LLVMConstInt(ty_i32, minor as u64, False);
         let dbg_major = LLVMConstInt(ty_i32, dbg_major as u64, False);
         let dbg_minor = LLVMConstInt(ty_i32, dbg_minor as u64, False);
-        let vals = vec![major, minor, dbg_major, dbg_minor];
+        let vals = [major, minor, dbg_major, dbg_minor];
         let node = LLVMMDNodeInContext(llcx, vals.as_ptr(), vals.len() as u32);
 
-        LLVMAddNamedMetadataOperand(module, "nvvmir.version\0".as_ptr().cast(), node);
+        LLVMAddNamedMetadataOperand(module, c"nvvmir.version".as_ptr().cast(), node);
 
         if let Some(path) = &args.final_module_path {
             let out = path.to_str().unwrap();
@@ -218,20 +218,20 @@ struct GlobalIter<'a, 'll> {
 impl<'a, 'll> FunctionIter<'a, 'll> {
     pub fn new(module: &'a &'ll Module) -> Self {
         FunctionIter {
-            module: PhantomData::default(),
-            next: unsafe { LLVMGetFirstFunction(*module) },
+            module: PhantomData,
+            next: unsafe { LLVMGetFirstFunction(module) },
         }
     }
 }
 
-impl<'a, 'll> Iterator for FunctionIter<'a, 'll> {
+impl<'ll> Iterator for FunctionIter<'_, 'll> {
     type Item = &'ll Value;
 
     fn next(&mut self) -> Option<&'ll Value> {
         let next = self.next;
 
         self.next = match next {
-            Some(next) => unsafe { LLVMGetNextFunction(&*next) },
+            Some(next) => unsafe { LLVMGetNextFunction(next) },
             None => None,
         };
 
@@ -242,20 +242,20 @@ impl<'a, 'll> Iterator for FunctionIter<'a, 'll> {
 impl<'a, 'll> GlobalIter<'a, 'll> {
     pub fn new(module: &'a &'ll Module) -> Self {
         GlobalIter {
-            module: PhantomData::default(),
-            next: unsafe { LLVMGetFirstGlobal(*module) },
+            module: PhantomData,
+            next: unsafe { LLVMGetFirstGlobal(module) },
         }
     }
 }
 
-impl<'a, 'll> Iterator for GlobalIter<'a, 'll> {
+impl<'ll> Iterator for GlobalIter<'_, 'll> {
     type Item = &'ll Value;
 
     fn next(&mut self) -> Option<&'ll Value> {
         let next = self.next;
 
         self.next = match next {
-            Some(next) => unsafe { LLVMGetNextGlobal(&*next) },
+            Some(next) => unsafe { LLVMGetNextGlobal(next) },
             None => None,
         };
 
@@ -267,11 +267,11 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
     unsafe {
         // collect the values of all the declared kernels
         let num_operands =
-            LLVMGetNamedMetadataNumOperands(module, "nvvm.annotations\0".as_ptr().cast()) as usize;
+            LLVMGetNamedMetadataNumOperands(module, c"nvvm.annotations".as_ptr().cast()) as usize;
         let mut operands = Vec::with_capacity(num_operands);
         LLVMGetNamedMetadataOperands(
             module,
-            "nvvm.annotations\0".as_ptr().cast(),
+            c"nvvm.annotations".as_ptr().cast(),
             operands.as_mut_ptr(),
         );
         operands.set_len(num_operands);
@@ -291,11 +291,11 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
 
         // see what functions are marked as externally visible by the user.
         let num_operands =
-            LLVMGetNamedMetadataNumOperands(module, "cg_nvvm_used\0".as_ptr().cast()) as usize;
+            LLVMGetNamedMetadataNumOperands(module, c"cg_nvvm_used".as_ptr().cast()) as usize;
         let mut operands = Vec::with_capacity(num_operands);
         LLVMGetNamedMetadataOperands(
             module,
-            "cg_nvvm_used\0".as_ptr().cast(),
+            c"cg_nvvm_used".as_ptr().cast(),
             operands.as_mut_ptr(),
         );
         operands.set_len(num_operands);

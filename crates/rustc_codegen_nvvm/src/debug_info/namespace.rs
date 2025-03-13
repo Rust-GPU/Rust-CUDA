@@ -11,8 +11,8 @@ use rustc_hir::def_id::DefId;
 
 use super::util::{DIB, debug_context};
 
-pub(crate) fn mangled_name_of_instance<'a, 'tcx>(
-    cx: &CodegenCx<'a, 'tcx>,
+pub(crate) fn mangled_name_of_instance<'tcx>(
+    cx: &CodegenCx<'_, 'tcx>,
     instance: Instance<'tcx>,
 ) -> ty::SymbolName<'tcx> {
     let tcx = cx.tcx;

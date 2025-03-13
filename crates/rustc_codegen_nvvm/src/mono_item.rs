@@ -21,7 +21,7 @@ pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm::Visibility {
     }
 }
 
-impl<'ll, 'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
     fn predefine_static(
         &self,
         def_id: DefId,
@@ -104,7 +104,7 @@ impl<'ll, 'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     llvm::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
                 llvm::LLVMAddNamedMetadataOperand(
                     self.llmod,
-                    "nvvm.annotations\0".as_ptr().cast(),
+                    c"nvvm.annotations".as_ptr().cast(),
                     node,
                 );
             }
@@ -115,7 +115,7 @@ impl<'ll, 'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     llvm::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
                 llvm::LLVMAddNamedMetadataOperand(
                     self.llmod,
-                    "cg_nvvm_used\0".as_ptr().cast(),
+                    c"cg_nvvm_used".as_ptr().cast(),
                     node,
                 );
             }

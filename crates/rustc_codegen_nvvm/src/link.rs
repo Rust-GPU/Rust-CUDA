@@ -105,8 +105,8 @@ fn search_for_section<'a>(path: &Path, bytes: &'a [u8], section: &str) -> Result
         })
 }
 
-pub fn link<'tcx>(
-    sess: &'tcx Session,
+pub fn link(
+    sess: &Session,
     codegen_results: &CodegenResults,
     outputs: &OutputFilenames,
     crate_name: &str,
@@ -335,9 +335,9 @@ fn try_create_archive(files: &[&Path], metadata: &[u8], out_filename: &Path) -> 
 
 // most of the code from here is derived from rust-gpu
 
-fn link_local_crate_native_libs_and_dependent_crate_libs<'a>(
+fn link_local_crate_native_libs_and_dependent_crate_libs(
     rlibs: &mut Vec<PathBuf>,
-    sess: &'a Session,
+    sess: &Session,
     crate_type: CrateType,
     codegen_results: &CodegenResults,
 ) {

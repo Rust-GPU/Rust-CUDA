@@ -195,7 +195,7 @@ impl CodegenBackend for NvvmCodegenBackend {
             sess,
             &codegen_results,
             outputs,
-            &codegen_results.crate_info.local_crate_name.as_str(),
+            codegen_results.crate_info.local_crate_name.as_str(),
         );
     }
 }
@@ -311,9 +311,9 @@ impl WriteBackendMethods for NvvmCodegenBackend {
 }
 
 impl ExtraBackendMethods for NvvmCodegenBackend {
-    fn codegen_allocator<'tcx>(
+    fn codegen_allocator(
         &self,
-        tcx: TyCtxt<'tcx>,
+        tcx: TyCtxt<'_>,
         module_name: &str,
         kind: AllocatorKind,
         alloc_error_handler_kind: AllocatorKind,

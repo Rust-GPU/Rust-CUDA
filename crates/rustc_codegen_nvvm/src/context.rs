@@ -125,7 +125,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
         let dbg_cx = if tcx.sess.opts.debuginfo != DebugInfo::None {
             let dctx = CodegenUnitDebugContext::new(llmod);
-            debug_info::build_compile_unit_di_node(tcx, &codegen_unit.name().as_str(), &dctx);
+            debug_info::build_compile_unit_di_node(tcx, codegen_unit.name().as_str(), &dctx);
             Some(dctx)
         } else {
             None
@@ -387,7 +387,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         } else {
             self.type_variadic_func(&[], ret)
         };
-        let f = self.declare_fn(&name, fn_ty, None);
+        let f = self.declare_fn(name, fn_ty, None);
         llvm::SetUnnamedAddress(f, llvm::UnnamedAddr::No);
         self.intrinsics
             .borrow_mut()
@@ -548,7 +548,7 @@ impl CodegenArgs {
     }
 }
 
-impl<'ll, 'tcx> BackendTypes for CodegenCx<'ll, 'tcx> {
+impl<'ll> BackendTypes for CodegenCx<'ll, '_> {
     type Value = &'ll Value;
     type Function = &'ll Value;
 
@@ -565,25 +565,25 @@ impl<'ll, 'tcx> BackendTypes for CodegenCx<'ll, 'tcx> {
     type Metadata = &'ll llvm::Metadata;
 }
 
-impl<'ll, 'tcx> HasDataLayout for CodegenCx<'ll, 'tcx> {
+impl HasDataLayout for CodegenCx<'_, '_> {
     fn data_layout(&self) -> &TargetDataLayout {
         &self.nvptx_data_layout
     }
 }
 
-impl<'ll, 'tcx> HasTargetSpec for CodegenCx<'ll, 'tcx> {
+impl HasTargetSpec for CodegenCx<'_, '_> {
     fn target_spec(&self) -> &Target {
         &self.nvptx_target
     }
 }
 
-impl<'ll, 'tcx> ty::layout::HasTyCtxt<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> ty::layout::HasTyCtxt<'tcx> for CodegenCx<'_, 'tcx> {
     fn tcx(&self) -> TyCtxt<'tcx> {
         self.tcx
     }
 }
 
-impl<'tcx, 'll> HasTypingEnv<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> HasTypingEnv<'tcx> for CodegenCx<'_, 'tcx> {
     fn typing_env<'a>(&'a self) -> ty::TypingEnv<'tcx> {
         ty::TypingEnv::fully_monomorphized()
     }
@@ -605,7 +605,7 @@ impl<'tcx> LayoutOfHelpers<'tcx> for CodegenCx<'_, 'tcx> {
     }
 }
 
-impl<'ll, 'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'_, 'tcx> {
     #[inline]
     fn handle_fn_abi_err(
         &self,
@@ -638,7 +638,7 @@ impl<'ll, 'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 }
 
-impl<'ll, 'tcx> CoverageInfoBuilderMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> CoverageInfoBuilderMethods<'tcx> for CodegenCx<'_, 'tcx> {
     fn init_coverage(&mut self, _instance: Instance<'tcx>) {
         todo!()
     }

@@ -43,10 +43,7 @@ pub(crate) fn DIB<'a, 'll>(cx: &'a CodegenCx<'ll, '_>) -> &'a DIBuilder<'ll> {
     cx.dbg_cx.as_ref().unwrap().builder
 }
 
-pub(crate) fn get_namespace_for_item<'ll, 'tcx>(
-    cx: &CodegenCx<'ll, 'tcx>,
-    def_id: DefId,
-) -> &'ll DIScope {
+pub(crate) fn get_namespace_for_item<'ll>(cx: &CodegenCx<'ll, '_>, def_id: DefId) -> &'ll DIScope {
     item_namespace(cx, cx.tcx.parent(def_id))
 }
 
@@ -60,8 +57,8 @@ pub(crate) enum WidePtrKind {
 /// if the second field of the wide pointer is a length or a vtable-pointer.
 /// If `pointee_ty` does not require a wide pointer (because it is Sized) then
 /// the function returns `None`.
-pub(crate) fn wide_pointer_kind<'ll, 'tcx>(
-    cx: &CodegenCx<'ll, 'tcx>,
+pub(crate) fn wide_pointer_kind<'tcx>(
+    cx: &CodegenCx<'_, 'tcx>,
     pointee_ty: Ty<'tcx>,
 ) -> Option<WidePtrKind> {
     let pointee_tail_ty = cx.tcx.struct_tail_for_codegen(pointee_ty, cx.typing_env());
