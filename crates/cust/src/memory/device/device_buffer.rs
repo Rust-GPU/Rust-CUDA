@@ -304,17 +304,18 @@ impl<A: DeviceCopy + Pod> DeviceBuffer<A> {
         }
     }
 
-    /// Tries to convert a [`DeviceBuffer`] of type `A` to a [`DeviceBuffer`] of type `B`. Returning
-    /// an error if it failed.
+    /// Tries to convert a [`DeviceBuffer`] of type `A` to a [`DeviceBuffer`] of type
+    /// `B`. Returning an error if it failed.
     ///
     /// The length of the buffer after the conversion may have changed.
     ///
     /// # Failure
     ///
-    /// - If the target type has a greater alignment requirement.
-    /// - If the target element type is a different size and the output buffer wouldn't have a
-    /// whole number of elements. Such as `3` x [`u16`] -> `1.5` x [`u32`].
-    /// - If either type is a ZST (but not both).
+    ///   - If the target type has a greater alignment requirement.
+    ///   - If the target element type is a different size and the output buffer
+    ///     wouldn't have a whole number of elements. Such as `3` x [`u16`] -> `1.5` x
+    ///     [`u32`].
+    ///   - If either type is a ZST (but not both).
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub fn try_cast<B: Pod + DeviceCopy>(self) -> Result<DeviceBuffer<B>, PodCastError> {
         if align_of::<B>() > align_of::<A>() && (self.buf.as_raw() as usize) % align_of::<B>() != 0

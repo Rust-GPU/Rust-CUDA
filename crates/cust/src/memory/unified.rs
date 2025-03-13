@@ -256,22 +256,22 @@ impl<T: DeviceCopy> Drop for UnifiedBox<T> {
 
 impl<T: DeviceCopy> Borrow<T> for UnifiedBox<T> {
     fn borrow(&self) -> &T {
-        &**self
+        self
     }
 }
 impl<T: DeviceCopy> BorrowMut<T> for UnifiedBox<T> {
     fn borrow_mut(&mut self) -> &mut T {
-        &mut **self
+        self
     }
 }
 impl<T: DeviceCopy> AsRef<T> for UnifiedBox<T> {
     fn as_ref(&self) -> &T {
-        &**self
+        self
     }
 }
 impl<T: DeviceCopy> AsMut<T> for UnifiedBox<T> {
     fn as_mut(&mut self) -> &mut T {
-        &mut **self
+        self
     }
 }
 impl<T: DeviceCopy> Deref for UnifiedBox<T> {
