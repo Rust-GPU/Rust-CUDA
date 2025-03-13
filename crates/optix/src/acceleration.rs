@@ -1560,7 +1560,6 @@ const_assert_eq!(
     std::mem::size_of::<sys::OptixInstance>()
 );
 
-
 #[derive(DeviceCopy, Clone, Copy, Debug)]
 pub struct InstanceFlags(OptixEnumBaseType);
 
