@@ -1,26 +1,39 @@
 use crate::error::{CudaResult, ToResult};
 use crate::memory::device::AsyncCopyDestination;
 use crate::memory::device::{CopyDestination, DeviceBuffer};
-use crate::memory::DeviceCopy;
 use crate::memory::DevicePointer;
+use crate::memory::{DeviceCopy, DeviceMemory};
 use crate::stream::Stream;
 use crate::sys as cuda;
 #[cfg(feature = "bytemuck")]
 use bytemuck::{Pod, Zeroable};
-use std::mem::{self, size_of};
-use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use std::fmt::{self, Debug, Formatter};
+use std::marker::PhantomData;
+use std::ops::{
+    Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
+};
 use std::os::raw::c_void;
+use std::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
 
 /// Fixed-size device-side slice.
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
+#[repr(transparent)]
 pub struct DeviceSlice<T: DeviceCopy> {
-    ptr: DevicePointer<T>,
-    len: usize,
+    _phantom: PhantomData<T>,
+    slice: [()],
 }
 
 unsafe impl<T: Send + DeviceCopy> Send for DeviceSlice<T> {}
 unsafe impl<T: Sync + DeviceCopy> Sync for DeviceSlice<T> {}
+
+impl<T: DeviceCopy> Debug for DeviceSlice<T> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        formatter
+            .debug_struct("DeviceSlice")
+            .field("ptr", &self.as_device_ptr().as_ptr())
+            .field("len", &self.len())
+            .finish()
+    }
+}
 
 impl<T: DeviceCopy + Default + Clone> DeviceSlice<T> {
     pub fn as_host_vec(&self) -> CudaResult<Vec<T>> {
@@ -46,7 +59,7 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// assert_eq!(a.len(), 3);
     /// ```
     pub fn len(&self) -> usize {
-        self.len
+        self.slice.len()
     }
 
     /// Returns `true` if the slice has a length of 0.
@@ -60,7 +73,7 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// assert!(a.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len() == 0
     }
 
     /// Return a raw device-pointer to the slice's buffer.
@@ -78,7 +91,7 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// println!("{:p}", a.as_ptr());
     /// ```
     pub fn as_device_ptr(&self) -> DevicePointer<T> {
-        self.ptr
+        DevicePointer::from_raw(self as *const _ as *const () as usize as u64)
     }
 
     /* TODO (AL): keep these?
@@ -184,8 +197,8 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// assert_eq!([1u64, 2], host_buf);
     /// ```
     #[allow(clippy::needless_pass_by_value)]
-    pub unsafe fn from_raw_parts(ptr: DevicePointer<T>, len: usize) -> DeviceSlice<T> {
-        DeviceSlice { ptr, len }
+    pub unsafe fn from_raw_parts<'a>(ptr: DevicePointer<T>, len: usize) -> &'a DeviceSlice<T> {
+        &*(slice_from_raw_parts(ptr.as_ptr(), len) as *const DeviceSlice<T>)
     }
 
     /// Performs the same functionality as `from_raw_parts`, except that a
@@ -203,8 +216,11 @@ impl<T: DeviceCopy> DeviceSlice<T> {
     /// slices as with `from_raw_parts`.
     ///
     /// See the documentation of `from_raw_parts` for more details.
-    pub unsafe fn from_raw_parts_mut(ptr: DevicePointer<T>, len: usize) -> DeviceSlice<T> {
-        DeviceSlice { ptr, len }
+    pub unsafe fn from_raw_parts_mut<'a>(
+        ptr: DevicePointer<T>,
+        len: usize,
+    ) -> &'a mut DeviceSlice<T> {
+        &mut *(slice_from_raw_parts_mut(ptr.as_mut_ptr(), len) as *mut DeviceSlice<T>)
     }
 }
 
@@ -221,15 +237,13 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
     /// In total it will set `sizeof<T> * len` values of `value` contiguously.
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub fn set_8(&mut self, value: u8) -> CudaResult<()> {
-        if self.ptr.is_null() {
+        if self.size_in_bytes() == 0 {
             return Ok(());
         }
 
         // SAFETY: We know T can hold any value because it is `Pod`, and
         // sub-byte alignment isn't a thing so we know the alignment is right.
-        unsafe {
-            cuda::cuMemsetD8_v2(self.ptr.as_raw(), value, size_of::<T>() * self.len).to_result()
-        }
+        unsafe { cuda::cuMemsetD8_v2(self.as_raw_ptr(), value, self.size_in_bytes()).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `8-bit` values of `value` asynchronously.
@@ -242,14 +256,14 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
     /// Therefore you should not read/write from/to the memory range until the operation is complete.
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub unsafe fn set_8_async(&mut self, value: u8, stream: &Stream) -> CudaResult<()> {
-        if self.ptr.is_null() {
+        if self.size_in_bytes() == 0 {
             return Ok(());
         }
 
         cuda::cuMemsetD8Async(
-            self.ptr.as_raw(),
+            self.as_raw_ptr(),
             value,
-            size_of::<T>() * self.len,
+            self.size_in_bytes(),
             stream.as_inner(),
         )
         .to_result()
@@ -267,21 +281,18 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
     #[track_caller]
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub fn set_16(&mut self, value: u16) -> CudaResult<()> {
-        if self.ptr.is_null() {
-            return Ok(());
-        }
-        let data_len = size_of::<T>() * self.len;
+        let data_len = self.size_in_bytes();
         assert_eq!(
             data_len % 2,
             0,
             "Buffer length is not a multiple of 2 bytes!"
         );
         assert_eq!(
-            self.ptr.as_raw() % 2,
+            self.as_raw_ptr() % 2,
             0,
             "Buffer pointer is not aligned to at least 2 bytes!"
         );
-        unsafe { cuda::cuMemsetD16_v2(self.ptr.as_raw(), value, data_len / 2).to_result() }
+        unsafe { cuda::cuMemsetD16_v2(self.as_raw_ptr(), value, data_len / 2).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `16-bit` values of `value` asynchronously.
@@ -301,21 +312,18 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
     #[track_caller]
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub unsafe fn set_16_async(&mut self, value: u16, stream: &Stream) -> CudaResult<()> {
-        if self.ptr.is_null() {
-            return Ok(());
-        }
-        let data_len = size_of::<T>() * self.len;
+        let data_len = self.size_in_bytes();
         assert_eq!(
             data_len % 2,
             0,
             "Buffer length is not a multiple of 2 bytes!"
         );
         assert_eq!(
-            self.ptr.as_raw() % 2,
+            self.as_raw_ptr() % 2,
             0,
             "Buffer pointer is not aligned to at least 2 bytes!"
         );
-        cuda::cuMemsetD16Async(self.ptr.as_raw(), value, data_len / 2, stream.as_inner())
+        cuda::cuMemsetD16Async(self.as_raw_ptr(), value, data_len / 2, stream.as_inner())
             .to_result()
     }
 
@@ -331,21 +339,18 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
     #[track_caller]
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub fn set_32(&mut self, value: u32) -> CudaResult<()> {
-        if self.ptr.is_null() {
-            return Ok(());
-        }
-        let data_len = size_of::<T>() * self.len;
+        let data_len = self.size_in_bytes();
         assert_eq!(
             data_len % 4,
             0,
             "Buffer length is not a multiple of 4 bytes!"
         );
         assert_eq!(
-            self.ptr.as_raw() % 4,
+            self.as_raw_ptr() % 4,
             0,
             "Buffer pointer is not aligned to at least 4 bytes!"
         );
-        unsafe { cuda::cuMemsetD32_v2(self.ptr.as_raw(), value, data_len / 4).to_result() }
+        unsafe { cuda::cuMemsetD32_v2(self.as_raw_ptr(), value, data_len / 4).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `32-bit` values of `value` asynchronously.
@@ -365,21 +370,18 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
     #[track_caller]
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub unsafe fn set_32_async(&mut self, value: u32, stream: &Stream) -> CudaResult<()> {
-        if self.ptr.is_null() {
-            return Ok(());
-        }
-        let data_len = size_of::<T>() * self.len;
+        let data_len = self.size_in_bytes();
         assert_eq!(
             data_len % 4,
             0,
             "Buffer length is not a multiple of 4 bytes!"
         );
         assert_eq!(
-            self.ptr.as_raw() % 4,
+            self.as_raw_ptr() % 4,
             0,
             "Buffer pointer is not aligned to at least 4 bytes!"
         );
-        cuda::cuMemsetD32Async(self.ptr.as_raw(), value, data_len / 4, stream.as_inner())
+        cuda::cuMemsetD32Async(self.as_raw_ptr(), value, data_len / 4, stream.as_inner())
             .to_result()
     }
 }
@@ -388,14 +390,10 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
 impl<T: DeviceCopy + Zeroable> DeviceSlice<T> {
     /// Sets this slice's data to zero.
     pub fn set_zero(&mut self) -> CudaResult<()> {
-        if self.ptr.is_null() {
-            return Ok(());
-        }
         // SAFETY: this is fine because Zeroable guarantees a zero byte-pattern is safe
         // for this type. And a slice of bytes can represent any type.
-        let mut erased = DeviceSlice {
-            ptr: self.ptr.cast::<u8>(),
-            len: size_of::<T>() * self.len,
+        let erased = unsafe {
+            DeviceSlice::from_raw_parts_mut(self.as_device_ptr().cast::<u8>(), self.size_in_bytes())
         };
         erased.set_8(0)
     }
@@ -407,15 +405,12 @@ impl<T: DeviceCopy + Zeroable> DeviceSlice<T> {
     /// This operation is async so it does not complete immediately, it uses stream-ordering semantics.
     /// Therefore you should not read/write from/to the memory range until the operation is complete.
     pub unsafe fn set_zero_async(&mut self, stream: &Stream) -> CudaResult<()> {
-        if self.ptr.is_null() {
-            return Ok(());
-        }
         // SAFETY: this is fine because Zeroable guarantees a zero byte-pattern is safe
         // for this type. And a slice of bytes can represent any type.
-        let mut erased = DeviceSlice {
-            ptr: self.ptr.cast::<u8>(),
-            len: size_of::<T>() * self.len,
-        };
+        let erased = DeviceSlice::from_raw_parts_mut(
+            self.as_device_ptr().cast::<u8>(),
+            self.size_in_bytes(),
+        );
         erased.set_8_async(0, stream)
     }
 }
@@ -426,8 +421,16 @@ pub trait DeviceSliceIndex<T: DeviceCopy> {
     /// # Safety
     ///
     /// The range must be in-bounds of the slice.
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T>;
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T>;
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T>;
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T>;
+
+    /// Indexes into this slice without checking if it is in-bounds.
+    ///
+    /// # Safety
+    ///
+    /// The range must be in-bounds of the slice.
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T>;
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T>;
 }
 
 #[inline(never)]
@@ -465,19 +468,26 @@ fn slice_end_index_overflow_fail() -> ! {
 }
 
 impl<T: DeviceCopy> DeviceSliceIndex<T> for usize {
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         (self..self + 1).get_unchecked(slice)
     }
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         slice.index(self..self + 1)
+    }
+
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        (self..self + 1).get_unchecked_mut(slice)
+    }
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        slice.index_mut(self..self + 1)
     }
 }
 
 impl<T: DeviceCopy> DeviceSliceIndex<T> for Range<usize> {
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         DeviceSlice::from_raw_parts(slice.as_device_ptr().add(self.start), self.end - self.start)
     }
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         if self.start > self.end {
             slice_index_order_fail(self.start, self.end);
         } else if self.end > slice.len() {
@@ -486,36 +496,77 @@ impl<T: DeviceCopy> DeviceSliceIndex<T> for Range<usize> {
         // SAFETY: `self` is checked to be valid and in bounds above.
         unsafe { self.get_unchecked(slice) }
     }
+
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        DeviceSlice::from_raw_parts_mut(
+            slice.as_device_ptr().add(self.start),
+            self.end - self.start,
+        )
+    }
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        if self.start > self.end {
+            slice_index_order_fail(self.start, self.end);
+        } else if self.end > slice.len() {
+            slice_end_index_len_fail(self.end, slice.len());
+        }
+        // SAFETY: `self` is checked to be valid and in bounds above.
+        unsafe { self.get_unchecked_mut(slice) }
+    }
 }
 
 impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeTo<usize> {
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         (0..self.end).get_unchecked(slice)
     }
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         (0..self.end).index(slice)
+    }
+
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        (0..self.end).get_unchecked_mut(slice)
+    }
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        (0..self.end).index_mut(slice)
     }
 }
 
 impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeFrom<usize> {
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         (self.start..slice.len()).get_unchecked(slice)
     }
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         if self.start > slice.len() {
             slice_start_index_len_fail(self.start, slice.len());
         }
         // SAFETY: `self` is checked to be valid and in bounds above.
         unsafe { self.get_unchecked(slice) }
     }
+
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        (self.start..slice.len()).get_unchecked_mut(slice)
+    }
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        if self.start > slice.len() {
+            slice_start_index_len_fail(self.start, slice.len());
+        }
+        // SAFETY: `self` is checked to be valid and in bounds above.
+        unsafe { self.get_unchecked_mut(slice) }
+    }
 }
 
 impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeFull {
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
-        *slice
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
+        slice
     }
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
-        *slice
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
+        slice
+    }
+
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        slice
+    }
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        slice
     }
 }
 
@@ -530,29 +581,54 @@ fn into_slice_range(range: RangeInclusive<usize>) -> Range<usize> {
 }
 
 impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeInclusive<usize> {
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         into_slice_range(self).get_unchecked(slice)
     }
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         if *self.end() == usize::MAX {
             slice_end_index_overflow_fail();
         }
         into_slice_range(self).index(slice)
     }
+
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        into_slice_range(self).get_unchecked_mut(slice)
+    }
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        if *self.end() == usize::MAX {
+            slice_end_index_overflow_fail();
+        }
+        into_slice_range(self).index_mut(slice)
+    }
 }
 
 impl<T: DeviceCopy> DeviceSliceIndex<T> for RangeToInclusive<usize> {
-    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    unsafe fn get_unchecked(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         (0..=self.end).get_unchecked(slice)
     }
-    fn index(self, slice: &DeviceSlice<T>) -> DeviceSlice<T> {
+    fn index(self, slice: &DeviceSlice<T>) -> &DeviceSlice<T> {
         (0..=self.end).index(slice)
+    }
+
+    unsafe fn get_unchecked_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        (0..=self.end).get_unchecked_mut(slice)
+    }
+    fn index_mut(self, slice: &mut DeviceSlice<T>) -> &mut DeviceSlice<T> {
+        (0..=self.end).index_mut(slice)
     }
 }
 
-impl<T: DeviceCopy> DeviceSlice<T> {
-    pub fn index<Idx: DeviceSliceIndex<T>>(&self, idx: Idx) -> DeviceSlice<T> {
-        idx.index(self)
+impl<T: DeviceCopy, Idx: DeviceSliceIndex<T>> Index<Idx> for DeviceSlice<T> {
+    type Output = DeviceSlice<T>;
+
+    fn index(&self, index: Idx) -> &DeviceSlice<T> {
+        index.index(self)
+    }
+}
+
+impl<T: DeviceCopy, Idx: DeviceSliceIndex<T>> IndexMut<Idx> for DeviceSlice<T> {
+    fn index_mut(&mut self, index: Idx) -> &mut DeviceSlice<T> {
+        index.index_mut(self)
     }
 }
 
@@ -564,10 +640,10 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> CopyDestination<I> for 
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyHtoD_v2(self.ptr.as_raw(), val.as_ptr() as *const c_void, size)
+                cuda::cuMemcpyHtoD_v2(self.as_raw_ptr(), val.as_ptr() as *const c_void, size)
                     .to_result()?
             }
         }
@@ -580,15 +656,11 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> CopyDestination<I> for 
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyDtoH_v2(
-                    val.as_mut_ptr() as *mut c_void,
-                    self.as_device_ptr().as_raw(),
-                    size,
-                )
-                .to_result()?
+                cuda::cuMemcpyDtoH_v2(val.as_mut_ptr() as *mut c_void, self.as_raw_ptr(), size)
+                    .to_result()?
             }
         }
         Ok(())
@@ -600,12 +672,9 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
-            unsafe {
-                cuda::cuMemcpyDtoD_v2(self.ptr.as_raw(), val.as_device_ptr().as_raw(), size)
-                    .to_result()?
-            }
+            unsafe { cuda::cuMemcpyDtoD_v2(self.as_raw_ptr(), val.as_raw_ptr(), size).to_result()? }
         }
         Ok(())
     }
@@ -615,16 +684,9 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
-            unsafe {
-                cuda::cuMemcpyDtoD_v2(
-                    val.as_device_ptr().as_raw(),
-                    self.as_device_ptr().as_raw(),
-                    size,
-                )
-                .to_result()?
-            }
+            unsafe { cuda::cuMemcpyDtoD_v2(val.as_raw_ptr(), self.as_raw_ptr(), size).to_result()? }
         }
         Ok(())
     }
@@ -647,10 +709,10 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> AsyncCopyDestination<I>
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
             cuda::cuMemcpyHtoDAsync_v2(
-                self.ptr.as_raw(),
+                self.as_raw_ptr(),
                 val.as_ptr() as *const c_void,
                 size,
                 stream.as_inner(),
@@ -666,11 +728,11 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> AsyncCopyDestination<I>
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
             cuda::cuMemcpyDtoHAsync_v2(
                 val.as_mut_ptr() as *mut c_void,
-                self.as_device_ptr().as_raw(),
+                self.as_raw_ptr(),
                 size,
                 stream.as_inner(),
             )
@@ -685,15 +747,10 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
-            cuda::cuMemcpyDtoDAsync_v2(
-                self.as_device_ptr().as_raw(),
-                val.as_device_ptr().as_raw(),
-                size,
-                stream.as_inner(),
-            )
-            .to_result()?
+            cuda::cuMemcpyDtoDAsync_v2(self.as_raw_ptr(), val.as_raw_ptr(), size, stream.as_inner())
+                .to_result()?
         }
         Ok(())
     }
@@ -703,15 +760,10 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
             self.len() == val.len(),
             "destination and source slices have different lengths"
         );
-        let size = mem::size_of::<T>() * self.len();
+        let size = self.size_in_bytes();
         if size != 0 {
-            cuda::cuMemcpyDtoDAsync_v2(
-                val.as_device_ptr().as_raw(),
-                self.as_device_ptr().as_raw(),
-                size,
-                stream.as_inner(),
-            )
-            .to_result()?
+            cuda::cuMemcpyDtoDAsync_v2(val.as_raw_ptr(), self.as_raw_ptr(), size, stream.as_inner())
+                .to_result()?
         }
         Ok(())
     }
