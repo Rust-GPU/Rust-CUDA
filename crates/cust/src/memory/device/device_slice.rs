@@ -13,8 +13,8 @@ use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
 use std::os::raw::c_void;
-use std::slice;
 use std::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
+use std::slice;
 
 /// Fixed-size device-side slice.
 #[repr(transparent)]
