@@ -35,7 +35,7 @@ pub(crate) fn extract_llfns(file: &Path, dir: &Path) {
             let out_file = format!("{}/{}.ll", dir.display(), name);
             let _ = Command::new("llvm-extract")
                 .arg(file)
-                .arg(&format!("--func={}", name))
+                .arg(format!("--func={}", name))
                 .arg("-S")
                 .arg("--recursive")
                 .arg("-o")

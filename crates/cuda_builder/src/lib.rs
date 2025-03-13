@@ -246,13 +246,13 @@ impl CudaBuilder {
 
     /// Emit LLVM IR, the exact same as rustc's `--emit=llvm-ir`.
     pub fn emit_llvm_ir(mut self, emit_llvm_ir: bool) -> Self {
-        self.emit = emit_llvm_ir.then(|| EmitOption::LlvmIr);
+        self.emit = emit_llvm_ir.then_some(EmitOption::LlvmIr);
         self
     }
 
     /// Emit LLVM Bitcode, the exact same as rustc's `--emit=llvm-bc`.
     pub fn emit_llvm_bitcode(mut self, emit_llvm_bitcode: bool) -> Self {
-        self.emit = emit_llvm_bitcode.then(|| EmitOption::Bitcode);
+        self.emit = emit_llvm_bitcode.then_some(EmitOption::Bitcode);
         self
     }
 
@@ -435,7 +435,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     }
 
     let mut cargo = Command::new("cargo");
-    cargo.args(&[
+    cargo.args([
         "build",
         "--lib",
         "--message-format=json-render-diagnostics",
@@ -525,7 +525,7 @@ fn get_last_artifact(out: &str) -> Option<PathBuf> {
             }
         })
         .filter(|line| line.reason == "compiler-artifact")
-        .last()
+        .next_back()
         .expect("Did not find output file in rustc output");
 
     let mut filenames = last
