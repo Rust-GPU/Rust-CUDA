@@ -4,6 +4,7 @@
 //! thread blocks and execute in SIMT fashion.
 
 use crate::gpu_only;
+#[cfg(target_os = "cuda")]
 use core::arch::asm;
 use half::{bf16, f16};
 
@@ -329,7 +330,7 @@ unsafe fn match_all_64(mask: u32, value: u64) -> (u32, bool) {
 /// Behavior is undefined if:
 /// - Any thread participating in the vote has exited or the executing thread is not in `mask`.
 /// - For `compute_62` and below, all threads in `mask` must call this function in convergence, and only threads belonging
-/// to the `mask` can be active when the intrinsic is called.
+///   to the `mask` can be active when the intrinsic is called.
 /// - A thread tries to execute this function while not being present in `mask`.
 #[gpu_only]
 pub unsafe fn warp_vote_all(mask: u32, predicate: bool) -> bool {
@@ -359,7 +360,7 @@ pub unsafe fn warp_vote_all(mask: u32, predicate: bool) -> bool {
 /// Behavior is undefined if:
 /// - Any thread participating in the vote has exited or the executing thread is not in `mask`.
 /// - For `compute_62` and below, all threads in `mask` must call this function in convergence, and only threads belonging
-/// to the `mask` can be active when the intrinsic is called.
+///   to the `mask` can be active when the intrinsic is called.
 /// - A thread tries to execute this function while not being present in `mask`.
 #[gpu_only]
 pub unsafe fn warp_vote_any(mask: u32, predicate: bool) -> bool {
@@ -389,7 +390,7 @@ pub unsafe fn warp_vote_any(mask: u32, predicate: bool) -> bool {
 /// Behavior is undefined if:
 /// - Any thread participating in the vote has exited or the executing thread is not in `mask`.
 /// - For `compute_62` and below, all threads in `mask` must call this function in convergence, and only threads belonging
-/// to the `mask` can be active when the intrinsic is called.
+///   to the `mask` can be active when the intrinsic is called.
 /// - A thread tries to execute this function while not being present in `mask`.
 #[gpu_only]
 pub unsafe fn warp_vote_ballot(mask: u32, predicate: bool) -> u32 {
@@ -415,10 +416,10 @@ pub unsafe fn warp_vote_ballot(mask: u32, predicate: bool) -> u32 {
 ///
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
-/// that calculates this thread as its target lane.
+///   that calculates this thread as its target lane.
 /// - `delta` is the value that will be subtracted from the current thread's lane to calculate the target lane.
 /// - `width` dictates how to optionally split the warp into subsections, it must be a power of two and lower than `32`.
-/// calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
+///   calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
 ///
 /// # Returns
 ///
@@ -439,7 +440,7 @@ pub unsafe fn warp_vote_ballot(mask: u32, predicate: bool) -> u32 {
 /// Behavior is undefined if:
 /// - Any thread participating in the shuffle has exited or the executing thread is not in `mask`.
 /// - For `compute_62` and below, all threads in `mask` must call the same function in convergence, and only the threads
-/// in `mask` can be active when the shuffle is called.
+///   in `mask` can be active when the shuffle is called.
 ///
 /// The returned value returned is unspecified if the calculated target lane is inactive.
 pub unsafe fn warp_shuffle_down<T: WarpShuffleValue>(
@@ -457,10 +458,10 @@ pub unsafe fn warp_shuffle_down<T: WarpShuffleValue>(
 ///
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
-/// that calculates this thread as its target lane.
+///   that calculates this thread as its target lane.
 /// - `delta` is the value that will be added to the current thread's lane to calculate the target lane.
 /// - `width` dictates how to optionally split the warp into subsections, it must be a power of two and lower than `32`.
-/// calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
+///   calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
 ///
 /// # Returns
 ///
@@ -481,7 +482,7 @@ pub unsafe fn warp_shuffle_down<T: WarpShuffleValue>(
 /// Behavior is undefined if:
 /// - Any thread participating in the shuffle has exited or the executing thread is not in `mask`.
 /// - For `compute_62` and below, all threads in `mask` must call the same function in convergence, and only the threads
-/// in `mask` can be active when the shuffle is called.
+///   in `mask` can be active when the shuffle is called.
 ///
 /// The returned value returned is unspecified if the calculated target lane is inactive.
 pub unsafe fn warp_shuffle_up<T: WarpShuffleValue>(
@@ -499,10 +500,10 @@ pub unsafe fn warp_shuffle_up<T: WarpShuffleValue>(
 ///
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
-/// that calculates this thread as its target lane.
+///   that calculates this thread as its target lane.
 /// - `idx` is the target lane that will be used as the source of this thread's returned value.
 /// - `width` dictates how to optionally split the warp into subsections, it must be a power of two and lower than `32`.
-/// calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
+///   calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
 ///
 /// # Returns
 ///
@@ -523,7 +524,7 @@ pub unsafe fn warp_shuffle_up<T: WarpShuffleValue>(
 /// Behavior is undefined if:
 /// - Any thread participating in the shuffle has exited or the executing thread is not in `mask`.
 /// - For `compute_62` and below, all threads in `mask` must call the same function in convergence, and only the threads
-/// in `mask` can be active when the shuffle is called.
+///   in `mask` can be active when the shuffle is called.
 ///
 /// The returned value returned is unspecified if the calculated target lane is inactive.
 pub unsafe fn warp_shuffle_idx<T: WarpShuffleValue>(
@@ -541,11 +542,11 @@ pub unsafe fn warp_shuffle_idx<T: WarpShuffleValue>(
 ///
 /// - `mask` dictates what threads will participate in the shuffle, usually [`u32::MAX`] to indicate all threads.
 /// - `value` is the value that will be shuffled across the threads. i.e. the value that will be given to the thread
-/// that calculates this thread as its target lane.
+///   that calculates this thread as its target lane.
 /// - `lane_mask` is the value that will be XOR'd by the current thread's lane id to calculate the target lane. i.e. the
-/// target lane will be `lane_id ^ lane_mask`.
+///   target lane will be `lane_id ^ lane_mask`.
 /// - `width` dictates how to optionally split the warp into subsections, it must be a power of two and lower than `32`.
-/// calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
+///   calculated source lane values will NOT wrap around the value of `width`. Usually just `32`.
 ///
 /// # Returns
 ///
@@ -566,7 +567,7 @@ pub unsafe fn warp_shuffle_idx<T: WarpShuffleValue>(
 /// Behavior is undefined if:
 /// - Any thread participating in the shuffle has exited or the executing thread is not in `mask`.
 /// - For `compute_62` and below, all threads in `mask` must call the same function in convergence, and only the threads
-/// in `mask` can be active when the shuffle is called.
+///   in `mask` can be active when the shuffle is called.
 ///
 /// The returned value returned is unspecified if the calculated target lane is inactive.
 pub unsafe fn warp_shuffle_xor<T: WarpShuffleValue>(

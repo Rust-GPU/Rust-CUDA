@@ -19,11 +19,11 @@ use crate::gpu_only;
 /// the burden of correctness is on the user. Some of the things you must ensure in your usage of
 /// shared memory are:
 /// - Shared memory is only shared across __thread blocks__, not the entire device, therefore it is
-/// unsound to try and rely on sharing data across more than one block.
+///   unsound to try and rely on sharing data across more than one block.
 /// - You must write to the shared buffer before reading from it as the data is uninitialized by default.
 /// - [`thread::sync_threads`](crate::thread::sync_threads) must be called before relying on the results of other
-/// threads, this ensures every thread has reached that point before going on. For example, reading another thread's
-/// data after writing to the buffer.
+///   threads, this ensures every thread has reached that point before going on. For example, reading another thread's
+///   data after writing to the buffer.
 /// - No access may be out of bounds, this usually means making sure the amount of threads and their dimensions are correct.
 ///
 /// It is suggested to run your executable in `cuda-memcheck` to make sure usages of shared memory are right.
