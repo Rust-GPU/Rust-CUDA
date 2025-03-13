@@ -1,7 +1,7 @@
 use cust::memory::DeviceBuffer;
 use cust::prelude::{Stream, StreamFlags};
 use cust::util::SliceExt;
-use image::io::Reader;
+use image::ImageReader;
 use optix::context::DeviceContext;
 use optix::denoiser::{Denoiser, DenoiserModelKind, DenoiserParams, Image, ImageFormat};
 use std::error::Error;
@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .expect("input was not a file")
         .to_string_lossy()
         .to_string();
-    let img = Reader::open(opt.input)?.decode()?;
+    let img = ImageReader::open(opt.input)?.decode()?;
 
     let mut rgb = img.into_rgb8();
     let mut linear = vec![Vec3::<f32>::zero(); rgb.as_raw().len()];
