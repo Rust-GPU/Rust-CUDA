@@ -83,10 +83,10 @@ fn bindgen_optix(optix_include: &Path, cuda_include: &Path) {
         .rustified_enum("OptixGeometryFlags")
         .constified_enum("OptixVertexFormat")
         .constified_enum("OptixIndicesFormat")
-        .rust_target(bindgen::RustTarget::Nightly)
+        .rust_target(bindgen::RustTarget::nightly())
         .derive_default(true)
         .derive_partialeq(true)
-        .rustfmt_bindings(true)
+        .formatter(bindgen::Formatter::Rustfmt)
         .generate()
         .expect("Unable to generate optix bindings");
 

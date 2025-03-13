@@ -23,12 +23,12 @@ use std::mem::size_of;
 /// thus possible to pass a `DevicePointer` to a CUDA kernel written in C.
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub struct DevicePointer<T: ?Sized + DeviceCopy> {
+pub struct DevicePointer<T: DeviceCopy> {
     ptr: CUdeviceptr,
     marker: PhantomData<*mut T>,
 }
 
-unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for DevicePointer<T> {}
+unsafe impl<T: DeviceCopy> DeviceCopy for DevicePointer<T> {}
 
 impl<T: DeviceCopy> Pointer for DevicePointer<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -37,7 +37,7 @@ impl<T: DeviceCopy> Pointer for DevicePointer<T> {
     }
 }
 
-impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
+impl<T: DeviceCopy> DevicePointer<T> {
     /// Returns a rust [`pointer`] created from this pointer, meant for FFI purposes.
     /// **The pointer is not dereferenceable from the CPU!**
     pub fn as_ptr(&self) -> *const T {
@@ -343,9 +343,9 @@ impl<T: ?Sized + DeviceCopy> DevicePointer<T> {
 /// thus possible to pass a `UnifiedPointer` to a CUDA kernel written in C.
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub struct UnifiedPointer<T: ?Sized + DeviceCopy>(*mut T);
+pub struct UnifiedPointer<T: DeviceCopy>(*mut T);
 
-unsafe impl<T: ?Sized + DeviceCopy> DeviceCopy for UnifiedPointer<T> {}
+unsafe impl<T: DeviceCopy> DeviceCopy for UnifiedPointer<T> {}
 
 impl<T: DeviceCopy> Pointer for UnifiedPointer<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -353,7 +353,7 @@ impl<T: DeviceCopy> Pointer for UnifiedPointer<T> {
     }
 }
 
-impl<T: ?Sized + DeviceCopy> UnifiedPointer<T> {
+impl<T: DeviceCopy> UnifiedPointer<T> {
     /// Wrap the given raw pointer in a UnifiedPointer. The given pointer is assumed to be a valid,
     /// unified-memory pointer or null.
     ///

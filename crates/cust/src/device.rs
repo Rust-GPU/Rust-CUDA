@@ -327,6 +327,29 @@ impl Device {
         }
     }
 
+    /// Returns the UUID of this device.
+    ///
+    /// # Example
+    /// ```
+    /// # use cust::*;
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # init(CudaFlags::empty())?;
+    /// use cust::device::Device;
+    /// let device = Device::get_device(0)?;
+    /// println!("Device UUID: {:?}", device.uuid()?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn uuid(self) -> CudaResult<[u8; 16]> {
+        let mut cu_uuid = CUuuid { bytes: [0; 16] };
+        unsafe {
+            cuDeviceGetUuid(&mut cu_uuid, self.device).to_result()?;
+        }
+        let uuid: [u8; 16] = cu_uuid.bytes.map(|byte| byte as u8);
+        Ok(uuid)
+    }
+
     /// Returns information about this device.
     ///
     /// # Example
@@ -348,7 +371,7 @@ impl Device {
             cuDeviceGetAttribute(
                 &mut val as *mut i32,
                 // This should be safe, as the repr and values of DeviceAttribute should match.
-                ::std::mem::transmute(attr),
+                ::std::mem::transmute::<DeviceAttribute, cust_raw::CUdevice_attribute_enum>(attr),
                 self.device,
             )
             .to_result()?;

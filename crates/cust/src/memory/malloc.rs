@@ -145,7 +145,65 @@ pub unsafe fn cuda_malloc_unified<T: DeviceCopy>(count: usize) -> CudaResult<Uni
     )
     .to_result()?;
     let ptr = ptr as *mut T;
-    Ok(UnifiedPointer::wrap(ptr as *mut T))
+    Ok(UnifiedPointer::wrap(ptr))
+}
+
+/// Unsafe wrapper around the `cuMemAllocPitch` function, which allocates device memory in two dimensions
+/// where rows are memory aligned to the containing datatype.
+///
+/// Returns a [`DevicePointer`](struct.DevicePointer.html), pointing to the allocated memory and
+/// an `usize` containing the row pitch in *bytes*. The memory is not cleared.
+///
+/// Note that `count` is in units of T; thus a `count` of 3 will allocate `3 * size_of::<T>()` bytes
+/// of memory.
+///
+/// Memory buffers allocated using `cuda_malloc` must be freed using [`cuda_free`](fn.cuda_free.html).
+///
+/// # Errors
+///
+/// If allocating memory fails, returns the CUDA error value.
+/// If the number of bytes to allocate is zero (either because count is zero or because T is a
+/// zero-sized type), or if the size of the allocation would overflow a usize, returns InvalidValue.
+///
+/// # Safety
+///
+/// Since the allocated memory is not initialized, the caller must ensure that it is initialized
+/// before copying it to the host in any way. Additionally, the caller must ensure that the memory
+/// allocated is freed using cuda_free, or the memory will be leaked.
+///
+/// # Examples
+///
+/// ```
+/// # let _context = cust::quick_init().unwrap();
+/// # fn foo() -> Result<(), cust::error::CudaError> {
+/// use cust::memory::*;
+/// unsafe {
+///     // Allocate space for a 3x3 matrix of f32s
+///     let (device_buffer, pitch) = cuda_malloc_pitched::<f32>(3, 3)?;
+///     cuda_free(device_buffer)?;
+/// }
+/// # Ok(())
+/// # }
+/// # foo().unwrap();
+/// ```
+pub unsafe fn cuda_malloc_pitched<T: DeviceCopy>(
+    width: usize,
+    height: usize,
+) -> CudaResult<(DevicePointer<T>, usize)> {
+    let element_size: std::os::raw::c_uint = std::mem::size_of::<T>()
+        .try_into()
+        .map_err(|_| CudaError::InvalidMemoryAllocation)?;
+
+    let width_bytes = width.checked_mul(std::mem::size_of::<T>()).unwrap_or(0);
+    if width_bytes == 0 || height == 0 {
+        return Err(CudaError::InvalidMemoryAllocation);
+    }
+
+    let mut ptr = 0;
+    let mut pitch = 0;
+    cuda::cuMemAllocPitch_v2(&mut ptr, &mut pitch, width_bytes, height, element_size)
+        .to_result()?;
+    Ok((DevicePointer::from_raw(ptr), pitch))
 }
 
 /// Free memory allocated with [`cuda_malloc`](fn.cuda_malloc.html).
@@ -253,7 +311,7 @@ pub unsafe fn cuda_malloc_locked<T>(count: usize) -> CudaResult<*mut T> {
     let mut ptr: *mut c_void = ptr::null_mut();
     cuda::cuMemAllocHost_v2(&mut ptr as *mut *mut c_void, size).to_result()?;
     let ptr = ptr as *mut T;
-    Ok(ptr as *mut T)
+    Ok(ptr)
 }
 
 /// Free page-locked memory allocated with [`cuda_malloc_host`](fn.cuda_malloc_host.html).

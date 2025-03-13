@@ -5,7 +5,7 @@
 //!
 //! This library will build on non-nvptx targets or targets not using the nvvm backend. However, it will not
 //! be usable, and it will throw linker errors if you attempt to use most of the functions in the library.
-//! However, [`kernel`] automatically cfg-gates the function annotated for `nvptx64` or `nvptx`, therefore,
+//! However, [`kernel`] automatically cfg-gates the function annotated for `nvptx64`, therefore,
 //! no "actual" functions from this crate should be used when compiling for a non-nvptx target.
 //!
 //! This crate cannot be used with the llvm ptx backend either, it heavily relies on external functions implicitly
@@ -21,17 +21,10 @@
 //! In order to simplify imports, we provide a prelude module which contains GPU analogues to standard library
 //! structures as well as common imports such as [`thread`].
 
+#![allow(internal_features)]
 #![cfg_attr(
     target_os = "cuda",
-    no_std,
-    feature(
-        register_attr,
-        alloc_error_handler,
-        asm,
-        asm_experimental_arch,
-        link_llvm_intrinsics
-    ),
-    register_attr(nvvm_internal)
+    feature(alloc_error_handler, asm_experimental_arch, link_llvm_intrinsics)
 )]
 
 extern crate alloc;
@@ -76,7 +69,7 @@ pub mod prelude {
     };
 }
 
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 #[alloc_error_handler]
 fn alloc_handler(layout: core::alloc::Layout) -> ! {
     core::panic!("Memory allocation of {} bytes failed", layout.size());
@@ -84,7 +77,7 @@ fn alloc_handler(layout: core::alloc::Layout) -> ! {
 
 // FIXME(RDambrosio016): For some very odd reason, this function causes an InvalidAddress error when called,
 // despite it having no reason for doing that. It needs more debugging to see what is causing it exactly. For now we just trap.
-#[cfg(any(target_arch = "nvptx", target_arch = "nvptx64"))]
+#[cfg(target_arch = "nvptx64")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     // use crate::prelude::*;

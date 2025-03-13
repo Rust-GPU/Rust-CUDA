@@ -55,7 +55,7 @@ impl From<(u32, u32, u32)> for GridSize {
         GridSize::xyz(x, y, z)
     }
 }
-impl<'a> From<&'a GridSize> for GridSize {
+impl From<&GridSize> for GridSize {
     fn from(other: &GridSize) -> GridSize {
         *other
     }
@@ -135,7 +135,7 @@ impl From<(u32, u32, u32)> for BlockSize {
         BlockSize::xyz(x, y, z)
     }
 }
-impl<'a> From<&'a BlockSize> for BlockSize {
+impl From<&BlockSize> for BlockSize {
     fn from(other: &BlockSize) -> BlockSize {
         *other
     }
@@ -209,7 +209,7 @@ pub struct Function<'a> {
 unsafe impl Send for Function<'_> {}
 unsafe impl Sync for Function<'_> {}
 
-impl<'a> Function<'a> {
+impl Function<'_> {
     pub(crate) fn new(inner: CUfunction, _module: &Module) -> Function {
         Function {
             inner,
@@ -243,7 +243,9 @@ impl<'a> Function<'a> {
             cuda::cuFuncGetAttribute(
                 &mut val as *mut i32,
                 // This should be safe, as the repr and values of FunctionAttribute should match.
-                ::std::mem::transmute(attr),
+                ::std::mem::transmute::<FunctionAttribute, cust_raw::CUfunction_attribute_enum>(
+                    attr,
+                ),
                 self.inner,
             )
             .to_result()?;
@@ -280,7 +282,13 @@ impl<'a> Function<'a> {
     /// # }
     /// ```
     pub fn set_cache_config(&mut self, config: CacheConfig) -> CudaResult<()> {
-        unsafe { cuda::cuFuncSetCacheConfig(self.inner, transmute(config)).to_result() }
+        unsafe {
+            cuda::cuFuncSetCacheConfig(
+                self.inner,
+                transmute::<CacheConfig, cust_raw::CUfunc_cache_enum>(config),
+            )
+            .to_result()
+        }
     }
 
     /// Sets the preferred shared memory configuration for this function.
@@ -307,7 +315,13 @@ impl<'a> Function<'a> {
     /// # }
     /// ```
     pub fn set_shared_memory_config(&mut self, cfg: SharedMemoryConfig) -> CudaResult<()> {
-        unsafe { cuda::cuFuncSetSharedMemConfig(self.inner, transmute(cfg)).to_result() }
+        unsafe {
+            cuda::cuFuncSetSharedMemConfig(
+                self.inner,
+                transmute::<SharedMemoryConfig, cust_raw::CUsharedconfig_enum>(cfg),
+            )
+            .to_result()
+        }
     }
 
     /// Retrieves a raw handle to this function.

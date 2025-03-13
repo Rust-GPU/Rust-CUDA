@@ -422,7 +422,11 @@ impl CurrentContext {
     pub fn get_resource_limit(resource: ResourceLimit) -> CudaResult<usize> {
         unsafe {
             let mut limit: usize = 0;
-            cuda::cuCtxGetLimit(&mut limit as *mut usize, transmute(resource)).to_result()?;
+            cuda::cuCtxGetLimit(
+                &mut limit as *mut usize,
+                transmute::<ResourceLimit, cust_raw::CUlimit_enum>(resource),
+            )
+            .to_result()?;
             Ok(limit)
         }
     }
@@ -517,33 +521,39 @@ impl CurrentContext {
     /// # }
     /// ```
     pub fn set_cache_config(cfg: CacheConfig) -> CudaResult<()> {
-        unsafe { cuda::cuCtxSetCacheConfig(transmute(cfg)).to_result() }
+        unsafe {
+            cuda::cuCtxSetCacheConfig(transmute::<CacheConfig, cust_raw::CUfunc_cache_enum>(cfg))
+                .to_result()
+        }
     }
 
     /// Sets a requested resource limit for the current context.
     ///
-    /// Note that this is only a request; the driver is free to modify the requested value to meet
-    /// hardware requirements. Each limit has some specific restrictions.
+    /// Note that this is only a request; the driver is free to modify the requested
+    /// value to meet hardware requirements. Each limit has some specific restrictions.
     ///
-    /// * `StackSize`: Controls the stack size in bytes for each GPU thread
-    /// * `PrintfFifoSize`: Controls the size in bytes of the FIFO used by the `printf()` device
-    ///   system call. This cannot be changed after a kernel has been launched which uses the
-    ///   `printf()` function.
-    /// * `MallocHeapSize`: Controls the size in bytes of the heap used by the `malloc()` and `free()`
-    ///   device system calls. This cannot be changed aftr a kernel has been launched which uses the
-    ///   `malloc()` and `free()` system calls.
-    /// * `DeviceRuntimeSyncDepth`: Controls the maximum nesting depth of a grid at which a thread
-    ///   can safely call `cudaDeviceSynchronize()`. This cannot be changed after a kernel has been
-    ///   launched which uses the device runtime. When setting this limit, keep in mind that
-    ///   additional levels of sync depth require the driver to reserve large amounts of device
-    ///   memory which can no longer be used for device allocations.
-    /// * `DeviceRuntimePendingLaunchCount`: Controls the maximum number of outstanding device
-    ///    runtime launches that can be made from the current context. A grid is outstanding from
-    ///    the point of the launch up until the grid is known to have completed. Keep in mind that
-    ///    increasing this limit will require the driver to reserve larger amounts of device memory
-    ///    which can no longer be used for device allocations.
-    /// * `MaxL2FetchGranularity`: Controls the L2 fetch granularity. This is purely a performance
-    ///    hint and it can be ignored or clamped depending on the platform.
+    ///   * `StackSize`: Controls the stack size in bytes for each GPU thread
+    ///   * `PrintfFifoSize`: Controls the size in bytes of the FIFO used by the
+    ///     `printf()` device system call. This cannot be changed after a kernel has
+    ///     been launched which uses the `printf()` function.
+    ///   * `MallocHeapSize`: Controls the size in bytes of the heap used by the
+    ///     `malloc()` and `free()` device system calls. This cannot be changed aftr a
+    ///     kernel has been launched which uses the `malloc()` and `free()` system
+    ///     calls.
+    ///   * `DeviceRuntimeSyncDepth`: Controls the maximum nesting depth of a grid at
+    ///     which a thread can safely call `cudaDeviceSynchronize()`. This cannot be
+    ///     changed after a kernel has been launched which uses the device runtime. When
+    ///     setting this limit, keep in mind that additional levels of sync depth
+    ///     require the driver to reserve large amounts of device memory which can no
+    ///     longer be used for device allocations.
+    ///   * `DeviceRuntimePendingLaunchCount`: Controls the maximum number of
+    ///     outstanding device runtime launches that can be made from the current
+    ///     context. A grid is outstanding from the point of the launch up until the
+    ///     grid is known to have completed. Keep in mind that increasing this limit
+    ///     will require the driver to reserve larger amounts of device memory which can
+    ///     no longer be used for device allocations.
+    ///   * `MaxL2FetchGranularity`: Controls the L2 fetch granularity. This is purely a
+    ///     performance hint and it can be ignored or clamped depending on the platform.
     ///
     /// # Example
     ///
@@ -562,7 +572,11 @@ impl CurrentContext {
     /// ```
     pub fn set_resource_limit(resource: ResourceLimit, limit: usize) -> CudaResult<()> {
         unsafe {
-            cuda::cuCtxSetLimit(transmute(resource), limit).to_result()?;
+            cuda::cuCtxSetLimit(
+                transmute::<ResourceLimit, cust_raw::CUlimit_enum>(resource),
+                limit,
+            )
+            .to_result()?;
             Ok(())
         }
     }
@@ -588,7 +602,13 @@ impl CurrentContext {
     /// # }
     /// ```
     pub fn set_shared_memory_config(cfg: SharedMemoryConfig) -> CudaResult<()> {
-        unsafe { cuda::cuCtxSetSharedMemConfig(transmute(cfg)).to_result() }
+        unsafe {
+            cuda::cuCtxSetSharedMemConfig(transmute::<
+                SharedMemoryConfig,
+                cust_raw::CUsharedconfig_enum,
+            >(cfg))
+            .to_result()
+        }
     }
 
     /// Set the given context as the current context for this thread.

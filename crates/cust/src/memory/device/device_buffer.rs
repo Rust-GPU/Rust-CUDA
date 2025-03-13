@@ -124,26 +124,26 @@ impl<T: DeviceCopy> DeviceBuffer<T> {
         unsafe { cuda_free_async(stream, me.buf) }
     }
 
-    /// Creates a `DeviceBuffer<T>` directly from the raw components of another device buffer.
+    /// Creates a `DeviceBuffer<T>` directly from the raw components of another device
+    /// buffer.
     ///
     /// # Safety
     ///
-    /// This is highly unsafe, due to the number of invariants that aren't
-    /// checked:
+    /// This is highly unsafe, due to the number of invariants that aren't checked:
     ///
-    /// * `ptr` needs to have been previously allocated via `DeviceBuffer` or
-    /// [`cuda_malloc`](fn.cuda_malloc.html).
-    /// * `ptr`'s `T` needs to have the same size and alignment as it was allocated with.
-    /// * `capacity` needs to be the capacity that the pointer was allocated with.
+    ///   * `ptr` needs to have been previously allocated via `DeviceBuffer` or
+    ///     [`cuda_malloc`](fn.cuda_malloc.html).
+    ///   * `ptr`'s `T` needs to have the same size and alignment as it was allocated
+    ///     with.
+    ///   * `capacity` needs to be the capacity that the pointer was allocated with.
     ///
-    /// Violating these may cause problems like corrupting the CUDA driver's
-    /// internal data structures.
+    /// Violating these may cause problems like corrupting the CUDA driver's internal
+    /// data structures.
     ///
-    /// The ownership of `ptr` is effectively transferred to the
-    /// `DeviceBuffer<T>` which may then deallocate, reallocate or change the
-    /// contents of memory pointed to by the pointer at will. Ensure
-    /// that nothing else uses the pointer after calling this
-    /// function.
+    /// The ownership of `ptr` is effectively transferred to the `DeviceBuffer<T>` which
+    /// may then deallocate, reallocate or change the contents of memory pointed to by
+    /// the pointer at will. Ensure that nothing else uses the pointer after calling
+    /// this function.
     ///
     /// # Examples
     ///
@@ -237,16 +237,18 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
         }
     }
 
-    /// Allocates device memory asynchronously and asynchronously fills it with zeroes (`0u8`).
+    /// Allocates device memory asynchronously and asynchronously fills it with zeroes
+    /// (`0u8`).
     ///
     /// This doesn't actually allocate if `T` is zero-sized.
     ///
     /// # Safety
     ///
-    /// This method enqueues two operations on the stream: An async allocation
-    /// and an async memset. Because of this, you must ensure that:
-    /// - The memory is not used in any way before it is actually allocated on the stream. You
-    /// can ensure this happens by synchronizing the stream explicitly or using events.
+    /// This method enqueues two operations on the stream: An async allocation and an
+    /// async memset. Because of this, you must ensure that:
+    ///   - The memory is not used in any way before it is actually allocated on the
+    ///     stream. You can ensure this happens by synchronizing the stream explicitly
+    ///     or using events.
     ///
     /// # Examples
     ///
@@ -302,17 +304,18 @@ impl<A: DeviceCopy + Pod> DeviceBuffer<A> {
         }
     }
 
-    /// Tries to convert a [`DeviceBuffer`] of type `A` to a [`DeviceBuffer`] of type `B`. Returning
-    /// an error if it failed.
+    /// Tries to convert a [`DeviceBuffer`] of type `A` to a [`DeviceBuffer`] of type
+    /// `B`. Returning an error if it failed.
     ///
     /// The length of the buffer after the conversion may have changed.
     ///
     /// # Failure
     ///
-    /// - If the target type has a greater alignment requirement.
-    /// - If the target element type is a different size and the output buffer wouldn't have a
-    /// whole number of elements. Such as `3` x [`u16`] -> `1.5` x [`u32`].
-    /// - If either type is a ZST (but not both).
+    ///   - If the target type has a greater alignment requirement.
+    ///   - If the target element type is a different size and the output buffer
+    ///     wouldn't have a whole number of elements. Such as `3` x [`u16`] -> `1.5` x
+    ///     [`u32`].
+    ///   - If either type is a ZST (but not both).
     #[cfg_attr(docsrs, doc(cfg(feature = "bytemuck")))]
     pub fn try_cast<B: Pod + DeviceCopy>(self) -> Result<DeviceBuffer<B>, PodCastError> {
         if align_of::<B>() > align_of::<A>() && (self.buf.as_raw() as usize) % align_of::<B>() != 0
@@ -320,15 +323,17 @@ impl<A: DeviceCopy + Pod> DeviceBuffer<A> {
             Err(PodCastError::TargetAlignmentGreaterAndInputNotAligned)
         } else if size_of::<B>() == size_of::<A>() {
             // SAFETY: we made sure sizes were compatible, and DeviceBuffer is repr(C)
-            Ok(unsafe { transmute::<_, DeviceBuffer<B>>(self) })
+            Ok(unsafe { transmute::<DeviceBuffer<A>, DeviceBuffer<B>>(self) })
         } else if size_of::<A>() == 0 || size_of::<B>() == 0 {
             Err(PodCastError::SizeMismatch)
         } else if (size_of::<A>() * self.len) % size_of::<B>() == 0 {
             let new_len = (size_of::<A>() * self.len) / size_of::<B>();
-            Ok(DeviceBuffer {
+            let ret = Ok(DeviceBuffer {
                 buf: self.buf.cast(),
                 len: new_len,
-            })
+            });
+            std::mem::forget(self);
+            ret
         } else {
             Err(PodCastError::OutputSliceWouldHaveSlop)
         }
@@ -401,13 +406,13 @@ impl<T: DeviceCopy> Deref for DeviceBuffer<T> {
     type Target = DeviceSlice<T>;
 
     fn deref(&self) -> &DeviceSlice<T> {
-        unsafe { &*(self as *const _ as *const DeviceSlice<T>) }
+        unsafe { DeviceSlice::from_raw_parts(self.buf, self.len) }
     }
 }
 
 impl<T: DeviceCopy> DerefMut for DeviceBuffer<T> {
     fn deref_mut(&mut self) -> &mut DeviceSlice<T> {
-        unsafe { &mut *(self as *mut _ as *mut DeviceSlice<T>) }
+        unsafe { DeviceSlice::from_raw_parts_mut(self.buf, self.len) }
     }
 }
 

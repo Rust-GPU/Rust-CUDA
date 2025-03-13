@@ -19,23 +19,25 @@ where
     ///
     /// # Arguments
     ///
-    /// * `shape` - slice containing the size of the filter for every dimension.
+    ///  * `shape` - slice containing the size of the filter for every dimension.
+    ///  * `format` - tensor format. If set to [`Nchw`](ScalarC::Nchw), then the layout
+    ///    of the filter is as follows: for D = 4, a 4D filter descriptor, the filter
+    ///    layout is in the form of KCRS, i.e. K represents the number of output feature
+    ///    maps, C is the number of input feature maps, R is the number of rows per
+    ///    filter, S is the number of columns per filter. For N = 3, a 3D filter
+    ///    descriptor, the number S (number of columns per filter) is omitted. For N = 5
+    ///    and greater, the layout of the higher dimensions immediately follows RS.
     ///
-    /// * `format` - tensor format. If set to [`Nchw`](ScalarC::Nchw), then the layout of the
-    /// filter is as follows: for D = 4, a 4D filter descriptor, the filter layout is in the form of
-    /// KCRS, i.e. K represents the number of output feature maps, C is the number of input feature
-    /// maps, R is the number of rows per filter, S is the number of columns per filter. For N = 3,
-    /// a 3D filter descriptor, the number S (number of columns per filter) is omitted. For N = 5
-    /// and greater, the layout of the higher dimensions immediately follows RS.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetFilterNdDescriptor)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetFilterNdDescriptor)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns an error if at least one of the elements of the array shape was negative or zero,
-    /// the dimension was smaller than 3 or larger than `CUDNN_DIM_MAX`, or the total size of the
-    /// filter descriptor exceeds the maximum limit of 2 Giga-elements.
+    /// Returns an error if at least one of the elements of the array shape was negative
+    /// or zero, the dimension was smaller than 3 or larger than `CUDNN_DIM_MAX`, or the
+    /// total size of the filter descriptor exceeds the maximum limit of 2
+    /// Giga-elements.
     ///
     /// # Examples
     ///

@@ -47,62 +47,46 @@ where
     ///
     /// # Arguments
     ///
-    /// * `mode` -  bit flag enabling various attention options that do not require additional
-    /// numerical values.
+    ///   * `mode` -  bit flag enabling various attention options that do not require
+    ///     additional numerical values.
+    ///   * `n_heads` - number of attention heads.
+    ///   * `sm_scaler` - softmax sharpening/smoothing coefficient. Must be positive.
+    ///   * `math_type` - nvidia tensor cores setting.
+    ///   * `attn_dropout_desc` - descriptor of the dropout operation applied to the
+    ///     softmax output.
+    ///   * `post_dropout_desc` - descriptor of the dropout operation applied to the
+    ///     multi-head attention output, just before the point where residual
+    ///     connections are added.
+    ///   * `q_size` - q vectors length.
+    ///   * `k_size` - k vectors length.
+    ///   * `v_size` - v vectors length.
+    ///   * `q_proj_size` - q vectors length after input projection.
+    ///   * `k_proj_size` - k vectors length after input projection.
+    ///   * `v_proj_size` - v vectors length after input projection.
+    ///   * `o_proj_size` - h vectors length after output projection.
+    ///   * `qo_max_seq_length` - largest sequence length expected in sequence data
+    ///     descriptors related to Q, O, dQ and dO inputs and outputs.
+    ///   * `kv_max_seq_length` - largest sequence length expected in sequence data
+    ///     descriptors related to K, V, dK and dV inputs and outputs.
+    ///   * `max_batch_size` - largest batch expected in any sequential data descriptor.
+    ///   * `max_bream_size` - largest beam expected in any sequential data descriptor.
     ///
-    /// * `n_heads` - number of attention heads.
-    ///
-    /// * `sm_scaler` - softmax sharpening/smoothing coefficient. Must be positive.
-    ///
-    /// * `math_type` - nvidia tensor cores setting.
-    ///
-    /// * `attn_dropout_desc` - descriptor of the dropout operation applied to the softmax output.
-    ///
-    /// * `post_dropout_desc` - descriptor of the dropout operation applied to the multi-head
-    /// attention output, just before the point where residual connections are added.
-    ///
-    /// * `q_size` - q vectors length.
-    ///
-    /// * `k_size` - k vectors length.
-    ///
-    /// * `v_size` - v vectors length.
-    ///
-    /// * `q_proj_size` - q vectors length after input projection.
-    ///
-    /// * `k_proj_size` - k vectors length after input projection.
-    ///
-    /// * `v_proj_size` - v vectors length after input projection.
-    ///
-    /// * `o_proj_size` - h vectors length after output projection.
-    ///
-    /// * `qo_max_seq_length` - largest sequence length expected in sequence data descriptors
-    /// related to Q, O, dQ and dO inputs and outputs.
-    ///
-    /// * `kv_max_seq_length` - largest sequence length expected in sequence data descriptors
-    /// related to K, V, dK and dV inputs and outputs.
-    ///
-    /// * `max_batch_size` - largest batch expected in any sequential data descriptor.
-    ///
-    /// * `max_bream_size` - largest beam expected in any sequential data descriptor.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetAttnDescriptor)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetAttnDescriptor)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if an unsupported combination of arguments is detected. Some examples
-    /// include:
+    /// Returns errors if an unsupported combination of arguments is detected. Some
+    /// examples include:
     ///
-    /// * post projection Q and K are not equal.
-    ///
-    /// * math type is not supported.
-    ///
-    /// * one or more of the following arguments were either negative or zero: `n_heads`,
-    /// `q_size`, `k_size`, `v_size`, `qo_max_seq_length`, `kv_max_seq_length`, `max_batch_size` and
-    /// ` max_beam_size`.
-    ///
-    /// * one or more of the following arguments were negative: `q_proj_size`, `k_proj_size`,
-    /// `v_proj_size`, `sm_scaler`.
+    ///   * post projection Q and K are not equal.
+    ///   * math type is not supported.
+    ///   * one or more of the following arguments were either negative or zero:
+    ///     `n_heads`, `q_size`, `k_size`, `v_size`, `qo_max_seq_length`,
+    ///     `kv_max_seq_length`, `max_batch_size` and ` max_beam_size`.
+    ///   * one or more of the following arguments were negative: `q_proj_size`,
+    ///     `k_proj_size`, `v_proj_size`, `sm_scaler`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         mode: AttnModeFlags,
@@ -182,9 +166,8 @@ where
 /// Controls the compute math precision in the multi-head attention. The following
 /// applies:
 ///
-/// * For input and output in `f32`, the math precision of the layer can only be `f32`.
-///
-/// * For input and output in `f64` the math precision of the layer can only be `f64`.
+///   * For input and output in `f32`, the math precision of the layer can only be `f32`.
+///   * For input and output in `f64` the math precision of the layer can only be `f64`.
 pub trait SupportedAttn<T>
 where
     Self: DataType,

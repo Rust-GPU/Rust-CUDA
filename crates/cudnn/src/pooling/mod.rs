@@ -10,32 +10,27 @@ use crate::{
 use cust::memory::GpuBuffer;
 
 impl CudnnContext {
-    /// This function computes the pooling of the input tensor and produces a smaller tensor in
-    /// output.
+    /// This function computes the pooling of the input tensor and produces a smaller
+    /// tensor in output.
     ///
     /// # Arguments
     ///
     /// * `pooling_desc` - descriptor of the pooling operation.
-    ///
     /// * `alpha` - scaling factor for the result.
-    ///
     /// * `x_desc` - descriptor for the input tensor.
-    ///
     /// * `x` - data for the input tensor.
-    ///
     /// * `beta` - scaling factor for the destination tensor.
-    ///
     /// * `y_desc` - descriptor for the destination tensor.
-    ///
     /// * `y` - data for the destination tensor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingForward)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingForward)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if the batch size or channels dimensions of the two tensor differ or an
-    /// invalid combination of arguments is detected.
+    /// Returns errors if the batch size or channels dimensions of the two tensor differ
+    /// or an invalid combination of arguments is detected.
     #[allow(clippy::too_many_arguments)]
     pub fn pooling_forward<CompT, T>(
         &self,
@@ -77,25 +72,15 @@ impl CudnnContext {
     /// # Arguments
     ///
     /// * `pooling_desc` - descriptor of the pooling operation.
-    ///
     /// * `alpha` - scaling factor for the result.
-    ///
     /// * `y_desc` - tensor descriptor for the output map.
-    ///
     /// * `y` - data for the output map.
-    ///
     /// * `dy_desc` - tensor descriptor for the differential of the output map.
-    ///
     /// * `dy` - data foe the differential of the output map.
-    ///
     /// * `x_desc` - tensor descriptor for the pooling input.
-    ///
     /// * `x` - data for the pooling input.
-    ///
     /// * `beta` - scaling factor for the destination tensor.
-    ///
     /// * `dx_desc` - tensor descriptor for the input differential.
-    ///
     /// * `dx` - data for the input differential.
     ///
     /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingBackward)

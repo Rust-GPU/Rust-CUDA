@@ -13,13 +13,9 @@ impl PoolingDescriptor {
     /// # Arguments
     ///
     /// * `mode` - pooling mode.
-    ///
     /// * `nan_opt` - nan propagation policy.
-    ///
     /// * `window_shape` - shape of the pooling window.
-    ///
     /// * `padding` - padding size for each dimension. Negative padding is allowed.
-    ///
     /// * `stride` - stride for each dimension.
     ///
     /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetPoolingNdDescriptor)

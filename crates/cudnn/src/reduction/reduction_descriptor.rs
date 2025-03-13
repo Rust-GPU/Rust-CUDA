@@ -22,15 +22,12 @@ where
     /// # Arguments
     ///
     /// * `op` - tensor reduction operation.
-    ///
     /// * `non_opt` - NaN propagation policy.
-    ///
     /// * `indices` - whether to compute indices or not.
-    ///
     /// * `indices_type` - data type of the indices.
     ///
-    /// **Do note** that requesting indices for operations other than min and max will result in
-    /// an error.
+    /// **Do note** that requesting indices for operations other than min and max will
+    /// result in an error.
     ///
     /// # Errors
     ///

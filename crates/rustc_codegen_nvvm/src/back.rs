@@ -1,37 +1,36 @@
-use crate::llvm::{self};
-use crate::override_fns::define_or_override_fn;
-use crate::{builder::Builder, context::CodegenCx, lto::ThinBuffer, LlvmMod, NvvmCodegenBackend};
+use std::io::{self, Write};
+use std::slice;
+use std::sync::Arc;
+
 use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
-use rustc_codegen_ssa::traits::{DebugInfoMethods, MiscMethods};
+use rustc_codegen_ssa::traits::{DebugInfoCodegenMethods, MiscCodegenMethods};
 use rustc_codegen_ssa::{
+    CompiledModule, ModuleCodegen,
     back::write::{CodegenContext, ModuleConfig},
     base::maybe_create_entry_wrapper,
     mono_item::MonoItemExt,
-    traits::{BaseTypeMethods, ThinBufferMethods},
-    CompiledModule, ModuleCodegen, ModuleKind,
+    traits::{BaseTypeCodegenMethods, ThinBufferMethods},
 };
-use rustc_data_structures::small_c_str::SmallCStr;
-use rustc_errors::{FatalError, Handler};
+use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_fs_util::path_to_c_string;
 use rustc_middle::bug;
-use rustc_middle::mir::mono::MonoItem;
+use rustc_middle::mir::mono::{MonoItem, MonoItemData};
 use rustc_middle::{dep_graph, ty::TyCtxt};
-use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_session::Session;
+use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
-use std::ffi::CString;
-use std::sync::Arc;
-use std::{
-    io::{self, Write},
-    slice,
-};
 
-pub fn llvm_err(handler: &Handler, msg: &str) -> FatalError {
+use crate::common::AsCCharPtr;
+use crate::llvm::{self};
+use crate::override_fns::define_or_override_fn;
+use crate::{LlvmMod, NvvmCodegenBackend, builder::Builder, context::CodegenCx, lto::ThinBuffer};
+
+pub fn llvm_err(handle: DiagCtxtHandle, msg: &str) -> FatalError {
     match llvm::last_error() {
-        Some(err) => handler.fatal(&format!("{}: {}", msg, err)),
-        None => handler.fatal(msg),
+        Some(err) => handle.fatal(format!("{}: {}", msg, err)),
+        None => handle.fatal(msg.to_string()),
     }
 }
 
@@ -42,7 +41,7 @@ pub fn to_llvm_opt_settings(
     match cfg {
         No => (llvm::CodeGenOptLevel::None, llvm::CodeGenOptSizeNone),
         Less => (llvm::CodeGenOptLevel::Less, llvm::CodeGenOptSizeNone),
-        Default => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeNone),
+        More => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeNone),
         Aggressive => (llvm::CodeGenOptLevel::Aggressive, llvm::CodeGenOptSizeNone),
         Size => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeDefault),
         SizeMin => (
@@ -86,28 +85,31 @@ pub fn target_machine_factory(
 
     let ffunction_sections = sess
         .opts
-        .debugging_opts
+        .unstable_opts
         .function_sections
         .unwrap_or(sess.target.function_sections);
     let fdata_sections = ffunction_sections;
 
     let code_model = to_llvm_code_model(sess.code_model());
 
-    let triple = SmallCStr::new(&sess.target.llvm_target);
+    let triple = sess.target.llvm_target.clone();
     // let cpu = SmallCStr::new("sm_30");
-    let features = CString::new("").unwrap();
+    let features = "";
     let trap_unreachable = sess
         .opts
-        .debugging_opts
+        .unstable_opts
         .trap_unreachable
         .unwrap_or(sess.target.trap_unreachable);
 
     Arc::new(move |_config: TargetMachineFactoryConfig| {
         let tm = unsafe {
             llvm::LLVMRustCreateTargetMachine(
-                triple.as_ptr(),
+                triple.as_c_char_ptr(),
+                triple.len(),
                 std::ptr::null(),
-                features.as_ptr(),
+                0,
+                features.as_c_char_ptr(),
+                features.len(),
                 code_model,
                 reloc_model,
                 opt_level,
@@ -119,12 +121,7 @@ pub fn target_machine_factory(
                 false,
             )
         };
-        tm.ok_or_else(|| {
-            format!(
-                "Could not create LLVM TargetMachine for triple: {}",
-                triple.to_str().unwrap()
-            )
-        })
+        tm.ok_or_else(|| format!("Could not create LLVM TargetMachine for triple: {}", triple))
     })
 }
 
@@ -134,14 +131,14 @@ pub extern "C" fn demangle_callback(
     output_ptr: *mut c_char,
     output_len: size_t,
 ) -> size_t {
-    let input = unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len as usize) };
+    let input = unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len) };
 
     let input = match std::str::from_utf8(input) {
         Ok(s) => s,
         Err(_) => return 0,
     };
 
-    let output = unsafe { slice::from_raw_parts_mut(output_ptr as *mut u8, output_len as usize) };
+    let output = unsafe { slice::from_raw_parts_mut(output_ptr as *mut u8, output_len) };
     let mut cursor = io::Cursor::new(output);
 
     let demangled = match rustc_demangle::try_demangle(input) {
@@ -160,7 +157,7 @@ pub extern "C" fn demangle_callback(
 /// Compile a single module (in an nvvm context this means getting the llvm bitcode out of it)
 pub(crate) unsafe fn codegen(
     cgcx: &CodegenContext<NvvmCodegenBackend>,
-    diag_handler: &Handler,
+    dcx: DiagCtxtHandle<'_>,
     module: ModuleCodegen<LlvmMod>,
     config: &ModuleConfig,
 ) -> Result<CompiledModule, FatalError> {
@@ -177,7 +174,7 @@ pub(crate) unsafe fn codegen(
         .prof
         .generic_activity_with_arg("NVVM_module_codegen", &module.name[..]);
 
-    let llmod = module.module_llvm.llmod.as_ref().unwrap();
+    let llmod = unsafe { module.module_llvm.llmod.as_ref().unwrap() };
     let mod_name = module.name.clone();
     let module_name = Some(&mod_name[..]);
 
@@ -195,13 +192,15 @@ pub(crate) unsafe fn codegen(
         let out = cgcx
             .output_filenames
             .temp_path(OutputType::LlvmAssembly, module_name);
-        let out_c = path_to_c_string(&out);
+        let out = out.to_str().unwrap();
 
-        let result = llvm::LLVMRustPrintModule(llmod, out_c.as_ptr(), demangle_callback);
+        let result = unsafe {
+            llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback)
+        };
 
         result.into_result().map_err(|()| {
-            let msg = format!("failed to write NVVM IR to {}", out.display());
-            llvm_err(diag_handler, &msg)
+            let msg = format!("failed to write NVVM IR to {}", out);
+            llvm_err(dcx, &msg)
         })?;
     }
 
@@ -219,7 +218,7 @@ pub(crate) unsafe fn codegen(
 
     if let Err(e) = std::fs::write(&out, data) {
         let msg = format!("failed to write bytecode to {}: {}", out.display(), e);
-        diag_handler.err(&msg);
+        dcx.err(msg);
     }
 
     Ok(CompiledModule {
@@ -228,6 +227,8 @@ pub(crate) unsafe fn codegen(
         object: Some(out),
         dwarf_object: None,
         bytecode: None,
+        assembly: None,
+        llvm_ir: None,
     })
 }
 
@@ -251,13 +252,21 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
         let cgu = tcx.codegen_unit(cgu_name);
 
         // Instantiate monomorphizations without filling out definitions yet...
-        let llvm_module = LlvmMod::new(&cgu_name.as_str());
+        let llvm_module = LlvmMod::new(cgu_name.as_str());
         {
             let cx = CodegenCx::new(tcx, cgu, &llvm_module);
 
             let mono_items = cx.codegen_unit.items_in_deterministic_order(cx.tcx);
 
-            for &(mono_item, (linkage, visibility)) in &mono_items {
+            for &(
+                mono_item,
+                MonoItemData {
+                    linkage,
+                    visibility,
+                    ..
+                },
+            ) in &mono_items
+            {
                 mono_item.predefine::<Builder<'_, '_, '_>>(&cx, linkage, visibility);
             }
 
@@ -285,11 +294,14 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
             }
 
             // Create the llvm.used and llvm.compiler.used variables.
-            if !cx.used_statics().borrow().is_empty() {
-                cx.create_used_variable();
+            if !cx.used_statics.borrow().is_empty() {
+                cx.create_used_variable_impl(c"llvm.used", &cx.used_statics.borrow());
             }
-            if !cx.compiler_used_statics().borrow().is_empty() {
-                cx.create_compiler_used_variable();
+            if !cx.compiler_used_statics.borrow().is_empty() {
+                cx.create_used_variable_impl(
+                    c"llvm.compiler.used",
+                    &cx.compiler_used_statics.borrow(),
+                );
             }
 
             // Finalize debuginfo
@@ -298,11 +310,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
             }
         }
 
-        ModuleCodegen {
-            name: cgu_name.to_string(),
-            module_llvm: llvm_module,
-            kind: ModuleKind::Regular,
-        }
+        ModuleCodegen::new_regular(cgu_name.to_string(), llvm_module)
     }
 
     // TODO(RDambrosio016): maybe the same cost as the llvm codegen works?
@@ -315,7 +323,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
 // any big things were discovered in that timespan that we should modify.
 pub(crate) unsafe fn optimize(
     cgcx: &CodegenContext<NvvmCodegenBackend>,
-    diag_handler: &Handler,
+    diag_handler: DiagCtxtHandle<'_>,
     module: &ModuleCodegen<LlvmMod>,
     config: &ModuleConfig,
 ) -> Result<(), FatalError> {
@@ -323,7 +331,7 @@ pub(crate) unsafe fn optimize(
         .prof
         .generic_activity_with_arg("LLVM_module_optimize", &module.name[..]);
 
-    let llmod = &*module.module_llvm.llmod;
+    let llmod = unsafe { &*module.module_llvm.llmod };
 
     let module_name = module.name.clone();
     let module_name = Some(&module_name[..]);
@@ -333,65 +341,68 @@ pub(crate) unsafe fn optimize(
             .output_filenames
             .temp_path_ext("no-opt.bc", module_name);
         let out = path_to_c_string(&out);
-        llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr());
+        unsafe { llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
     }
 
     let tm_factory_config = TargetMachineFactoryConfig {
         split_dwarf_file: None,
+        output_obj_file: None,
     };
 
     let tm = (cgcx.tm_factory)(tm_factory_config).expect("failed to create target machine");
 
     if config.opt_level.is_some() {
-        let fpm = llvm::LLVMCreateFunctionPassManagerForModule(llmod);
-        let mpm = llvm::LLVMCreatePassManager();
+        unsafe {
+            let fpm = llvm::LLVMCreateFunctionPassManagerForModule(llmod);
+            let mpm = llvm::LLVMCreatePassManager();
 
-        let addpass = |pass_name: &str| {
-            let pass_name = CString::new(pass_name).unwrap();
-            let pass = llvm::LLVMRustFindAndCreatePass(pass_name.as_ptr());
-            if pass.is_none() {
-                return false;
-            }
-            let pass = pass.unwrap();
-            let pass_manager = match llvm::LLVMRustPassKind(pass) {
-                llvm::PassKind::Function => &fpm,
-                llvm::PassKind::Module => &mpm,
-                llvm::PassKind::Other => {
-                    diag_handler.err("Encountered LLVM pass kind we can't handle");
-                    return true;
+            let addpass = |pass_name: &str| {
+                let pass =
+                    llvm::LLVMRustFindAndCreatePass(pass_name.as_c_char_ptr(), pass_name.len());
+                if pass.is_none() {
+                    return false;
                 }
+                let pass = pass.unwrap();
+                let pass_manager = match llvm::LLVMRustPassKind(pass) {
+                    llvm::PassKind::Function => &fpm,
+                    llvm::PassKind::Module => &mpm,
+                    llvm::PassKind::Other => {
+                        diag_handler.err("Encountered LLVM pass kind we can't handle");
+                        return true;
+                    }
+                };
+                llvm::LLVMRustAddPass(pass_manager, pass);
+                true
             };
-            llvm::LLVMRustAddPass(pass_manager, pass);
-            true
-        };
 
-        if !config.no_prepopulate_passes {
-            llvm::LLVMRustAddAnalysisPasses(tm, fpm, llmod);
-            llvm::LLVMRustAddAnalysisPasses(tm, mpm, llmod);
-            let opt_level = config
-                .opt_level
-                .map_or(llvm::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
-            with_llvm_pmb(llmod, config, opt_level, &mut |b| {
-                llvm::LLVMPassManagerBuilderPopulateFunctionPassManager(b, fpm);
-                llvm::LLVMPassManagerBuilderPopulateModulePassManager(b, mpm);
-            })
-        }
-
-        for pass in &config.passes {
-            if !addpass(pass) {
-                diag_handler.warn(&format!("unknown pass `{}`, ignoring", pass));
+            if !config.no_prepopulate_passes {
+                llvm::LLVMRustAddAnalysisPasses(tm, fpm, llmod);
+                llvm::LLVMRustAddAnalysisPasses(tm, mpm, llmod);
+                let opt_level = config
+                    .opt_level
+                    .map_or(llvm::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
+                with_llvm_pmb(llmod, config, opt_level, &mut |b| {
+                    llvm::LLVMPassManagerBuilderPopulateFunctionPassManager(b, fpm);
+                    llvm::LLVMPassManagerBuilderPopulateModulePassManager(b, mpm);
+                })
             }
+
+            for pass in &config.passes {
+                if !addpass(pass) {
+                    diag_handler.warn(format!("unknown pass `{}`, ignoring", pass));
+                }
+            }
+
+            diag_handler.abort_if_errors();
+
+            // Finally, run the actual optimization passes
+            llvm::LLVMRustRunFunctionPassManager(fpm, llmod);
+            llvm::LLVMRunPassManager(mpm, llmod);
+
+            // Deallocate managers that we're now done with
+            llvm::LLVMDisposePassManager(fpm);
+            llvm::LLVMDisposePassManager(mpm);
         }
-
-        diag_handler.abort_if_errors();
-
-        // Finally, run the actual optimization passes
-        llvm::LLVMRustRunFunctionPassManager(fpm, llmod);
-        llvm::LLVMRunPassManager(mpm, llmod);
-
-        // Deallocate managers that we're now done with
-        llvm::LLVMDisposePassManager(fpm);
-        llvm::LLVMDisposePassManager(mpm);
     }
 
     Ok(())
@@ -403,64 +414,62 @@ unsafe fn with_llvm_pmb(
     opt_level: llvm::CodeGenOptLevel,
     f: &mut impl FnMut(&llvm::PassManagerBuilder),
 ) {
-    use std::ptr;
+    unsafe {
+        use std::ptr;
 
-    let builder = llvm::LLVMPassManagerBuilderCreate();
-    let opt_size = config
-        .opt_size
-        .map_or(llvm::CodeGenOptSizeNone, |x| to_llvm_opt_settings(x).1);
-    let inline_threshold = config.inline_threshold;
+        let builder = llvm::LLVMPassManagerBuilderCreate();
+        let opt_size = config
+            .opt_size
+            .map_or(llvm::CodeGenOptSizeNone, |x| to_llvm_opt_settings(x).1);
 
-    llvm::LLVMRustConfigurePassManagerBuilder(
-        builder,
-        opt_level,
-        config.merge_functions,
-        config.vectorize_slp,
-        config.vectorize_loop,
-        false,
-        ptr::null(),
-        ptr::null(),
-    );
+        llvm::LLVMRustConfigurePassManagerBuilder(
+            builder,
+            opt_level,
+            config.merge_functions,
+            config.vectorize_slp,
+            config.vectorize_loop,
+            false,
+            ptr::null(),
+            ptr::null(),
+        );
 
-    llvm::LLVMPassManagerBuilderSetSizeLevel(builder, opt_size as u32);
+        llvm::LLVMPassManagerBuilderSetSizeLevel(builder, opt_size as u32);
 
-    if opt_size != llvm::CodeGenOptSizeNone {
-        llvm::LLVMPassManagerBuilderSetDisableUnrollLoops(builder, 1);
+        if opt_size != llvm::CodeGenOptSizeNone {
+            llvm::LLVMPassManagerBuilderSetDisableUnrollLoops(builder, 1);
+        }
+
+        llvm::LLVMRustAddBuilderLibraryInfo(builder, llmod, config.no_builtins);
+
+        // Here we match what clang does (kinda). For O0 we only inline
+        // always-inline functions (but don't add lifetime intrinsics), at O1 we
+        // inline with lifetime intrinsics, and O2+ we add an inliner with a
+        // thresholds copied from clang.
+        match (opt_level, opt_size) {
+            (llvm::CodeGenOptLevel::Aggressive, ..) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 275);
+            }
+            (_, llvm::CodeGenOptSizeDefault) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 75);
+            }
+            (_, llvm::CodeGenOptSizeAggressive) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 25);
+            }
+            (llvm::CodeGenOptLevel::None, ..) => {
+                llvm::LLVMRustAddAlwaysInlinePass(builder, false);
+            }
+            (llvm::CodeGenOptLevel::Less, ..) => {
+                llvm::LLVMRustAddAlwaysInlinePass(builder, true);
+            }
+            (llvm::CodeGenOptLevel::Default, ..) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 225);
+            }
+            (llvm::CodeGenOptLevel::Other, ..) => {
+                bug!("CodeGenOptLevel::Other selected")
+            }
+        }
+
+        f(builder);
+        llvm::LLVMPassManagerBuilderDispose(builder);
     }
-
-    llvm::LLVMRustAddBuilderLibraryInfo(builder, llmod, config.no_builtins);
-
-    // Here we match what clang does (kinda). For O0 we only inline
-    // always-inline functions (but don't add lifetime intrinsics), at O1 we
-    // inline with lifetime intrinsics, and O2+ we add an inliner with a
-    // thresholds copied from clang.
-    match (opt_level, opt_size, inline_threshold) {
-        (.., Some(t)) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, t as u32);
-        }
-        (llvm::CodeGenOptLevel::Aggressive, ..) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 275);
-        }
-        (_, llvm::CodeGenOptSizeDefault, _) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 75);
-        }
-        (_, llvm::CodeGenOptSizeAggressive, _) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 25);
-        }
-        (llvm::CodeGenOptLevel::None, ..) => {
-            llvm::LLVMRustAddAlwaysInlinePass(builder, false);
-        }
-        (llvm::CodeGenOptLevel::Less, ..) => {
-            llvm::LLVMRustAddAlwaysInlinePass(builder, true);
-        }
-        (llvm::CodeGenOptLevel::Default, ..) => {
-            llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 225);
-        }
-        (llvm::CodeGenOptLevel::Other, ..) => {
-            bug!("CodeGenOptLevel::Other selected")
-        }
-    }
-
-    f(builder);
-    llvm::LLVMPassManagerBuilderDispose(builder);
 }

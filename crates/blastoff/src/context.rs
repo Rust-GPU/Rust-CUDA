@@ -140,7 +140,13 @@ impl CublasContext {
     ) -> Result<T> {
         unsafe {
             // cudaStream_t is the same as CUstream
-            sys::v2::cublasSetStream_v2(self.raw, mem::transmute(stream.as_inner())).to_result()?;
+            sys::v2::cublasSetStream_v2(
+                self.raw,
+                mem::transmute::<*mut cust::sys::CUstream_st, *mut cublas_sys::v2::CUstream_st>(
+                    stream.as_inner(),
+                ),
+            )
+            .to_result()?;
             let res = func(self)?;
             // reset the stream back to NULL just in case someone calls with_stream, then drops the stream, and tries to
             // execute a raw sys function with the context's handle.
@@ -227,10 +233,11 @@ impl CublasContext {
     /// ```
     pub fn set_math_mode(&self, math_mode: MathMode) -> Result<()> {
         unsafe {
-            Ok(
-                sys::v2::cublasSetMathMode(self.raw, mem::transmute(math_mode.bits()))
-                    .to_result()?,
+            Ok(sys::v2::cublasSetMathMode(
+                self.raw,
+                mem::transmute::<u32, cublas_sys::v2::cublasMath_t>(math_mode.bits()),
             )
+            .to_result()?)
         }
     }
 

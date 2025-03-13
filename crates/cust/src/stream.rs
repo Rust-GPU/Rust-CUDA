@@ -13,7 +13,7 @@
 use crate::error::{CudaResult, DropResult, ToResult};
 use crate::event::Event;
 use crate::function::{BlockSize, Function, GridSize};
-use crate::sys::{self as cuda, CUstream};
+use crate::sys::{self as cuda, cudaError_enum, CUstream};
 use std::ffi::c_void;
 use std::mem;
 use std::panic;
@@ -151,6 +151,9 @@ impl Stream {
     ///
     /// Callbacks must not make any CUDA API calls.
     ///
+    /// The callback will be passed a `CudaResult<()>` indicating the
+    /// current state of the device with `Ok(())` denoting normal operation.
+    ///
     /// # Examples
     ///
     /// ```
@@ -164,8 +167,8 @@ impl Stream {
     ///
     /// // ... queue up some work on the stream
     ///
-    /// stream.add_callback(Box::new(|| {
-    ///     println!("Work is done!");
+    /// stream.add_callback(Box::new(|status| {
+    ///     println!("Device status is {:?}", status);
     /// }));
     ///
     /// // ... queue up some more work on the stream
@@ -173,13 +176,14 @@ impl Stream {
     /// # }
     pub fn add_callback<T>(&self, callback: Box<T>) -> CudaResult<()>
     where
-        T: FnOnce() + Send,
+        T: FnOnce(CudaResult<()>) + Send,
     {
         unsafe {
-            cuda::cuLaunchHostFunc(
+            cuda::cuStreamAddCallback(
                 self.inner,
                 Some(callback_wrapper::<T>),
                 Box::into_raw(callback) as *mut c_void,
+                0,
             )
             .to_result()
         }
@@ -237,11 +241,11 @@ impl Stream {
     /// event.record(&stream_0)?;
     ///
     /// // wait until the work on stream_0 is finished before continuing stream_1
-    /// stream_1.wait_event(event, StreamWaitEventFlags::DEFAULT)?;
+    /// stream_1.wait_event(&event, StreamWaitEventFlags::DEFAULT)?;
     /// # Ok(())
     /// }
     /// ```
-    pub fn wait_event(&self, event: Event, flags: StreamWaitEventFlags) -> CudaResult<()> {
+    pub fn wait_event(&self, event: &Event, flags: StreamWaitEventFlags) -> CudaResult<()> {
         unsafe { cuda::cuStreamWaitEvent(self.inner, event.as_inner(), flags.bits()).to_result() }
     }
 
@@ -339,13 +343,16 @@ impl Drop for Stream {
         }
     }
 }
-unsafe extern "C" fn callback_wrapper<T>(callback: *mut c_void)
-where
-    T: FnOnce() + Send,
+unsafe extern "C" fn callback_wrapper<T>(
+    _stream: CUstream,
+    status: cudaError_enum,
+    callback: *mut c_void,
+) where
+    T: FnOnce(CudaResult<()>) + Send,
 {
     // Stop panics from unwinding across the FFI
     let _ = panic::catch_unwind(|| {
         let callback: Box<T> = Box::from_raw(callback as *mut T);
-        callback();
+        callback(status.to_result());
     });
 }

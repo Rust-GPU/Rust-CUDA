@@ -344,7 +344,7 @@ pub fn system_fence() {
 #[inline(always)]
 pub fn nanosleep(nanos: u32) {
     unsafe {
-        asm!(
+        core::arch::asm!(
             "nanosleep {}",
             in(reg32) nanos
         )

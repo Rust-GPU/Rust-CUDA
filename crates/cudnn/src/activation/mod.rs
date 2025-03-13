@@ -10,31 +10,27 @@ use crate::{
 use cust::memory::GpuBuffer;
 
 impl CudnnContext {
-    /// Applies a specific neuron activation functions element wise of the provided tensor.
+    /// Applies a specific neuron activation functions element wise of the provided
+    /// tensor.
     ///
     /// # Arguments
     ///
-    /// * `activation_desc` - activation descriptor.
+    ///   * `activation_desc` - activation descriptor.
+    ///   * `alpha` - scaling factor for the result.
+    ///   * `x_desc` - tensor descriptor for the input.
+    ///   * `x` - data for the input tensor.
+    ///   * `beta` - scaling factor for the destination tensor.
+    ///   * `y_desc` - tensor descriptor for the output.
+    ///   * `y` - data for the output.
     ///
-    /// * `alpha` - scaling factor for the result.
-    ///
-    /// * `x_desc` - tensor descriptor for the input.
-    ///
-    /// * `x` - data for the input tensor.
-    ///
-    /// * `beta` - scaling factor for the destination tensor.
-    ///
-    /// * `y_desc` - tensor descriptor for the output.
-    ///
-    /// * `y` - data for the output.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationForward)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationForward)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if the shapes of the `y` and `x` tensors do not match or an unsupported
-    /// configuration of arguments is detected.
+    /// Returns errors if the shapes of the `y` and `x` tensors do not match or an
+    /// unsupported configuration of arguments is detected.
     ///
     /// # Examples
     ///
@@ -109,27 +105,17 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `activation_descriptor` - descriptor of a neuron activation operation.
-    ///
-    /// * `alpha` - scaling factor for the result.
-    ///
-    /// * `y_desc` - tensor descriptor for the output map.
-    ///
-    /// * `y` - data for the output map.
-    ///
-    /// * `dy_desc` - tensor descriptor for the differential of the output map.
-    ///
-    /// * `dy` - data foe the differential of the output map.
-    ///
-    /// * `x_desc` - tensor descriptor for the activation input.
-    ///
-    /// * `x` - data for the activation input.
-    ///
-    /// * `beta` - scaling factor for the destination tensor.
-    ///
-    /// * `dx_desc` - tensor descriptor for the input differential.
-    ///
-    /// * `dx` - data for the input differential.
+    ///   * `activation_descriptor` - descriptor of a neuron activation operation.
+    ///   * `alpha` - scaling factor for the result.
+    ///   * `y_desc` - tensor descriptor for the output map.
+    ///   * `y` - data for the output map.
+    ///   * `dy_desc` - tensor descriptor for the differential of the output map.
+    ///   * `dy` - data foe the differential of the output map.
+    ///   * `x_desc` - tensor descriptor for the activation input.
+    ///   * `x` - data for the activation input.
+    ///   * `beta` - scaling factor for the destination tensor.
+    ///   * `dx_desc` - tensor descriptor for the input differential.
+    ///   * `dx` - data for the input differential.
     ///
     /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationBackward)
     /// may offer additional information about the APi behavior.

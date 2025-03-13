@@ -13,20 +13,19 @@ use cust::memory::GpuBuffer;
 use std::mem::MaybeUninit;
 
 impl CudnnContext {
-    /// This function computes weight, work, and reserve space buffer sizes used by the following
-    /// functions:
+    /// This function computes weight, work, and reserve space buffer sizes used by the
+    /// following functions:
     ///
-    /// * `multi_head_attn_forward()`
-    ///
-    /// * `multi_head_attn_backward_data()`
-    ///
-    /// * `multi_head_attn_backward_weights()`
+    ///   * `multi_head_attn_forward()`
+    ///   * `multi_head_attn_backward_data()`
+    ///   * `multi_head_attn_backward_weights()`
     ///
     /// # Arguments
     ///
     /// `desc` - multi-head attention descriptor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetMultiHeadAttnBuffers)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetMultiHeadAttnBuffers)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
@@ -66,56 +65,41 @@ impl CudnnContext {
 
     /// Computes the forward response of a multi-head attention layer.
     ///
-    /// When `reserve_space` is `None` the function operates in the inference mode in which backward
-    /// functions are not invoked, otherwise, the training mode is assumed.
+    /// When `reserve_space` is `None` the function operates in the inference mode in
+    /// which backward functions are not invoked, otherwise, the training mode is
+    /// assumed.
     ///
     /// # Arguments
     ///
-    /// * `attn_desc` - multi-head attention descriptor.
+    ///   * `attn_desc` - multi-head attention descriptor.
+    ///   * `current_idx` - time-step in queries to process. When the such argument is
+    ///     negative, all Q time-steps are processed. When `current_idx` is zero or
+    ///     positive, the forward response is computed for the selected time-step only.
+    ///   * `lo_win_idx` - integer array specifying the start indices of the attention
+    ///     window for each Q time-step. The start index in K, V sets is inclusive.
+    ///   * `hi_win_idx` - integer array specifying the end indices of the attention
+    ///     window for each Q time-step. The end index is exclusive.
+    ///   * `device_seq_lengths_qo` - device array specifying sequence lengths of query,
+    ///     residual, and output sequence data.
+    ///   * `device_seq_lengths_kv` - device array specifying sequence lengths of key
+    ///     and value input data.
+    ///   * `q_desc` - descriptor for the query and residual sequence data.
+    ///   * `queries` - queries data in the device memory.
+    ///   * `residuals` - residual data in device memory. Set this argument to `None` if
+    ///     no residual connections are required.
+    ///   * `k_desc` - descriptor for the keys sequence data.
+    ///   * `keys` - keys data in device memory.
+    ///   * `v_desc` - descriptor for the values sequence data.
+    ///   * `values` - values data in device memory.
+    ///   * `o_desc` - descriptor for the out sequence data.
+    ///   * `out` - out data in device memory.
+    ///   * `weights` - weights buffer in device memory.
+    ///   * `work_space` - work space buffer in device memory.
+    ///   * `reserve_space` - reserve space buffer in device memory. This argument
+    ///     should be `None` in inference mode.
     ///
-    /// * `current_idx` - time-step in queries to process. When the such argument is negative,
-    /// all Q time-steps are processed. When `current_idx` is zero or positive, the forward response
-    /// is computed for the selected time-step only.
-    ///
-    /// * `lo_win_idx` - integer array specifying the start indices of the attention window for
-    /// each Q time-step. The start index in K, V sets is inclusive.
-    ///
-    /// * `hi_win_idx` - integer array specifying the end indices of the attention window for each
-    /// Q time-step. The end index is exclusive.
-    ///
-    /// * `device_seq_lengths_qo` - device array specifying sequence lengths of query, residual,
-    /// and output sequence data.
-    ///
-    /// * `device_seq_lengths_kv` - device array specifying sequence lengths of key and value \
-    /// input data.
-    ///
-    /// * `q_desc` - descriptor for the query and residual sequence data.
-    ///
-    /// * `queries` - queries data in the device memory.
-    ///
-    /// * `residuals` - residual data in device memory. Set this argument to `None` if no residual
-    /// connections are required.
-    ///
-    /// * `k_desc` - descriptor for the keys sequence data.
-    ///
-    /// * `keys` - keys data in device memory.
-    ///
-    /// * `v_desc` - descriptor for the values sequence data.
-    ///
-    /// * `values` - values data in device memory.
-    ///
-    /// * `o_desc` - descriptor for the out sequence data.
-    ///
-    /// * `out` - out data in device memory.
-    ///
-    /// * `weights` - weights buffer in device memory.
-    ///
-    /// * `work_space` - work space buffer in device memory.
-    ///
-    /// * `reserve_space` - reserve space buffer in device memory. This argument should be `None` in
-    /// inference mode.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnForward)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnForward)
     /// may offer additional information about the APi behavior.
     #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_forward<T, U, D1, D2>(
@@ -193,79 +177,73 @@ impl CudnnContext {
         }
     }
 
-    /// Computes exact, first-order derivatives of the multi-head attention block with respect to its
-    /// inputs: Q, K, V.
+    /// Computes exact, first-order derivatives of the multi-head attention block with
+    /// respect to its inputs: Q, K, V.
     ///
-    /// This function does not output partial derivatives for residual connections because this
-    /// result is equal to `d_out`. If the multi-head attention model enables residual connections
-    /// sourced directly from Q, then the `d_out` tensor needs to be added to `d_queries` to obtain
-    /// the correct result of the latter.
+    /// This function does not output partial derivatives for residual connections
+    /// because this result is equal to `d_out`. If the multi-head attention model
+    /// enables residual connections sourced directly from Q, then the `d_out` tensor
+    /// needs to be added to `d_queries` to obtain the correct result of the latter.
     ///
-    /// This function must be invoked after `multi_head_attn_forward()`. The `lo_win_idx`,
-    /// `hi_win_idx`, `queries`, `keys`, `values`, `weights`, and `reserve_space` arguments
-    /// should be the same as in the `multi_head_attn_forward()` call.
+    /// This function must be invoked after `multi_head_attn_forward()`. The
+    /// `lo_win_idx`, `hi_win_idx`, `queries`, `keys`, `values`, `weights`, and
+    /// `reserve_space` arguments should be the same as in the
+    /// `multi_head_attn_forward()` call.
     ///
-    /// Furthermore, `device_seq_lengths_dqdo` and `device_seq_lengths_dkdv` device buffers should
-    /// contain the same start and end attention window indices as `device_seq_lengths_qo` and
-    /// `device_seq_lengths_qo` as in the forward function invocation.
+    /// Furthermore, `device_seq_lengths_dqdo` and `device_seq_lengths_dkdv` device
+    /// buffers should contain the same start and end attention window indices as
+    /// `device_seq_lengths_qo` and `device_seq_lengths_qo` as in the forward function
+    /// invocation.
     ///
     /// **Do note** that this function does not verify that sequence lengths stored in
-    /// `device_seq_lengths_dqdo` and `device_seq_lengths_dkdv` contain the same settings as
-    /// `seq_lengths` in the corresponding sequence data descriptor.
+    /// `device_seq_lengths_dqdo` and `device_seq_lengths_dkdv` contain the same
+    /// settings as `seq_lengths` in the corresponding sequence data descriptor.
     ///
     /// # Arguments
     ///
-    /// * `attn_desc` - multi-head attention descriptor.
+    ///   * `attn_desc` - multi-head attention descriptor.
+    ///   * `lo_win_idx` - integer array specifying the start indices of the attention
+    ///     window for each Q time-step. The start index in K, V sets is inclusive.
+    ///   * `hi_win_idx` - integer array specifying the end indices of the attention
+    ///     window for each Q time-step. The end index is exclusive.
+    ///   * `device_seq_lengths_dqdo` - device buffer containing a copy of the sequence
+    ///     length array from the `dq_desc` or `do_desc` sequence data descriptors.
+    ///   * `device_seq_lengths_dkdv` - device buffer containing a copy of the sequence
+    ///     length array from the `dk_desc` or `dv_desc` sequence data descriptors.
+    ///   * `do_desc` - descriptor for the output differential, i.e. the vectors of
+    ///     partial derivatives of the loss function with respect to the multi-head
+    ///     attention outputs.
+    ///   * `d_out` - output differential.
+    ///   * `dq_desc` - descriptor for the queries differential.
+    ///   * `d_queries` - gradients of the loss function computed with respect to
+    ///     queries vectors.
+    ///   * `queries` - queries data. This must be the same input as in
+    ///     `multi_head_attn_forward()`.
+    ///   * `dk_desc` - descriptor for the keys and keys gradient sequence data.
+    ///   * `d_keys` - gradients of the loss function computed with respect to keys
+    ///     vectors.
+    ///   * `keys` - keys data. This must be the same input as in
+    ///     `multi_head_attn_forward()`.
+    ///   * `dv_desc` - descriptor for values and values gradient sequence data.
+    ///   * `d_values` - gradients of the loss function computed with respect to values
+    ///     vectors.
+    ///   * `values` - values data. This must be the same input as in
+    ///     `multi_head_attn_forward()`.
+    ///   * `weights` - weights buffer in the device memory.
+    ///   * `work_space` - work space buffer in device memory. Used for temporary API
+    ///     storage.
+    ///   * `reserve_space` - reserve space buffer in device memory.
     ///
-    /// * `lo_win_idx` - integer array specifying the start indices of the attention window for
-    /// each Q time-step. The start index in K, V sets is inclusive.
-    ///
-    /// * `hi_win_idx` - integer array specifying the end indices of the attention window for each
-    /// Q time-step. The end index is exclusive.
-    ///
-    /// * `device_seq_lengths_dqdo` - device buffer containing a copy of the sequence length array
-    /// from the `dq_desc` or `do_desc` sequence data descriptors.
-    ///
-    /// * `device_seq_lengths_dkdv` - device buffer containing a copy of the sequence length array
-    /// from the `dk_desc` or `dv_desc` sequence data descriptors.
-    ///
-    /// * `do_desc` - descriptor for the output differential, i.e. the vectors of partial
-    /// derivatives of the loss function with respect to the multi-head attention outputs.
-    ///
-    /// * `d_out` - output differential.
-    ///
-    /// * `dq_desc` - descriptor for the queries differential.
-    ///
-    /// * `d_queries` - gradients of the loss function computed with respect to queries vectors.
-    ///
-    /// * `queries` - queries data. This must be the same input as in `multi_head_attn_forward()`.
-    ///
-    /// * `dk_desc` - descriptor for the keys and keys gradient sequence data.
-    ///
-    /// * `d_keys` - gradients of the loss function computed with respect to keys vectors.
-    ///
-    /// * `keys` - keys data. This must be the same input as in `multi_head_attn_forward()`.
-    ///
-    /// * `dv_desc` - descriptor for values and values gradient sequence data.
-    ///
-    /// * `d_values` - gradients of the loss function computed with respect to values vectors.
-    ///
-    /// * `values` - values data. This must be the same input as in `multi_head_attn_forward()`.
-    ///
-    /// * `weights` - weights buffer in the device memory.
-    ///
-    /// * `work_space` - work space buffer in device memory. Used for temporary API storage.
-    ///
-    /// * `reserve_space` - reserve space buffer in device memory.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardData)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardData)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if an invalid or incompatible input argument was encountered, an inconsistent
-    /// internal state was encountered, a requested option or a combination of input arguments is
-    /// not supported or in case of insufficient amount of shared memory to launch the kernel.
+    /// Returns errors if an invalid or incompatible input argument was encountered, an
+    /// inconsistent internal state was encountered, a requested option or a combination
+    /// of input arguments is not supported or in case of insufficient amount of shared
+    /// memory to launch the kernel.
     #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_backward_data<T, U, D1, D2>(
         &self,
@@ -345,62 +323,55 @@ impl CudnnContext {
         }
     }
 
-    /// This function computes exact, first-order derivatives of the multi-head attention block
-    /// with respect to its trainable parameters: projection weights and projection biases.
+    /// This function computes exact, first-order derivatives of the multi-head
+    /// attention block with respect to its trainable parameters: projection weights and
+    /// projection biases.
     ///
-    /// All gradient results with respect to weights and biases are written to the `d_weights`
-    /// buffer. The size and the organization of the `d_weights` buffer is the same as the `weights`
-    /// buffer that holds multi-head attention weights and biases.
+    /// All gradient results with respect to weights and biases are written to the
+    /// `d_weights` buffer. The size and the organization of the `d_weights` buffer is
+    /// the same as the `weights` buffer that holds multi-head attention weights and
+    /// biases.
     ///
-    /// Gradient of the loss function with respect to weights or biases is typically computed over
-    /// multiple batches. In such a case, partial results computed for each batch should be
-    /// summed together. The `grad_mode` argument specifies if the gradients from the current
-    /// batch should be added to previously computed results or the `d_weights` buffer should
-    /// be overwritten with the new results.
+    /// Gradient of the loss function with respect to weights or biases is typically
+    /// computed over multiple batches. In such a case, partial results computed for
+    /// each batch should be summed together. The `grad_mode` argument specifies if the
+    /// gradients from the current batch should be added to previously computed results
+    /// or the `d_weights` buffer should be overwritten with the new results.
     ///
-    /// **Do note** that this function should be invoked **after** `multi_head_attn_backward_data()`.
-    /// Also, the `queries`, `keys`, `values`, `weights`, and `reserve_space` arguments should be
-    /// the same as in `multi_head_attn_fwd()` and `multi_head_attn_backward_data()` calls. The
-    /// `d_out` argument should be the same as in `multi_head_attn_backward_data()`.
+    /// **Do note** that this function should be invoked **after**
+    /// `multi_head_attn_backward_data()`. Also, the `queries`, `keys`, `values`,
+    /// `weights`, and `reserve_space` arguments should be the same as in
+    /// `multi_head_attn_fwd()` and `multi_head_attn_backward_data()` calls. The `d_out`
+    /// argument should be the same as in `multi_head_attn_backward_data()`.
     ///
     /// # Arguments
     ///
-    /// * `attn_desc` - multi-head attention descriptor.
+    ///   * `attn_desc` - multi-head attention descriptor.
+    ///   * `grad_mode` - gradient accumulation mode.
+    ///   * `q_desc` - descriptor for the query and residual sequence data.
+    ///   * `queries` - queries data in the device memory.
+    ///   * `k_desc` - descriptor for the keys sequence data.
+    ///   * `keys` - keys data in device memory.
+    ///   * `v_desc` - descriptor for the values sequence data.
+    ///   * `values` - values data in device memory.
+    ///   * `do_desc` - descriptor for the output differential sequence data.
+    ///   * `d_out` - output differential data in device memory.
+    ///   * `weights` - weights buffer in the device memory.
+    ///   * `d_weights` - weights gradient buffer in the device memory.
+    ///   * `work_space` - work space buffer in device memory. Used for temporary API
+    ///     storage.
+    ///   * `reserve_space` - reserve space buffer in device memory.
     ///
-    /// * `grad_mode` - gradient accumulation mode.
-    ///
-    /// * `q_desc` - descriptor for the query and residual sequence data.
-    ///
-    /// * `queries` - queries data in the device memory.
-    ///
-    /// * `k_desc` - descriptor for the keys sequence data.
-    ///
-    /// * `keys` - keys data in device memory.
-    ///
-    /// * `v_desc` - descriptor for the values sequence data.
-    ///
-    /// * `values` - values data in device memory.
-    ///
-    /// * `do_desc` - descriptor for the output differential sequence data.
-    ///
-    /// * `d_out` - output differential data in device memory.
-    ///
-    /// * `weights` - weights buffer in the device memory.
-    ///
-    /// * `d_weights` - weights gradient buffer in the device memory.
-    ///
-    /// * `work_space` - work space buffer in device memory. Used for temporary API storage.
-    ///
-    /// * `reserve_space` - reserve space buffer in device memory.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardWeights)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnBackwardWeights)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if an invalid or incompatible input argument was encountered, an inconsistent
-    /// internal state was encountered, a requested option or a combination of input arguments is
-    /// not supported or in case of insufficient amount of shared memory to launch the kernel.
+    /// Returns errors if an invalid or incompatible input argument was encountered, an
+    /// inconsistent internal state was encountered, a requested option or a combination
+    /// of input arguments is not supported or in case of insufficient amount of shared
+    /// memory to launch the kernel.
     #[allow(clippy::too_many_arguments)]
     pub fn multi_head_attn_backward_weights<T, U, D1, D2>(
         &self,

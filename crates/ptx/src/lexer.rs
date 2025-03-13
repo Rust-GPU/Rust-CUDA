@@ -41,7 +41,7 @@ fn is_ident_start(c: AsciiChar) -> bool {
         || c == AsciiChar::Percent
 }
 
-impl<'src> Iterator for Lexer<'src> {
+impl Iterator for Lexer<'_> {
     type Item = LexerResult;
     fn next(&mut self) -> Option<Self::Item> {
         self.next_token()
