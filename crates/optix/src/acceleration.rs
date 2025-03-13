@@ -714,20 +714,20 @@ impl Default for BuildOperation {
     }
 }
 
+/// Configure how to handle ray times that are outside of the provided motion keys.
+///
+/// By default, the object will appear static (clamped) to the nearest motion
+/// key for rays outside of the range of key times.
+///
+/// * `START_VANISH` - The object will be invisible to rays with a time less
+/// than the first provided motion key
+/// * `END_VANISH` - The object will be invisible to rays with a time less
+/// than the first provided motion key
 #[derive(DeviceCopy, Clone, Copy, Debug, PartialEq)]
 pub struct MotionFlags(u16);
 
 bitflags::bitflags! {
-    /// Configure how to handle ray times that are outside of the provided motion keys.
-    ///
-    /// By default, the object will appear static (clamped) to the nearest motion
-    /// key for rays outside of the range of key times.
-    ///
-    /// * `START_VANISH` - The object will be invisible to rays with a time less
-    /// than the first provided motion key
-    /// * `END_VANISH` - The object will be invisible to rays with a time less
-    /// than the first provided motion key
-    impl MotionFlags: u16 {
+   impl MotionFlags: u16 {
         const NONE = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_NONE as u16;
         const START_VANISH = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_START_VANISH as u16;
         const END_VANISH = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_END_VANISH as u16;
