@@ -17,15 +17,13 @@ use crate::{
 };
 
 impl CudnnContext {
-    /// Returns the minimum size of the workspace to be passed to the reduction given the input and
-    /// output tensors.
+    /// Returns the minimum size of the workspace to be passed to the reduction given
+    /// the input and output tensors.
     ///
     /// # Arguments
     ///
     /// * `desc` - reduction descriptor.
-    ///
     /// * `a_desc` - input tensor descriptor.
-    ///
     /// * `c_desc` - output tensor descriptor.
     pub fn get_reduction_workspace_size<T, U, V>(
         &self,
@@ -54,15 +52,13 @@ impl CudnnContext {
         }
     }
 
-    /// Returns the minimum size of the index space to be passed to the reduction given the input
-    /// and output tensors.
+    /// Returns the minimum size of the index space to be passed to the reduction given
+    /// the input and output tensors.
     ///
     /// # Arguments
     ///
     /// * `desc` - reduction descriptor.
-    ///
     /// * `a_desc` - input tensor descriptor.
-    ///
     /// * `c_desc` - output tensor descriptor.
     pub fn get_reduction_indices_size<T, U, V>(
         &self,
@@ -108,21 +104,13 @@ impl CudnnContext {
     /// # Arguments
     ///
     /// * `desc` - tensor reduction descriptor.
-    ///
     /// * `indices` - indices buffer in device memory.
-    ///
     /// * `workspace` - workspace for the reduction operation.
-    ///
     /// * `alpha` - scaling factor for the input tensor.
-    ///
     /// * `a_desc` - tensor descriptor for the input tensor.
-    ///
     /// * `a` - input tensor in device memory.
-    ///
     /// * `gamma` -  scaling factor for the output tensor.
-    ///
     /// * `c_desc` - tensor descriptor for the output tensor.
-    ///
     /// * `c` - output tensor in device memory.
     ///
     /// # Errors

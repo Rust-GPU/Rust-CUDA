@@ -24,20 +24,18 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `x_desc` - previously initialized tensor descriptor for the input map.
+    ///   * `x_desc` - previously initialized tensor descriptor for the input map.
+    ///   * `w_desc` - previously initialized tensor descriptor for the filter map.
+    ///   * `y_desc` - previously initialized tensor descriptor for the output map.
+    ///   * `conv_desc` - previously initialized convolution descriptor.
     ///
-    /// * `w_desc` - previously initialized tensor descriptor for the filter map.
+    /// **Do note** that the best found algorithm `MathType` and the one supplied to the
+    /// convolution descriptor's at its creation may differ, for this reason you should
+    /// always manually set the math type of the convolution descriptor according to the
+    /// one of the returned algorithm to get the best possible performance.
     ///
-    /// * `y_desc` - previously initialized tensor descriptor for the output map.
-    ///
-    /// * `conv_desc` - previously initialized convolution descriptor.
-    ///
-    /// **Do note** that the best found algorithm `MathType` and the one supplied to the convolution
-    /// descriptor's at its creation may differ, for this reason you should always manually set the
-    /// math type of the convolution descriptor according to the one of the returned algorithm to
-    /// get the best possible performance.
-    ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionForwardAlgorithm_v7)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionForwardAlgorithm_v7)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
@@ -141,18 +139,18 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `w_desc` - previously initialized filter descriptor.
-    ///
-    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
-    ///
-    /// * `dx_desc` - previously initialized differential tensor descriptor for the input map.
-    ///
-    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///   * `w_desc` - previously initialized filter descriptor.
+    ///   * `dy_desc` - previously initialized differential tensor descriptor for the
+    ///     output map.
+    ///   * `dx_desc` - previously initialized differential tensor descriptor for the
+    ///     input map.
+    ///   * `conv_desc` - previously initialized convolution descriptor.
     ///
     /// **Do note** that the best found algorithm `MathType` must be set manually on the
     /// convolution descriptor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardDataAlgorithm_v7)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardDataAlgorithm_v7)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
@@ -256,18 +254,17 @@ impl CudnnContext {
     ///
     /// # Arguments
     ///
-    /// * `x_desc` -  previously initialized tensor descriptor for the input map.
-    ///
-    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
-    ///
-    /// * `dw_desc` - previously initialized differential tensor descriptor for the filter.
-    ///
-    /// * `conv_desc` - previously initialized convolution descriptor.
+    ///   * `x_desc` -  previously initialized tensor descriptor for the input map.
+    ///   * `dy_desc` - previously initialized differential tensor descriptor for the
+    ///     output map.
+    ///   * `dw_desc` - previously initialized differential tensor descriptor for the
+    /// filter. .  * `conv_desc` - previously initialized convolution descriptor.
     ///
     /// **Do note** that the best found algorithm `MathType` must be set manually on the
     /// convolution descriptor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardFilterAlgorithm_v7)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardFilterAlgorithm_v7)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
@@ -364,39 +361,38 @@ impl CudnnContext {
         }
     }
 
-    /// This function returns the amount of GPU memory workspace the user needs to allocate to be
-    /// able to call `convolution_forward()` with the specified algorithm. The workspace
-    /// allocated will then be passed to the routine `convolution_forward()`.
+    /// This function returns the amount of GPU memory workspace the user needs to
+    /// allocate to be able to call `convolution_forward()` with the specified
+    /// algorithm. The workspace allocated will then be passed to the routine
+    /// `convolution_forward()`.
     ///
     /// The specified algorithm can be the result of the call to
     /// [`get_convolution_forward_algorithm`](crate::CudnnContext::get_convolution_forward_algorithm)
-    /// or can be chosen arbitrarily by the user. In the former case workspace size can be directly
-    /// obtained by calling [`workspace_size()`](crate::BestHeuristic::workspace_size) on the returned
+    /// or can be chosen arbitrarily by the user. In the former case workspace size can
+    /// be directly obtained by calling
+    /// [`workspace_size()`](crate::BestHeuristic::workspace_size) on the returned
     /// algorithm.
     ///
     /// # Arguments
     ///
     /// * `x_desc` - previously initialized tensor descriptor for the input map.
-    ///
     /// * `w_desc` - previously initialized tensor descriptor for the filter map.
-    ///
     /// * `y_desc` - previously initialized tensor descriptor for the output map.
-    ///
     /// * `conv_desc` - previously initialized convolution descriptor.
-    ///
     /// * `algo` - chosen convolution algorithm.
     ///
-    /// **Do note** that not every algorithm is available for every configuration of the input
-    /// tensor and/or every configuration of the convolution descriptor.
+    /// **Do note** that not every algorithm is available for every configuration of the
+    /// input tensor and/or every configuration of the convolution descriptor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionForwardWorkspaceSize)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionForwardWorkspaceSize)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if an invalid combination of arguments is passed or the combination of the
-    /// tensor descriptors, filter descriptor and convolution descriptor is not supported for the
-    /// specified algorithm.
+    /// Returns errors if an invalid combination of arguments is passed or the
+    /// combination of the tensor descriptors, filter descriptor and convolution
+    /// descriptor is not supported for the specified algorithm.
     ///
     /// # Examples
     ///
@@ -474,39 +470,40 @@ impl CudnnContext {
         }
     }
 
-    /// This function returns the amount of GPU memory workspace the user needs to allocate to be
-    /// able to call `convolution_backward_data()` with the specified algorithm. The workspace
-    /// allocated will then be passed to the routine `convolution_backward_data()`.
+    /// This function returns the amount of GPU memory workspace the user needs to
+    /// allocate to be able to call `convolution_backward_data()` with the specified
+    /// algorithm. The workspace allocated will then be passed to the routine
+    /// `convolution_backward_data()`.
     ///
     /// The specified algorithm can be the result of the call to
     /// [`get_convolution_backward_data_algorithm`](crate::CudnnContext::get_convolution_backward_data_algorithm)
-    /// or can be chosen arbitrarily by the user. In the former case workspace size can be directly
-    /// obtained by calling [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
+    /// or can be chosen arbitrarily by the user. In the former case workspace size can
+    /// be directly obtained by calling
+    /// [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
     /// algorithm.
     ///
     /// # Arguments
     ///
     /// * `w_desc` - previously initialized filter descriptor.
-    ///
-    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
-    ///
-    /// * `dx_desc` - previously initialized differential tensor descriptor for the input map.
-    ///
+    /// * `dy_desc` - previously initialized differential tensor descriptor for the
+    ///   output map.
+    /// * `dx_desc` - previously initialized differential tensor descriptor for the
+    ///   input map.
     /// * `conv_desc` - previously initialized convolution descriptor.
-    ///
     /// * `algo` - chosen convolution algorithm.
     ///
-    ///  **Do note** that not every algorithm is available for every configuration of the input
-    /// tensor and/or every configuration of the convolution descriptor.
+    ///  **Do note** that not every algorithm is available for every configuration of
+    /// the input tensor and/or every configuration of the convolution descriptor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardDataWorkspaceSize)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardDataWorkspaceSize)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if an invalid combination of arguments is passed or the combination of the
-    /// tensor descriptors, filter descriptor and convolution descriptor is not supported for the
-    /// specified algorithm.
+    /// Returns errors if an invalid combination of arguments is passed or the
+    /// combination of the tensor descriptors, filter descriptor and convolution
+    /// descriptor is not supported for the specified algorithm.
     ///
     /// # Examples
     ///
@@ -584,39 +581,40 @@ impl CudnnContext {
         }
     }
 
-    /// This function returns the amount of GPU memory workspace the user needs to allocate to be
-    /// able to call `convolution_backward_filter()` with the specified algorithm. The workspace
-    /// allocated will then be passed to the routine `convolution_backward_filter()`.
+    /// This function returns the amount of GPU memory workspace the user needs to
+    /// allocate to be able to call `convolution_backward_filter()` with the specified
+    /// algorithm. The workspace allocated will then be passed to the routine
+    /// `convolution_backward_filter()`.
     ///
     /// The specified algorithm can be the result of the call to
     /// [`get_convolution_backward_filter_algorithm`](crate::CudnnContext::get_convolution_backward_filter_algorithm)
-    /// or can be chosen arbitrarily by the user. In the former case workspace size can be directly
-    /// obtained by calling [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
+    /// or can be chosen arbitrarily by the user. In the former case workspace size can
+    /// be directly obtained by calling
+    /// [`workspace_size`](crate::BestHeuristic::workspace_size) on the returned
     /// algorithm.
     ///
     /// # Arguments
     ///
     /// * `x_desc` -  previously initialized tensor descriptor for the input map.
-    ///
-    /// * `dy_desc` - previously initialized differential tensor descriptor for the output map.
-    ///
-    /// * `dw_desc` - previously initialized differential tensor descriptor for the filter.
-    ///
+    /// * `dy_desc` - previously initialized differential tensor descriptor for the
+    ///   output map.
+    /// * `dw_desc` - previously initialized differential tensor descriptor for the
+    ///   filter.
     /// * `conv_desc` - previously initialized convolution descriptor.
-    ///
     /// * `algo` - chosen convolution algorithm.
     ///
-    /// **Do note** that not every algorithm is available for every configuration of the input
-    /// tensor and/or every configuration of the convolution descriptor.
+    /// **Do note** that not every algorithm is available for every configuration of the
+    /// input tensor and/or every configuration of the convolution descriptor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardFilterWorkspaceSize)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetConvolutionBackwardFilterWorkspaceSize)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if an invalid combination of arguments is passed or the combination of the
-    /// tensor descriptors, filter descriptor and convolution descriptor is not supported for the
-    /// specified algorithm.
+    /// Returns errors if an invalid combination of arguments is passed or the
+    /// combination of the tensor descriptors, filter descriptor and convolution
+    /// descriptor is not supported for the specified algorithm.
     ///
     /// # Examples
     ///
@@ -1033,44 +1031,37 @@ impl CudnnContext {
         }
     }
 
-    /// This function computes the convolution data gradient of the tensor `dy`, where `y` is the
-    /// output of the forward convolution in `convolution_forward`.
+    /// This function computes the convolution data gradient of the tensor `dy`, where
+    /// `y` is the output of the forward convolution in `convolution_forward`.
     ///
-    /// It uses the specified algo, and returns the results in the output tensor `dx`. Scaling
-    /// factors `alpha` and `beta` can be used to scale the computed result or accumulate with the
-    /// current `dx`.
+    /// It uses the specified algo, and returns the results in the output tensor `dx`.
+    /// Scaling factors `alpha` and `beta` can be used to scale the computed result or
+    /// accumulate with the current `dx`.
     ///
     /// # Arguments
     ///
     /// * `alpha` - scaling parameter.
-    ///
     /// * `w_desc` - filter descriptor.
-    ///
     /// * `w` - filter data.
-    ///
     /// * `dy_desc` - output map gradient descriptor.
-    ///
     /// * `dy` - output map gradient data.
-    ///
-    /// * `conv_desc` - previously initialized convolution description. The one defined for the
-    /// forward pass in suitable to be used here provided that it refers to the same layer.
-    ///
+    /// * `conv_desc` - previously initialized convolution description. The one defined
+    ///   for the forward pass in suitable to be used here provided that it refers to the
+    ///   same layer.
     /// * `algo` - convolution algorithm that should be used to compute the result.
-    ///
-    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to execute the
-    /// specified algorithm. Must be left to `None` if the algorithm works in-place. The workspace
-    /// dimension can be obtained with [`get_convolution_backward_data_workspace_size()`](crate::CudnnContext::get_convolution_backward_data_workspace_size).
-    ///
+    /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to
+    ///   execute the specified algorithm. Must be left to `None` if the algorithm works
+    ///   in-place. The workspace dimension can be obtained with
+    ///   [`get_convolution_backward_data_workspace_size()`](crate::CudnnContext::get_convolution_backward_data_workspace_size).
     /// * `beta` - scaling parameter.
-    ///
     /// * `dx_desc` - input map gradient descriptor.
-    ///
     /// * `dx` - input map gradient data.
     ///
-    /// **Do note** than not all possible configurations of layouts and data types for the operands
-    /// are supported by cuDNN. Refer to the following link for the
-    /// [complete list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardData) and
-    /// for an in-depth explanation of the API behavior.
+    /// **Do note** than not all possible configurations of layouts and data types for
+    /// the operands are supported by cuDNN. Refer to the following link for the
+    /// [complete
+    /// list](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnConvolutionBackwardData)
+    /// and for an in-depth explanation of the API behavior.
     ///
     /// # Errors
     ///
