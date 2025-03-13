@@ -1,6 +1,7 @@
 //! CUDA-specific pointer handling logic.
 
 use crate::gpu_only;
+#[cfg(target_os = "cuda")]
 use core::arch::asm;
 
 /// Special areas of GPU memory where a pointer could reside.
