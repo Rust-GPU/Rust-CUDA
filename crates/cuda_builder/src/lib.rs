@@ -63,10 +63,6 @@ pub struct CudaBuilder {
     /// Whether to compile the gpu crate for release.
     /// `true` by default.
     pub release: bool,
-    /// Whether to use 32 bit nvptx. Note that this is not tested much, so
-    /// it may break in certain cases. You should always use 64 bit nvptx.
-    /// `false` by default.
-    pub nvptx_32: bool,
     /// An optional path to copy the final ptx file to.
     pub ptx_file_copy_path: Option<PathBuf>,
 
@@ -140,6 +136,9 @@ pub struct CudaBuilder {
     pub debug: DebugInfo,
     /// Additional arguments passed to cargo during `cargo build`.
     pub build_args: Vec<String>,
+    /// An optional path where to dump LLVM IR of the final output the codegen will feed to libnvvm. Usually
+    /// used for debugging.
+    pub final_module_path: Option<PathBuf>,
 }
 
 impl CudaBuilder {
@@ -147,7 +146,6 @@ impl CudaBuilder {
         Self {
             path_to_crate: path_to_crate_root.as_ref().to_owned(),
             release: true,
-            nvptx_32: false,
             ptx_file_copy_path: None,
             generate_line_info: true,
             nvvm_opts: true,
@@ -161,6 +159,7 @@ impl CudaBuilder {
             override_libm: true,
             debug: DebugInfo::None,
             build_args: vec![],
+            final_module_path: None,
         }
     }
 
@@ -181,13 +180,6 @@ impl CudaBuilder {
     pub fn release(mut self, release: bool) -> Self {
         self.release = release;
         self.nvvm_opts = release;
-        self
-    }
-
-    /// Whether to use 32 bit nvptx. Note that this is not tested much, so
-    /// it may break in certain cases. You should always use 64 bit nvptx.
-    pub fn nvptx_32(mut self, nvptx_32: bool) -> Self {
-        self.nvptx_32 = nvptx_32;
         self
     }
 
@@ -254,13 +246,13 @@ impl CudaBuilder {
 
     /// Emit LLVM IR, the exact same as rustc's `--emit=llvm-ir`.
     pub fn emit_llvm_ir(mut self, emit_llvm_ir: bool) -> Self {
-        self.emit = emit_llvm_ir.then(|| EmitOption::LlvmIr);
+        self.emit = emit_llvm_ir.then_some(EmitOption::LlvmIr);
         self
     }
 
     /// Emit LLVM Bitcode, the exact same as rustc's `--emit=llvm-bc`.
     pub fn emit_llvm_bitcode(mut self, emit_llvm_bitcode: bool) -> Self {
-        self.emit = emit_llvm_bitcode.then(|| EmitOption::Bitcode);
+        self.emit = emit_llvm_bitcode.then_some(EmitOption::Bitcode);
         self
     }
 
@@ -291,6 +283,13 @@ impl CudaBuilder {
     /// determinism in things like `rapier`, then it may be helpful to disable such a feature.
     pub fn override_libm(mut self, override_libm: bool) -> Self {
         self.override_libm = override_libm;
+        self
+    }
+
+    /// An optional path where to dump LLVM IR of the final output the codegen will feed to libnvvm. Usually
+    /// used for debugging.
+    pub fn final_module_path(mut self, path: impl AsRef<Path>) -> Self {
+        self.final_module_path = Some(path.as_ref().to_path_buf());
         self
     }
 
@@ -377,10 +376,13 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
 
     let new_path = get_new_path_var();
 
-    let mut rustflags = vec![format!(
-        "-Zcodegen-backend={}",
-        rustc_codegen_nvvm.display(),
-    )];
+    let mut rustflags = vec![
+        format!("-Zcodegen-backend={}", rustc_codegen_nvvm.display()),
+        "-Zcrate-attr=feature(register_tool)".into(),
+        "-Zcrate-attr=register_tool(nvvm_internal)".into(),
+        "-Zcrate-attr=no_std".into(),
+        "-Zsaturating_float_casts=false".into(),
+    ];
 
     if let Some(emit) = &builder.emit {
         let string = match emit {
@@ -416,6 +418,11 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         llvm_args.push("--override-libm".to_string());
     }
 
+    if let Some(path) = &builder.final_module_path {
+        llvm_args.push("--final-module-path".to_string());
+        llvm_args.push(path.to_str().unwrap().to_string());
+    }
+
     if builder.debug != DebugInfo::None {
         let (nvvm_flag, rustc_flag) = builder.debug.into_nvvm_and_rustc_options();
         llvm_args.push(nvvm_flag);
@@ -427,20 +434,13 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         rustflags.push(["-Cllvm-args=", &llvm_args].concat());
     }
 
-    let target = if builder.nvptx_32 {
-        "nvptx-nvidia-cuda"
-    } else {
-        "nvptx64-nvidia-cuda"
-    };
-
     let mut cargo = Command::new("cargo");
-    cargo.args(&[
+    cargo.args([
         "build",
         "--lib",
         "--message-format=json-render-diagnostics",
         "-Zbuild-std=core,alloc",
-        "--target",
-        target,
+        "--target=nvptx64-nvidia-cuda",
     ]);
 
     cargo.args(&builder.build_args);
@@ -501,7 +501,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     let stdout = String::from_utf8(build.stdout).unwrap();
     let artifact = get_last_artifact(&stdout);
     if build.status.success() {
-        Ok(artifact.expect("Artifact created when compilation succeeded"))
+        Ok(artifact.expect("Artifact created when compilation succeeded (Did you forget to mark the crate-type as lib/rlib?)"))
     } else {
         Err(CudaBuilderError::BuildFailed)
     }
@@ -525,7 +525,7 @@ fn get_last_artifact(out: &str) -> Option<PathBuf> {
             }
         })
         .filter(|line| line.reason == "compiler-artifact")
-        .last()
+        .next_back()
         .expect("Did not find output file in rustc output");
 
     let mut filenames = last

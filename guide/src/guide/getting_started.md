@@ -5,7 +5,7 @@ This section covers how to get started writing GPU crates with `cuda_std` and `c
 ## Required Libraries
 
 Before you can use the project to write GPU crates, you will need a couple of prerequisites:
-- [The CUDA SDK](https://developer.nvidia.com/cuda-downloads), version `11.2` or higher (and the appropriate driver - [see cuda release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)) . This is only for building
+- [The CUDA SDK](https://developer.nvidia.com/cuda-downloads), version `11.2-11.8` (and the appropriate driver - [see cuda release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)) . This is only for building
 GPU crates, to execute built PTX you only need CUDA 9+.
 
 - LLVM 7.x (7.0 to 7.4), The codegen searches multiple places for LLVM:
@@ -62,9 +62,10 @@ Before we can write any GPU kernels, we must add a few directives to our `lib.rs
 #![cfg_attr(
     target_os = "cuda",
     no_std,
-    feature(register_attr),
     register_attr(nvvm_internal)
 )]
+
+use cuda_std::*;
 ```
 
 This does a couple of things:
@@ -72,6 +73,7 @@ This does a couple of things:
 - It declares the crate to be `no_std` on CUDA targets.
 - It registers a special attribute required by the codegen for things like figuring out
 what functions are GPU kernels.
+- It explicitly includes `kernel` macro and `thread`
 
 If you would like to use `alloc` or things like printing from GPU kernels (which requires alloc) then you need to declare `alloc` too:
 
@@ -190,6 +192,20 @@ static PTX: &str = include_str!("some/path.ptx");
 ```
 
 Then execute it using cust.
+
+Don't forget to include the current `rust-toolchain` in the top of your project:
+
+```toml
+# If you see this, run `rustup self update` to get rustup 1.23 or newer.
+
+# NOTE: above comment is for older `rustup` (before TOML support was added),
+# which will treat the first line as the toolchain name, and therefore show it
+# to the user in the error, instead of "error: invalid channel name '[toolchain]'".
+
+[toolchain]
+channel = "nightly-2021-12-04"
+components = ["rust-src", "rustc-dev", "llvm-tools-preview"]
+```
 
 ## Docker
 

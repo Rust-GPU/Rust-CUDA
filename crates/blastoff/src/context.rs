@@ -58,6 +58,14 @@ bitflags::bitflags! {
 /// - [Conjugated Complex Dot Product <span style="float:right;">`dotc`</span>](CublasContext::dotc)
 /// - [Euclidian Norm <span style="float:right;">`nrm2`</span>](CublasContext::nrm2)
 /// - [Rotate points in the xy-plane using a Givens rotation matrix <span style="float:right;">`rot`</span>](CublasContext::rot)
+/// - [Construct the givens rotation matrix that zeros the second entry of a vector<span style="float:right;">`rotg`</span>](CublasContext::rotg)
+/// - [Apply the modified Givens transformation to vectors <span style="float:right;">`rotm`</span>](CublasContext::rotm)
+/// - [Construct the modified givens rotation matrix that zeros the second entry of a vector<span style="float:right;">`rotmg`</span>](CublasContext::rotmg)
+/// - [Scale a vector by a scalar <span style="float:right;">`scal`</span>](CublasContext::scal)
+/// - [Swap two vectors <span style="float:right;">`swap`</span>](CublasContext::swap)
+///
+/// ## Level 3 Methods (Matrix-based operations)
+/// - [Matrix Multiplication <span style="float:right;">`gemm`</span>](CublasContext::gemm)
 #[derive(Debug)]
 pub struct CublasContext {
     pub(crate) raw: sys::v2::cublasHandle_t,
@@ -132,7 +140,13 @@ impl CublasContext {
     ) -> Result<T> {
         unsafe {
             // cudaStream_t is the same as CUstream
-            sys::v2::cublasSetStream_v2(self.raw, mem::transmute(stream.as_inner())).to_result()?;
+            sys::v2::cublasSetStream_v2(
+                self.raw,
+                mem::transmute::<*mut cust::sys::CUstream_st, *mut cublas_sys::v2::CUstream_st>(
+                    stream.as_inner(),
+                ),
+            )
+            .to_result()?;
             let res = func(self)?;
             // reset the stream back to NULL just in case someone calls with_stream, then drops the stream, and tries to
             // execute a raw sys function with the context's handle.
@@ -219,10 +233,11 @@ impl CublasContext {
     /// ```
     pub fn set_math_mode(&self, math_mode: MathMode) -> Result<()> {
         unsafe {
-            Ok(
-                sys::v2::cublasSetMathMode(self.raw, mem::transmute(math_mode.bits()))
-                    .to_result()?,
+            Ok(sys::v2::cublasSetMathMode(
+                self.raw,
+                mem::transmute::<u32, cublas_sys::v2::cublasMath_t>(math_mode.bits()),
             )
+            .to_result()?)
         }
     }
 

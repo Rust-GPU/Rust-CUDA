@@ -1,7 +1,7 @@
 #![cfg_attr(
     target_arch = "nvptx64",
     no_std,
-    feature(register_attr, asm, asm_experimental_arch),
+    feature(asm_experimental_arch),
     register_attr(nvvm_internal)
 )]
 

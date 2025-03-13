@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies the recurrence pattern for a recurrent neural network.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnDirectionMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RnnDirectionMode {
     /// The network iterates recurrently from the first input to the last.
@@ -11,20 +14,11 @@ pub enum RnnDirectionMode {
     Bidirectional,
 }
 
-impl From<sys::cudnnDirectionMode_t> for RnnDirectionMode {
-    fn from(raw: sys::cudnnDirectionMode_t) -> Self {
-        match raw {
-            sys::cudnnDirectionMode_t::CUDNN_UNIDIRECTIONAL => Self::Unidirectional,
-            sys::cudnnDirectionMode_t::CUDNN_BIDIRECTIONAL => Self::Bidirectional,
-        }
-    }
-}
-
 impl From<RnnDirectionMode> for sys::cudnnDirectionMode_t {
     fn from(mode: RnnDirectionMode) -> Self {
         match mode {
-            RnnDirectionMode::Unidirectional => sys::cudnnDirectionMode_t::CUDNN_UNIDIRECTIONAL,
-            RnnDirectionMode::Bidirectional => sys::cudnnDirectionMode_t::CUDNN_BIDIRECTIONAL,
+            RnnDirectionMode::Unidirectional => Self::CUDNN_UNIDIRECTIONAL,
+            RnnDirectionMode::Bidirectional => Self::CUDNN_BIDIRECTIONAL,
         }
     }
 }

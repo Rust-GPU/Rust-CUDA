@@ -225,6 +225,178 @@ pub unsafe fn memcpy_dtoh(
     Ok(())
 }
 
+/// Similar to `cudaMemcpy2D` with `HostToDevice` copy type.
+///
+/// `dpitch`/`spitch` is bytes between the start of two rows.
+/// `width` is the number of *elements* (not bytes) in a row.
+/// `height` is the total number of rows (not bytes).
+///
+/// # Examples
+///
+/// ```
+/// # let _context = cust::quick_init().unwrap();
+/// # fn foo() -> Result<(), cust::error::CudaError> {
+/// use cust::memory::*;
+/// unsafe {
+///     // Allocate space for a 3x3 matrix of f32s
+///     let (device_buffer, pitch) = cuda_malloc_pitched::<f32>(3, 3)?;
+///
+///     let src_array: [f32; 9] = [
+///         1.0, 2.0, 3.0,
+///         4.0, 5.0, 6.0,
+///         7.0, 8.0, 9.0];
+///
+///     memcpy_2d_htod(
+///         device_buffer,
+///         pitch,
+///         src_array.as_slice().as_ptr(),
+///         3*std::mem::size_of::<f32>(),
+///         3,
+///         3
+///     )?;
+///
+///     let mut dst_array = [0.0f32; 9];
+///
+///     memcpy_2d_dtoh(
+///         dst_array.as_mut_slice().as_mut_ptr(),
+///         3*std::mem::size_of::<f32>(),
+///         device_buffer,
+///         pitch,
+///         3,
+///         3
+///     )?;
+///
+///     assert_eq!(dst_array, src_array);
+///     cuda_free(device_buffer)?;
+/// }
+/// # Ok(())
+/// # }
+/// # foo().unwrap();
+/// ```
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn memcpy_2d_htod<T: DeviceCopy>(
+    dst: DevicePointer<T>,
+    dpitch: usize,
+    src: *const T,
+    spitch: usize,
+    width: usize,
+    height: usize,
+) -> CudaResult<()> {
+    use cust_raw::CUmemorytype;
+
+    let width_in_bytes = width
+        .checked_mul(std::mem::size_of::<T>())
+        .ok_or(CudaError::InvalidMemoryAllocation)?;
+
+    let pcopy = cust_raw::CUDA_MEMCPY2D_st {
+        srcXInBytes: 0,
+        srcY: 0,
+        srcMemoryType: CUmemorytype::CU_MEMORYTYPE_HOST,
+        srcHost: src as *const c_void,
+        srcDevice: 0,                                           // Ignored
+        srcArray: std::ptr::null_mut::<cust_raw::CUarray_st>(), // Ignored
+        srcPitch: spitch,
+        dstXInBytes: 0,
+        dstY: 0,
+        dstMemoryType: CUmemorytype::CU_MEMORYTYPE_DEVICE,
+        dstHost: std::ptr::null_mut::<c_void>(), // Ignored
+        dstDevice: dst.as_raw(),
+        dstArray: std::ptr::null_mut::<cust_raw::CUarray_st>(), // Ignored
+        dstPitch: dpitch,
+        WidthInBytes: width_in_bytes,
+        Height: height,
+    };
+
+    crate::sys::cuMemcpy2D_v2(&pcopy).to_result()?;
+    Ok(())
+}
+
+/// Similar to `cudaMemcpy2D` with `DeviceToHost` copy type.
+///
+/// `dpitch`/`spitch` is bytes between the start of two rows.
+/// `width` is the number of *elements* (not bytes) in a row.
+/// `height` is the total number of rows (not bytes).
+///
+/// # Examples
+///
+/// ```
+/// # let _context = cust::quick_init().unwrap();
+/// # fn foo() -> Result<(), cust::error::CudaError> {
+/// use cust::memory::*;
+/// unsafe {
+///     // Allocate space for a 3x3 matrix of f32s
+///     let (device_buffer, pitch) = cuda_malloc_pitched::<f32>(3, 3)?;
+///
+///     let src_array: [f32; 9] = [
+///         1.0, 2.0, 3.0,
+///         4.0, 5.0, 6.0,
+///         7.0, 8.0, 9.0];
+///
+///     memcpy_2d_htod(
+///         device_buffer,
+///         pitch,
+///         src_array.as_slice().as_ptr(),
+///         3*std::mem::size_of::<f32>(),
+///         3,
+///         3
+///     )?;
+///
+///     let mut dst_array = [0.0f32; 9];
+///
+///     memcpy_2d_dtoh(
+///         dst_array.as_mut_slice().as_mut_ptr(),
+///         3*std::mem::size_of::<f32>(),
+///         device_buffer,
+///         pitch,
+///         3,
+///         3
+///     )?;
+///
+///     assert_eq!(dst_array, src_array);
+///     cuda_free(device_buffer)?;
+/// }
+/// # Ok(())
+/// # }
+/// # foo().unwrap();
+/// ```
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn memcpy_2d_dtoh<T: DeviceCopy>(
+    dst: *mut T,
+    dpitch: usize,
+    src: DevicePointer<T>,
+    spitch: usize,
+    width: usize,
+    height: usize,
+) -> CudaResult<()> {
+    use cust_raw::CUmemorytype;
+
+    let width_in_bytes = width
+        .checked_mul(std::mem::size_of::<T>())
+        .ok_or(CudaError::InvalidMemoryAllocation)?;
+
+    let pcopy = cust_raw::CUDA_MEMCPY2D_st {
+        srcXInBytes: 0,
+        srcY: 0,
+        srcMemoryType: CUmemorytype::CU_MEMORYTYPE_DEVICE,
+        srcHost: std::ptr::null_mut::<c_void>(), // Ignored
+        srcDevice: src.as_raw(),
+        srcArray: std::ptr::null_mut::<cust_raw::CUarray_st>(), // Ignored
+        srcPitch: spitch,
+        dstXInBytes: 0,
+        dstY: 0,
+        dstMemoryType: CUmemorytype::CU_MEMORYTYPE_HOST,
+        dstHost: dst as *mut c_void,
+        dstDevice: 0,                                           // Ignored
+        dstArray: std::ptr::null_mut::<cust_raw::CUarray_st>(), // Ignored
+        dstPitch: dpitch,
+        WidthInBytes: width_in_bytes,
+        Height: height,
+    };
+
+    crate::sys::cuMemcpy2D_v2(&pcopy).to_result()?;
+    Ok(())
+}
+
 /// Get the current free and total memory.
 ///
 /// Returns in `.1` the total amount of memory available to the the current context.

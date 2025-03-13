@@ -1,8 +1,6 @@
 use crate::{
-    data_type::DataType,
-    error::{CudnnError, IntoResult},
-    sys, DropoutDescriptor, MathType, NanPropagation, RnnAlgo, RnnBiasMode, RnnClipMode,
-    RnnDirectionMode, RnnInputMode, RnnMode,
+    sys, CudnnError, DataType, DropoutDescriptor, IntoResult, MathType, NanPropagation, RnnAlgo,
+    RnnBiasMode, RnnClipMode, RnnDirectionMode, RnnInputMode, RnnMode,
 };
 use cust::memory::GpuBuffer;
 use std::{marker::PhantomData, mem::MaybeUninit};
@@ -23,11 +21,11 @@ bitflags::bitflags! {
 ///
 /// This descriptor is generic over the data type of the parameters and the inputs, and the one of
 /// the computation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct RnnDescriptor<T, U>
 where
     T: DataType,
-    U: DataType + SupportedPrec<T>,
+    U: SupportedRnn<T>,
 {
     pub(crate) raw: sys::cudnnRNNDescriptor_t,
     data_type: PhantomData<T>,
@@ -37,64 +35,62 @@ where
 impl<T, U> RnnDescriptor<T, U>
 where
     T: DataType,
-    U: DataType + SupportedPrec<T>,
+    U: SupportedRnn<T>,
 {
     /// Initializes a RNN descriptor object.
     ///
     /// # Arguments
     ///
-    /// * `algo` - a recurrent neural network algorithm.
+    ///   * `algo` - a recurrent neural network algorithm.
+    ///   * `cell_mode` - specifies the RNN cell type in the entire model.
+    ///   * `bias_mode` - number of bias vectors.
+    ///   * `dir_mode` - recurrence pattern.
+    ///   * `input_mode` - specifies how the input to the RNN model is processed by the
+    ///     first layer. When `input_mode` is `RnnInputMode::LinearInput`, the original
+    ///     input vectors of size `input_size` are multiplied by the weight matrix to
+    ///     obtain vectors of hiddenSize. When `input_mode` is set to
+    ///     `RnnInputMode::SkipInput`, the original input vectors to the first layer are
+    ///     used as is without multiplying them by the weight matrix.
+    ///   * `math_type` - preferred option to use NVIDIA Tensor Cores accelerators on
+    ///     Volta (SM 7.0) or higher GPUs.
+    ///   * `input_size` - size of the input vector in the RNN model.
+    ///   * `hidden_size` - size of the hidden state vector in the RNN model. The same
+    ///     hidden size is used in all RNN layers.
+    ///   * `projection_size` - the size of the LSTM cell output after the recurrent
+    ///     projection. This value should not be larger than `hidden_size`. It is legal
+    ///     to set it equal to `hidden_size`, however, in this case, the recurrent
+    ///     projection feature is disabled. The recurrent projection is an additional
+    ///     matrix multiplication in the LSTM cell to project hidden state vectors ht
+    ///     into smaller vectors rt = Wr * ht, where Wr is a rectangular matrix with
+    ///     `projection_size` rows and `hidden_size` columns. When the recurrent
+    ///     projection is enabled, the output of the LSTM cell (both to the next layer
+    ///     and unrolled in-time) is rt instead of ht. The recurrent projection can be
+    ///     enabled for LSTM cells and `RnnAlgo::AlgoStandard` only.
+    ///   * `num_layers` - number of stacked, physical layers in the deep RNN model.
+    ///     When `dir_mode` is equal to `RnnDirectionMode::Bidirectional`, the physical
+    ///     layer consists of two pseudo-layers corresponding to forward and backward
+    ///     directions.
+    ///   * `dropout_desc` - an optional dropout descriptor. Dropout operation will be
+    ///     applied between physical layers. A single layer network will have no dropout
+    ///     applied. Dropout is used in the training mode only.
+    ///   * `aux_flags` - this argument is used to pass miscellaneous switches that do
+    ///     not require additional numerical values to configure the corresponding
+    ///     feature. In future cuDNN releases, this parameter will be used to extend the
+    ///     RNN functionality without adding new API functions (applicable options
+    ///     should be bitwise OR-ed). Currently, this parameter is used to enable or
+    ///     disable padded input/output (`RnnAuxFlags::PADDED_IO_DISABLED`,
+    ///     `RnnAuxFlags::PADDED_IO_ENABLED`). When the padded I/O is enabled, layouts
+    ///     `SeqMajorUnpacked` and `BatchMajorUnpacked` are permitted in RNN data
+    ///     descriptors.
     ///
-    /// * `cell_mode` - specifies the RNN cell type in the entire model.
-    ///
-    /// * `bias_mode` - number of bias vectors.
-    ///
-    /// * `dir_mode` - recurrence pattern.
-    ///
-    /// * `input_mode` - specifies how the input to the RNN model is processed by the first layer.
-    /// When `input_mode` is `RnnInputMode::LinearInput`, the original input vectors of size
-    /// `input_size` are multiplied by the weight matrix to obtain vectors of hiddenSize.
-    /// When `input_mode` is set to `RnnInputMode::SkipInput`, the original input vectors to the
-    /// first layer are used as is without multiplying them by the weight matrix.
-    ///
-    /// * `math_type` - preferred option to use NVIDIA Tensor Cores accelerators on Volta (SM 7.0)
-    /// or higher GPU-s.
-    ///
-    /// * `input_size` - size of the input vector in the RNN model.
-    ///
-    /// * `hidden_size` - size of the hidden state vector in the RNN model. The same hidden size is
-    /// used in all RNN layers.
-    ///
-    /// * `projection_size` - the size of the LSTM cell output after the recurrent projection. This
-    /// value should not be larger than `hidden_size`. It is legal to set it equal to `hidden_size`,
-    /// however, in this case, the recurrent projection feature is disabled. The recurrent
-    /// projection is an additional matrix multiplication in the LSTM cell to project hidden state
-    /// vectors ht into smaller vectors rt = Wr * ht, where Wr is a rectangular matrix with
-    /// `projection_size` rows and `hidden_size` columns. When the recurrent projection is enabled,
-    /// the output of the LSTM cell (both to the next layer and unrolled in-time) is rt instead of
-    /// ht. The recurrent projection can be enabled for LSTM cells and `RnnAlgo::AlgoStandard` only.
-    ///
-    /// * `num_layers` - number of stacked, physical layers in the deep RNN model. When `dir_mode`
-    /// is equal to `RnnDirectionMode::Bidirectional`, the physical layer consists of two
-    /// pseudo-layers corresponding to forward and backward directions.
-    ///
-    /// * `dropout_desc` - an optional dropout descriptor. Dropout operation will be applied
-    /// between physical layers. A single layer network will have no dropout applied.
-    /// Dropout is used in the training mode only.
-    ///
-    /// * `aux_flags` - this argument is used to pass miscellaneous switches that do not require
-    /// additional numerical values to configure the corresponding feature. In future cuDNN
-    /// releases, this parameter will be used to extend the RNN functionality without adding new
-    /// API functions (applicable options should be bitwise OR-ed).
-    /// Currently, this parameter is used to enable or disable padded input/output
-    /// (`RnnAuxFlags::PADDED_IO_DISABLED`, `RnnAuxFlags::PADDED_IO_ENABLED`). When the padded I/O
-    /// is enabled, layouts `SeqMajorUnpacked` and `BatchMajorUnpacked` are permitted in RNN data
-    /// descriptors.
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDescriptor_v8)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns errors if an incompatible or unsupported combination of input arguments was
-    /// detected.
+    /// Returns errors if an incompatible or unsupported combination of input arguments
+    /// was detected.
     ///
     /// # Examples
     ///
@@ -110,7 +106,7 @@ where
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let algo = RnnAlgo::AlgoStandard;
+    /// let algo = RnnAlgo::Standard;
     /// let cell_mode = RnnMode::Lstm;
     /// let bias_mode = RnnBiasMode::SingleRecurrentBias;
     /// let dir_mode = RnnDirectionMode::Unidirectional;
@@ -140,6 +136,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn new<S>(
         algo: RnnAlgo,
         cell_mode: RnnMode,
@@ -162,7 +159,7 @@ where
         unsafe {
             sys::cudnnCreateRNNDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             let proj_size = projection_size.into().unwrap_or(0);
             let dropout_desc = dropout_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
@@ -194,26 +191,29 @@ where
         }
     }
 
-    /// Sets the LSTM cell clipping mode. The LSTM clipping is disabled by default. When enabled,
-    /// clipping is applied to all layers. This function does not affect the work, reserve, and
-    /// weight-space buffer sizes and may be called multiple times.
+    /// Sets the LSTM cell clipping mode. The LSTM clipping is disabled by default. When
+    /// enabled, clipping is applied to all layers. This function does not affect the
+    /// work, reserve, and weight-space buffer sizes and may be called multiple times.
     ///
     /// # Arguments
     ///
-    /// * `clip_mode` - enables or disables the LSTM cell clipping. When `clip_mode` is set to
-    /// `RnnClipMode::ClipNone` no LSTM cell state clipping is performed. When `clip_mode` is
-    /// `RnnClipMode::ClipMinMax` the cell state activation to other units is clipped.
+    ///   * `clip_mode` - enables or disables the LSTM cell clipping. When `clip_mode`
+    ///     is set to `RnnClipMode::ClipNone` no LSTM cell state clipping is performed.
+    ///     When `clip_mode` is `RnnClipMode::ClipMinMax` the cell state activation to
+    ///     other units is clipped.
     ///
-    /// * `nan_opt` - when set to `NanPropagation::PropagateNan`, NaN is propagated from the
-    /// LSTM cell, or it can be set to one of the clipping range boundary values, instead of
-    /// propagating.
+    ///  * `nan_opt` - when set to `NanPropagation::PropagateNan`, NaN is propagated
+    ///    from the LSTM cell, or it can be set to one of the clipping range boundary
+    ///    values, instead of propagating.
+    ///   * `left_clip` - left bound of the clipping range.
+    ///   * `right_clip` - right bound of the clipping range.
     ///
-    /// * `left_clip` - left bound of the clipping range.
+    /// **Do note** that cell clipping is only available if the cell mode associated to
+    /// this descriptor is `RnnMode::Lstm`.
     ///
-    /// * `right_clip` - right bound of the clipping range.
-    ///
-    /// **Do note** that cell clipping is only available if the cell mode associated to this
-    /// descriptor is `RnnMode::Lstm`.
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNSetClip_v8)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
@@ -242,7 +242,7 @@ where
 impl<T, U> Drop for RnnDescriptor<T, U>
 where
     T: DataType,
-    U: DataType + SupportedPrec<T>,
+    U: SupportedRnn<T>,
 {
     fn drop(&mut self) {
         unsafe {
@@ -257,12 +257,12 @@ where
 /// * For input and output in `f32`, the math precision of the model can only be `f32`.
 ///
 /// * For input and output in `f64` the math precision of the model can only be `f64`.
-pub trait SupportedPrec<T>
+pub trait SupportedRnn<T>
 where
     Self: DataType,
     T: DataType,
 {
 }
 
-impl SupportedPrec<f32> for f32 {}
-impl SupportedPrec<f64> for f64 {}
+impl SupportedRnn<f32> for f32 {}
+impl SupportedRnn<f64> for f64 {}

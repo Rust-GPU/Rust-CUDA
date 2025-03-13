@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Enum stating whether or not the computed results are deterministic (reproducible).
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnDeterminism_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Determinism {
     /// Results are guaranteed to be reproducible.

@@ -1,4 +1,3 @@
-#![feature(asm)]
 #![cfg_attr(
     target_os = "cuda",
     no_std,
@@ -54,7 +53,7 @@ pub unsafe fn __raygen__renderFrame() {
 
     if idx[0] == 3 && idx[1] == 4 {
         vprintf(
-            b"Hello from Rust kernel!\n\0".as_ptr().cast(),
+            c"Hello from Rust kernel!\n".as_ptr().cast(),
             std::ptr::null::<core::ffi::c_void>(),
         );
 
@@ -62,8 +61,9 @@ pub unsafe fn __raygen__renderFrame() {
         struct PrintArgs(i32);
 
         vprintf(
-            b"frame id is %d\n\0".as_ptr().cast(),
-            core::mem::transmute(&PrintArgs(core::ptr::read_volatile(&PARAMS.frame_id))),
+            c"frame id is %d\n".as_ptr().cast(),
+            &PrintArgs(core::ptr::read_volatile(&PARAMS.frame_id)) as *const PrintArgs
+                as *const std::ffi::c_void,
         );
     }
 }

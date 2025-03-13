@@ -9,7 +9,7 @@ repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 
 [dependencies]
-rand_core = { version = "0.6" }
+rand_core = { version = "0.9" }
 cust_core = { version = "0.1.0", path = "../cust_core" }
 
 [target.'cfg(target_os = "cuda")'.dependencies]

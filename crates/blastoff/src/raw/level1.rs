@@ -1,7 +1,6 @@
-use std::os::raw::c_int;
-
 use crate::{sys::v2::*, BlasDatatype};
 use num_complex::{Complex32, Complex64};
+use std::os::raw::c_int;
 
 pub trait Level1: BlasDatatype {
     unsafe fn amax(
@@ -58,6 +57,23 @@ pub trait Level1: BlasDatatype {
         b: *mut Self,
         c: *mut Self::FloatTy,
         s: *mut Self,
+    ) -> cublasStatus_t;
+    unsafe fn rotm(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *mut Self,
+        incx: c_int,
+        y: *mut Self,
+        incy: c_int,
+        param: *const Self::FloatTy,
+    ) -> cublasStatus_t;
+    unsafe fn rotmg(
+        handle: cublasHandle_t,
+        d1: *mut Self,
+        d2: *mut Self,
+        x1: *mut Self,
+        y1: *const Self,
+        param: *mut Self,
     ) -> cublasStatus_t;
     unsafe fn scal(
         handle: cublasHandle_t,
@@ -145,6 +161,27 @@ impl Level1 for f32 {
         s: *mut Self,
     ) -> cublasStatus_t {
         cublasSrotg_v2(handle, a, b, c, s)
+    }
+    unsafe fn rotm(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *mut Self,
+        incx: c_int,
+        y: *mut Self,
+        incy: c_int,
+        param: *const Self::FloatTy,
+    ) -> cublasStatus_t {
+        cublasSrotm_v2(handle, n, x, incx, y, incy, param)
+    }
+    unsafe fn rotmg(
+        handle: cublasHandle_t,
+        d1: *mut Self,
+        d2: *mut Self,
+        x1: *mut Self,
+        y1: *const Self,
+        param: *mut Self,
+    ) -> cublasStatus_t {
+        cublasSrotmg_v2(handle, d1, d2, x1, y1, param)
     }
     unsafe fn scal(
         handle: cublasHandle_t,
@@ -237,6 +274,27 @@ impl Level1 for f64 {
     ) -> cublasStatus_t {
         cublasDrotg_v2(handle, a, b, c, s)
     }
+    unsafe fn rotm(
+        handle: cublasHandle_t,
+        n: c_int,
+        x: *mut Self,
+        incx: c_int,
+        y: *mut Self,
+        incy: c_int,
+        param: *const Self::FloatTy,
+    ) -> cublasStatus_t {
+        cublasDrotm_v2(handle, n, x, incx, y, incy, param)
+    }
+    unsafe fn rotmg(
+        handle: cublasHandle_t,
+        d1: *mut Self,
+        d2: *mut Self,
+        x1: *mut Self,
+        y1: *const Self,
+        param: *mut Self,
+    ) -> cublasStatus_t {
+        cublasDrotmg_v2(handle, d1, d2, x1, y1, param)
+    }
     unsafe fn scal(
         handle: cublasHandle_t,
         n: c_int,
@@ -328,6 +386,27 @@ impl Level1 for Complex32 {
     ) -> cublasStatus_t {
         cublasCrotg_v2(handle, a.cast(), b.cast(), c, s.cast())
     }
+    unsafe fn rotm(
+        _handle: cublasHandle_t,
+        _n: c_int,
+        _x: *mut Self,
+        _incx: c_int,
+        _y: *mut Self,
+        _incy: c_int,
+        _param: *const Self::FloatTy,
+    ) -> cublasStatus_t {
+        unreachable!()
+    }
+    unsafe fn rotmg(
+        _handle: cublasHandle_t,
+        _d1: *mut Self,
+        _d2: *mut Self,
+        _x1: *mut Self,
+        _y1: *const Self,
+        _param: *mut Self,
+    ) -> cublasStatus_t {
+        unreachable!()
+    }
     unsafe fn scal(
         handle: cublasHandle_t,
         n: c_int,
@@ -418,6 +497,27 @@ impl Level1 for Complex64 {
         s: *mut Self,
     ) -> cublasStatus_t {
         cublasZrotg_v2(handle, a.cast(), b.cast(), c, s.cast())
+    }
+    unsafe fn rotm(
+        _handle: cublasHandle_t,
+        _n: c_int,
+        _x: *mut Self,
+        _incx: c_int,
+        _y: *mut Self,
+        _incy: c_int,
+        _param: *const Self::FloatTy,
+    ) -> cublasStatus_t {
+        unreachable!()
+    }
+    unsafe fn rotmg(
+        _handle: cublasHandle_t,
+        _d1: *mut Self,
+        _d2: *mut Self,
+        _x1: *mut Self,
+        _y1: *const Self,
+        _param: *mut Self,
+    ) -> cublasStatus_t {
+        unreachable!()
     }
     unsafe fn scal(
         handle: cublasHandle_t,

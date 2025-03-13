@@ -55,7 +55,10 @@ fn target_to_llvm_prebuilt(target: &str) -> String {
         "x86_64-pc-windows-msvc" => "windows-x86_64",
         // NOTE(RDambrosio016): currently disabled because of weird issues with segfaults and building the C++ shim
         // "x86_64-unknown-linux-gnu" => "linux-x86_64",
-        _ => panic!("Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG", target)
+        _ => panic!(
+            "Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG",
+            target
+        ),
     };
     format!("{}.tar.xz", base)
 }
@@ -75,6 +78,12 @@ fn find_llvm_config(target: &str) -> PathBuf {
             if version.starts_with(&REQUIRED_MAJOR_LLVM_VERSION.to_string()) {
                 return PathBuf::from(path_to_try);
             }
+            println!(
+                "cargo:warning=Prebuilt llvm-config version does not start with {}",
+                REQUIRED_MAJOR_LLVM_VERSION
+            );
+        } else {
+            println!("cargo:warning=Failed to run prebuilt llvm-config");
         }
     }
 
@@ -91,7 +100,7 @@ fn find_llvm_config(target: &str) -> PathBuf {
     let mut easy = Easy::new();
 
     easy.url(&url).unwrap();
-    let _redirect = easy.follow_location(true).unwrap();
+    easy.follow_location(true).unwrap();
     let mut xz_encoded = Vec::with_capacity(20_000_000); // 20mb
     {
         let mut transfer = easy.transfer();
@@ -341,7 +350,7 @@ fn rustc_llvm_build() {
 
 #[cfg(not(target_os = "windows"))]
 fn link_llvm_system_libs(llvm_config: &Path, components: &[&str]) {
-    let mut cmd = Command::new(&llvm_config);
+    let mut cmd = Command::new(llvm_config);
     cmd.arg("--system-libs");
 
     for comp in components {

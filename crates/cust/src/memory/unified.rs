@@ -256,22 +256,22 @@ impl<T: DeviceCopy> Drop for UnifiedBox<T> {
 
 impl<T: DeviceCopy> Borrow<T> for UnifiedBox<T> {
     fn borrow(&self) -> &T {
-        &**self
+        self
     }
 }
 impl<T: DeviceCopy> BorrowMut<T> for UnifiedBox<T> {
     fn borrow_mut(&mut self) -> &mut T {
-        &mut **self
+        self
     }
 }
 impl<T: DeviceCopy> AsRef<T> for UnifiedBox<T> {
     fn as_ref(&self) -> &T {
-        &**self
+        self
     }
 }
 impl<T: DeviceCopy> AsMut<T> for UnifiedBox<T> {
     fn as_mut(&mut self) -> &mut T {
-        &mut **self
+        self
     }
 }
 impl<T: DeviceCopy> Deref for UnifiedBox<T> {
@@ -420,7 +420,7 @@ impl<T: DeviceCopy> UnifiedBuffer<T> {
         let ptr = if size > 0 && mem::size_of::<T>() > 0 {
             cuda_malloc_unified(size)?
         } else {
-            UnifiedPointer::wrap(ptr::NonNull::dangling().as_ptr() as *mut T)
+            UnifiedPointer::wrap(ptr::NonNull::dangling().as_ptr())
         };
         Ok(UnifiedBuffer {
             buf: ptr,
@@ -474,26 +474,26 @@ impl<T: DeviceCopy> UnifiedBuffer<T> {
         self.buf
     }
 
-    /// Creates a `UnifiedBuffer<T>` directly from the raw components of another unified buffer.
+    /// Creates a `UnifiedBuffer<T>` directly from the raw components of another unified
+    /// buffer.
     ///
     /// # Safety
     ///
-    /// This is highly unsafe, due to the number of invariants that aren't
-    /// checked:
+    /// This is highly unsafe, due to the number of invariants that aren't checked:
     ///
-    /// * `ptr` needs to have been previously allocated via `UnifiedBuffer` or
-    /// [`cuda_malloc_unified`](fn.cuda_malloc_unified.html).
-    /// * `ptr`'s `T` needs to have the same size and alignment as it was allocated with.
-    /// * `capacity` needs to be the capacity that the pointer was allocated with.
+    ///   * `ptr` needs to have been previously allocated via `UnifiedBuffer` or
+    ///     [`cuda_malloc_unified`](fn.cuda_malloc_unified.html).
+    ///   * `ptr`'s `T` needs to have the same size and alignment as it was allocated
+    ///     with.
+    ///   * `capacity` needs to be the capacity that the pointer was allocated with.
     ///
-    /// Violating these may cause problems like corrupting the CUDA driver's
-    /// internal data structures.
+    /// Violating these may cause problems like corrupting the CUDA driver's internal
+    /// data structures.
     ///
-    /// The ownership of `ptr` is effectively transferred to the
-    /// `UnifiedBuffer<T>` which may then deallocate, reallocate or change the
-    /// contents of memory pointed to by the pointer at will. Ensure
-    /// that nothing else uses the pointer after calling this
-    /// function.
+    /// The ownership of `ptr` is effectively transferred to the `UnifiedBuffer<T>`
+    /// which may then deallocate, reallocate or change the contents of memory pointed
+    /// to by the pointer at will. Ensure that nothing else uses the pointer after
+    /// calling this function.
     ///
     /// # Examples
     ///

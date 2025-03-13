@@ -1,15 +1,14 @@
-use libc::c_int;
-use rustc_metadata::dynamic_lib::DynamicLibrary;
-use rustc_middle::bug;
-use rustc_session::Session;
-use rustc_target::spec::MergeFunctions;
 use std::ffi::CString;
-
 use std::mem;
 use std::path::Path;
 use std::str;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Once;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use libc::c_int;
+use rustc_middle::bug;
+use rustc_session::Session;
+use rustc_target::spec::MergeFunctions;
 
 use crate::llvm;
 
@@ -75,19 +74,20 @@ unsafe fn configure_llvm(sess: &Session) {
         };
         // Set the llvm "program name" to make usage and invalid argument messages more clear.
         // add("rustc -Cllvm-args=\"...\" with", true);
-        if sess.time_llvm_passes() {
+
+        if sess.opts.unstable_opts.time_llvm_passes {
             add("-time-passes", false);
         }
-        if sess.print_llvm_passes() {
+        if sess.opts.unstable_opts.print_llvm_passes {
             add("-debug-pass=Structure", false);
         }
-        if !sess.opts.debugging_opts.no_generate_arange_section {
+        if !sess.opts.unstable_opts.no_generate_arange_section {
             add("-generate-arange-section", false);
         }
 
         match sess
             .opts
-            .debugging_opts
+            .unstable_opts
             .merge_functions
             .unwrap_or(sess.target.merge_functions)
         {
@@ -112,11 +112,11 @@ unsafe fn configure_llvm(sess: &Session) {
         // }
     }
 
-    llvm::LLVMInitializePasses();
+    unsafe { llvm::LLVMInitializePasses() };
 
-    for plugin in &sess.opts.debugging_opts.llvm_plugins {
+    for plugin in &sess.opts.unstable_opts.llvm_plugins {
         let path = Path::new(plugin);
-        let res = DynamicLibrary::open(path);
+        let res = unsafe { libloading::Library::new(path) };
         match res {
             Ok(_) => {}
             Err(e) => bug!("couldn't load plugin: {}", e),
@@ -124,10 +124,12 @@ unsafe fn configure_llvm(sess: &Session) {
         mem::forget(res);
     }
 
-    llvm::LLVMInitializeNVPTXTarget();
-    llvm::LLVMInitializeNVPTXTargetInfo();
-    llvm::LLVMInitializeNVPTXTargetMC();
-    llvm::LLVMInitializeNVPTXAsmPrinter();
+    unsafe {
+        llvm::LLVMInitializeNVPTXTarget();
+        llvm::LLVMInitializeNVPTXTargetInfo();
+        llvm::LLVMInitializeNVPTXTargetMC();
+        llvm::LLVMInitializeNVPTXAsmPrinter();
 
-    llvm::LLVMRustSetLLVMOptions(llvm_args.len() as c_int, llvm_args.as_ptr());
+        llvm::LLVMRustSetLLVMOptions(llvm_args.len() as c_int, llvm_args.as_ptr());
+    }
 }

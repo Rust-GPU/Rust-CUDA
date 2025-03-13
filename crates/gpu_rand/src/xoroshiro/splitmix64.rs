@@ -1,6 +1,6 @@
 use rand_core::impls::fill_bytes_via_next;
 use rand_core::le::read_u64_into;
-use rand_core::{Error, RngCore, SeedableRng};
+use rand_core::{RngCore, SeedableRng};
 
 /// A splitmix64 random number generator.
 ///
@@ -15,7 +15,6 @@ use rand_core::{Error, RngCore, SeedableRng};
 #[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
-
 pub struct SplitMix64 {
     x: u64,
 }
@@ -48,12 +47,6 @@ impl RngCore for SplitMix64 {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         fill_bytes_via_next(self, dest);
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 

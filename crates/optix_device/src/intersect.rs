@@ -65,14 +65,15 @@ impl_intersection_payload! {}
 
 /// Reports an intersection and passes custom attributes to further programs.
 ///
-/// If `tmin <= hit_t <= tmax` then the anyhit program associated with this intersection will be invoked,
-/// then the program will do one of three things:
-/// - Ignore the intersection; no hit is recorded and this function returns `false`.
-/// - Terminate the ray; a hit is recorded and this function does not return. No further traversal occurs and the associated
-/// closesthit program is invoked.
-/// - Neither; A hit is recorded and this function returns `true`.
+/// If `tmin <= hit_t <= tmax` then the anyhit program associated with this intersection
+/// will be invoked, then the program will do one of three things:
+///  - Ignore the intersection; no hit is recorded and this function returns `false`.
+///  - Terminate the ray; a hit is recorded and this function does not return. No
+///    further traversal occurs and the associated closesthit program is invoked.
+///  - Neither; A hit is recorded and this function returns `true`.
 ///
-/// **Only the lower 7 bits of the `hit_kind` should be written, the top 127 values are reserved for hardware primitives.**
+/// **Only the lower 7 bits of the `hit_kind` should be written, the top 127 values are
+/// reserved for hardware primitives.**
 pub fn report_intersection<P: IntersectionPayload>(hit_t: f32, hit_kind: u8, payload: P) -> bool {
     P::report_intersection(hit_t, hit_kind, payload)
 }

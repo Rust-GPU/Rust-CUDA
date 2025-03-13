@@ -52,6 +52,7 @@ pub enum CudaError {
     InvalidPtx = 218,
     InvalidGraphicsContext = 219,
     NvlinkUncorrectable = 220,
+    UnsupportedPtxVersion = 222,
     InvalidSource = 300,
     FileNotFound = 301,
     SharedObjectSymbolNotFound = 302,
@@ -95,9 +96,12 @@ impl fmt::Display for CudaError {
                 let value = other as u32;
                 let mut ptr: *const c_char = ptr::null();
                 unsafe {
-                    cuda::cuGetErrorString(mem::transmute(value), &mut ptr as *mut *const c_char)
-                        .to_result()
-                        .map_err(|_| fmt::Error)?;
+                    cuda::cuGetErrorString(
+                        mem::transmute::<u32, cust_raw::cudaError_enum>(value),
+                        &mut ptr as *mut *const c_char,
+                    )
+                    .to_result()
+                    .map_err(|_| fmt::Error)?;
                     let cstr = CStr::from_ptr(ptr);
                     write!(f, "{:?}", cstr)
                 }
@@ -159,6 +163,9 @@ impl ToResult for cudaError_enum {
             }
             cudaError_enum::CUDA_ERROR_PEER_ACCESS_UNSUPPORTED => {
                 Err(CudaError::PeerAccessUnsupported)
+            }
+            cudaError_enum::CUDA_ERROR_UNSUPPORTED_PTX_VERSION => {
+                Err(CudaError::UnsupportedPtxVersion)
             }
             cudaError_enum::CUDA_ERROR_INVALID_PTX => Err(CudaError::InvalidPtx),
             cudaError_enum::CUDA_ERROR_INVALID_GRAPHICS_CONTEXT => {

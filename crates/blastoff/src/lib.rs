@@ -8,6 +8,7 @@
 //! [`amin`](crate::context::CublasContext::amin) returns a 1-based index.**
 
 #![allow(clippy::too_many_arguments)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use cublas_sys as sys;
 use num_complex::{Complex32, Complex64};
@@ -17,7 +18,22 @@ pub use context::*;
 mod context;
 pub mod error;
 mod level1;
+mod level3;
 pub mod raw;
+
+/// A possible datatype for a generic matrix mul operation. This is just [`BlasDatatype`] except optionally
+/// containing `f16` with the `half` feature.
+pub trait GemmDatatype: private::Sealed + cust::memory::DeviceCopy {}
+
+#[cfg(feature = "half")]
+impl private::Sealed for half::f16 {}
+#[cfg_attr(docsrs, doc(cfg(feature = "half")))]
+#[cfg(feature = "half")]
+impl GemmDatatype for half::f16 {}
+impl GemmDatatype for f32 {}
+impl GemmDatatype for f64 {}
+impl GemmDatatype for Complex32 {}
+impl GemmDatatype for Complex64 {}
 
 pub trait BlasDatatype: private::Sealed + cust::memory::DeviceCopy {
     /// The corresponding float type. For complex numbers this means their backing
@@ -73,4 +89,28 @@ pub(crate) mod private {
     impl Sealed for f64 {}
     impl Sealed for Complex32 {}
     impl Sealed for Complex64 {}
+}
+
+/// An optional operation to apply to a matrix before a matrix operation. This includes
+/// no operation, transpose, or conjugate transpose.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MatrixOp {
+    /// No operation, leave the matrix as is. This is the default.
+    #[default]
+    None,
+    /// Transpose the matrix in place.
+    Transpose,
+    /// Conjugate transpose the matrix in place.
+    ConjugateTranspose,
+}
+
+impl MatrixOp {
+    /// Returns the corresponding `cublasOperation_t` for this operation.
+    pub fn to_raw(self) -> sys::v2::cublasOperation_t {
+        match self {
+            MatrixOp::None => sys::v2::cublasOperation_t::CUBLAS_OP_N,
+            MatrixOp::Transpose => sys::v2::cublasOperation_t::CUBLAS_OP_T,
+            MatrixOp::ConjugateTranspose => sys::v2::cublasOperation_t::CUBLAS_OP_C,
+        }
+    }
 }

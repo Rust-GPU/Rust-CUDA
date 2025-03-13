@@ -1,22 +1,27 @@
+use std::cmp;
+
+use libc::c_uint;
+use rustc_abi::BackendRepr::Scalar;
+use rustc_abi::Size;
+use rustc_abi::{HasDataLayout, Primitive, Reg, RegKind};
+use rustc_codegen_ssa::mir::operand::OperandRef;
+use rustc_codegen_ssa::mir::operand::OperandValue;
+use rustc_codegen_ssa::mir::place::{PlaceRef, PlaceValue};
+use rustc_codegen_ssa::{MemFlags, traits::*};
+use rustc_middle::bug;
+use rustc_middle::ty::layout::LayoutOf;
+pub use rustc_middle::ty::layout::{WIDE_PTR_ADDR, WIDE_PTR_EXTRA};
+use rustc_middle::ty::{Ty, TyCtxt, TyKind};
+use rustc_target::callconv::{
+    ArgAbi, ArgAttribute, ArgAttributes, ArgExtension, CastTarget, Conv, FnAbi, PassMode,
+};
+use tracing::trace;
+
 use crate::builder::Builder;
 use crate::context::CodegenCx;
 use crate::int_replace::{get_transformed_type, transmute_llval};
 use crate::llvm::{self, *};
 use crate::ty::LayoutLlvmExt;
-use libc::c_uint;
-use rustc_codegen_ssa::mir::operand::OperandValue;
-use rustc_codegen_ssa::mir::place::PlaceRef;
-use rustc_codegen_ssa::traits::BaseTypeMethods;
-use rustc_codegen_ssa::{traits::*, MemFlags};
-use rustc_middle::bug;
-use rustc_middle::ty::layout::LayoutOf;
-pub use rustc_middle::ty::layout::{FAT_PTR_ADDR, FAT_PTR_EXTRA};
-use rustc_middle::ty::{Ty, TyCtxt, TyKind};
-pub use rustc_target::abi::call::*;
-use rustc_target::abi::call::{CastTarget, Reg, RegKind};
-use rustc_target::abi::{self, HasDataLayout, Int};
-pub use rustc_target::spec::abi::Abi;
-use tracing::trace;
 
 pub(crate) fn readjust_fn_abi<'tcx>(
     tcx: TyCtxt<'tcx>,
@@ -29,8 +34,7 @@ pub(crate) fn readjust_fn_abi<'tcx>(
     let readjust_arg_abi = |arg: &ArgAbi<'tcx, Ty<'tcx>>| {
         let mut arg = ArgAbi {
             layout: arg.layout,
-            mode: arg.mode,
-            pad: arg.pad,
+            mode: arg.mode.clone(),
         };
 
         // ignore zsts
@@ -193,47 +197,53 @@ impl LlvmType for Reg {
 impl LlvmType for CastTarget {
     fn llvm_type<'ll>(&self, cx: &CodegenCx<'ll, '_>) -> &'ll Type {
         let rest_ll_unit = self.rest.unit.llvm_type(cx);
-        let (rest_count, rem_bytes) = if self.rest.unit.size.bytes() == 0 {
-            (0, 0)
+        let rest_count = if self.rest.total == Size::ZERO {
+            0
         } else {
-            (
-                self.rest.total.bytes() / self.rest.unit.size.bytes(),
-                self.rest.total.bytes() % self.rest.unit.size.bytes(),
-            )
+            assert_ne!(
+                self.rest.unit.size,
+                Size::ZERO,
+                "total size {:?} cannot be divided into units of zero size",
+                self.rest.total
+            );
+            if self.rest.total.bytes() % self.rest.unit.size.bytes() != 0 {
+                assert_eq!(
+                    self.rest.unit.kind,
+                    RegKind::Integer,
+                    "only int regs can be split"
+                );
+            }
+            self.rest
+                .total
+                .bytes()
+                .div_ceil(self.rest.unit.size.bytes())
         };
 
+        // Simplify to a single unit or an array if there's no prefix.
+        // This produces the same layout, but using a simpler type.
         if self.prefix.iter().all(|x| x.is_none()) {
-            // Simplify to a single unit when there is no prefix and size <= unit size
-            if self.rest.total <= self.rest.unit.size {
+            // We can't do this if is_consecutive is set and the unit would get
+            // split on the target. Currently, this is only relevant for i128
+            // registers.
+            if rest_count == 1 && (!self.rest.is_consecutive || self.rest.unit != Reg::i128()) {
                 return rest_ll_unit;
             }
 
-            // Simplify to array when all chunks are the same size and type
-            if rem_bytes == 0 {
-                return cx.type_array(rest_ll_unit, rest_count);
-            }
+            return cx.type_array(rest_ll_unit, rest_count);
         }
 
-        // Create list of fields in the main structure
-        let mut args: Vec<_> = self
+        // Generate a struct type with the prefix and the "rest" arguments.
+        let prefix_args = self
             .prefix
             .iter()
-            .flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)))
-            .chain((0..rest_count).map(|_| rest_ll_unit))
-            .collect();
-
-        // Append final integer
-        if rem_bytes != 0 {
-            // Only integers can be really split further.
-            assert_eq!(self.rest.unit.kind, RegKind::Integer);
-            args.push(cx.type_ix(rem_bytes * 8));
-        }
-
+            .flat_map(|option_reg| option_reg.map(|reg| reg.llvm_type(cx)));
+        let rest_args = (0..rest_count).map(|_| rest_ll_unit);
+        let args: Vec<_> = prefix_args.chain(rest_args).collect();
         cx.type_struct(&args, false)
     }
 }
 
-impl<'a, 'll, 'tcx> ArgAbiMethods<'tcx> for Builder<'a, 'll, 'tcx> {
+impl<'ll, 'tcx> ArgAbiBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
     fn store_fn_arg(
         &mut self,
         arg_abi: &ArgAbi<'tcx, Ty<'tcx>>,
@@ -264,27 +274,32 @@ pub(crate) trait FnAbiLlvmExt<'ll, 'tcx> {
 
 impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
     fn llvm_type(&self, cx: &CodegenCx<'ll, 'tcx>) -> &'ll Type {
-        let args_capacity: usize = self.args.iter().map(|arg|
-            if arg.pad.is_some() { 1 } else { 0 } +
-            if let PassMode::Pair(_, _) = arg.mode { 2 } else { 1 }
-        ).sum();
+        // Ignore "extra" args when calling C variadic functions.
+        // Only the "fixed" args are part of the LLVM function signature.
+        let args = if self.c_variadic {
+            &self.args[..self.fixed_count as usize]
+        } else {
+            &self.args
+        };
+
+        // This capacity calculation is approximate.
+        let mut llargument_tys = Vec::with_capacity(
+            self.args.len()
+                + if let PassMode::Indirect { .. } = self.ret.mode {
+                    1
+                } else {
+                    0
+                },
+        );
 
         // the current index of each parameter in the function. Cant use enumerate on args because
         // some pass modes pass args as multiple params, such as scalar pairs.
         let mut idx = 0;
 
-        let mut llargument_tys = Vec::with_capacity(
-            if let PassMode::Indirect { .. } = self.ret.mode {
-                1
-            } else {
-                0
-            } + args_capacity,
-        );
-
-        let mut llreturn_ty = match self.ret.mode {
+        let mut llreturn_ty = match &self.ret.mode {
             PassMode::Ignore => cx.type_void(),
             PassMode::Direct(_) | PassMode::Pair(..) => self.ret.layout.immediate_llvm_type(cx),
-            PassMode::Cast(cast) => cast.llvm_type(cx),
+            PassMode::Cast { cast, .. } => cast.llvm_type(cx),
             PassMode::Indirect { .. } => {
                 idx += 1;
                 llargument_tys.push(cx.type_ptr_to(self.ret.memory_ty(cx)));
@@ -301,14 +316,8 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             old_ret_ty = None;
         }
 
-        for arg in self.args.iter() {
-            // add padding
-            if let Some(ty) = arg.pad {
-                idx += 1;
-                llargument_tys.push(ty.llvm_type(cx));
-            }
-
-            let llarg_ty = match arg.mode {
+        for arg in args {
+            let llarg_ty = match &arg.mode {
                 PassMode::Ignore => continue,
                 PassMode::Direct(_) => arg.layout.immediate_llvm_type(cx),
                 PassMode::Pair(..) => {
@@ -319,20 +328,27 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                 }
                 PassMode::Indirect {
                     attrs: _,
-                    extra_attrs: Some(_),
+                    meta_attrs: Some(_),
                     on_stack: _,
                 } => {
-                    let ptr_ty = cx.tcx.mk_mut_ptr(arg.layout.ty);
+                    let ptr_ty = Ty::new_mut_ptr(cx.tcx, arg.layout.ty);
                     let ptr_layout = cx.layout_of(ptr_ty);
                     llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 0, true));
                     llargument_tys.push(ptr_layout.scalar_pair_element_llvm_type(cx, 1, true));
                     idx += 2;
                     continue;
                 }
-                PassMode::Cast(cast) => cast.llvm_type(cx),
+                PassMode::Cast { cast, pad_i32 } => {
+                    // add padding
+                    if *pad_i32 {
+                        idx += 1;
+                        llargument_tys.push(Reg::i32().llvm_type(cx));
+                    }
+                    cast.llvm_type(cx)
+                }
                 PassMode::Indirect {
                     attrs: _,
-                    extra_attrs: None,
+                    meta_attrs: None,
                     on_stack: _,
                 } => cx.type_ptr_to(arg.memory_ty(cx)),
             };
@@ -350,6 +366,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             cx.type_func(&llargument_tys, llreturn_ty)
         };
         if !transformed_types.is_empty() || old_ret_ty.is_some() {
+            trace!("remapping args in {:?} to {:?}", ty, transformed_types);
             cx.remapped_integer_args
                 .borrow_mut()
                 .insert(ty, (old_ret_ty, transformed_types));
@@ -367,7 +384,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
     }
 
     fn apply_attrs_llfn(&self, cx: &CodegenCx<'ll, 'tcx>, llfn: &'ll Value) {
-        if self.ret.layout.abi.is_uninhabited() {
+        if self.ret.layout.is_uninhabited() {
             llvm::Attribute::NoReturn.apply_llfn(llvm::AttributePlace::Function, llfn);
         }
 
@@ -383,13 +400,13 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             i += 1;
             i - 1
         };
-        match self.ret.mode {
-            PassMode::Direct(ref attrs) => {
+        match &self.ret.mode {
+            PassMode::Direct(attrs) => {
                 attrs.apply_attrs_to_llfn(llvm::AttributePlace::ReturnValue, cx, llfn);
             }
             PassMode::Indirect {
-                ref attrs,
-                extra_attrs: _,
+                attrs,
+                meta_attrs: _,
                 on_stack,
             } => {
                 assert!(!on_stack);
@@ -399,14 +416,11 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             _ => {}
         }
         for arg in &self.args {
-            if arg.pad.is_some() {
-                apply(&ArgAttributes::new());
-            }
-            match arg.mode {
+            match &arg.mode {
                 PassMode::Ignore => {}
                 PassMode::Indirect {
-                    ref attrs,
-                    extra_attrs: None,
+                    attrs,
+                    meta_attrs: None,
                     on_stack: true,
                 } => {
                     apply(attrs);
@@ -415,29 +429,32 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
                     // C++ API, so somebody more experienced in the C++ API should look at this.
                     // it shouldnt do anything bad since it seems to be only for optimization.
                 }
-                PassMode::Direct(ref attrs)
+                PassMode::Direct(attrs)
                 | PassMode::Indirect {
-                    ref attrs,
-                    extra_attrs: None,
+                    attrs,
+                    meta_attrs: None,
                     on_stack: false,
                 } => {
                     apply(attrs);
                 }
                 PassMode::Indirect {
-                    ref attrs,
-                    extra_attrs: Some(ref extra_attrs),
+                    attrs,
+                    meta_attrs: Some(extra_attrs),
                     on_stack,
                 } => {
                     assert!(!on_stack);
                     apply(attrs);
                     apply(extra_attrs);
                 }
-                PassMode::Pair(ref a, ref b) => {
+                PassMode::Pair(a, b) => {
                     apply(a);
                     apply(b);
                 }
-                PassMode::Cast(_) => {
-                    apply(&ArgAttributes::new());
+                PassMode::Cast { cast, pad_i32 } => {
+                    if *pad_i32 {
+                        apply(&ArgAttributes::new());
+                    }
+                    apply(&cast.attrs);
                 }
             }
         }
@@ -459,63 +476,64 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             i - 1
         };
         match self.ret.mode {
-            PassMode::Direct(ref attrs) => {
+            PassMode::Direct(attrs) => {
                 attrs.apply_attrs_to_callsite(llvm::AttributePlace::ReturnValue, bx.cx, callsite);
             }
             PassMode::Indirect {
-                ref attrs,
-                extra_attrs: _,
+                attrs,
+                meta_attrs: _,
                 on_stack,
             } => {
                 assert!(!on_stack);
-                apply(bx.cx, attrs);
+                apply(bx.cx, &attrs);
             }
             _ => {}
         }
-        if let abi::Abi::Scalar(ref scalar) = self.ret.layout.abi {
+        if let Scalar(scalar) = self.ret.layout.backend_repr {
             // If the value is a boolean, the range is 0..2 and that ultimately
             // become 0..0 when the type becomes i1, which would be rejected
             // by the LLVM verifier.
-            if let Int(..) = scalar.value {
+            if let Primitive::Int(..) = scalar.primitive() {
                 if !scalar.is_bool() && !scalar.is_always_valid(bx) {
-                    bx.range_metadata(callsite, scalar.valid_range);
+                    trace!("apply_attrs_callsite -> range_metadata");
+                    bx.range_metadata(callsite, scalar.valid_range(bx));
                 }
             }
         }
-        for arg in &self.args {
-            if arg.pad.is_some() {
-                apply(bx.cx, &ArgAttributes::new());
-            }
-            match arg.mode {
+        for arg in self.args.iter() {
+            match &arg.mode {
                 PassMode::Ignore => {}
                 PassMode::Indirect {
-                    ref attrs,
-                    extra_attrs: None,
+                    attrs,
+                    meta_attrs: None,
                     on_stack: true,
                 } => {
                     apply(bx.cx, attrs);
                 }
-                PassMode::Direct(ref attrs)
+                PassMode::Direct(attrs)
                 | PassMode::Indirect {
-                    ref attrs,
-                    extra_attrs: None,
+                    attrs,
+                    meta_attrs: None,
                     on_stack: false,
                 } => {
                     apply(bx.cx, attrs);
                 }
                 PassMode::Indirect {
-                    ref attrs,
-                    extra_attrs: Some(ref extra_attrs),
+                    attrs,
+                    meta_attrs: Some(meta_attrs),
                     on_stack: _,
                 } => {
                     apply(bx.cx, attrs);
-                    apply(bx.cx, extra_attrs);
+                    apply(bx.cx, meta_attrs);
                 }
-                PassMode::Pair(ref a, ref b) => {
+                PassMode::Pair(a, b) => {
                     apply(bx.cx, a);
                     apply(bx.cx, b);
                 }
-                PassMode::Cast(_) => {
+                PassMode::Cast { pad_i32, .. } => {
+                    if *pad_i32 {
+                        apply(bx.cx, &ArgAttributes::new());
+                    }
                     apply(bx.cx, &ArgAttributes::new());
                 }
             }
@@ -523,27 +541,26 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
     }
 }
 
-impl<'a, 'll, 'tcx> AbiBuilderMethods<'tcx> for Builder<'a, 'll, 'tcx> {
-    fn apply_attrs_callsite(&mut self, fn_abi: &FnAbi<'tcx, Ty<'tcx>>, callsite: Self::Value) {
-        fn_abi.apply_attrs_callsite(self, callsite)
-    }
-
+impl<'tcx> AbiBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
     fn get_param(&mut self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
-        trace!("Get param `{:?}`", val);
-        unsafe {
+        // trace!("Get param `{:?}`", val);
+        let val = unsafe {
             let llfnty = LLVMRustGetFunctionType(self.llfn());
+            trace!("llfnty: {:?}", llfnty);
             // destructure so rustc doesnt complain in the call to transmute_llval
             let Self { cx, llbuilder } = self;
             let map = cx.remapped_integer_args.borrow();
             if let Some((_, key)) = map.get(llfnty) {
                 if let Some((_, new_ty)) = key.iter().find(|t| t.0 == index) {
                     trace!("Casting irregular param {:?} to {:?}", val, new_ty);
-                    return transmute_llval(llbuilder, cx, val, *new_ty);
+                    return transmute_llval(llbuilder, cx, val, new_ty);
                 }
             }
             val
-        }
+        };
+        trace!("Get param `{:?}`", val);
+        val
     }
 }
 
@@ -580,41 +597,63 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
         val: &'ll Value,
         dst: PlaceRef<'tcx, &'ll Value>,
     ) {
-        if self.is_ignore() {
-            return;
-        }
-
-        if self.is_sized_indirect() {
-            OperandValue::Ref(val, None, self.layout.align.abi).store(bx, dst)
-        } else if self.is_unsized_indirect() {
-            bug!("unsized `ArgAbi` must be handled through `store_fn_arg`");
-        } else if let PassMode::Cast(cast) = self.mode {
-            let can_store_through_cast_ptr = false;
-            if can_store_through_cast_ptr {
-                let cast_ptr_llty = bx.type_ptr_to(cast.llvm_type(bx));
-                let cast_dst = bx.pointercast(dst.llval, cast_ptr_llty);
-                bx.store(val, cast_dst, self.layout.align.abi);
-            } else {
+        match &self.mode {
+            PassMode::Ignore => {}
+            // Sized indirect arguments
+            PassMode::Indirect {
+                attrs,
+                meta_attrs: None,
+                on_stack: _,
+            } => {
+                let align = attrs.pointee_align.unwrap_or(self.layout.align.abi);
+                OperandValue::Ref(PlaceValue::new_sized(val, align)).store(bx, dst);
+            }
+            // Unsized indirect arguments
+            PassMode::Indirect {
+                attrs: _,
+                meta_attrs: Some(_),
+                on_stack: _,
+            } => {
+                bug!("unsized `ArgAbi` must be handled through `store_fn_arg`");
+            }
+            PassMode::Cast { pad_i32: _, cast } => {
+                trace!("store cast");
+                // The ABI mandates that the value is passed as a different struct representation.
+                // Spill and reload it from the stack to convert from the ABI representation to
+                // the Rust representation.
                 let scratch_size = cast.size(bx);
                 let scratch_align = cast.align(bx);
-                let llscratch = bx.alloca(cast.llvm_type(bx), scratch_align);
+                // Note that the ABI type may be either larger or smaller than the Rust type,
+                // due to the presence or absence of trailing padding. For example:
+                // - On some ABIs, the Rust layout { f64, f32, <f32 padding> } may omit padding
+                //   when passed by value, making it smaller.
+                // - On some ABIs, the Rust layout { u16, u16, u16 } may be padded up to 8 bytes
+                //   when passed by value, making it larger.
+                let copy_bytes =
+                    cmp::min(cast.unaligned_size(bx).bytes(), self.layout.size.bytes());
+                // Allocate some scratch space...
+                let llscratch = bx.alloca(scratch_size, scratch_align);
                 bx.lifetime_start(llscratch, scratch_size);
-
+                // ...store the value...
                 bx.store(val, llscratch, scratch_align);
-
+                // ... and then memcpy it to the intended destination.
                 bx.memcpy(
-                    dst.llval,
+                    dst.val.llval,
                     self.layout.align.abi,
                     llscratch,
                     scratch_align,
-                    bx.const_usize(self.layout.size.bytes()),
+                    bx.const_usize(copy_bytes),
                     MemFlags::empty(),
                 );
 
                 bx.lifetime_end(llscratch, scratch_size);
+                trace!("store cast end");
             }
-        } else {
-            OperandValue::Immediate(val).store(bx, dst);
+            _ => {
+                OperandRef::from_immediate_or_packed_pair(bx, val, self.layout)
+                    .val
+                    .store(bx, dst);
+            }
         }
     }
 
@@ -636,18 +675,23 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
             }
             PassMode::Indirect {
                 attrs: _,
-                extra_attrs: Some(_),
+                meta_attrs: Some(_),
                 on_stack: _,
             } => {
-                OperandValue::Ref(next(), Some(next()), self.layout.align.abi).store(bx, dst);
+                let place_val = PlaceValue {
+                    llval: next(),
+                    llextra: Some(next()),
+                    align: self.layout.align.abi,
+                };
+                OperandValue::Ref(place_val).store(bx, dst);
             }
             PassMode::Direct(_)
             | PassMode::Indirect {
                 attrs: _,
-                extra_attrs: None,
+                meta_attrs: None,
                 on_stack: _,
             }
-            | PassMode::Cast(_) => {
+            | PassMode::Cast { .. } => {
                 let next_arg = next();
                 self.store(bx, next_arg, dst);
             }

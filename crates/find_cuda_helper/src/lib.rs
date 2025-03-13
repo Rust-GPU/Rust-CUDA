@@ -42,7 +42,7 @@ pub fn find_cuda_root() -> Option<PathBuf> {
 
     // If it wasn't specified by env var, try the default installation paths
     #[cfg(not(target_os = "windows"))]
-    let default_paths = ["/usr/local/cuda", "/opt/cuda"];
+    let default_paths = ["/usr/lib/cuda", "/usr/local/cuda", "/opt/cuda"];
     #[cfg(target_os = "windows")]
     let default_paths = ["C:/CUDA"]; // TODO (AL): what's the actual path here?
 
@@ -130,6 +130,8 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     for e in glob::glob("/usr/local/cuda-*").unwrap().flatten() {
         candidates.push(e)
     }
+    candidates.push(PathBuf::from("/usr/lib/cuda"));
+    candidates.push(detect_cuda_root_via_which_nvcc());
 
     let mut valid_paths = vec![];
     for base in &candidates {
@@ -147,6 +149,28 @@ pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
         }
     }
     valid_paths
+}
+
+#[cfg(not(target_os = "windows"))]
+fn detect_cuda_root_via_which_nvcc() -> PathBuf {
+    use std::process::Command;
+    let output = Command::new("which")
+        .arg("nvcc")
+        .output()
+        .expect("Command `which` must be available on *nix like systems.");
+
+    if !output.status.success() {
+        panic!("Couldn't find nvcc - `which nvcc` returned non-zero");
+    }
+
+    let path: PathBuf = String::from_utf8(output.stdout)
+        .expect("Result must be valid UTF-8")
+        .trim()
+        .to_string()
+        .into();
+
+    // The above finds `CUDASDK/bin/nvcc`, so we have to go 2 up for the SDK root.
+    path.parent().unwrap().parent().unwrap().to_path_buf()
 }
 
 #[cfg(target_os = "windows")]

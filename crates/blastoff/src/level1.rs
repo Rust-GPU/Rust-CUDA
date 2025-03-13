@@ -4,7 +4,7 @@ use crate::{
     context::CublasContext,
     error::{Error, ToResult},
     raw::{ComplexLevel1, FloatLevel1, Level1},
-    BlasDatatype,
+    BlasDatatype, Float,
 };
 use cust::memory::{GpuBox, GpuBuffer};
 use cust::stream::Stream;
@@ -24,8 +24,8 @@ fn check_stride<T: BlasDatatype>(x: &impl GpuBuffer<T>, n: usize, stride: Option
     );
 }
 
-/// Scalar and Vector-based operations such as `min`, `max`, `axpy`, `copy`, `dot`, `nrm2`, `rot`, `rotg`, `rotm`, `rotmg`, `scal`, and `swap`.
-
+/// Scalar and Vector-based operations such as `min`, `max`, `axpy`, `copy`, `dot`,
+/// `nrm2`, `rot`, `rotg`, `rotm`, `rotmg`, `scal`, and `swap`.
 impl CublasContext {
     /// Same as [`CublasContext::amin`] but with an explicit stride.
     ///
@@ -640,5 +640,173 @@ impl CublasContext {
         s: &impl GpuBox<T::FloatTy>,
     ) -> Result {
         self.rot_strided(stream, n, x, None, y, None, c, s)
+    }
+
+    /// Constructs the givens rotation matrix that zeros out the second entry of a 2x1 vector.
+    pub fn rotg<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        a: &mut impl GpuBox<T>,
+        b: &mut impl GpuBox<T>,
+        c: &mut impl GpuBox<T::FloatTy>,
+        s: &mut impl GpuBox<T>,
+    ) -> Result {
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::rotg(
+                ctx.raw,
+                a.as_device_ptr().as_mut_ptr(),
+                b.as_device_ptr().as_mut_ptr(),
+                c.as_device_ptr().as_mut_ptr(),
+                s.as_device_ptr().as_mut_ptr(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Same as [`CublasContext::rotm`] but with an explicit stride.
+    pub fn rotm_strided<T: Level1 + Float>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &mut impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+        param: &impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::rotm(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_mut_ptr(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_mut_ptr(),
+                y_stride.unwrap_or(1) as i32,
+                param.as_device_ptr().as_ptr(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Applies the modified givens transformation to vectors `x` and `y`.
+    pub fn rotm<T: Level1 + Float>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        y: &mut impl GpuBuffer<T>,
+        param: &impl GpuBox<T::FloatTy>,
+    ) -> Result {
+        self.rotm_strided(stream, n, x, None, y, None, param)
+    }
+
+    /// Same as [`CublasContext::rotmg`] but with an explicit stride.
+    pub fn rotmg_strided<T: Level1 + Float>(
+        &mut self,
+        stream: &Stream,
+        d1: &mut impl GpuBox<T>,
+        d2: &mut impl GpuBox<T>,
+        x1: &mut impl GpuBox<T>,
+        y1: &mut impl GpuBox<T>,
+        param: &mut impl GpuBox<T>,
+    ) -> Result {
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::rotmg(
+                ctx.raw,
+                d1.as_device_ptr().as_mut_ptr(),
+                d2.as_device_ptr().as_mut_ptr(),
+                x1.as_device_ptr().as_mut_ptr(),
+                y1.as_device_ptr().as_ptr(),
+                param.as_device_ptr().as_mut_ptr(),
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Constructs the modified givens transformation that zeros out the second entry of a 2x1 vector.
+    pub fn rotmg<T: Level1 + Float>(
+        &mut self,
+        stream: &Stream,
+        d1: &mut impl GpuBox<T>,
+        d2: &mut impl GpuBox<T>,
+        x1: &mut impl GpuBox<T>,
+        y1: &mut impl GpuBox<T>,
+        param: &mut impl GpuBox<T>,
+    ) -> Result {
+        self.rotmg_strided(stream, d1, d2, x1, y1, param)
+    }
+
+    /// Same as [`CublasContext::scal`] but with an explicit stride.
+    pub fn scal_strided<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        alpha: &impl GpuBox<T>,
+        x: &mut impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::scal(
+                ctx.raw,
+                n as i32,
+                alpha.as_device_ptr().as_ptr(),
+                x.as_device_ptr().as_mut_ptr(),
+                x_stride.unwrap_or(1) as i32,
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Scales vector `x` by `alpha` and overrides it with the result.
+    pub fn scal<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        alpha: &impl GpuBox<T>,
+        x: &mut impl GpuBuffer<T>,
+    ) -> Result {
+        self.scal_strided(stream, n, alpha, x, None)
+    }
+
+    /// Same as [`CublasContext::swap`] but with an explicit stride.
+    pub fn swap_strided<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        x_stride: Option<usize>,
+        y: &mut impl GpuBuffer<T>,
+        y_stride: Option<usize>,
+    ) -> Result {
+        check_stride(x, n, x_stride);
+        check_stride(y, n, y_stride);
+
+        self.with_stream(stream, |ctx| unsafe {
+            Ok(T::swap(
+                ctx.raw,
+                n as i32,
+                x.as_device_ptr().as_mut_ptr(),
+                x_stride.unwrap_or(1) as i32,
+                y.as_device_ptr().as_mut_ptr(),
+                y_stride.unwrap_or(1) as i32,
+            )
+            .to_result()?)
+        })
+    }
+
+    /// Swaps vectors `x` and `y`.
+    pub fn swap<T: Level1>(
+        &mut self,
+        stream: &Stream,
+        n: usize,
+        x: &mut impl GpuBuffer<T>,
+        y: &mut impl GpuBuffer<T>,
+    ) -> Result {
+        self.swap_strided(stream, n, x, None, y, None)
     }
 }

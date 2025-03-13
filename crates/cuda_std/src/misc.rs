@@ -1,6 +1,8 @@
 //! Misc functions that do not exactly fit into other categories.
 
 use crate::gpu_only;
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 
 /// Suspends execution of the kernel, usually to pause at a specific point when debugging in a debugger.
 #[gpu_only]

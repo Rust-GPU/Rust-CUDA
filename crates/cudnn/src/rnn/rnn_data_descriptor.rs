@@ -1,57 +1,59 @@
-use crate::{
-    error::{CudnnError, IntoResult},
-    sys, DataType, RnnDataLayout,
-};
+use crate::{private, sys, CudnnError, DataType, IntoResult, RnnDataLayout};
 use std::{marker::PhantomData, mem::MaybeUninit};
 
 /// Specifies the allowed types for the recurrent neural network inputs and outputs.
-pub trait RnnDataType: DataType {}
+///
+/// As stated in the [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDataDescriptor)
+/// the supported types are `f32` and `f64`.
+pub trait RnnDataType: DataType + private::Sealed {}
 
 impl RnnDataType for f32 {}
 impl RnnDataType for f64 {}
 
-pub struct RnnDataDescriptor<T, L>
+/// Descriptor of a recurrent neural network data container.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct RnnDataDescriptor<T>
 where
-    T: DataType + RnnDataType,
-    L: RnnDataLayout,
+    T: RnnDataType,
 {
     pub(crate) raw: sys::cudnnRNNDataDescriptor_t,
     data_type: PhantomData<T>,
-    layout: L,
 }
 
-impl<T, L> RnnDataDescriptor<T, L>
+impl<T> RnnDataDescriptor<T>
 where
-    T: DataType + RnnDataType,
-    L: RnnDataLayout,
+    T: RnnDataType,
 {
     /// Initializes a recurrent neural network data descriptor object.
     ///
-    /// This data structure is intended to support the unpacked (padded) layout for input and
-    /// output of extended RNN inference and training functions.
+    /// This data structure is intended to support the unpacked (padded) layout for
+    /// input and output of extended RNN inference and training functions.
     ///
-    /// **Do note** that packed (unpadded) layout is also supported for backward compatibility.
+    /// **Do note** that packed (un-padded) layout is also supported for backward
+    /// compatibility.
     ///
     /// # Arguments
     ///
-    /// * `layout` - memory layout of the RNN data tensor.
+    ///   * `layout` - memory layout of the RNN data tensor.
+    ///   * `max_seq_length` - maximum sequence length within this RNN data tensor. In
+    ///     the unpacked (padded) layout, this should include the padding vectors in
+    ///     each sequence. In the packed (un-padded) layout, this should be equal to the
+    ///     greatest element in `seq_lengths`.
+    ///   * `batch_size` - number of sequences within the mini-batch.
+    ///   * `seq_lengths` - an integer slice with `batch_size` number of elements.
+    ///     Describes the length (number of time-steps) of each sequence. Each element
+    ///     in the slice must be greater than or equal to 0 but less than or equal to
+    ///     `max_seq_length`. In the packed layout, the elements should be sorted in
+    ///     descending order.
+    ///   * `padding_fill` - user-defined constant for filling the padding position in
+    ///     RNN output. This is only effective when the descriptor is describing the RNN
+    ///     output, and the unpacked layout is specified. The symbol should be in the
+    ///     host memory, and if a `None` is passed in, then the padding position in the
+    ///     output will be undefined.
     ///
-    /// * `max_seq_length` - maximum sequence length within this RNN data tensor. In the unpacked
-    /// (padded) layout, this should include the padding vectors in each sequence. In the packed
-    /// (unpadded) layout, this should be equal to the greatest element in `seq_lengths`.
-    ///
-    /// * `batch_size` - number of sequences within the mini-batch.
-    ///
-    /// * `seq_lengths` - an integer slice with `batch_size` number of elements. Describes the
-    /// length (number of time-steps) of each sequence.
-    ///
-    /// Each element in the slice must be greater than or equal to 0 but less than or equal to
-    /// `max_seq_length`. In the packed layout, the elements should be sorted in descending order.
-    ///
-    /// * `padding_fill` - user-defined constant for filling the padding position in RNN output.
-    /// This is only effective when the descriptor is describing the RNN output, and the unpacked
-    /// layout is specified. The symbol should be in the host memory, and if a `None` is passed in,
-    /// then the padding position in the output will be undefined.
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSetRNNDataDescriptor)
+    /// may offer additional information about the APi behavior.
     ///
     /// # Panics
     ///
@@ -64,25 +66,25 @@ where
     ///
     /// # Examples
     ///
-    /// A recurrent neural network data descriptor can be used to represent both input and output
-    /// sequences for such model.
+    /// A recurrent neural network data descriptor can be used to represent both input
+    /// and output sequences for such model.
     ///
     /// ```
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// use cudnn::{CudnnContext, RnnDataDescriptor, SeqMajorUnpacked};
+    /// use cudnn::{CudnnContext, RnnDataDescriptor, RnnDataLayout};
     ///
     /// let ctx = CudnnContext::new()?;
     ///
-    /// let layout = SeqMajorUnpacked;
+    /// let layout = RnnDataLayout::SeqMajorUnpacked;
     /// let max_seq_length = 3;
     /// let batch_size = 5;
     /// let vector_size = 10;
     /// let seq_lengths = [1, 2, 3, 2, 1];
     /// let padding_fill = None; // Should only be set for output sequences.
     ///
-    /// let rnn_data_desc = RnnDataDescriptor::<f32, _>::new(
+    /// let rnn_data_desc = RnnDataDescriptor::<f32>::new(
     ///     layout,
     ///     max_seq_length,
     ///     batch_size,
@@ -94,7 +96,7 @@ where
     /// # }
     /// ```
     pub fn new(
-        layout: L,
+        layout: RnnDataLayout,
         max_seq_length: i32,
         batch_size: i32,
         vector_size: i32,
@@ -108,12 +110,13 @@ where
             seq_lengths.len(),
             batch_size
         );
+
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
             sys::cudnnCreateRNNDataDescriptor(raw.as_mut_ptr()).into_result()?;
 
-            let mut raw = raw.assume_init();
+            let raw = raw.assume_init();
 
             let fill: *mut T = padding_fill
                 .into()
@@ -122,7 +125,7 @@ where
             sys::cudnnSetRNNDataDescriptor(
                 raw,
                 T::into_raw(),
-                L::into_raw(),
+                layout.into(),
                 max_seq_length,
                 batch_size,
                 vector_size,
@@ -134,16 +137,14 @@ where
             Ok(Self {
                 raw,
                 data_type: PhantomData,
-                layout,
             })
         }
     }
 }
 
-impl<T, L> Drop for RnnDataDescriptor<T, L>
+impl<T> Drop for RnnDataDescriptor<T>
 where
-    T: DataType + RnnDataType,
-    L: RnnDataLayout,
+    T: RnnDataType,
 {
     fn drop(&mut self) {
         unsafe {

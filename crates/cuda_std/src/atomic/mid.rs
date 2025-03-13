@@ -251,3 +251,67 @@ fetch_ops_1_param! {
     max => (u32, u64, i32, i64),
     exch => (u32, u64, i32, i64, f32, f64),
 }
+
+macro_rules! inner_cas {
+    ($($type:ty, $scope:ident),* $(,)?) => {
+        $(
+            paste! {
+                #[$crate::gpu_only]
+                #[allow(clippy::missing_safety_doc)]
+                pub unsafe fn [<atomic_compare_and_swap_ $type _ $scope>](ptr: *mut $type, current: $type, new: $type, ordering: Ordering) -> $type {
+                    if ge_sm70() {
+                        match ordering {
+                            SeqCst => {
+                                intrinsics::[<fence_sc_ $scope>]();
+                                intrinsics::[<atomic_fetch_cas_acquire_ $type _ $scope>](ptr, current, new)
+                            },
+                            Acquire => intrinsics::[<atomic_fetch_cas_acquire_ $type _ $scope>](ptr, current, new),
+                            AcqRel => intrinsics::[<atomic_fetch_cas_acqrel_ $type _ $scope>](ptr, current, new),
+                            Release => intrinsics::[<atomic_fetch_cas_release_ $type _ $scope>](ptr, current, new),
+                            Relaxed => intrinsics::[<atomic_fetch_cas_relaxed_ $type _ $scope>](ptr, current, new),
+                            _ => unimplemented!("Weird ordering added by core")
+                        }
+                    } else {
+                        match ordering {
+                            SeqCst | AcqRel => {
+                                intrinsics::[<membar_ $scope>]();
+                                let val = intrinsics::[<atomic_fetch_cas_volatile_ $type _ $scope>](ptr, current, new);
+                                intrinsics::[<membar_ $scope>]();
+                                val
+                            },
+                            Acquire => {
+                                let val = intrinsics::[<atomic_fetch_cas_volatile_ $type _ $scope>](ptr, current, new);
+                                intrinsics::[<membar_ $scope>]();
+                                val
+                            },
+                            Release => {
+                                intrinsics::[<membar_ $scope>]();
+                                intrinsics::[<atomic_fetch_cas_volatile_ $type _ $scope>](ptr, current, new)
+                            },
+                            Relaxed => {
+                                intrinsics::[<atomic_fetch_cas_volatile_ $type _ $scope>](ptr, current, new)
+                            },
+                            _ => unimplemented!("Weird ordering added by core")
+                        }
+                    }
+                }
+            }
+        )*
+    }
+}
+
+macro_rules! impl_cas {
+    ($($type:ident),* $(,)?) => {
+        $(
+            inner_cas!(
+                    $type, block,
+                    $type, device,
+                    $type, system,
+            );
+        )*
+    };
+}
+
+impl_cas! {
+    u32, u64, i32, i64, f32, f64
+}

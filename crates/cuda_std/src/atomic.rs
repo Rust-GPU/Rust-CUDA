@@ -18,7 +18,7 @@
 //! Therefore we chose to go with the approach of implementing all atomics inside cuda_std. In the future, we may support
 //! a subset of core atomics, but for now, you will have to use cuda_std atomics.
 
-#![allow(unused_unsafe)]
+#![allow(unused_unsafe, warnings)]
 
 pub mod intrinsics;
 pub mod mid;
@@ -59,6 +59,18 @@ macro_rules! safety_doc {
             )
         )?
     };
+}
+
+// taken from stdlib compare_and_swap docs
+fn double_ordering_from_one(ordering: Ordering) -> (Ordering, Ordering) {
+    match ordering {
+        Ordering::Relaxed => (Ordering::Relaxed, Ordering::Relaxed),
+        Ordering::Acquire => (Ordering::Acquire, Ordering::Acquire),
+        Ordering::Release => (Ordering::Release, Ordering::Relaxed),
+        Ordering::AcqRel => (Ordering::AcqRel, Ordering::Acquire),
+        Ordering::SeqCst => (Ordering::SeqCst, Ordering::SeqCst),
+        _ => unreachable!(),
+    }
 }
 
 macro_rules! atomic_float {
@@ -220,6 +232,17 @@ macro_rules! atomic_float {
                     #[cfg(not(target_os = "cuda"))]
                     self.as_atomic_bits().store(val.to_bits(), order);
                 }
+
+                // $(#[doc = safety_doc!($unsafety)])?
+                // pub $($unsafety)? fn compare_and_swap(&self, current: f32, new: f32, order: Ordering) -> Result<$float_ty, $float_ty> {
+                //     #[cfg(target_os = "cuda")]
+                //     unsafe {
+                //         let res = mid::[<atomic_compare_and_swap_ $float_ty _ $scope>](self.v.get().cast(), order, current, new);
+                //     }
+
+                //     #[cfg(not(target_os = "cuda"))]
+                //     self.as_atomic_bits().compare_exchange
+                // }
             }
         }
     };

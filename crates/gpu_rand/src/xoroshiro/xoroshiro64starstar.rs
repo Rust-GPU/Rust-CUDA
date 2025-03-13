@@ -14,7 +14,6 @@ use rand_core::{RngCore, SeedableRng};
 #[cfg_attr(not(target_os = "cuda"), derive(Copy, cust_core::DeviceCopy))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(C)]
-
 pub struct Xoroshiro64StarStar {
     s0: u32,
     s1: u32,
@@ -36,12 +35,6 @@ impl RngCore for Xoroshiro64StarStar {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         fill_bytes_via_next(self, dest);
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 

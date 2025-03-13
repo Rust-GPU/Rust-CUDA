@@ -1,6 +1,9 @@
 use crate::sys;
 
 /// Specifies the behavior of the first layer in a recurrent neural network.
+///
+/// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNInputMode_t)
+/// may offer additional information about the APi behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RnnInputMode {
     /// A biased matrix multiplication is performed at the input of the first recurrent layer.
@@ -9,15 +12,6 @@ pub enum RnnInputMode {
     /// the leading dimension of the input tensor must be equal to the hidden state size of the
     /// network.
     SkipInput,
-}
-
-impl From<sys::cudnnRNNInputMode_t> for RnnInputMode {
-    fn from(raw: sys::cudnnRNNInputMode_t) -> Self {
-        match raw {
-            sys::cudnnRNNInputMode_t::CUDNN_LINEAR_INPUT => Self::LinearInput,
-            sys::cudnnRNNInputMode_t::CUDNN_SKIP_INPUT => Self::SkipInput,
-        }
-    }
 }
 
 impl From<RnnInputMode> for sys::cudnnRNNInputMode_t {

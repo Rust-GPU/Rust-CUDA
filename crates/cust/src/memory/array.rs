@@ -155,7 +155,7 @@ impl ArrayFormat {
 
 bitflags::bitflags! {
     /// Flags which modify the behavior of CUDA array creation.
-    #[derive(Default)]
+    #[derive(Default, Debug, PartialEq)]
     pub struct ArrayObjectFlags: c_uint {
         /// Enables creation of layered CUDA arrays. When this flag is set, depth specifies the
         /// number of layers, not the depth of a 3D array.

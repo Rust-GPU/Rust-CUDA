@@ -500,13 +500,13 @@ pub struct Symbol<'a, T: DeviceCopy> {
     ptr: DevicePointer<T>,
     module: PhantomData<&'a Module>,
 }
-impl<'a, T: DeviceCopy> crate::private::Sealed for Symbol<'a, T> {}
-impl<'a, T: DeviceCopy> fmt::Pointer for Symbol<'a, T> {
+impl<T: DeviceCopy> crate::private::Sealed for Symbol<'_, T> {}
+impl<T: DeviceCopy> fmt::Pointer for Symbol<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Pointer::fmt(&self.ptr, f)
     }
 }
-impl<'a, T: DeviceCopy> CopyDestination<T> for Symbol<'a, T> {
+impl<T: DeviceCopy> CopyDestination<T> for Symbol<'_, T> {
     fn copy_from(&mut self, val: &T) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
@@ -522,12 +522,8 @@ impl<'a, T: DeviceCopy> CopyDestination<T> for Symbol<'a, T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyDtoH_v2(
-                    val as *const T as *mut c_void,
-                    self.ptr.as_raw() as u64,
-                    size,
-                )
-                .to_result()?
+                cuda::cuMemcpyDtoH_v2(val as *const T as *mut c_void, self.ptr.as_raw(), size)
+                    .to_result()?
             }
         }
         Ok(())

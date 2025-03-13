@@ -1,33 +1,40 @@
-#![allow(warnings, clippy::all)]
-mod sys;
-
+#![deny(rustdoc::broken_intra_doc_links)]
+#[doc = include_str!("../README.md")]
+mod activation;
+mod attention;
+mod backend;
 mod context;
 mod convolution;
 mod data_type;
 mod determinism;
-mod dropout_descriptor;
+mod dropout;
 mod error;
-mod forward_mode;
 mod math_type;
 mod nan_propagation;
-mod op_tensor;
+mod op;
+mod pooling;
+mod reduction;
 mod rnn;
-mod seq_data_axis;
+mod softmax;
+mod sys;
 mod tensor;
 mod w_grad_mode;
 
+pub use activation::*;
+pub use attention::*;
 pub use context::*;
 pub use convolution::*;
 pub use data_type::*;
 pub use determinism::*;
-pub use dropout_descriptor::*;
+pub use dropout::*;
 pub use error::*;
-pub use forward_mode::*;
 pub use math_type::*;
 pub use nan_propagation::*;
-pub use op_tensor::*;
+pub use op::*;
+pub use pooling::*;
+pub use reduction::*;
 pub use rnn::*;
-pub use seq_data_axis::*;
+pub use softmax::*;
 pub use tensor::*;
 pub use w_grad_mode::*;
 

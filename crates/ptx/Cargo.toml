@@ -10,5 +10,5 @@ readme = "../../README.md"
 [dependencies]
 ascii = "1"
 # used for lexing/serializing very large enums of instructions/opcodes
-strum = { version = "0.21", features = ["derive"] }
-smallvec = "1.7"
+strum = { version = "0.26.3", features = ["derive"] }
+smallvec = "1.13.2"
