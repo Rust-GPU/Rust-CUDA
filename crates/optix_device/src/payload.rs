@@ -1,4 +1,6 @@
 use crate::sys;
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 use cuda_std::gpu_only;
 
 /// Overrides the payload for the given register to a value.

@@ -1,4 +1,6 @@
 // use std::hint::unreachable_unchecked;
+#[cfg(target_os = "cuda")]
+use core::arch::asm;
 use cuda_std::gpu_only;
 use glam::{Vec3, Vec4};
 
