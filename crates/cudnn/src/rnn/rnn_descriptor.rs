@@ -203,8 +203,8 @@ where
     ///     other units is clipped.
     ///
     ///  * `nan_opt` - when set to `NanPropagation::PropagateNan`, NaN is propagated
-    ///     from the LSTM cell, or it can be set to one of the clipping range boundary
-    ///     values, instead of propagating.
+    ///    from the LSTM cell, or it can be set to one of the clipping range boundary
+    ///    values, instead of propagating.
     ///   * `left_clip` - left bound of the clipping range.
     ///   * `right_clip` - right bound of the clipping range.
     ///

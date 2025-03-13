@@ -25,30 +25,31 @@ use cust::memory::GpuBuffer;
 use std::mem::MaybeUninit;
 
 impl CudnnContext {
-    /// Computes the work and reserve space buffer sizes based on the RNN network geometry stored
-    /// in `rnn_desc`, designated usage (inference or training) defined by the `mode` argument, and
-    /// the current RNN data dimensions are retrieved from `x_desc`.
+    /// Computes the work and reserve space buffer sizes based on the RNN network
+    /// geometry stored in `rnn_desc`, designated usage (inference or training) defined
+    /// by the `mode` argument, and the current RNN data dimensions are retrieved from
+    /// `x_desc`.
     ///
-    /// When RNN data dimensions change, this function must be called again because the RNN
-    /// temporary buffer sizes are not monotonic.
+    /// When RNN data dimensions change, this function must be called again because the
+    /// RNN temporary buffer sizes are not monotonic.
     ///
     /// # Arguments
     ///
     /// * `rnn_desc` - a RNN descriptor.
-    ///
-    /// * `mode` - specifies whether the temporary buffers are used in inference or training mode.
-    /// The reserve-space buffer is not used during inference. Therefore, the returned size of the
-    /// reserve space buffer will be `None` when the `mode` argument is `ForwardMode::Inference`.
-    ///
+    /// * `mode` - specifies whether the temporary buffers are used in inference or
+    ///   training mode. The reserve-space buffer is not used during inference.
+    ///   Therefore, the returned size of the reserve space buffer will be `None` when
+    ///   the `mode` argument is `ForwardMode::Inference`.
     /// * `x_desc` - a RNN data descriptor.
     ///
-    /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNTempSpaceSizes)
+    /// cuDNN
+    /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNTempSpaceSizes)
     /// may offer additional information about the APi behavior.
     ///
     /// # Errors
     ///
-    /// Returns an error is an incompatible or unsupported combination of input arguments was
-    /// detected.
+    /// Returns an error is an incompatible or unsupported combination of input
+    /// arguments was detected.
     pub fn get_rnn_temp_space_sizes<T1, T2>(
         &self,
         rnn_desc: &RnnDescriptor<T1, T2>,
@@ -382,12 +383,12 @@ impl CudnnContext {
     ///   Data dimensions are described by the `c_desc` tensor descriptor. If `None` is
     ///   passed, the initial cell state of the network is assumed to contain all zeros.
     /// * `dcy` -  For LSTM networks only. GPU buffer with the gradient deltas for the
-    ///   LSTM state. Data  dimensions are described by the `c_desc` tensor descriptor. If
-    ///   `None` is passed, the buffer is assumed to contain all zeros.
+    ///   LSTM state. Data  dimensions are described by the `c_desc` tensor descriptor.
+    ///   If `None` is passed, the buffer is assumed to contain all zeros.
     /// * `dcx` -  For LSTM networks only. GPU buffer where first-order derivatives
-    ///   corresponding to initial LSTM state variables should be stored. Data dimensions
-    ///   are described by the `c_desc` tensor descriptor. If `None` is assigned to `dcx`,
-    ///   the back-propagated derivatives are not saved.
+    ///   corresponding to initial LSTM state variables should be stored. Data
+    ///   dimensions are described by the `c_desc` tensor descriptor. If `None` is
+    ///   assigned to `dcx`, the back-propagated derivatives are not saved.
     /// * `weight_space` - weight space buffer in GPU memory.
     /// * `work_space` - workspace buffer in GPU memory to store temporary data.
     /// * `reserve_space` - reserve-space buffer in GPU memory.

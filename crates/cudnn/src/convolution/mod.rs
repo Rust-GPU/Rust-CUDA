@@ -258,7 +258,8 @@ impl CudnnContext {
     ///   * `dy_desc` - previously initialized differential tensor descriptor for the
     ///     output map.
     ///   * `dw_desc` - previously initialized differential tensor descriptor for the
-    /// filter. .  * `conv_desc` - previously initialized convolution descriptor.
+    ///     filter.
+    ///   * `conv_desc` - previously initialized convolution descriptor.
     ///
     /// **Do note** that the best found algorithm `MathType` must be set manually on the
     /// convolution descriptor.
@@ -1046,8 +1047,8 @@ impl CudnnContext {
     /// * `dy_desc` - output map gradient descriptor.
     /// * `dy` - output map gradient data.
     /// * `conv_desc` - previously initialized convolution description. The one defined
-    ///   for the forward pass in suitable to be used here provided that it refers to the
-    ///   same layer.
+    ///   for the forward pass in suitable to be used here provided that it refers to
+    ///   the same layer.
     /// * `algo` - convolution algorithm that should be used to compute the result.
     /// * `work_space` -  a buffer to GPU memory to a workspace needed to be able to
     ///   execute the specified algorithm. Must be left to `None` if the algorithm works

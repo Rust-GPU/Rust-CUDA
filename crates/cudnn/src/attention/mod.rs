@@ -96,7 +96,7 @@ impl CudnnContext {
     ///   * `weights` - weights buffer in device memory.
     ///   * `work_space` - work space buffer in device memory.
     ///   * `reserve_space` - reserve space buffer in device memory. This argument
-    /// should be `None` in inference mode.
+    ///     should be `None` in inference mode.
     ///
     /// cuDNN
     /// [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnForward)
