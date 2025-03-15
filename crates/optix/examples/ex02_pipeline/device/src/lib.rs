@@ -1,15 +1,8 @@
-#![cfg_attr(
-    target_os = "cuda",
-    no_std,
-    feature(register_attr),
-    register_attr(nvvm_internal)
-)]
 // #![deny(warnings)]
 #![allow(clippy::missing_safety_doc)]
 
 use cuda_std::*;
 use cust_core::DeviceCopy;
-
 use optix_device as optix;
 
 extern crate alloc;
@@ -54,7 +47,7 @@ pub unsafe fn __raygen__renderFrame() {
     if idx[0] == 3 && idx[1] == 4 {
         vprintf(
             c"Hello from Rust kernel!\n".as_ptr().cast(),
-            std::ptr::null::<core::ffi::c_void>(),
+            core::ptr::null::<core::ffi::c_void>(),
         );
 
         #[repr(C)]
@@ -63,7 +56,7 @@ pub unsafe fn __raygen__renderFrame() {
         vprintf(
             c"frame id is %d\n".as_ptr().cast(),
             &PrintArgs(core::ptr::read_volatile(&PARAMS.frame_id)) as *const PrintArgs
-                as *const std::ffi::c_void,
+                as *const core::ffi::c_void,
         );
     }
 }
