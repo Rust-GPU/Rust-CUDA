@@ -155,14 +155,20 @@ pub fn codegen_bitcode_modules(
 /// linked when building the nvvm program.
 pub fn find_libdevice() -> Option<Vec<u8>> {
     if let Some(base_path) = find_cuda_root() {
-        let libdevice_file = fs::read_dir(Path::new(&base_path).join("nvvm").join("libdevice"))
+        let libdevice_dir = Path::new(&base_path).join("nvvm").join("libdevice");
+        println!("Checking libdevice directory: {:?}", libdevice_dir);
+
+        let libdevice_file = fs::read_dir(&libdevice_dir)
             .ok()?
             .filter_map(Result::ok)
             .find(|f| f.path().extension() == Some(OsStr::new("bc")))?
             .path();
 
+        println!("Found libdevice file: {:?}", libdevice_file);
+
         fs::read(libdevice_file).ok()
     } else {
+        println!("CUDA root not found");
         None
     }
 }

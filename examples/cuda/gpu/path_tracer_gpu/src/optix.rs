@@ -21,7 +21,6 @@ use optix_device::{
 
 extern "C" {
     #[cfg(target_os = "cuda")]
-    #[cfg_attr(target_os = "cuda", nvvm_internal(addrspace(4)))]
     static PARAMS: LaunchParams<'static>;
 }
 
