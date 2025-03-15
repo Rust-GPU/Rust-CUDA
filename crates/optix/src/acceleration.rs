@@ -1687,7 +1687,7 @@ pub struct InstancePointerArray<'i> {
 }
 
 impl<'i> InstancePointerArray<'i> {
-    pub fn new(instances: &'i DeviceSlice<CUdeviceptr>) -> InstancePointerArray {
+    pub fn new(instances: &'i DeviceSlice<CUdeviceptr>) -> InstancePointerArray<'i> {
         InstancePointerArray { instances }
     }
 }

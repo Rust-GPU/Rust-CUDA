@@ -107,7 +107,7 @@
 #define GDT_TERMINAL_RESET "\033[0m"
 #define GDT_TERMINAL_DEFAULT GDT_TERMINAL_RESET
 #define GDT_TERMINAL_BOLD "\033[1;1m"
-     
+
 
 
 
@@ -118,15 +118,7 @@ namespace gdt {
 #ifdef __CUDACC__
   using ::min;
   using ::max;
-  // inline __both__ float abs(float f)      { return fabsf(f); }
-  // inline __both__ double abs(double f)    { return fabs(f); }
   using std::abs;
-  // inline __both__ float sin(float f) { return ::sinf(f); }
-  // inline __both__ double sin(double f) { return ::sin(f); }
-  // inline __both__ float cos(float f) { return ::cosf(f); }
-  // inline __both__ double cos(double f) { return ::cos(f); }
-
-  using ::saturate;
 #else
   using std::min;
   using std::max;
@@ -139,12 +131,12 @@ namespace gdt {
   // inline __both__ double abs(double f)    { return fabs(f); }
   inline __both__ float rcp(float f)      { return 1.f/f; }
   inline __both__ double rcp(double d)    { return 1./d; }
-  
+
   inline __both__ int32_t divRoundUp(int32_t a, int32_t b) { return (a+b-1)/b; }
   inline __both__ uint32_t divRoundUp(uint32_t a, uint32_t b) { return (a+b-1)/b; }
   inline __both__ int64_t divRoundUp(int64_t a, int64_t b) { return (a+b-1)/b; }
   inline __both__ uint64_t divRoundUp(uint64_t a, uint64_t b) { return (a+b-1)/b; }
-  
+
 #ifdef __CUDACC__
   using ::sin; // this is the double version
   // inline __both__ float sin(float f) { return ::sinf(f); }
@@ -174,7 +166,7 @@ namespace gdt {
 #else
 #  define osp_snprintf snprintf
 #endif
-  
+
   /*! added pretty-print function for large numbers, printing 10000000 as "10M" instead */
   inline std::string prettyDouble(const double val) {
     const double absVal = abs(val);
@@ -195,7 +187,7 @@ namespace gdt {
 
     return result;
   }
-  
+
 
 
   inline std::string prettyNumber(const size_t s)
@@ -214,7 +206,7 @@ namespace gdt {
     }
     return buf;
   }
-  
+
   inline double getCurrentTime()
   {
 #ifdef _WIN32
