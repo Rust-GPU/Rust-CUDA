@@ -177,7 +177,7 @@ pub unsafe fn launch<M: DeviceMemory>(
     Ok(optix_call!(optixLaunch(
         pipeline.raw,
         stream.as_inner(),
-        pipeline_params.as_raw_ptr() as u64,
+        pipeline_params.as_raw_ptr(),
         pipeline_params.size_in_bytes(),
         &sbt.0,
         width,

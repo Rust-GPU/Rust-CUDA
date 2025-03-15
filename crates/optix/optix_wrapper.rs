@@ -188,9 +188,9 @@ impl OptixResult {
 }
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct OptixResult(pub ::std::os::raw::c_int);
+pub struct OptixResult(pub ::std::os::raw::c_uint);
 pub mod OptixDeviceProperty {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRACE_DEPTH: Type = 8193;
     pub const OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRAVERSABLE_GRAPH_DEPTH: Type = 8194;
     pub const OPTIX_DEVICE_PROPERTY_LIMIT_MAX_PRIMITIVES_PER_GAS: Type = 8195;
@@ -212,8 +212,8 @@ pub type OptixLogCallback = ::std::option::Option<
 pub const OptixDeviceContextValidationMode_OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF:
     OptixDeviceContextValidationMode = 0;
 pub const OptixDeviceContextValidationMode_OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL:
-    OptixDeviceContextValidationMode = -1;
-pub type OptixDeviceContextValidationMode = ::std::os::raw::c_int;
+    OptixDeviceContextValidationMode = 4294967295;
+pub type OptixDeviceContextValidationMode = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct OptixDeviceContextOptions {
@@ -233,11 +233,11 @@ impl Default for OptixDeviceContextOptions {
 }
 pub const OptixHitKind_OPTIX_HIT_KIND_TRIANGLE_FRONT_FACE: OptixHitKind = 254;
 pub const OptixHitKind_OPTIX_HIT_KIND_TRIANGLE_BACK_FACE: OptixHitKind = 255;
-pub type OptixHitKind = ::std::os::raw::c_int;
+pub type OptixHitKind = ::std::os::raw::c_uint;
 pub const OptixIndicesFormat_OPTIX_INDICES_FORMAT_NONE: OptixIndicesFormat = 0;
 pub const OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3: OptixIndicesFormat = 8450;
 pub const OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_INT3: OptixIndicesFormat = 8451;
-pub type OptixIndicesFormat = ::std::os::raw::c_int;
+pub type OptixIndicesFormat = ::std::os::raw::c_uint;
 pub const OptixVertexFormat_OPTIX_VERTEX_FORMAT_NONE: OptixVertexFormat = 0;
 pub const OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT3: OptixVertexFormat = 8481;
 pub const OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT2: OptixVertexFormat = 8482;
@@ -245,10 +245,10 @@ pub const OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF3: OptixVertexFormat = 8483;
 pub const OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF2: OptixVertexFormat = 8484;
 pub const OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_3: OptixVertexFormat = 8485;
 pub const OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_2: OptixVertexFormat = 8486;
-pub type OptixVertexFormat = ::std::os::raw::c_int;
+pub type OptixVertexFormat = ::std::os::raw::c_uint;
 pub const OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE: OptixTransformFormat = 0;
 pub const OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12: OptixTransformFormat = 8673;
-pub type OptixTransformFormat = ::std::os::raw::c_int;
+pub type OptixTransformFormat = ::std::os::raw::c_uint;
 #[repr(C)]
 pub struct OptixBuildInputTriangleArray {
     pub vertexBuffers: *const CUdeviceptr,
@@ -283,7 +283,7 @@ pub const OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE: Optix
 pub const OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE: OptixPrimitiveType = 9474;
 pub const OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR: OptixPrimitiveType = 9475;
 pub const OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_TRIANGLE: OptixPrimitiveType = 9521;
-pub type OptixPrimitiveType = ::std::os::raw::c_int;
+pub type OptixPrimitiveType = ::std::os::raw::c_uint;
 pub const OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM: OptixPrimitiveTypeFlags = 1;
 pub const OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE:
     OptixPrimitiveTypeFlags = 2;
@@ -369,7 +369,7 @@ pub const OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES: OptixBui
 pub const OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES: OptixBuildInputType = 8515;
 pub const OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS: OptixBuildInputType = 8516;
 pub const OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CURVES: OptixBuildInputType = 8517;
-pub type OptixBuildInputType = ::std::os::raw::c_int;
+pub type OptixBuildInputType = ::std::os::raw::c_uint;
 #[repr(C)]
 pub struct OptixBuildInput__bindgen_ty_1 {
     pub triangleArray: __BindgenUnionField<OptixBuildInputTriangleArray>,
@@ -395,7 +395,7 @@ pub const OptixInstanceFlags_OPTIX_INSTANCE_FLAG_FLIP_TRIANGLE_FACING: OptixInst
 pub const OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT: OptixInstanceFlags = 4;
 pub const OptixInstanceFlags_OPTIX_INSTANCE_FLAG_ENFORCE_ANYHIT: OptixInstanceFlags = 8;
 pub const OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_TRANSFORM: OptixInstanceFlags = 64;
-pub type OptixInstanceFlags = ::std::os::raw::c_int;
+pub type OptixInstanceFlags = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct OptixInstance {
@@ -414,14 +414,14 @@ pub const OptixBuildFlags_OPTIX_BUILD_FLAG_PREFER_FAST_TRACE: OptixBuildFlags = 
 pub const OptixBuildFlags_OPTIX_BUILD_FLAG_PREFER_FAST_BUILD: OptixBuildFlags = 8;
 pub const OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS: OptixBuildFlags = 16;
 pub const OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_RANDOM_INSTANCE_ACCESS: OptixBuildFlags = 32;
-pub type OptixBuildFlags = ::std::os::raw::c_int;
+pub type OptixBuildFlags = ::std::os::raw::c_uint;
 pub const OptixBuildOperation_OPTIX_BUILD_OPERATION_BUILD: OptixBuildOperation = 8545;
 pub const OptixBuildOperation_OPTIX_BUILD_OPERATION_UPDATE: OptixBuildOperation = 8546;
-pub type OptixBuildOperation = ::std::os::raw::c_int;
+pub type OptixBuildOperation = ::std::os::raw::c_uint;
 pub const OptixMotionFlags_OPTIX_MOTION_FLAG_NONE: OptixMotionFlags = 0;
 pub const OptixMotionFlags_OPTIX_MOTION_FLAG_START_VANISH: OptixMotionFlags = 1;
 pub const OptixMotionFlags_OPTIX_MOTION_FLAG_END_VANISH: OptixMotionFlags = 2;
-pub type OptixMotionFlags = ::std::os::raw::c_int;
+pub type OptixMotionFlags = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub struct OptixMotionOptions {
@@ -455,7 +455,7 @@ pub struct OptixAccelBufferSizes {
 }
 pub const OptixAccelPropertyType_OPTIX_PROPERTY_TYPE_COMPACTED_SIZE: OptixAccelPropertyType = 8577;
 pub const OptixAccelPropertyType_OPTIX_PROPERTY_TYPE_AABBS: OptixAccelPropertyType = 8578;
-pub type OptixAccelPropertyType = ::std::os::raw::c_int;
+pub type OptixAccelPropertyType = ::std::os::raw::c_uint;
 #[repr(C)]
 pub struct OptixAccelEmitDesc {
     pub result: CUdeviceptr,
@@ -524,9 +524,9 @@ pub const OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_MATRIX_MOTION_TRANSFORM:
     OptixTraversableType = 8642;
 pub const OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_SRT_MOTION_TRANSFORM: OptixTraversableType =
     8643;
-pub type OptixTraversableType = ::std::os::raw::c_int;
+pub type OptixTraversableType = ::std::os::raw::c_uint;
 pub mod OptixPixelFormat {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_PIXEL_FORMAT_HALF2: Type = 8711;
     pub const OPTIX_PIXEL_FORMAT_HALF3: Type = 8705;
     pub const OPTIX_PIXEL_FORMAT_HALF4: Type = 8706;
@@ -555,7 +555,7 @@ impl Default for OptixImage2D {
     }
 }
 pub mod OptixDenoiserModelKind {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_DENOISER_MODEL_KIND_LDR: Type = 8994;
     pub const OPTIX_DENOISER_MODEL_KIND_HDR: Type = 8995;
     pub const OPTIX_DENOISER_MODEL_KIND_AOV: Type = 8996;
@@ -630,21 +630,21 @@ pub const OptixRayFlags_OPTIX_RAY_FLAG_CULL_BACK_FACING_TRIANGLES: OptixRayFlags
 pub const OptixRayFlags_OPTIX_RAY_FLAG_CULL_FRONT_FACING_TRIANGLES: OptixRayFlags = 32;
 pub const OptixRayFlags_OPTIX_RAY_FLAG_CULL_DISABLED_ANYHIT: OptixRayFlags = 64;
 pub const OptixRayFlags_OPTIX_RAY_FLAG_CULL_ENFORCED_ANYHIT: OptixRayFlags = 128;
-pub type OptixRayFlags = ::std::os::raw::c_int;
+pub type OptixRayFlags = ::std::os::raw::c_uint;
 pub const OptixTransformType_OPTIX_TRANSFORM_TYPE_NONE: OptixTransformType = 0;
 pub const OptixTransformType_OPTIX_TRANSFORM_TYPE_STATIC_TRANSFORM: OptixTransformType = 1;
 pub const OptixTransformType_OPTIX_TRANSFORM_TYPE_MATRIX_MOTION_TRANSFORM: OptixTransformType = 2;
 pub const OptixTransformType_OPTIX_TRANSFORM_TYPE_SRT_MOTION_TRANSFORM: OptixTransformType = 3;
 pub const OptixTransformType_OPTIX_TRANSFORM_TYPE_INSTANCE: OptixTransformType = 4;
-pub type OptixTransformType = ::std::os::raw::c_int;
+pub type OptixTransformType = ::std::os::raw::c_uint;
 pub mod OptixTraversableGraphFlags {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY: Type = 0;
     pub const OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS: Type = 1;
     pub const OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING: Type = 2;
 }
 pub mod OptixCompileOptimizationLevel {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_COMPILE_OPTIMIZATION_DEFAULT: Type = 0;
     pub const OPTIX_COMPILE_OPTIMIZATION_LEVEL_0: Type = 9024;
     pub const OPTIX_COMPILE_OPTIMIZATION_LEVEL_1: Type = 9025;
@@ -652,7 +652,7 @@ pub mod OptixCompileOptimizationLevel {
     pub const OPTIX_COMPILE_OPTIMIZATION_LEVEL_3: Type = 9027;
 }
 pub mod OptixCompileDebugLevel {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_COMPILE_DEBUG_LEVEL_DEFAULT: Type = 0;
     pub const OPTIX_COMPILE_DEBUG_LEVEL_NONE: Type = 9040;
     pub const OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO: Type = 9041;
@@ -694,7 +694,7 @@ impl Default for OptixModuleCompileOptions {
     }
 }
 pub mod OptixProgramGroupKind {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_PROGRAM_GROUP_KIND_RAYGEN: Type = 9249;
     pub const OPTIX_PROGRAM_GROUP_KIND_MISS: Type = 9250;
     pub const OPTIX_PROGRAM_GROUP_KIND_EXCEPTION: Type = 9251;
@@ -702,7 +702,7 @@ pub mod OptixProgramGroupKind {
     pub const OPTIX_PROGRAM_GROUP_KIND_CALLABLES: Type = 9253;
 }
 pub const OptixProgramGroupFlags_OPTIX_PROGRAM_GROUP_FLAGS_NONE: OptixProgramGroupFlags = 0;
-pub type OptixProgramGroupFlags = ::std::os::raw::c_int;
+pub type OptixProgramGroupFlags = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct OptixProgramGroupSingleModule {
@@ -826,7 +826,7 @@ pub const OptixExceptionCodes_OPTIX_EXCEPTION_CODE_UNSUPPORTED_DATA_ACCESS: Opti
     -32;
 pub type OptixExceptionCodes = ::std::os::raw::c_int;
 pub mod OptixExceptionFlags {
-    pub type Type = ::std::os::raw::c_int;
+    pub type Type = ::std::os::raw::c_uint;
     pub const OPTIX_EXCEPTION_FLAG_NONE: Type = 0;
     pub const OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW: Type = 1;
     pub const OPTIX_EXCEPTION_FLAG_TRACE_DEPTH: Type = 2;
@@ -906,7 +906,7 @@ pub struct OptixStackSizes {
 }
 pub const OptixQueryFunctionTableOptions_OPTIX_QUERY_FUNCTION_TABLE_OPTION_DUMMY:
     OptixQueryFunctionTableOptions = 0;
-pub type OptixQueryFunctionTableOptions = ::std::os::raw::c_int;
+pub type OptixQueryFunctionTableOptions = ::std::os::raw::c_uint;
 pub type OptixQueryFunctionTable_t = ::std::option::Option<
     unsafe extern "C" fn(
         abiId: ::std::os::raw::c_int,
@@ -1543,7 +1543,7 @@ pub const OptixTransformByteAlignment: usize = 64;
 pub const OptixVersion: usize = 70300;
 pub const OptixBuildInputSize: usize = 1032;
 pub const OptixShaderBindingTableSize: usize = 64;
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum OptixGeometryFlags {
     None = 0,

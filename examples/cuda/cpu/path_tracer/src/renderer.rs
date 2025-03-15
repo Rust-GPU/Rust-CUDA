@@ -1,4 +1,4 @@
-use glutin::{event::Event, event_loop::ControlFlow};
+use glium::glutin::{event::Event, event_loop::ControlFlow};
 use imgui::Ui;
 use path_tracer_gpu::scene::Scene;
 use sysinfo::{System, SystemExt};

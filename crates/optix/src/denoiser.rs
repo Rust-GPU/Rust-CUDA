@@ -222,9 +222,9 @@ impl Denoiser {
                 stream.as_inner(),
                 width,
                 height,
-                state.as_device_ptr().as_raw() as u64,
+                state.as_device_ptr().as_raw(),
                 state_size,
-                scratch.as_device_ptr().as_raw() as u64,
+                scratch.as_device_ptr().as_raw(),
                 scratch_size
             ))?;
         }
@@ -373,7 +373,7 @@ impl Denoiser {
         let raw_params = parameters.to_raw();
 
         let mut out = input_image.to_raw();
-        out.data = out_buffer.as_device_ptr().as_raw() as u64;
+        out.data = out_buffer.as_device_ptr().as_raw();
 
         let layer = sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
@@ -388,14 +388,14 @@ impl Denoiser {
                 self.raw,
                 stream.as_inner(),
                 &raw_params as *const _,
-                state.state.as_device_ptr().as_raw() as u64,
+                state.state.as_device_ptr().as_raw(),
                 state.state.len(),
                 &cloned as *const _,
                 &layer as *const _,
                 1, // num-layers
                 0, // offsetX
                 0, // offsetY
-                state.scratch.as_device_ptr().as_raw() as u64,
+                state.scratch.as_device_ptr().as_raw(),
                 state.scratch.len()
             ))?;
         }
@@ -426,11 +426,11 @@ impl DenoiserParams<'_> {
             denoiseAlpha: self.denoise_alpha as u32,
             hdrIntensity: self
                 .hdr_intensity
-                .map(|x| x.as_device_ptr().as_raw() as u64)
+                .map(|x| x.as_device_ptr().as_raw())
                 .unwrap_or_default(),
             hdrAverageColor: self
                 .hdr_average_color
-                .map(|x| x.as_device_ptr().as_raw() as u64)
+                .map(|x| x.as_device_ptr().as_raw())
                 .unwrap_or_default(),
             blendFactor: self.blend_factor,
         }
@@ -581,7 +581,7 @@ impl<'a> Image<'a> {
         let buf_size = std::mem::size_of::<T>() * bytes.len();
 
         assert!(
-            buf_size >= required_size as usize,
+            buf_size >= required_size,
             "Buffer for {}x{} {:?} image is not large enough, expected {} bytes, found {}",
             width,
             height,
@@ -605,7 +605,7 @@ impl<'a> Image<'a> {
         let required_bytes = Self::required_buffer_size(format, width, height);
         let t_size = std::mem::size_of::<T>();
         // round-up division
-        let buf_size = (required_bytes + t_size - 1) / t_size;
+        let buf_size = required_bytes.div_ceil(t_size);
 
         UnifiedBuffer::new(&T::default(), buf_size)
     }
@@ -630,7 +630,7 @@ impl<'a> Image<'a> {
             rowStrideInBytes: self.row_stride_in_bytes(),
             pixelStrideInBytes: self.pixel_stride_in_bytes(),
             format: self.format.to_raw(),
-            data: self.buffer.as_raw() as u64,
+            data: self.buffer.as_raw(),
         }
     }
 

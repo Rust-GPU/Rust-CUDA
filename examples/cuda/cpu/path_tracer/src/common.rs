@@ -1,4 +1,4 @@
-use glutin::event::{
+use glium::glutin::event::{
     ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
 use path_tracer_gpu::Viewport;

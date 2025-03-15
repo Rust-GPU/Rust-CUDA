@@ -4,7 +4,6 @@ use cuda_std::kernel;
 use optix_device::{
     closesthit, get_launch_index,
     glam::*,
-    misc::*,
     payload,
     trace::TraversableHandle,
     trace::{trace, RayFlags},
