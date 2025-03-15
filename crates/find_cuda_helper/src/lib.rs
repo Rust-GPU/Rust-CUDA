@@ -29,35 +29,35 @@ fn is_cuda_root_path<P: AsRef<Path>>(path: P) -> bool {
     path.as_ref().join("include").join("cuda.h").is_file()
 }
 
-// pub fn find_cuda_root() -> Option<PathBuf> {
-//     // search through the common environment variables first
-//     for path in ["CUDA_PATH", "CUDA_ROOT", "CUDA_TOOLKIT_ROOT_DIR"]
-//         .iter()
-//         .filter_map(|name| std::env::var(*name).ok())
-//     {
-//         if is_cuda_root_path(&path) {
-//             return Some(path.into());
-//         }
-//     }
-
-//     // If it wasn't specified by env var, try the default installation paths
-//     #[cfg(not(target_os = "windows"))]
-//     let default_paths = ["/usr/lib/cuda", "/usr/local/cuda", "/opt/cuda"];
-//     #[cfg(target_os = "windows")]
-//     let default_paths = ["C:/CUDA"]; // TODO (AL): what's the actual path here?
-
-//     for path in default_paths {
-//         if is_cuda_root_path(path) {
-//             return Some(path.into());
-//         }
-//     }
-
-//     None
-// }
-
 pub fn find_cuda_root() -> Option<PathBuf> {
-    Some(PathBuf::from("/usr/lib/cuda"))
+    // search through the common environment variables first
+    for path in ["CUDA_PATH", "CUDA_ROOT", "CUDA_TOOLKIT_ROOT_DIR"]
+        .iter()
+        .filter_map(|name| std::env::var(*name).ok())
+    {
+        if is_cuda_root_path(&path) {
+            return Some(path.into());
+        }
+    }
+
+    // If it wasn't specified by env var, try the default installation paths
+    #[cfg(not(target_os = "windows"))]
+    let default_paths = ["/usr/lib/cuda", "/usr/local/cuda", "/opt/cuda"];
+    #[cfg(target_os = "windows")]
+    let default_paths = ["C:/CUDA"]; // TODO (AL): what's the actual path here?
+
+    for path in default_paths {
+        if is_cuda_root_path(path) {
+            return Some(path.into());
+        }
+    }
+
+    None
 }
+
+// pub fn find_cuda_root() -> Option<PathBuf> {
+//     Some(PathBuf::from("/usr/lib/cuda"))
+// }
 
 #[cfg(target_os = "windows")]
 pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
