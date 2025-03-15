@@ -36,6 +36,15 @@ jobs:
         with:
           cuda: '11.2.2'
 
+      - name: List CUDA_PATH files (Linux)
+        if: runner.os == 'Linux'
+        run: find "$CUDA_PATH" -type f
+        
+      - name: List CUDA_PATH files (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Get-ChildItem -Path $env:CUDA_PATH -Recurse | ForEach-Object { $_.FullName }
+
       # random command that forces rustup to install stuff in rust-toolchain
       - name: Install rust-toolchain
         run: cargo version
