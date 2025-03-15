@@ -6,7 +6,7 @@ use path_tracer_gpu::{
     material::MaterialKind, render::generate_ray, scene::Scene, Object, Viewport,
 };
 use rayon::prelude::*;
-use sysinfo::{ProcessorExt, System, SystemExt};
+use sysinfo::{CpuExt, System, SystemExt};
 use vek::{Clamp, Vec2, Vec3};
 
 use crate::{common::Camera, cuda::SEED};
@@ -45,7 +45,7 @@ impl CpuRenderer {
 
     pub fn info(&self, ui: &Ui, system: &System) {
         let cores = system.physical_core_count().unwrap();
-        let processor = &system.processors()[0];
+        let processor = &system.cpus()[0];
 
         let group = ui.begin_group();
         ui.text(format!(

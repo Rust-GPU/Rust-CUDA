@@ -107,7 +107,7 @@ impl DeviceContext {
             Ok(optix_call!(optixDeviceContextGetCacheDatabaseSizes(
                 self.raw, &mut low, &mut high,
             ))
-            .map(|_| (low as usize, high as usize))?)
+            .map(|_| (low, high))?)
         }
     }
 

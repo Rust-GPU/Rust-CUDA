@@ -11,13 +11,13 @@ image = "0.25.5"
 path_tracer_gpu = { path = "../../gpu/path_tracer_gpu" }
 gpu_rand = { version = "0.1", path = "../../../../crates/gpu_rand" }
 optix = { version = "0.1", path = "../../../../crates/optix" }
-glium = "0.36.0"
-glutin = "0.32.2"
-imgui = "0.12.0"
-imgui-glium-renderer = "0.13.0"
-imgui-winit-support = "0.13.0"
+glium = "0.32.0"
+glutin = "0.28.0"
+imgui = "0.9.0"
+imgui-glium-renderer = "0.9.0"
+imgui-winit-support = "0.9.0"
 rayon = "1.10.0"
-sysinfo = "0.33.1"
+sysinfo = "0.24.0"
 anyhow = "1.0.53"
 
 [build-dependencies]

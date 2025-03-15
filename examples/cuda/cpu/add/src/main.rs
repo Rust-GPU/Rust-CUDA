@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // current CUDA device/architecture.
     let (_, block_size) = func.suggested_launch_configuration(0, 0.into())?;
 
-    let grid_size = (NUMBERS_LEN as u32 + block_size - 1) / block_size;
+    let grid_size = (NUMBERS_LEN as u32).div_ceil(block_size);
 
     println!(
         "using {} blocks and {} threads per block",
