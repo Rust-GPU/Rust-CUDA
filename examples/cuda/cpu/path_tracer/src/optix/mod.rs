@@ -132,7 +132,7 @@ impl OptixRenderer {
                 }
             }
         }
-        let buf= DeviceBuffer::from_slice(&aabbs)?;
+        let buf = DeviceBuffer::from_slice(&aabbs)?;
 
         let mut build_inputs = Vec::with_capacity(buf.len());
         let mut aabb_slices = Vec::with_capacity(buf.len());
@@ -156,7 +156,6 @@ impl OptixRenderer {
         // correctly
         Ok(gas)
     }
-    
 
     fn build_scene_hitgroup_records(
         scene: &Scene,

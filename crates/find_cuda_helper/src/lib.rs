@@ -55,10 +55,6 @@ pub fn find_cuda_root() -> Option<PathBuf> {
     None
 }
 
-// pub fn find_cuda_root() -> Option<PathBuf> {
-//     Some(PathBuf::from("/usr/lib/cuda"))
-// }
-
 #[cfg(target_os = "windows")]
 pub fn find_cuda_lib_dirs() -> Vec<PathBuf> {
     if let Some(root_path) = find_cuda_root() {
