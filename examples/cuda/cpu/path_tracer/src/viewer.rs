@@ -2,19 +2,26 @@ use glium::{
     implement_vertex,
     index::{NoIndices, PrimitiveType},
     texture::{RawImage2d, SrgbTexture2d},
+    glutin::{
+        window::WindowBuilder, 
+        event_loop::{EventLoop, ControlFlow}, 
+        ContextBuilder, 
+        event::{Event, WindowEvent},
+        dpi::PhysicalSize
+    },
     uniform, Display, Program, Rect, Surface, VertexBuffer,
 };
-use glutin::{
-    dpi::PhysicalSize,
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
-    ContextBuilder,
-};
+// use glutin::{
+//     dpi::PhysicalSize,
+    // event::{Event, WindowEvent},
+    // event_loop::{ControlFlow, EventLoop},
+    // ContextBuilder,
+// };
+
 use imgui::Condition;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use path_tracer_gpu::scene::Scene;
-use std::time::Instant;
+use std::{ops::Deref, time::Instant};
 use vek::Vec2;
 
 use crate::{common::Camera, renderer::Renderer, HEIGHT, WIDTH};
@@ -55,9 +62,9 @@ pub fn run(camera: &Camera, scene: &Scene) -> ! {
     let event_loop = EventLoop::new();
     let wb = WindowBuilder::new()
         .with_title("Render")
-        .with_inner_size(PhysicalSize::new(WIDTH, HEIGHT));
+        .with_inner_size(PhysicalSize::new(WIDTH as f64, HEIGHT as f64)); // Explicitly specify f64
     let cb = ContextBuilder::new().with_vsync(true);
-    let display = Display::new(wb, cb, &event_loop).unwrap();
+    let display = Display::new(wb, cb, event_loop.deref()).unwrap();
     let renderer = Renderer::new(Vec2::new(WIDTH as usize, HEIGHT as usize), camera, scene);
     let mut viewer = ViewerRenderer::new(display, renderer);
 
@@ -183,9 +190,9 @@ impl ViewerRenderer {
             ..
         } = self;
         let ui = self.imgui_ctx.frame();
-        let out = imgui::Window::new("crab")
+        let out = ui.window("crab")
             .size([300.0, 300.0], Condition::FirstUseEver)
-            .build(&ui, || renderer.render(&ui))
+            .build(|| renderer.render(&ui))
             .unwrap();
 
         let raw =
@@ -221,7 +228,8 @@ impl ViewerRenderer {
         let gl_window = display.gl_window();
         platform.prepare_render(&ui, gl_window.window());
 
-        imgui_renderer.render(&mut target, ui.render()).unwrap();
+        let draw_data = self.imgui_ctx.render();
+        imgui_renderer.render(&mut target, draw_data).unwrap();
         target.finish().unwrap();
     }
 }

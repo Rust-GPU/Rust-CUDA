@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use crate::cuda::CudaRendererBuffers;
 use anyhow::Result;
 use cust::{
@@ -135,8 +137,10 @@ impl OptixRenderer {
         let mut build_inputs = Vec::with_capacity(buf.len());
         let mut aabb_slices = Vec::with_capacity(buf.len());
 
+        let dev_slice = buf.as_slice();
+
         for i in 0..buf.len() {
-            aabb_slices.push(*buf.index(i));
+            aabb_slices.push(&dev_slice[i]);
         }
         for i in 0..buf.len() {
             build_inputs.push(CustomPrimitiveArray::new(

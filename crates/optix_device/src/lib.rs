@@ -1,5 +1,4 @@
 #![cfg_attr(target_os = "cuda", feature(asm_experimental_arch))]
-#[cfg(target_os = "cuda")]
 use core::arch::asm;
 
 extern crate alloc;
