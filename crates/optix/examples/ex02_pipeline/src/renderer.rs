@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use cust::context::{Context as CuContext, ContextFlags};
+use cust::context::Context as CuContext;
 use cust::device::{Device, DeviceAttribute};
 use cust::memory::{CopyDestination, DeviceBox, DeviceBuffer, DevicePointer, DeviceVariable};
 use cust::stream::{Stream, StreamFlags};
@@ -40,8 +40,7 @@ impl Renderer {
         let srf_align = device.get_attribute(DeviceAttribute::SurfaceAlignment)?;
         println!("tex align: {}\nsrf align: {}", tex_align, srf_align);
 
-        let cuda_context =
-            CuContext::create_and_push(ContextFlags::SCHED_AUTO | ContextFlags::MAP_HOST, device)?;
+        let cuda_context = CuContext::new(device)?;
         let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
         let mut ctx = DeviceContext::new(&cuda_context, false)?;
@@ -149,7 +148,7 @@ impl Renderer {
         let launch_params = DeviceVariable::new(LaunchParams {
             frame_id: 17,
             fb_size: [width as u32, height as u32],
-            color_buffer: color_buffer.as_device_ptr(),
+            color_buffer: color_buffer.as_device_ptr().as_raw(),
         })?;
 
         Ok(Renderer {
@@ -174,7 +173,7 @@ impl Renderer {
         self.color_buffer = unsafe { DeviceBuffer::uninitialized(width * height)? };
         self.launch_params.fb_size[0] = width as u32;
         self.launch_params.fb_size[1] = height as u32;
-        self.launch_params.color_buffer = self.color_buffer.as_device_ptr();
+        self.launch_params.color_buffer = self.color_buffer.as_device_ptr().as_raw();
         Ok(())
     }
 
