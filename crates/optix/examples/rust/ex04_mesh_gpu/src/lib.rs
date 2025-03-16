@@ -75,11 +75,7 @@ pub unsafe fn __miss__radiance() {
 }
 
 extern "C" {
-<<<<<<< HEAD
     #[cfg_attr(target_os = "cuda", nvvm_internal::addrspace(4))]
-=======
-    #[cfg_attr(target_os = "cuda", no_std)]
->>>>>>> d40b29f (fixing)
     static PARAMS: LaunchParams;
 }
 
