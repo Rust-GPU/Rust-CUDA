@@ -135,7 +135,9 @@ pub struct Module {
 #[cfg_attr(windows, repr(i32))]
 #[cfg_attr(unix, repr(u32))]
 #[derive(Debug, Hash, PartialEq, Copy, Clone)]
+#[derive(Default)]
 pub enum CompileOptimizationLevel {
+    #[default]
     Default = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_DEFAULT,
     Level0 = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_0,
     Level1 = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_1,
@@ -143,27 +145,19 @@ pub enum CompileOptimizationLevel {
     Level3 = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_3,
 }
 
-impl Default for CompileOptimizationLevel {
-    fn default() -> Self {
-        CompileOptimizationLevel::Default
-    }
-}
 
 /// Module compilation debug level
 #[cfg_attr(windows, repr(i32))]
 #[cfg_attr(unix, repr(u32))]
 #[derive(Debug, Hash, PartialEq, Copy, Clone)]
+#[derive(Default)]
 pub enum CompileDebugLevel {
+    #[default]
     None = sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_NONE,
     LineInfo = sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO,
     Full = sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_FULL,
 }
 
-impl Default for CompileDebugLevel {
-    fn default() -> Self {
-        CompileDebugLevel::None
-    }
-}
 
 cfg_if::cfg_if! {
     if #[cfg(any(feature="optix72", feature="optix73"))] {

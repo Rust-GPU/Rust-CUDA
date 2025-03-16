@@ -703,16 +703,13 @@ bitflags::bitflags! {
 #[cfg_attr(windows, repr(i32))]
 #[cfg_attr(unix, repr(u32))]
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Default)]
 pub enum BuildOperation {
+    #[default]
     Build = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_BUILD,
     Update = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_UPDATE,
 }
 
-impl Default for BuildOperation {
-    fn default() -> Self {
-        BuildOperation::Build
-    }
-}
 
 /// Configure how to handle ray times that are outside of the provided motion keys.
 ///
@@ -983,7 +980,7 @@ pub struct CurveArray<'v, 'w, 'i> {
     primitive_index_offset: u32,
 }
 
-impl<'v, 'w, 'i> Hash for CurveArray<'v, 'w, 'i> {
+impl Hash for CurveArray<'_, '_, '_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.curve_type.hash(state);
         state.write_u32(self.num_primitives);
@@ -1088,7 +1085,7 @@ impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
     }
 }
 
-impl<'v, 'w, 'i> BuildInput for CurveArray<'v, 'w, 'i> {
+impl BuildInput for CurveArray<'_, '_, '_> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         sys::OptixBuildInput {
             type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CURVES,
@@ -1139,13 +1136,13 @@ impl From<CurveType> for sys::OptixPrimitiveType {
 #[repr(u32)]
 #[derive(Copy, Clone, PartialEq)]
 pub enum VertexFormat {
-    None = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_NONE as u32,
-    Float3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT3 as u32,
-    Float2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT2 as u32,
-    Half3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF3 as u32,
-    Half2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF2 as u32,
-    SNorm16 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_3 as u32,
-    SNorm32 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_2 as u32,
+    None = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_NONE,
+    Float3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT3,
+    Float2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT2,
+    Half3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF3,
+    Half2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF2,
+    SNorm16 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_3,
+    SNorm32 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_2,
 }
 
 /// Specifies the type of index data
@@ -1299,7 +1296,7 @@ impl<'v, 'g, V: Vertex> TriangleArray<'v, 'g, V> {
     }
 }
 
-impl<'v, 'g, V: Vertex> Hash for TriangleArray<'v, 'g, V> {
+impl<V: Vertex> Hash for TriangleArray<'_, '_, V> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u32(self.num_vertices);
         state.write_usize(self.d_vertex_buffers.len());
@@ -1307,7 +1304,7 @@ impl<'v, 'g, V: Vertex> Hash for TriangleArray<'v, 'g, V> {
     }
 }
 
-impl<'v, 'g, V: Vertex> BuildInput for TriangleArray<'v, 'g, V> {
+impl<V: Vertex> BuildInput for TriangleArray<'_, '_, V> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         sys::OptixBuildInput {
             type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
@@ -1382,7 +1379,7 @@ impl<'v, 'i, V: Vertex, I: IndexTriple> IndexedTriangleArray<'v, 'i, V, I> {
     }
 }
 
-impl<'v, 'i, V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'v, 'i, V, I> {
+impl<V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'_, '_, V, I> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u32(self.num_vertices);
         state.write_usize(self.d_vertex_buffers.len());
@@ -1391,7 +1388,7 @@ impl<'v, 'i, V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'v, 'i, V,
     }
 }
 
-impl<'v, 'i, V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'v, 'i, V, I> {
+impl<V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'_, '_, V, I> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         sys::OptixBuildInput {
             type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
@@ -1439,7 +1436,7 @@ pub struct CustomPrimitiveArray<'a, 's> {
     primitive_index_offset: u32,
 }
 
-impl<'a, 'g, 's> Hash for CustomPrimitiveArray<'a, 's> {
+impl<'g> Hash for CustomPrimitiveArray<'_, '_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(self.aabb_buffers.len());
         state.write_u32(self.num_primitives);
@@ -1509,7 +1506,7 @@ impl<'a, 's> CustomPrimitiveArray<'a, 's> {
     }
 }
 
-impl<'a, 's> BuildInput for CustomPrimitiveArray<'a, 's> {
+impl BuildInput for CustomPrimitiveArray<'_, '_> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         sys::OptixBuildInput {
             type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
@@ -1646,13 +1643,13 @@ impl<'i, 'a> InstanceArray<'i, 'a> {
     }
 }
 
-impl<'i, 'a> Hash for InstanceArray<'i, 'a> {
+impl Hash for InstanceArray<'_, '_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(self.instances.len());
     }
 }
 
-impl<'i, 'a> BuildInput for InstanceArray<'i, 'a> {
+impl BuildInput for InstanceArray<'_, '_> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         cfg_if::cfg_if! {
             if #[cfg(any(feature="optix72", feature="optix73"))] {
@@ -1692,13 +1689,13 @@ impl<'i> InstancePointerArray<'i> {
     }
 }
 
-impl<'i> Hash for InstancePointerArray<'i> {
+impl Hash for InstancePointerArray<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(self.instances.len());
     }
 }
 
-impl<'i> BuildInput for InstancePointerArray<'i> {
+impl BuildInput for InstancePointerArray<'_> {
     fn to_sys(&self) -> sys::OptixBuildInput {
         cfg_if::cfg_if! {
             if #[cfg(any(feature="optix72", feature="optix73"))] {
@@ -1865,7 +1862,7 @@ impl MatrixMotionTransform {
             cust::memory::memcpy_htod(
                 transform_ptr.as_raw(),
                 transforms.as_ptr() as *const c_void,
-                std::mem::size_of::<RowMatrix3x4<f32>>() * num_keys,
+                std::mem::size_of_val(transforms),
             )?;
 
             let hnd = convert_pointer_to_traversable_handle(
@@ -2014,7 +2011,7 @@ impl SrtMotionTransform {
             cust::memory::memcpy_htod(
                 transform_ptr.as_raw(),
                 srt_data.as_ptr() as *const c_void,
-                std::mem::size_of::<SrtData>() * num_keys,
+                std::mem::size_of_val(srt_data),
             )?;
 
             let hnd = convert_pointer_to_traversable_handle(
