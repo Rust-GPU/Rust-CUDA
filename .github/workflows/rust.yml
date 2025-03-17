@@ -76,6 +76,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ./*.deb
           sudo apt-get install -y liblzma-dev
+          sudo apt-get install -y libssl-dev
 
       - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
