@@ -3,6 +3,9 @@
 
 use cuda_std_macros::gpu_only;
 
+#[cfg(target_arch = "nvptx64")]
+use crate::intrinsics as raw;
+
 // allows us to add new functions to the trait at any time without needing a new major version.
 mod private {
     pub trait Sealed {}
