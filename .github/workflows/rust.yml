@@ -72,7 +72,7 @@ jobs:
       - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
         run: |
-            sudo apt-get install llvm-7
+            wget -O - https://apt.llvm.org/llvm.sh | sudo bash -s 7
             sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
 
       - name: Load Rust Cache
