@@ -69,6 +69,12 @@ jobs:
       - name: Add rustup components
         run: rustup component add rustfmt clippy
 
+      - name: Install libffi7 for LLVM 7
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          wget http://archive.ubuntu.com/ubuntu/pool/universe/libf/libffi/libffi7_3.3-4_amd64.deb
+          sudo dpkg -i libffi7_3.3-4_amd64.deb
+
       - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
         run: |
