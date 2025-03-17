@@ -1,18 +1,25 @@
-# Getting Started 
+# Getting Started
 
 This section covers how to get started writing GPU crates with `cuda_std` and `cuda_builder`.
 
 ## Required Libraries
 
 Before you can use the project to write GPU crates, you will need a couple of prerequisites:
-- [The CUDA SDK](https://developer.nvidia.com/cuda-downloads), version `11.2-11.8` (and the appropriate driver - [see cuda release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)) . This is only for building
-GPU crates, to execute built PTX you only need CUDA 9+.
+
+- [The CUDA SDK](https://developer.nvidia.com/cuda-downloads), version `11.2-11.8` (and the appropriate driver - [see cuda release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)).
+
+  - We recently [added experimental support for the `12.x`
+    SDK](https://github.com/Rust-GPU/Rust-CUDA/issues/100), please file any issues you
+    see
+
+  This is only for building GPU crates, to execute built PTX you only need CUDA `9+`.
 
 - LLVM 7.x (7.0 to 7.4), The codegen searches multiple places for LLVM:
+
   - If `LLVM_CONFIG` is present, it will use that path as `llvm-config`.
   - Or, if `llvm-config` is present as a binary, it will use that, assuming that `llvm-config --version` returns `7.x.x`.
   - Finally, if neither are present or unusable, it will attempt to download and use prebuilt LLVM. This currently only
-  works on Windows however.
+    works on Windows however.
 
 - The OptiX SDK if using the optix library (the pathtracer example uses it for denoising).
 
@@ -69,10 +76,11 @@ use cuda_std::*;
 ```
 
 This does a couple of things:
+
 - It only applies the attributes if we are compiling the crate for the GPU (target_os = "cuda").
 - It declares the crate to be `no_std` on CUDA targets.
 - It registers a special attribute required by the codegen for things like figuring out
-what functions are GPU kernels.
+  what functions are GPU kernels.
 - It explicitly includes `kernel` macro and `thread`
 
 If you would like to use `alloc` or things like printing from GPU kernels (which requires alloc) then you need to declare `alloc` too:
@@ -89,7 +97,7 @@ Finally, if you would like to use types such as slices or arrays inside of GPU k
 
 ## Writing our first GPU kernel
 
-Now we can finally start writing an actual GPU kernel. 
+Now we can finally start writing an actual GPU kernel.
 
 <details>
   <summary>Expand this section if you are not familiar with how GPU-side CUDA works</summary>
@@ -102,24 +110,25 @@ thread, with the number of threads being decided by the caller (the CPU).
 
 We call these parameters the launch dimensions of the kernel. Launch dimensions are split
 up into two basic concepts:
-  - Threads, a single thread executes the GPU kernel __once__, and it makes the index
+
+- Threads, a single thread executes the GPU kernel **once**, and it makes the index
   of itself available to the kernel through special registers (functions in our case).
-  - Blocks, Blocks house multiple threads that they execute on their own. Thread indices
+- Blocks, Blocks house multiple threads that they execute on their own. Thread indices
   are only unique across the thread's block, therefore CUDA also exposes the index
   of the current block.
 
 One important thing to note is that block and thread dimensions may be 1d, 2d, or 3d.
-That is to say, i can launch `1` block of `6x6x6`, `6x6`, or `6` threads. I could 
+That is to say, i can launch `1` block of `6x6x6`, `6x6`, or `6` threads. I could
 also launch `5x5x5` blocks. This is very useful for 2d/3d applications because it makes
-the 2d/3d index calculations much simpler. CUDA exposes thread and block indices 
+the 2d/3d index calculations much simpler. CUDA exposes thread and block indices
 for each dimension through special registers. We expose thread index queries through
 `cuda_std::thread`.
 
 </details>
 
 Now that we know how GPU functions work, let's write a simple kernel. We will write
-a kernel which does `[1, 2, 3, 4] + [1, 2, 3, 4] = [2, 4, 6, 8]`. We will use 
-a 1-dimensional index and use the `cuda_std::thread::index_1d` utility method to 
+a kernel which does `[1, 2, 3, 4] + [1, 2, 3, 4] = [2, 4, 6, 8]`. We will use
+a 1-dimensional index and use the `cuda_std::thread::index_1d` utility method to
 calculate a globally-unique thread index for us (this index is only unique if the kernel was launched with a 1d launch config!).
 
 ```rs
@@ -134,16 +143,18 @@ pub unsafe fn add(a: &[f32], b: &[f32], c: *mut f32) {
 ```
 
 If you have used CUDA C++ before, this should seem fairly familiar, with a few oddities:
-- Kernel functions must be unsafe currently, this is because the semantics of Rust safety 
-on the GPU are still very much undecided. This restriction will probably be removed in the future.
+
+- Kernel functions must be unsafe currently, this is because the semantics of Rust safety
+  on the GPU are still very much undecided. This restriction will probably be removed in the future.
 - We use `*mut f32` and not `&mut [f32]`. This is because using `&mut` in function arguments
-is unsound. The reason being that rustc assumes `&mut` does not alias. However, because every thread gets a copy of the arguments, this would cause it to alias, thereby violating
-this invariant and yielding technically unsound code. Pointers do not have such an invariant on the other hand. Therefore, we use a pointer and only make a mutable reference once we 
-are sure the elements are disjoint: `let elem = &mut *c.add(idx);`.
+  is unsound. The reason being that rustc assumes `&mut` does not alias. However, because every thread gets a copy of the arguments, this would cause it to alias, thereby violating
+  this invariant and yielding technically unsound code. Pointers do not have such an invariant on the other hand. Therefore, we use a pointer and only make a mutable reference once we
+  are sure the elements are disjoint: `let elem = &mut *c.add(idx);`.
 - We check that the index is not out of bounds before doing anything, this is because it is
-common to launch kernels with thread amounts that are not exactly divisible by the length for optimization.
+  common to launch kernels with thread amounts that are not exactly divisible by the length for optimization.
 
 Internally what this does is it first checks that a couple of things are right in the kernel:
+
 - All parameters are `Copy`.
 - The function is `unsafe`.
 - The function does not return anything.
@@ -180,7 +191,7 @@ fn main() {
 ```
 
 The first argument is the path to the root of the GPU crate you are trying to build, which would probably be `../name` in our case.
-The second function `.copy_to(path)` tells the builder to copy the built PTX file somewhere. By default the builder puts the PTX file 
+The second function `.copy_to(path)` tells the builder to copy the built PTX file somewhere. By default the builder puts the PTX file
 inside of `target/cuda-builder/nvptx64-nvidia-cuda/release/crate_name.ptx`, but it is usually helpful to copy it to another path, which is
 what such method does. Finally, `build()` actually runs rustc to compile the crate. This may take a while since it needs to build things like core
 from scratch, but after the first compile, incremental will make it much faster.
@@ -212,15 +223,17 @@ components = ["rust-src", "rustc-dev", "llvm-tools-preview"]
 There is also a [Dockerfile](Dockerfile) prepared as a quickstart with all the necessary libraries for base cuda development.
 
 You can use it as follows (assuming your clone of Rust-CUDA is at the absolute path `RUST_CUDA`):
- - Ensure you have Docker setup to [use gpus](https://docs.docker.com/config/containers/resource_constraints/#gpu)
- - Build `docker build -t rust-cuda $RUST_CUDA`
- - Run `docker run -it --gpus all -v $RUST_CUDA:/root/rust-cuda --entrypoint /bin/bash rust-cuda`
-    * Running will drop you into the container's shell and you will find the project at `~/rust-cuda`
- - If all is well, you'll be able to `cargo run` in `~/rust-cuda/examples/cuda/cpu/add`
- 
+
+- Ensure you have Docker setup to [use gpus](https://docs.docker.com/config/containers/resource_constraints/#gpu)
+- Build `docker build -t rust-cuda $RUST_CUDA`
+- Run `docker run -it --gpus all -v $RUST_CUDA:/root/rust-cuda --entrypoint /bin/bash rust-cuda`
+  - Running will drop you into the container's shell and you will find the project at `~/rust-cuda`
+- If all is well, you'll be able to `cargo run` in `~/rust-cuda/examples/cuda/cpu/add`
+
 **Notes:**
+
 1. refer to [rust-toolchain](#rust-toolchain) to ensure you are using the correct toolchain in your project.
 2. despite using Docker, your machine will still need to be running a compatible driver, in this case for Cuda 11.4.1 it is >=470.57.02
 3. if you have issues within the container, it can help to start ensuring your gpu is recognized
-    * ensure `nvidia-smi` provides meaningful output in the container
-    * NVidia provides a number of samples https://github.com/NVIDIA/cuda-samples. In particular, you may want to try `make`ing and running the [`deviceQuery`](https://github.com/NVIDIA/cuda-samples/tree/ba04faaf7328dbcc87bfc9acaf17f951ee5ddcf3/Samples/deviceQuery) sample. If all is well you should see many details about your gpu
+   - ensure `nvidia-smi` provides meaningful output in the container
+   - NVidia provides a number of samples https://github.com/NVIDIA/cuda-samples. In particular, you may want to try `make`ing and running the [`deviceQuery`](https://github.com/NVIDIA/cuda-samples/tree/ba04faaf7328dbcc87bfc9acaf17f951ee5ddcf3/Samples/deviceQuery) sample. If all is well you should see many details about your gpu
