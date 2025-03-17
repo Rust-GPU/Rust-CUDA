@@ -702,14 +702,12 @@ bitflags::bitflags! {
 /// Select which operation to perform with [`accel_build()`].
 #[cfg_attr(windows, repr(i32))]
 #[cfg_attr(unix, repr(u32))]
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum BuildOperation {
     #[default]
     Build = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_BUILD,
     Update = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_UPDATE,
 }
-
 
 /// Configure how to handle ray times that are outside of the provided motion keys.
 ///
