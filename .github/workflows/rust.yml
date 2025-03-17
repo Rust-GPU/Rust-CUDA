@@ -72,8 +72,13 @@ jobs:
       - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
         run: |
-            wget -O - https://apt.llvm.org/llvm.sh | sudo bash -s 7
-            sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
+          mkdir -p ~/llvm7 && cd ~/llvm7
+          wget http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7_7.0.1-12_amd64.deb \
+               http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/libllvm7_7.0.1-12_amd64.deb \
+               http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-runtime_7.0.1-12_amd64.deb
+          sudo apt-get update
+          sudo apt-get install -y ./*.deb
+          sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
 
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v1
