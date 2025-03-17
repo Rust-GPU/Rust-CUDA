@@ -64,7 +64,7 @@ pub fn codegen_bitcode_modules(
     let (major, minor) = nvvm::ir_version();
 
     if major <= 1 && minor < 6 {
-            sess.dcx()
+        sess.dcx()
             .fatal("rustc_codegen_nvvm requires at least libnvvm 1.6 (CUDA 11.2)");
     }
 
