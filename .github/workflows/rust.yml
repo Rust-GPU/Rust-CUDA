@@ -14,7 +14,7 @@ env:
 
 jobs:
   rust:
-    name: Rust ${{ matrix.rust }} on ${{ matrix.os }}
+    name: Rust on ${{ matrix.os }} with CUDA ${{ matrix.cuda }}
     runs-on: ${{ matrix.os }}
     env:
       LLVM_LINK_STATIC: 1
@@ -24,22 +24,39 @@ jobs:
         include:
           - os: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
+            cuda: '11.2.2'
+            linux-local-args: ["--toolkit"]
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            cuda: '12.8.1'
+            linux-local-args: ["--toolkit"]
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            cuda: '11.2.2'
+            linux-local-args: []
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            cuda: '12.8.1'
+            linux-local-args: []
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install CUDA 
-        uses: Jimver/cuda-toolkit@v0.2.21
+      - name: Install CUDA
+        uses: Jimver/cuda-toolkit@v0.2.22
         id: cuda-toolkit
         with:
-          cuda: '11.2.2'
+          cuda: ${{ matrix.cuda }}
+          linux-local-args: ${{ toJson(matrix.linux-local-args) }}
+
+      - name: Verify CUDA installation
+        run: nvcc --version
 
       - name: List CUDA_PATH files (Linux)
         if: runner.os == 'Linux'
         run: find "$CUDA_PATH" -type f
-        
+
       - name: List CUDA_PATH files (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -48,13 +65,13 @@ jobs:
       # random command that forces rustup to install stuff in rust-toolchain
       - name: Install rust-toolchain
         run: cargo version
-        
+
       - name: Add rustup components
         run: rustup component add rustfmt clippy
 
       - name: Install LLVM 7
         if: contains(matrix.os, 'ubuntu')
-        run: | 
+        run: |
             sudo apt-get install llvm-7
             sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
 
