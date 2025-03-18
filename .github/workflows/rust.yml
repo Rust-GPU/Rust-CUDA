@@ -91,7 +91,7 @@ jobs:
           sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
 
       - name: Load Rust Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2.7.7
 
       - name: Rustfmt
         if: contains(matrix.os, 'ubuntu')
