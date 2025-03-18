@@ -160,7 +160,6 @@ pub fn find_libdevice() -> Option<Vec<u8>> {
             .filter_map(Result::ok)
             .find(|f| f.path().extension() == Some(OsStr::new("bc")))?
             .path();
-        
         fs::read(libdevice_file).ok()
     } else {
         None
