@@ -1,6 +1,9 @@
 //! Extension trait for [`f32`] and [`f64`], providing high level wrappers on top of
 //! raw libdevice intrinsics from [`intrinsics`](crate::intrinsics).
 
+use cuda_std_macros::gpu_only;
+
+#[cfg(target_arch = "nvptx64")]
 use crate::intrinsics as raw;
 
 // allows us to add new functions to the trait at any time without needing a new major version.
@@ -71,26 +74,32 @@ pub trait FloatExt: Sized + private::Sealed {
 }
 
 impl FloatExt for f64 {
+    #[gpu_only]
     fn cospi(self) -> Self {
         unsafe { raw::cospi(self) }
     }
 
+    #[gpu_only]
     fn error_function(self) -> Self {
         unsafe { raw::erf(self) }
     }
 
+    #[gpu_only]
     fn complementary_error_function(self) -> Self {
         unsafe { raw::erfc(self) }
     }
 
+    #[gpu_only]
     fn inv_complementary_error_function(self) -> Self {
         unsafe { raw::erfcinv(self) }
     }
 
+    #[gpu_only]
     fn scaled_complementary_error_function(self) -> Self {
         unsafe { raw::erfcx(self) }
     }
 
+    #[gpu_only]
     fn frexp(self) -> (Self, i32) {
         let mut exp = 0;
         unsafe {
@@ -99,55 +108,68 @@ impl FloatExt for f64 {
         }
     }
 
+    #[gpu_only]
     fn unbiased_exp(self) -> i32 {
         unsafe { raw::ilogb(self) }
     }
 
+    #[gpu_only]
     fn j0(self) -> Self {
         unsafe { raw::j0(self) }
     }
 
+    #[gpu_only]
     fn j1(self) -> Self {
         unsafe { raw::j1(self) }
     }
 
+    #[gpu_only]
     fn jn(self, order: i32) -> Self {
         unsafe { raw::jn(order, self) }
     }
 
+    #[gpu_only]
     fn ldexp(self, exp: i32) -> Self {
         unsafe { raw::ldexp(self, exp) }
     }
 
+    #[gpu_only]
     fn log_gamma(self) -> Self {
         unsafe { raw::lgamma(self) }
     }
 
+    #[gpu_only]
     fn log1p(self) -> Self {
         unsafe { raw::log1p(self) }
     }
 
+    #[gpu_only]
     fn norm_cdf(self) -> Self {
         unsafe { raw::normcdf(self) }
     }
 
+    #[gpu_only]
     fn inv_norm_cdf(self) -> Self {
         unsafe { raw::normcdfinv(self) }
     }
 
+    #[gpu_only]
     fn rcbrt(self) -> Self {
         unsafe { raw::rcbrt(self) }
     }
 
+    #[gpu_only]
     fn saturate(self) -> Self {
         // this intrinsic doesnt actually exit on f64, so implement it as clamp on f64
         self.clamp(0.0, 1.0)
     }
 
+    #[gpu_only]
     fn scale_by_n(self, exp: i32) -> Self {
         unsafe { raw::scalbn(self, exp) }
     }
 
+    #[gpu_only]
     fn sincospi(self) -> (Self, Self) {
         let mut sin = 0.0;
         let mut cos = 0.0;
@@ -157,48 +179,59 @@ impl FloatExt for f64 {
         (sin, cos)
     }
 
+    #[gpu_only]
     fn sinpi(self) -> Self {
         unsafe { raw::sinpi(self) }
     }
 
+    #[gpu_only]
     fn gamma(self) -> Self {
         unsafe { raw::tgamma(self) }
     }
 
+    #[gpu_only]
     fn y0(self) -> Self {
         unsafe { raw::y0(self) }
     }
 
+    #[gpu_only]
     fn y1(self) -> Self {
         unsafe { raw::y1(self) }
     }
 
+    #[gpu_only]
     fn yn(self, order: i32) -> Self {
         unsafe { raw::yn(order, self) }
     }
 }
 
 impl FloatExt for f32 {
+    #[gpu_only]
     fn cospi(self) -> Self {
         unsafe { raw::cospif(self) }
     }
 
+    #[gpu_only]
     fn error_function(self) -> Self {
         unsafe { raw::erff(self) }
     }
 
+    #[gpu_only]
     fn complementary_error_function(self) -> Self {
         unsafe { raw::erfcf(self) }
     }
 
+    #[gpu_only]
     fn inv_complementary_error_function(self) -> Self {
         unsafe { raw::erfcinvf(self) }
     }
 
+    #[gpu_only]
     fn scaled_complementary_error_function(self) -> Self {
         unsafe { raw::erfcxf(self) }
     }
 
+    #[gpu_only]
     fn frexp(self) -> (Self, i32) {
         let mut exp = 0;
         unsafe {
@@ -207,54 +240,67 @@ impl FloatExt for f32 {
         }
     }
 
+    #[gpu_only]
     fn unbiased_exp(self) -> i32 {
         unsafe { raw::ilogbf(self) }
     }
 
+    #[gpu_only]
     fn j0(self) -> Self {
         unsafe { raw::j0f(self) }
     }
 
+    #[gpu_only]
     fn j1(self) -> Self {
         unsafe { raw::j1f(self) }
     }
 
+    #[gpu_only]
     fn jn(self, order: i32) -> Self {
         unsafe { raw::jnf(order, self) }
     }
 
+    #[gpu_only]
     fn ldexp(self, exp: i32) -> Self {
         unsafe { raw::ldexpf(self, exp) }
     }
 
+    #[gpu_only]
     fn log_gamma(self) -> Self {
         unsafe { raw::lgammaf(self) }
     }
 
+    #[gpu_only]
     fn log1p(self) -> Self {
         unsafe { raw::log1pf(self) }
     }
 
+    #[gpu_only]
     fn norm_cdf(self) -> Self {
         unsafe { raw::normcdff(self) }
     }
 
+    #[gpu_only]
     fn inv_norm_cdf(self) -> Self {
         unsafe { raw::normcdfinvf(self) }
     }
 
+    #[gpu_only]
     fn rcbrt(self) -> Self {
         unsafe { raw::rcbrtf(self) }
     }
 
+    #[gpu_only]
     fn saturate(self) -> Self {
         unsafe { raw::saturatef(self) }
     }
 
+    #[gpu_only]
     fn scale_by_n(self, exp: i32) -> Self {
         unsafe { raw::scalbnf(self, exp) }
     }
 
+    #[gpu_only]
     fn sincospi(self) -> (Self, Self) {
         let mut sin = 0.0;
         let mut cos = 0.0;
@@ -264,22 +310,27 @@ impl FloatExt for f32 {
         (sin, cos)
     }
 
+    #[gpu_only]
     fn sinpi(self) -> Self {
         unsafe { raw::sinpif(self) }
     }
 
+    #[gpu_only]
     fn gamma(self) -> Self {
         unsafe { raw::tgammaf(self) }
     }
 
+    #[gpu_only]
     fn y0(self) -> Self {
         unsafe { raw::y0f(self) }
     }
 
+    #[gpu_only]
     fn y1(self) -> Self {
         unsafe { raw::y1f(self) }
     }
 
+    #[gpu_only]
     fn yn(self, order: i32) -> Self {
         unsafe { raw::ynf(order, self) }
     }
