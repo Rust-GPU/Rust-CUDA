@@ -94,7 +94,7 @@ jobs:
       - name: Load Rust Cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
-          key: ${{ runner.os }}-${{ matrix.target }}-${{ matrix.cuda }}
+          key: ${{ matrix.os }}-${{ matrix.target }}-${{ matrix.cuda }}
 
       - name: Rustfmt
         if: contains(matrix.os, 'ubuntu')
