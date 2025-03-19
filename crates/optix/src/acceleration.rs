@@ -1131,7 +1131,8 @@ impl From<CurveType> for sys::OptixPrimitiveType {
 }
 
 /// Specifies the type of vertex data
-#[repr(u32)]
+#[cfg_attr(windows, repr(i32))]
+#[cfg_attr(unix, repr(u32))]
 #[derive(Copy, Clone, PartialEq)]
 pub enum VertexFormat {
     None = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_NONE,
@@ -1434,7 +1435,7 @@ pub struct CustomPrimitiveArray<'a, 's> {
     primitive_index_offset: u32,
 }
 
-impl<'g> Hash for CustomPrimitiveArray<'_, '_> {
+impl Hash for CustomPrimitiveArray<'_, '_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(self.aabb_buffers.len());
         state.write_u32(self.num_primitives);

@@ -17,7 +17,7 @@ imgui = "0.9.0"
 imgui-glium-renderer = "0.9.0"
 imgui-winit-support = "0.9.0"
 rayon = "1.10.0"
-sysinfo = "0.24.0"
+sysinfo = "0.33.1"
 anyhow = "1.0.53"
 
 [build-dependencies]

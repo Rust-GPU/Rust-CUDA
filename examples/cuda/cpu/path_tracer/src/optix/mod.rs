@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use crate::cuda::CudaRendererBuffers;
 use anyhow::Result;
 use cust::{

@@ -6,7 +6,7 @@ use path_tracer_gpu::{
     material::MaterialKind, render::generate_ray, scene::Scene, Object, Viewport,
 };
 use rayon::prelude::*;
-use sysinfo::{CpuExt, System, SystemExt};
+use sysinfo::System;
 use vek::{Clamp, Vec2, Vec3};
 
 use crate::{common::Camera, cuda::SEED};

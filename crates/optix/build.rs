@@ -90,11 +90,6 @@ fn bindgen_optix(optix_include: &Path, cuda_include: &Path) {
         .generate()
         .expect("Unable to generate optix bindings");
 
-    let dbg_path = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-    bindings
-        .write_to_file(dbg_path.join("optix_wrapper.rs"))
-        .expect("Couldn't write bindings!");
-
     bindings
         .write_to_file(out_path)
         .expect("Couldn't write bindings!");
