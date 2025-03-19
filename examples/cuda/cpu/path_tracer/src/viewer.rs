@@ -15,7 +15,7 @@ use glium::{
 use imgui::Condition;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use path_tracer_gpu::scene::Scene;
-use std::{ops::Deref, time::Instant};
+use std::time::Instant;
 use vek::Vec2;
 
 use crate::{common::Camera, renderer::Renderer, HEIGHT, WIDTH};
@@ -58,7 +58,7 @@ pub fn run(camera: &Camera, scene: &Scene) -> ! {
         .with_title("Render")
         .with_inner_size(PhysicalSize::new(WIDTH as f64, HEIGHT as f64));
     let cb = ContextBuilder::new().with_vsync(true);
-    let display = Display::new(wb, cb, event_loop.deref()).unwrap();
+    let display = Display::new(wb, cb, &event_loop).unwrap();
     let renderer = Renderer::new(Vec2::new(WIDTH as usize, HEIGHT as usize), camera, scene);
     let mut viewer = ViewerRenderer::new(display, renderer);
 

@@ -20,7 +20,12 @@ use optix_device::{
 };
 
 extern "C" {
-    #[cfg_attr(target_os = "cuda", nvvm_internal::addrspace(4))]
+    #[cfg(target_os = "cuda")]
+    #[cfg_attr(
+        target_os = "cuda",
+        nvvm_internal::addrspace(4),
+        allow(improper_ctypes)
+    )]
     static PARAMS: LaunchParams<'static>;
 }
 

@@ -1,6 +1,7 @@
 use crate::{context::DeviceContext, error::Error, optix_call, sys};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+use std::cmp::min;
 use std::ffi::{CStr, CString};
 
 // Kinda nasty hack to work around the fact taht bindgen generates an i32 for enums on windows,
@@ -363,7 +364,7 @@ impl Module {
             ))
         };
 
-        let log = CStr::from_bytes_with_nul(&log[0..log_len])
+        let log = CStr::from_bytes_with_nul(&log[0..min(log_len, log.len())])
             .unwrap()
             .to_string_lossy()
             .into_owned();
