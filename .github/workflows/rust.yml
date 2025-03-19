@@ -49,6 +49,7 @@ jobs:
         with:
           cuda: ${{ matrix.cuda }}
           linux-local-args: ${{ toJson(matrix.linux-local-args) }}
+          use-local-cache: false
 
       - name: Verify CUDA installation
         run: nvcc --version
