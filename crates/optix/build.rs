@@ -23,6 +23,7 @@ fn main() {
 
     bindgen_optix(&optix_include, &cuda_include);
 
+    println!("cargo:rerun-if-changed=optix_stubs.c");
     cc::Build::new()
         .file("./optix_stubs.c")
         .include(optix_include)
