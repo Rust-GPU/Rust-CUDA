@@ -1,5 +1,4 @@
 use find_cuda_helper::{find_cuda_root, find_optix_root};
-use std::env;
 use std::path::{Path, PathBuf};
 
 // OptiX is a bit exotic in how it provides its functions. It uses a function table
@@ -8,7 +7,6 @@ use std::path::{Path, PathBuf};
 // OptiX provides this logic inside optix_stubs.h in the include dir, so we need to compile that
 // to a lib and link it in so that we have the initialization and C function logic.
 fn main() {
-    let out_dir = env::var("OUT_DIR").unwrap();
     let mut optix_include = find_optix_root().expect(
         "Unable to find the OptiX SDK, make sure you installed it and
     that OPTIX_ROOT or OPTIX_ROOT_DIR are set",
@@ -30,9 +28,6 @@ fn main() {
         .include(cuda_include)
         .cpp(false)
         .compile("optix_stubs");
-
-    println!("cargo:rustc-link-search=native={}", out_dir);
-    println!("cargo:rustc-link-lib=static=optix_stubs");
 }
 
 fn bindgen_optix(optix_include: &Path, cuda_include: &Path) {
@@ -42,11 +37,7 @@ fn bindgen_optix(optix_include: &Path, cuda_include: &Path) {
         .join("src")
         .join("optix_wrapper.h");
 
-    let this_path =
-        std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("build.rs");
-
     println!("cargo:rerun-if-changed={}", header_path.display());
-    println!("cargo:rerun-if-changed={}", this_path.display());
 
     let bindings = bindgen::Builder::default()
         .header("src/optix_wrapper.h")
