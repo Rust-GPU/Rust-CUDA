@@ -33,14 +33,9 @@ fn main() {
 fn bindgen_optix(optix_include: &Path, cuda_include: &Path) {
     let out_path = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("optix_wrapper.rs");
 
-    let header_path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("src")
-        .join("optix_wrapper.h");
-
-    println!("cargo:rerun-if-changed={}", header_path.display());
-
     let bindings = bindgen::Builder::default()
         .header("src/optix_wrapper.h")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .clang_arg(format!("-I{}", optix_include.display()))
         .clang_arg(format!("-I{}", cuda_include.display()))
         .allowlist_recursively(false)
