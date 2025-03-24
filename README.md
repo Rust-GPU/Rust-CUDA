@@ -92,6 +92,15 @@ Other projects related to using Rust on the GPU:
 cargo build
 ```
 
+## Use Rust-CUDA in Container Environments
+
+```bash
+# The distribution related Dockerfile are located in `container` folder.
+# Taking ubuntu 24.04 as an example, run the following command in repository root:
+docker build -f ./container/ubuntu24/Dockerfile -t rust-cuda-ubuntu24 .
+docker run --rm --runtime=nvidia --gpus all -it rust-cuda-ubuntu24
+```
+
 ## License
 
 Licensed under either of
