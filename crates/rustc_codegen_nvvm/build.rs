@@ -350,8 +350,9 @@ fn rustc_llvm_build() {
 
 #[cfg(not(target_os = "windows"))]
 fn link_llvm_system_libs(llvm_config: &Path, components: &[&str]) {
-    let mut cmd = Command::new(llvm_config);
-    cmd.arg("--system-libs");
+    let (_, llvm_link_arg) = detect_llvm_link();
+    let mut cmd: Command = Command::new(llvm_config);
+    cmd.arg(llvm_link_arg).arg("--system-libs");
 
     for comp in components {
         cmd.arg(comp);
