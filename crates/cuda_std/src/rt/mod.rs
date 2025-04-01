@@ -152,23 +152,23 @@ impl<'a> From<&'a GridSize> for GridSize {
         other.clone()
     }
 }
-impl From<vek::Vec2<u32>> for GridSize {
-    fn from(vec: vek::Vec2<u32>) -> Self {
+impl From<glam::UVec2> for GridSize {
+    fn from(vec: glam::UVec2) -> Self {
         GridSize::xy(vec.x, vec.y)
     }
 }
-impl From<vek::Vec3<u32>> for GridSize {
-    fn from(vec: vek::Vec3<u32>) -> Self {
+impl From<glam::UVec3> for GridSize {
+    fn from(vec: glam::UVec3) -> Self {
         GridSize::xyz(vec.x, vec.y, vec.z)
     }
 }
-impl From<vek::Vec2<usize>> for GridSize {
-    fn from(vec: vek::Vec2<usize>) -> Self {
+impl From<glam::USizeVec2> for GridSize {
+    fn from(vec: glam::USizeVec2) -> Self {
         GridSize::xy(vec.x as u32, vec.y as u32)
     }
 }
-impl From<vek::Vec3<usize>> for GridSize {
-    fn from(vec: vek::Vec3<usize>) -> Self {
+impl From<glam::USizeVec3> for GridSize {
+    fn from(vec: glam::USizeVec3) -> Self {
         GridSize::xyz(vec.x as u32, vec.y as u32, vec.z as u32)
     }
 }
@@ -228,23 +228,23 @@ impl<'a> From<&'a BlockSize> for BlockSize {
         other.clone()
     }
 }
-impl From<vek::Vec2<u32>> for BlockSize {
-    fn from(vec: vek::Vec2<u32>) -> Self {
+impl From<glam::UVec2> for BlockSize {
+    fn from(vec: glam::UVec2) -> Self {
         BlockSize::xy(vec.x, vec.y)
     }
 }
-impl From<vek::Vec3<u32>> for BlockSize {
-    fn from(vec: vek::Vec3<u32>) -> Self {
+impl From<glam::UVec3> for BlockSize {
+    fn from(vec: glam::UVec3) -> Self {
         BlockSize::xyz(vec.x, vec.y, vec.z)
     }
 }
-impl From<vek::Vec2<usize>> for BlockSize {
-    fn from(vec: vek::Vec2<usize>) -> Self {
+impl From<glam::USizeVec2> for BlockSize {
+    fn from(vec: glam::USizeVec2) -> Self {
         BlockSize::xy(vec.x as u32, vec.y as u32)
     }
 }
-impl From<vek::Vec3<usize>> for BlockSize {
-    fn from(vec: vek::Vec3<usize>) -> Self {
+impl From<glam::USizeVec3> for BlockSize {
+    fn from(vec: glam::USizeVec3) -> Self {
         BlockSize::xyz(vec.x as u32, vec.y as u32, vec.z as u32)
     }
 }

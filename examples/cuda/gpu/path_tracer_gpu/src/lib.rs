@@ -11,20 +11,19 @@ pub mod render_kernels;
 pub mod scene;
 pub mod sphere;
 
-pub use cuda_std::vek;
+pub use cuda_std::glam;
 use cust_core::DeviceCopy;
 use enum_dispatch::enum_dispatch;
 use hittable::{HitRecord, Hittable};
 use sphere::Sphere;
 
-pub type Vec3<T = f32> = vek::Vec3<T>;
-pub type Point<T = f32> = vek::Vec3<T>;
-pub type Vec2<T = f32> = vek::Vec2<T>;
+use glam::{USizeVec2, Vec2, Vec3};
+pub type Point = Vec3;
 
 #[derive(Default, Clone, Copy, DeviceCopy)]
 #[repr(C)]
 pub struct Viewport {
-    pub bounds: vek::Vec2<usize>,
+    pub bounds: USizeVec2,
     pub lower_left: Vec3,
     pub horizontal: Vec3,
     pub vertical: Vec3,
