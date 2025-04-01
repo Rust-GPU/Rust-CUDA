@@ -29,7 +29,6 @@ class Config:
     gpu_config: str
 
 
-# --- Logging Helper ---
 def log_runner(message: str) -> None:
     """Logs a message to stderr with the Runner prefix."""
     print(f"{RUNNER_LOG_PREFIX} {message}", file=sys.stderr)
@@ -41,11 +40,11 @@ def log_remote(message: str) -> None:
 
 
 # --- Configuration Loading and Validation ---
+
 # Mapping from GH Actions OS name to Nvidia registry tags
 OS_NAME_TO_NVIDIA_TAG: Dict[str, str] = {
     "ubuntu-20.04": "ubuntu20.04",
     "ubuntu-24.04": "ubuntu24.04",
-    # Add other supported Linux GHA OS identifiers here if needed
 }
 
 
@@ -80,7 +79,6 @@ def load_and_validate_config(argv: List[str], env: Dict[str, str]) -> Config:
             f"Missing required environment variables: {', '.join(missing)}"
         )
 
-    # --- Assertions for type checking ---
     assert modal_gpu_type is not None
     assert os_name is not None
     assert cuda_version is not None
