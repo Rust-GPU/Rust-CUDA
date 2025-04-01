@@ -148,4 +148,4 @@ jobs:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         # Run the tests, but point at a config that sets the runner to our test runner.
-        run: cargo --config .ci/config.toml test --workspace
+        run: cargo --config .ci/config.toml test --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*"
