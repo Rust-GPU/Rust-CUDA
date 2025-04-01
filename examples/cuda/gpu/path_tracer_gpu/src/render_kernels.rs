@@ -1,5 +1,6 @@
 use crate::{render::*, scene::Scene, *};
-use cuda_std::{vek::Clamp, *};
+use cuda_std::*;
+use glam::{U8Vec3, Vec2, Vec3};
 use gpu_rand::{DefaultRand, GpuRand};
 
 #[kernel]
@@ -38,7 +39,7 @@ pub unsafe fn scale_buffer(fb: *const Vec3, out: *mut Vec3, samples: u32, view: 
 
 /// Postprocesses a (scaled) buffer into a final u8 buffer.
 #[kernel]
-pub unsafe fn postprocess(fb: *const Vec3, out: *mut vek::Vec3<u8>, view: Viewport) {
+pub unsafe fn postprocess(fb: *const Vec3, out: *mut U8Vec3, view: Viewport) {
     let idx_2d = thread::index_2d();
     if idx_2d.x >= view.bounds.x as u32 || idx_2d.y >= view.bounds.y as u32 {
         return;
@@ -50,7 +51,7 @@ pub unsafe fn postprocess(fb: *const Vec3, out: *mut vek::Vec3<u8>, view: Viewpo
     let gamma_corrected = original.sqrt();
 
     *out = (gamma_corrected * 255.0)
-        .clamped(Vec3::zero(), Vec3::broadcast(255.0))
+        .clamp(Vec3::zero(), Vec3::broadcast(255.0))
         .numcast()
         .unwrap();
 }
