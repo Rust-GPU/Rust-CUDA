@@ -1,5 +1,6 @@
-use crate::{sys, CudnnError, DataType, IntoResult, ScalarC, TensorFormat, VecType};
 use std::{marker::PhantomData, mem::MaybeUninit};
+
+use crate::{CudnnError, DataType, IntoResult, ScalarC, TensorFormat, VecType};
 
 /// A generic description of an n-dimensional dataset.
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -7,7 +8,7 @@ pub struct TensorDescriptor<T>
 where
     T: DataType,
 {
-    pub(crate) raw: sys::cudnnTensorDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnTensorDescriptor_t,
     data_type: PhantomData<T>,
 }
 
@@ -53,10 +54,10 @@ where
         );
 
         unsafe {
-            sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
             let raw = raw.assume_init();
 
-            sys::cudnnSetTensorNdDescriptor(
+            cudnn_sys::cudnnSetTensorNdDescriptor(
                 raw,
                 T::into_raw(),
                 ndims as i32,
@@ -104,10 +105,10 @@ where
         let ndims = shape.len();
 
         unsafe {
-            sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
             let raw = raw.assume_init();
 
-            sys::cudnnSetTensorNdDescriptorEx(
+            cudnn_sys::cudnnSetTensorNdDescriptorEx(
                 raw,
                 format.into(),
                 T::into_raw(),
@@ -155,10 +156,10 @@ where
         let format = TensorFormat::NchwVectC;
 
         unsafe {
-            sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateTensorDescriptor(raw.as_mut_ptr()).into_result()?;
             let raw = raw.assume_init();
 
-            sys::cudnnSetTensorNdDescriptorEx(
+            cudnn_sys::cudnnSetTensorNdDescriptorEx(
                 raw,
                 format.into(),
                 V::into_raw(),
@@ -181,7 +182,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyTensorDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyTensorDescriptor(self.raw);
         }
     }
 }

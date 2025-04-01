@@ -10,14 +10,17 @@
 //! are not currently supported by cust. Finally, the host can wait for all work scheduled in
 //! a stream to be completed.
 
-use crate::error::{CudaResult, DropResult, ToResult};
-use crate::event::Event;
-use crate::function::{BlockSize, Function, GridSize};
-use crate::sys::{self as cuda, cudaError_enum, CUstream};
 use std::ffi::c_void;
 use std::mem;
 use std::panic;
 use std::ptr;
+
+use cust_raw::driver_sys;
+use cust_raw::driver_sys::{cudaError_enum, CUstream};
+
+use crate::error::{CudaResult, DropResult, ToResult};
+use crate::event::Event;
+use crate::function::{BlockSize, Function, GridSize};
 
 bitflags::bitflags! {
     /// Bit flags for configuring a CUDA Stream.
@@ -96,7 +99,7 @@ impl Stream {
             let mut stream = Stream {
                 inner: ptr::null_mut(),
             };
-            cuda::cuStreamCreateWithPriority(
+            driver_sys::cuStreamCreateWithPriority(
                 &mut stream.inner as *mut CUstream,
                 flags.bits(),
                 priority.unwrap_or(0),
@@ -110,7 +113,7 @@ impl Stream {
     pub fn get_flags(&self) -> CudaResult<StreamFlags> {
         unsafe {
             let mut bits = 0u32;
-            cuda::cuStreamGetFlags(self.inner, &mut bits as *mut u32).to_result()?;
+            driver_sys::cuStreamGetFlags(self.inner, &mut bits as *mut u32).to_result()?;
             Ok(StreamFlags::from_bits_truncate(bits))
         }
     }
@@ -138,7 +141,7 @@ impl Stream {
     pub fn get_priority(&self) -> CudaResult<i32> {
         unsafe {
             let mut priority = 0i32;
-            cuda::cuStreamGetPriority(self.inner, &mut priority as *mut i32).to_result()?;
+            driver_sys::cuStreamGetPriority(self.inner, &mut priority as *mut i32).to_result()?;
             Ok(priority)
         }
     }
@@ -179,7 +182,7 @@ impl Stream {
         T: FnOnce(CudaResult<()>) + Send,
     {
         unsafe {
-            cuda::cuStreamAddCallback(
+            driver_sys::cuStreamAddCallback(
                 self.inner,
                 Some(callback_wrapper::<T>),
                 Box::into_raw(callback) as *mut c_void,
@@ -212,7 +215,7 @@ impl Stream {
     /// # }
     /// ```
     pub fn synchronize(&self) -> CudaResult<()> {
-        unsafe { cuda::cuStreamSynchronize(self.inner).to_result() }
+        unsafe { driver_sys::cuStreamSynchronize(self.inner).to_result() }
     }
 
     /// Make the stream wait on an event.
@@ -246,7 +249,9 @@ impl Stream {
     /// }
     /// ```
     pub fn wait_event(&self, event: &Event, flags: StreamWaitEventFlags) -> CudaResult<()> {
-        unsafe { cuda::cuStreamWaitEvent(self.inner, event.as_inner(), flags.bits()).to_result() }
+        unsafe {
+            driver_sys::cuStreamWaitEvent(self.inner, event.as_inner(), flags.bits()).to_result()
+        }
     }
 
     // Hidden implementation detail function. Highly unsafe. Use the `launch!` macro instead.
@@ -266,7 +271,7 @@ impl Stream {
         let grid_size: GridSize = grid_size.into();
         let block_size: BlockSize = block_size.into();
 
-        cuda::cuLaunchKernel(
+        driver_sys::cuLaunchKernel(
             func.to_raw(),
             grid_size.x,
             grid_size.y,
@@ -320,7 +325,7 @@ impl Stream {
 
         unsafe {
             let inner = mem::replace(&mut stream.inner, ptr::null_mut());
-            match cuda::cuStreamDestroy_v2(inner).to_result() {
+            match driver_sys::cuStreamDestroy_v2(inner).to_result() {
                 Ok(()) => {
                     mem::forget(stream);
                     Ok(())
@@ -339,7 +344,7 @@ impl Drop for Stream {
         unsafe {
             let inner = mem::replace(&mut self.inner, ptr::null_mut());
 
-            cuda::cuStreamDestroy_v2(inner);
+            driver_sys::cuStreamDestroy_v2(inner);
         }
     }
 }

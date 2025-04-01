@@ -6,15 +6,13 @@ use crate::common::AsCCharPtr;
 use crate::context::CodegenArgs;
 use crate::llvm::*;
 use crate::lto::ThinBuffer;
-use find_cuda_helper::find_cuda_root;
+use cust_raw::nvvm_sys;
 use nvvm::*;
 use rustc_codegen_ssa::traits::ThinBufferMethods;
 use rustc_session::{Session, config::DebugInfo};
-use std::ffi::OsStr;
 use std::fmt::Display;
 use std::marker::PhantomData;
-use std::path::Path;
-use std::{fs, ptr};
+use std::ptr;
 use tracing::debug;
 
 // see libintrinsics.ll on what this is.
@@ -107,18 +105,7 @@ pub fn codegen_bitcode_modules(
     let buf = ThinBuffer::new(module);
 
     prog.add_module(buf.data(), "merged".to_string())?;
-
-    let libdevice = if let Some(bc) = find_libdevice() {
-        bc
-    } else {
-        // i would put a more helpful error here, but to actually use the codegen
-        // it needs to find libnvvm before this, and libdevice is in the nvvm directory
-        // so if it can find libnvvm there is almost no way it can't find libdevice.
-        sess.dcx()
-            .fatal("Could not find the libdevice library (libdevice.10.bc) in the CUDA directory")
-    };
-
-    prog.add_lazy_module(&libdevice, "libdevice".to_string())?;
+    prog.add_lazy_module(nvvm_sys::LIBDEVICE_BITCODE, "libdevice".to_string())?;
     prog.add_lazy_module(LIBINTRINSICS, "libintrinsics".to_string())?;
 
     // for now, while the codegen is young, we always run verification on the program.
@@ -149,21 +136,6 @@ pub fn codegen_bitcode_modules(
     };
 
     Ok(res)
-}
-
-/// Find the libdevice bitcode library which contains math intrinsics and is
-/// linked when building the nvvm program.
-pub fn find_libdevice() -> Option<Vec<u8>> {
-    if let Some(base_path) = find_cuda_root() {
-        let libdevice_file = fs::read_dir(Path::new(&base_path).join("nvvm").join("libdevice"))
-            .ok()?
-            .filter_map(Result::ok)
-            .find(|f| f.path().extension() == Some(OsStr::new("bc")))?
-            .path();
-        fs::read(libdevice_file).ok()
-    } else {
-        None
-    }
 }
 
 unsafe fn cleanup_dicompileunit(module: &Module) {

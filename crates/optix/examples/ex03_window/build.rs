@@ -1,19 +1,19 @@
-use find_cuda_helper::find_optix_root;
+use std::env;
+use std::iter;
 
 fn main() {
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    println!("cargo::rerun-if-changed=build.rs");
 
-    let mut optix_include = find_optix_root().expect(
-        "Unable to find the OptiX SDK, make sure you installed it and
-    that OPTIX_ROOT or OPTIX_ROOT_DIR are set",
-    );
-    optix_include = optix_include.join("include");
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let optix_include_paths = env::var_os("DEP_OPTIX_OPTIX_INCLUDE")
+        .map(|s| env::split_paths(s.as_os_str()).collect::<Vec<_>>())
+        .expect("Cannot find transitive metadata 'optix_include' from optix-sys package.");
 
-    let args = vec![
-        format!("-I{}", optix_include.display()),
-        format!("-I{}/../common/gdt", manifest_dir),
-    ];
-
+    let args = optix_include_paths
+        .iter()
+        .map(|p| format!("-I{}", p.display()))
+        .chain(iter::once(format!("-I{}/../common/gdt", manifest_dir)))
+        .collect::<Vec<_>>();
     compile_to_ptx("src/ex03_window.cu", &args);
 }
 

@@ -41,7 +41,10 @@ use crate::gpu_only;
 /// # Examples
 ///
 /// ```no_run
-/// #[kernel]
+/// # use cuda_std::kernel;
+/// # use cuda_std::shared_array;
+/// # use cuda_std::thread;
+/// ##[kernel]
 /// pub unsafe fn reverse_array(d: *mut i32, n: usize) {
 ///    let s = shared_array![i32; 64];
 ///    let t = thread::thread_idx_x() as usize;

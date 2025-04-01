@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Enum used to configure a convolution descriptor.
 ///
 /// The filter used for the convolution can be applied in two different ways, corresponding
@@ -17,11 +15,13 @@ pub enum ConvMode {
     CrossCorrelation,
 }
 
-impl From<ConvMode> for sys::cudnnConvolutionMode_t {
-    fn from(convolution_mode: ConvMode) -> sys::cudnnConvolutionMode_t {
+impl From<ConvMode> for cudnn_sys::cudnnConvolutionMode_t {
+    fn from(convolution_mode: ConvMode) -> cudnn_sys::cudnnConvolutionMode_t {
         match convolution_mode {
-            ConvMode::Convolution => sys::cudnnConvolutionMode_t::CUDNN_CONVOLUTION,
-            ConvMode::CrossCorrelation => sys::cudnnConvolutionMode_t::CUDNN_CROSS_CORRELATION,
+            ConvMode::Convolution => cudnn_sys::cudnnConvolutionMode_t::CUDNN_CONVOLUTION,
+            ConvMode::CrossCorrelation => {
+                cudnn_sys::cudnnConvolutionMode_t::CUDNN_CROSS_CORRELATION
+            }
         }
     }
 }

@@ -7,5 +7,5 @@ description = "High level bindings to CUDA's ptx compilation APIs"
 repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 
-[build-dependencies]
-find_cuda_helper = { path = "../find_cuda_helper", version = "0.2" }
+[dependencies]
+cust_raw = { path = "../cust_raw", default-features = false, features = ["nvptx-compiler"] }

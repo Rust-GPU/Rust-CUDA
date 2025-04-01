@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies the type of recurrent neural network used.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNMode_t)
@@ -16,13 +14,14 @@ pub enum RnnMode {
     Gru,
 }
 
-impl From<RnnMode> for sys::cudnnRNNMode_t {
+impl From<RnnMode> for cudnn_sys::cudnnRNNMode_t {
     fn from(mode: RnnMode) -> Self {
+        use cudnn_sys::cudnnRNNMode_t::*;
         match mode {
-            RnnMode::RnnReLu => sys::cudnnRNNMode_t::CUDNN_RNN_RELU,
-            RnnMode::RnnTanh => sys::cudnnRNNMode_t::CUDNN_RNN_TANH,
-            RnnMode::Lstm => sys::cudnnRNNMode_t::CUDNN_LSTM,
-            RnnMode::Gru => sys::cudnnRNNMode_t::CUDNN_GRU,
+            RnnMode::RnnReLu => CUDNN_RNN_RELU,
+            RnnMode::RnnTanh => CUDNN_RNN_TANH,
+            RnnMode::Lstm => CUDNN_LSTM,
+            RnnMode::Gru => CUDNN_GRU,
         }
     }
 }

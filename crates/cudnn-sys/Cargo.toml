@@ -1,0 +1,15 @@
+[package]
+name = "cudnn-sys"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Rust-GPU/Rust-CUDA"
+readme = "../../README.md"
+links = "cudnn"
+build = "build/main.rs"
+
+[dependencies]
+cust_raw = { path = "../cust_raw", default-features = false, features = ["driver"] }
+
+[build-dependencies]
+bindgen = "0.71.1"

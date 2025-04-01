@@ -1,3 +1,9 @@
+use std::mem::MaybeUninit;
+
+use cust::memory::GpuBuffer;
+
+use crate::{CudnnContext, CudnnError, IntoResult, TensorDescriptor, WGradMode};
+
 mod forward_mode;
 mod rnn_algo;
 mod rnn_bias_mode;
@@ -19,10 +25,6 @@ pub use rnn_descriptor::*;
 pub use rnn_direction_mode::*;
 pub use rnn_input_mode::*;
 pub use rnn_mode::*;
-
-use crate::{sys, CudnnContext, CudnnError, IntoResult, TensorDescriptor, WGradMode};
-use cust::memory::GpuBuffer;
-use std::mem::MaybeUninit;
 
 impl CudnnContext {
     /// Computes the work and reserve space buffer sizes based on the RNN network
@@ -64,7 +66,7 @@ impl CudnnContext {
         let mut reserve_space_size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetRNNTempSpaceSizes(
+            cudnn_sys::cudnnGetRNNTempSpaceSizes(
                 self.raw,
                 rnn_desc.raw,
                 forward_mode.into(),
@@ -104,7 +106,7 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetRNNWeightSpaceSize(self.raw, rnn_desc.raw, size.as_mut_ptr())
+            cudnn_sys::cudnnGetRNNWeightSpaceSize(self.raw, rnn_desc.raw, size.as_mut_ptr())
                 .into_result()?;
 
             Ok(size.assume_init())
@@ -256,7 +258,7 @@ impl CudnnContext {
             });
 
         unsafe {
-            sys::cudnnRNNForward(
+            cudnn_sys::cudnnRNNForward(
                 self.raw,
                 rnn_desc.raw,
                 forward_mode.into(),
@@ -462,7 +464,7 @@ impl CudnnContext {
         let reserve_space_ptr = reserve_space.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
 
         unsafe {
-            sys::cudnnRNNBackwardData_v8(
+            cudnn_sys::cudnnRNNBackwardData_v8(
                 self.raw,
                 rnn_desc.raw,
                 device_sequence_lengths_ptr,
@@ -576,7 +578,7 @@ impl CudnnContext {
         let reserve_space_ptr = reserve_space.as_device_ptr().as_mut_ptr() as *mut std::ffi::c_void;
 
         unsafe {
-            sys::cudnnRNNBackwardWeights_v8(
+            cudnn_sys::cudnnRNNBackwardWeights_v8(
                 self.raw,
                 rnn_desc.raw,
                 grad_mode.into(),

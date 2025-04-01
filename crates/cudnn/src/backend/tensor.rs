@@ -1,9 +1,9 @@
-use crate::{backend::Descriptor, sys, CudnnError, DataType, IntoResult};
+use crate::{backend::Descriptor, CudnnError, DataType, IntoResult};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq, Hash)]
 pub struct TensorBuilder<'a> {
     id: Option<i64>,
-    data_type: Option<sys::cudnnDataType_t>,
+    data_type: Option<cudnn_sys::cudnnDataType_t>,
     byte_alignment: Option<i64>,
     dimensions: Option<&'a [i64]>,
     strides: Option<&'a [i64]>,
@@ -61,48 +61,48 @@ impl<'a> TensorBuilder<'a> {
 
         unsafe {
             let mut raw = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_TENSOR_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_TENSOR_DESCRIPTOR,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_UNIQUE_ID,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_UNIQUE_ID,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
                 1,
                 &id,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_DATA_TYPE,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DATA_TYPE,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_DATA_TYPE,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DATA_TYPE,
                 1,
                 &data_type,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_BYTE_ALIGNMENT,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_BYTE_ALIGNMENT,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
                 1,
                 &byte_alignment,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_DIMENSIONS,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_DIMENSIONS,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
                 dimensions.len() as i64,
                 dimensions,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_STRIDES,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_STRIDES,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
                 strides.len() as i64,
                 strides,
             )?;
 
             if let Some(vector_count) = self.vector_count {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_VECTOR_COUNT,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_VECTOR_COUNT,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
                     1,
                     &vector_count,
                 )?;
@@ -113,8 +113,8 @@ impl<'a> TensorBuilder<'a> {
                         .expect("vectorized_dimension is required when vector_count > 1");
 
                     raw.set_attribute(
-                        sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_VECTORIZED_DIMENSION,
-                        sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
+                        cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_VECTORIZED_DIMENSION,
+                        cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
                         1,
                         &vectorized_dimension,
                     )?;
@@ -122,8 +122,8 @@ impl<'a> TensorBuilder<'a> {
             }
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_IS_VIRTUAL,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BOOLEAN,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_TENSOR_IS_VIRTUAL,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BOOLEAN,
                 1,
                 &self.is_virtual,
             )?;

@@ -1,5 +1,3 @@
-use crate::sys;
-
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PointwiseMode {
@@ -48,7 +46,7 @@ pub enum PointwiseMode {
     TanhFwd,
 }
 
-impl From<PointwiseMode> for sys::cudnnPointwiseMode_t {
+impl From<PointwiseMode> for cudnn_sys::cudnnPointwiseMode_t {
     fn from(mode: PointwiseMode) -> Self {
         match mode {
             PointwiseMode::Abs => Self::CUDNN_POINTWISE_ABS,

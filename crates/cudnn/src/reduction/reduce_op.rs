@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Tensor reduction operation.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,7 +13,7 @@ pub enum ReduceOp {
     MulNoZeros,
 }
 
-impl From<ReduceOp> for sys::cudnnReduceTensorOp_t {
+impl From<ReduceOp> for cudnn_sys::cudnnReduceTensorOp_t {
     fn from(op: ReduceOp) -> Self {
         match op {
             ReduceOp::Add => Self::CUDNN_REDUCE_TENSOR_ADD,

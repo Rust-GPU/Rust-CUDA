@@ -1,8 +1,8 @@
-use crate::{private, sys};
+use crate::private;
 
 pub trait DataType: private::Sealed + cust::memory::DeviceCopy {
     /// Returns the corresponding raw cuDNN data type.
-    fn into_raw() -> sys::cudnnDataType_t;
+    fn into_raw() -> cudnn_sys::cudnnDataType_t;
 }
 
 macro_rules! impl_cudnn_data_type {
@@ -10,8 +10,8 @@ macro_rules! impl_cudnn_data_type {
         impl private::Sealed for $safe_type {}
 
         impl DataType for $safe_type {
-            fn into_raw() -> sys::cudnnDataType_t {
-                sys::cudnnDataType_t::$raw_type
+            fn into_raw() -> cudnn_sys::cudnnDataType_t {
+                cudnn_sys::cudnnDataType_t::$raw_type
             }
         }
     };
@@ -36,7 +36,7 @@ where
     T: DataType,
 {
     /// Return the corresponding raw cuDNN data type.
-    fn into_raw() -> sys::cudnnDataType_t;
+    fn into_raw() -> cudnn_sys::cudnnDataType_t;
 }
 
 impl private::Sealed for Vec4 {}
@@ -46,8 +46,8 @@ impl private::Sealed for Vec32 {}
 macro_rules! impl_cudnn_vec_type {
     ($type:ident, $safe_type:ident, $raw_type:ident) => {
         impl VecType<$safe_type> for $type {
-            fn into_raw() -> sys::cudnnDataType_t {
-                sys::cudnnDataType_t::$raw_type
+            fn into_raw() -> cudnn_sys::cudnnDataType_t {
+                cudnn_sys::cudnnDataType_t::$raw_type
             }
         }
     };

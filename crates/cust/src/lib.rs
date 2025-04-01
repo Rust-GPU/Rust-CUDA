@@ -3,9 +3,8 @@
 //! # Low level CUDA interop
 //!
 //! Because additions to CUDA and libraries that use CUDA are everchanging, this library
-//! provides unsafe functions for retrieving and setting handles to raw cuda_sys objects.
-//! This allows advanced users to embed libraries that rely on CUDA, such as OptiX. We
-//! also re-export cuda_sys as a [`sys`] module for convenience.
+//! provides unsafe functions for retrieving and setting handles to raw CUDA objects.
+//! This allows advanced users to embed libraries that rely on CUDA, such as OptiX.
 //!
 //! # CUDA Terminology:
 //!
@@ -76,13 +75,12 @@ mod texture;
 pub mod util;
 
 pub use cust_derive::DeviceCopy;
-pub use cust_raw as sys;
 
 use crate::context::{Context, ContextFlags};
 use crate::device::Device;
 use crate::error::{CudaResult, ToResult};
 use bitflags::bitflags;
-use sys::{cuDriverGetVersion, cuInit};
+use cust_raw::driver_sys::{cuDriverGetVersion, cuInit};
 
 bitflags! {
     /// Bit flags for initializing the CUDA driver. Currently, no flags are defined,

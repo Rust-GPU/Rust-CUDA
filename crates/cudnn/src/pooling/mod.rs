@@ -1,13 +1,14 @@
+use cust::memory::GpuBuffer;
+
+use crate::{
+    private, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
+};
+
 mod pooling_descriptor;
 mod pooling_mode;
 
 pub use pooling_descriptor::*;
 pub use pooling_mode::*;
-
-use crate::{
-    private, sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
-};
-use cust::memory::GpuBuffer;
 
 impl CudnnContext {
     /// This function computes the pooling of the input tensor and produces a smaller
@@ -53,7 +54,7 @@ impl CudnnContext {
         let y_ptr = y.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnPoolingForward(
+            cudnn_sys::cudnnPoolingForward(
                 self.raw,
                 pooling_desc.raw,
                 alpha_ptr,
@@ -121,7 +122,7 @@ impl CudnnContext {
         let dx_ptr = dx.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnPoolingBackward(
+            cudnn_sys::cudnnPoolingBackward(
                 self.raw,
                 pooling_desc.raw,
                 alpha_ptr,

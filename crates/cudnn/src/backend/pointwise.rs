@@ -1,6 +1,6 @@
 use crate::{
     backend::{Descriptor, FloatDataType, Operation, PointwiseCfg, PointwiseMode, Real, Tensor},
-    sys, CudnnError, DataType, IntoResult, NanPropagation,
+    CudnnError, DataType, IntoResult, NanPropagation,
 };
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -57,49 +57,49 @@ impl PointwiseBuilder {
 
         unsafe {
             let mut raw = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_POINTWISE_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_POINTWISE_DESCRIPTOR,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_PW_DESCRIPTOR,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_PW_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &cfg.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_XDESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_XDESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &x.raw.inner(),
             )?;
 
             if let Some(ref b) = self.b {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_BDESC,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_BDESC,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                     1,
                     &b.raw.inner(),
                 )?;
             }
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_YDESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_YDESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &y.raw.inner(),
             )?;
 
             match self.alpha {
                 Some(Real::Float(ref alpha)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA1,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA1,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
                     1,
                     alpha,
                 )?,
                 Some(Real::Double(ref alpha)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA1,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA1,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     alpha,
                 )?,
@@ -108,14 +108,14 @@ impl PointwiseBuilder {
 
             match self.beta {
                 Some(Real::Float(ref beta)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA2,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA2,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
                     1,
                     beta,
                 )?,
                 Some(Real::Double(ref beta)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA2,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_POINTWISE_ALPHA2,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     beta,
                 )?,

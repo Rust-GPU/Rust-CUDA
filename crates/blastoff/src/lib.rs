@@ -10,7 +10,7 @@
 #![allow(clippy::too_many_arguments)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use cublas_sys as sys;
+pub use cust_raw::cublas_sys;
 use num_complex::{Complex32, Complex64};
 
 pub use context::*;
@@ -39,34 +39,34 @@ pub trait BlasDatatype: private::Sealed + cust::memory::DeviceCopy {
     /// The corresponding float type. For complex numbers this means their backing
     /// precision, and for floats it is just themselves.
     type FloatTy: Float;
-    fn to_raw(&self) -> sys::v2::cudaDataType;
+    fn to_raw(&self) -> cublas_sys::cudaDataType;
 }
 
 impl BlasDatatype for f32 {
     type FloatTy = f32;
-    fn to_raw(&self) -> sys::v2::cudaDataType {
-        sys::v2::cudaDataType::CUDA_R_32F
+    fn to_raw(&self) -> cublas_sys::cudaDataType {
+        cublas_sys::cudaDataType::CUDA_R_32F
     }
 }
 
 impl BlasDatatype for f64 {
     type FloatTy = f64;
-    fn to_raw(&self) -> sys::v2::cudaDataType {
-        sys::v2::cudaDataType::CUDA_R_64F
+    fn to_raw(&self) -> cublas_sys::cudaDataType {
+        cublas_sys::cudaDataType::CUDA_R_64F
     }
 }
 
 impl BlasDatatype for Complex32 {
     type FloatTy = f32;
-    fn to_raw(&self) -> sys::v2::cudaDataType {
-        sys::v2::cudaDataType::CUDA_C_32F
+    fn to_raw(&self) -> cublas_sys::cudaDataType {
+        cublas_sys::cudaDataType::CUDA_C_32F
     }
 }
 
 impl BlasDatatype for Complex64 {
     type FloatTy = f64;
-    fn to_raw(&self) -> sys::v2::cudaDataType {
-        sys::v2::cudaDataType::CUDA_C_64F
+    fn to_raw(&self) -> cublas_sys::cudaDataType {
+        cublas_sys::cudaDataType::CUDA_C_64F
     }
 }
 
@@ -106,11 +106,11 @@ pub enum MatrixOp {
 
 impl MatrixOp {
     /// Returns the corresponding `cublasOperation_t` for this operation.
-    pub fn to_raw(self) -> sys::v2::cublasOperation_t {
+    pub fn to_raw(self) -> cublas_sys::cublasOperation_t {
         match self {
-            MatrixOp::None => sys::v2::cublasOperation_t::CUBLAS_OP_N,
-            MatrixOp::Transpose => sys::v2::cublasOperation_t::CUBLAS_OP_T,
-            MatrixOp::ConjugateTranspose => sys::v2::cublasOperation_t::CUBLAS_OP_C,
+            MatrixOp::None => cublas_sys::cublasOperation_t::CUBLAS_OP_N,
+            MatrixOp::Transpose => cublas_sys::cublasOperation_t::CUBLAS_OP_T,
+            MatrixOp::ConjugateTranspose => cublas_sys::cublasOperation_t::CUBLAS_OP_C,
         }
     }
 }

@@ -7,17 +7,9 @@ repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 authors = ["Anders Langlands <anderslanglands@gmail.com>", "Riccardo D'Ambrosio <rdambrosio016@gmail.com>"]
 
-[features]
-optix71 = []
-optix72 = []
-optix73 = []
-default=["optix73", "impl_glam"]
-impl_glam=["cust/impl_glam", "glam"]
-impl_half=["cust/impl_half", "half"]
-
 [dependencies]
 cust = { version = "0.3", path = "../cust", features=["impl_mint"] }
-cust_raw = { version = "0.11.2", path = "../cust_raw" }
+cust_raw = { path = "../cust_raw", features=["driver"] }
 cfg-if = "1.0.0"
 bitflags = "2.9.0"
 glam = { version = "0.29", features=["cuda", "libm"], default-features=false, optional=true }
@@ -25,11 +17,12 @@ half = { version = "2.4.1", optional = true }
 memoffset = "0.9.1"
 mint = "0.5.9"
 embed-doc-image = {version = "0.1.4"}
+optix-sys = { path = "../optix-sys", default-features = false }
 
-[build-dependencies]
-bindgen = "0.71.1"
-cc = "1.0.71"
-find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
+[features]
+default=["impl_glam"]
+impl_glam=["cust/impl_glam", "glam"]
+impl_half=["cust/impl_half", "half"]
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]

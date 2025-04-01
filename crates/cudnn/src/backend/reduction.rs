@@ -1,6 +1,6 @@
 use crate::{
     backend::{Descriptor, Operation, ReductionCfg, Tensor},
-    sys, CudnnError, IntoResult,
+    CudnnError, IntoResult,
 };
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
@@ -33,26 +33,26 @@ impl ReductionBuilder {
 
         unsafe {
             let mut raw = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_REDUCTION_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_REDUCTION_DESCRIPTOR,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_REDUCTION_DESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_REDUCTION_DESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &cfg.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_REDUCTION_XDESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_REDUCTION_XDESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &x.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_REDUCTION_YDESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_REDUCTION_YDESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &y.raw.inner(),
             )?;

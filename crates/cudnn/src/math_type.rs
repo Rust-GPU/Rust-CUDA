@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Enum stating whether the use of tensor core operations is permitted in a given library routine.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMathType_t)
@@ -20,20 +18,19 @@ pub enum MathType {
     Fma,
 }
 
-impl From<sys::cudnnMathType_t> for MathType {
-    fn from(raw: sys::cudnnMathType_t) -> Self {
+impl From<cudnn_sys::cudnnMathType_t> for MathType {
+    fn from(raw: cudnn_sys::cudnnMathType_t) -> Self {
+        use cudnn_sys::cudnnMathType_t::*;
         match raw {
-            sys::cudnnMathType_t::CUDNN_DEFAULT_MATH => Self::Default,
-            sys::cudnnMathType_t::CUDNN_TENSOR_OP_MATH => Self::TensorOp,
-            sys::cudnnMathType_t::CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION => {
-                Self::TensorOpAllowConversion
-            }
-            sys::cudnnMathType_t::CUDNN_FMA_MATH => Self::Fma,
+            CUDNN_DEFAULT_MATH => Self::Default,
+            CUDNN_TENSOR_OP_MATH => Self::TensorOp,
+            CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION => Self::TensorOpAllowConversion,
+            CUDNN_FMA_MATH => Self::Fma,
         }
     }
 }
 
-impl From<MathType> for sys::cudnnMathType_t {
+impl From<MathType> for cudnn_sys::cudnnMathType_t {
     fn from(math_type: MathType) -> Self {
         match math_type {
             MathType::Default => Self::CUDNN_DEFAULT_MATH,

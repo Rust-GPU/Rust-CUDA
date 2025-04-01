@@ -1,10 +1,11 @@
-use crate::{sys, CudnnError, IntoResult, NanPropagation, PoolingMode};
 use std::mem::MaybeUninit;
+
+use crate::{CudnnError, IntoResult, NanPropagation, PoolingMode};
 
 /// The descriptor of a pooling operation.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct PoolingDescriptor {
-    pub(crate) raw: sys::cudnnPoolingDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnPoolingDescriptor_t,
 }
 
 impl PoolingDescriptor {
@@ -56,11 +57,11 @@ impl PoolingDescriptor {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreatePoolingDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreatePoolingDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
-            sys::cudnnSetPoolingNdDescriptor(
+            cudnn_sys::cudnnSetPoolingNdDescriptor(
                 raw,
                 mode.into(),
                 nan_opt.into(),
@@ -79,7 +80,7 @@ impl PoolingDescriptor {
 impl Drop for PoolingDescriptor {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyPoolingDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyPoolingDescriptor(self.raw);
         }
     }
 }

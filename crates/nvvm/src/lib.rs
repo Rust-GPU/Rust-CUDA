@@ -8,8 +8,7 @@ use std::{
     str::FromStr,
 };
 
-#[allow(warnings, clippy::warnings)]
-pub mod sys;
+use cust_raw::nvvm_sys;
 
 /// Get the major and minor NVVM IR version.
 pub fn ir_version() -> (i32, i32) {
@@ -19,7 +18,7 @@ pub fn ir_version() -> (i32, i32) {
         let mut major_dbg = MaybeUninit::uninit();
         let mut minor_dbg = MaybeUninit::uninit();
         // according to the docs this cant fail
-        sys::nvvmIRVersion(
+        nvvm_sys::nvvmIRVersion(
             major_ir.as_mut_ptr(),
             minor_ir.as_mut_ptr(),
             major_dbg.as_mut_ptr(),
@@ -37,7 +36,7 @@ pub fn dbg_version() -> (i32, i32) {
         let mut major_dbg = MaybeUninit::uninit();
         let mut minor_dbg = MaybeUninit::uninit();
         // according to the docs this cant fail
-        sys::nvvmIRVersion(
+        nvvm_sys::nvvmIRVersion(
             major_ir.as_mut_ptr(),
             minor_ir.as_mut_ptr(),
             major_dbg.as_mut_ptr(),
@@ -53,7 +52,7 @@ pub fn nvvm_version() -> (i32, i32) {
         let mut major = MaybeUninit::uninit();
         let mut minor = MaybeUninit::uninit();
         // according to the docs this cant fail
-        sys::nvvmVersion(major.as_mut_ptr(), minor.as_mut_ptr());
+        nvvm_sys::nvvmVersion(major.as_mut_ptr(), minor.as_mut_ptr());
         (major.assume_init(), minor.assume_init())
     }
 }
@@ -83,40 +82,40 @@ pub enum NvvmError {
 impl Display for NvvmError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
-            let ptr = sys::nvvmGetErrorString(self.to_raw());
+            let ptr = nvvm_sys::nvvmGetErrorString(self.to_raw());
             f.write_str(&CStr::from_ptr(ptr).to_string_lossy())
         }
     }
 }
 
 impl NvvmError {
-    fn to_raw(self) -> sys::nvvmResult {
+    fn to_raw(self) -> nvvm_sys::nvvmResult {
         match self {
-            NvvmError::CompilationError => sys::nvvmResult_NVVM_ERROR_COMPILATION,
-            NvvmError::OutOfMemory => sys::nvvmResult_NVVM_ERROR_OUT_OF_MEMORY,
+            NvvmError::CompilationError => nvvm_sys::nvvmResult::NVVM_ERROR_COMPILATION,
+            NvvmError::OutOfMemory => nvvm_sys::nvvmResult::NVVM_ERROR_OUT_OF_MEMORY,
             NvvmError::ProgramCreationFailure => {
-                sys::nvvmResult_NVVM_ERROR_PROGRAM_CREATION_FAILURE
+                nvvm_sys::nvvmResult::NVVM_ERROR_PROGRAM_CREATION_FAILURE
             }
-            NvvmError::IrVersionMismatch => sys::nvvmResult_NVVM_ERROR_IR_VERSION_MISMATCH,
-            NvvmError::InvalidOption => sys::nvvmResult_NVVM_ERROR_INVALID_OPTION,
-            NvvmError::InvalidInput => sys::nvvmResult_NVVM_ERROR_INVALID_INPUT,
-            NvvmError::InvalidIr => sys::nvvmResult_NVVM_ERROR_INVALID_IR,
-            NvvmError::NoModuleInProgram => sys::nvvmResult_NVVM_ERROR_NO_MODULE_IN_PROGRAM,
+            NvvmError::IrVersionMismatch => nvvm_sys::nvvmResult::NVVM_ERROR_IR_VERSION_MISMATCH,
+            NvvmError::InvalidOption => nvvm_sys::nvvmResult::NVVM_ERROR_INVALID_OPTION,
+            NvvmError::InvalidInput => nvvm_sys::nvvmResult::NVVM_ERROR_INVALID_INPUT,
+            NvvmError::InvalidIr => nvvm_sys::nvvmResult::NVVM_ERROR_INVALID_IR,
+            NvvmError::NoModuleInProgram => nvvm_sys::nvvmResult::NVVM_ERROR_NO_MODULE_IN_PROGRAM,
         }
     }
 
-    fn from_raw(result: sys::nvvmResult) -> Self {
+    fn from_raw(result: nvvm_sys::nvvmResult) -> Self {
         use NvvmError::*;
         match result {
-            sys::nvvmResult_NVVM_ERROR_COMPILATION => CompilationError,
-            sys::nvvmResult_NVVM_ERROR_OUT_OF_MEMORY => OutOfMemory,
-            sys::nvvmResult_NVVM_ERROR_PROGRAM_CREATION_FAILURE => ProgramCreationFailure,
-            sys::nvvmResult_NVVM_ERROR_IR_VERSION_MISMATCH => IrVersionMismatch,
-            sys::nvvmResult_NVVM_ERROR_INVALID_OPTION => InvalidOption,
-            sys::nvvmResult_NVVM_ERROR_INVALID_INPUT => InvalidInput,
-            sys::nvvmResult_NVVM_ERROR_INVALID_IR => InvalidIr,
-            sys::nvvmResult_NVVM_ERROR_NO_MODULE_IN_PROGRAM => NoModuleInProgram,
-            sys::nvvmResult_NVVM_SUCCESS => panic!(),
+            nvvm_sys::nvvmResult::NVVM_ERROR_COMPILATION => CompilationError,
+            nvvm_sys::nvvmResult::NVVM_ERROR_OUT_OF_MEMORY => OutOfMemory,
+            nvvm_sys::nvvmResult::NVVM_ERROR_PROGRAM_CREATION_FAILURE => ProgramCreationFailure,
+            nvvm_sys::nvvmResult::NVVM_ERROR_IR_VERSION_MISMATCH => IrVersionMismatch,
+            nvvm_sys::nvvmResult::NVVM_ERROR_INVALID_OPTION => InvalidOption,
+            nvvm_sys::nvvmResult::NVVM_ERROR_INVALID_INPUT => InvalidInput,
+            nvvm_sys::nvvmResult::NVVM_ERROR_INVALID_IR => InvalidIr,
+            nvvm_sys::nvvmResult::NVVM_ERROR_NO_MODULE_IN_PROGRAM => NoModuleInProgram,
+            nvvm_sys::nvvmResult::NVVM_SUCCESS => panic!(),
             _ => unreachable!(),
         }
     }
@@ -126,10 +125,10 @@ trait ToNvvmResult {
     fn to_result(self) -> Result<(), NvvmError>;
 }
 
-impl ToNvvmResult for sys::nvvmResult {
+impl ToNvvmResult for nvvm_sys::nvvmResult {
     fn to_result(self) -> Result<(), NvvmError> {
         let err = match self {
-            sys::nvvmResult_NVVM_SUCCESS => return Ok(()),
+            nvvm_sys::nvvmResult::NVVM_SUCCESS => return Ok(()),
             _ => NvvmError::from_raw(self),
         };
         Err(err)
@@ -295,13 +294,13 @@ impl Default for NvvmArch {
 }
 
 pub struct NvvmProgram {
-    raw: sys::nvvmProgram,
+    raw: nvvm_sys::nvvmProgram,
 }
 
 impl Drop for NvvmProgram {
     fn drop(&mut self) {
         unsafe {
-            sys::nvvmDestroyProgram(&mut self.raw as *mut _)
+            nvvm_sys::nvvmDestroyProgram(&mut self.raw as *mut _)
                 .to_result()
                 .expect("failed to destroy nvvm program");
         }
@@ -313,7 +312,7 @@ impl NvvmProgram {
     pub fn new() -> Result<Self, NvvmError> {
         unsafe {
             let mut raw = MaybeUninit::uninit();
-            sys::nvvmCreateProgram(raw.as_mut_ptr()).to_result()?;
+            nvvm_sys::nvvmCreateProgram(raw.as_mut_ptr()).to_result()?;
             Ok(Self {
                 raw: raw.assume_init(),
             })
@@ -333,13 +332,13 @@ impl NvvmProgram {
                 .map(|x| x.as_ptr().cast())
                 .collect::<Vec<_>>();
 
-            sys::nvvmCompileProgram(self.raw, options.len() as i32, options_ptr.as_mut_ptr())
+            nvvm_sys::nvvmCompileProgram(self.raw, options.len() as i32, options_ptr.as_mut_ptr())
                 .to_result()?;
             let mut size = 0;
-            sys::nvvmGetCompiledResultSize(self.raw, &mut size as *mut usize as *mut _)
+            nvvm_sys::nvvmGetCompiledResultSize(self.raw, &mut size as *mut usize as *mut _)
                 .to_result()?;
             let mut buf: Vec<u8> = Vec::with_capacity(size);
-            sys::nvvmGetCompiledResult(self.raw, buf.as_mut_ptr().cast()).to_result()?;
+            nvvm_sys::nvvmGetCompiledResult(self.raw, buf.as_mut_ptr().cast()).to_result()?;
             buf.set_len(size);
             // 𝖇𝖆𝖓𝖎𝖘𝖍 𝖙𝖍𝖞 𝖓𝖚𝖑
             buf.pop();
@@ -351,10 +350,10 @@ impl NvvmProgram {
     pub fn add_module(&self, bitcode: &[u8], name: String) -> Result<(), NvvmError> {
         unsafe {
             let cstring = CString::new(name).expect("module name with nul");
-            sys::nvvmAddModuleToProgram(
+            nvvm_sys::nvvmAddModuleToProgram(
                 self.raw,
                 bitcode.as_ptr().cast(),
-                bitcode.len() as u64,
+                bitcode.len(),
                 cstring.as_ptr(),
             )
             .to_result()
@@ -370,10 +369,10 @@ impl NvvmProgram {
     pub fn add_lazy_module(&self, bitcode: &[u8], name: String) -> Result<(), NvvmError> {
         unsafe {
             let cstring = CString::new(name).expect("module name with nul");
-            sys::nvvmLazyAddModuleToProgram(
+            nvvm_sys::nvvmLazyAddModuleToProgram(
                 self.raw,
                 bitcode.as_ptr().cast(),
-                bitcode.len() as u64,
+                bitcode.len(),
                 cstring.as_ptr(),
             )
             .to_result()
@@ -388,10 +387,10 @@ impl NvvmProgram {
     pub fn compiler_log(&self) -> Result<Option<String>, NvvmError> {
         unsafe {
             let mut size = MaybeUninit::uninit();
-            sys::nvvmGetProgramLogSize(self.raw, size.as_mut_ptr()).to_result()?;
-            let size = size.assume_init() as usize;
+            nvvm_sys::nvvmGetProgramLogSize(self.raw, size.as_mut_ptr()).to_result()?;
+            let size = size.assume_init();
             let mut buf: Vec<u8> = Vec::with_capacity(size);
-            sys::nvvmGetProgramLog(self.raw, buf.as_mut_ptr().cast()).to_result()?;
+            nvvm_sys::nvvmGetProgramLog(self.raw, buf.as_mut_ptr().cast()).to_result()?;
             buf.set_len(size);
             // 𝖇𝖆𝖓𝖎𝖘𝖍 𝖙𝖍𝖞 𝖓𝖚𝖑
             buf.pop();
@@ -403,7 +402,7 @@ impl NvvmProgram {
     /// Verify the program without actually compiling it. In the case of invalid IR, you can find
     /// more detailed error info by calling [`compiler_log`](Self::compiler_log).
     pub fn verify(&self) -> Result<(), NvvmError> {
-        unsafe { sys::nvvmVerifyProgram(self.raw, 0, null_mut()).to_result() }
+        unsafe { nvvm_sys::nvvmVerifyProgram(self.raw, 0, null_mut()).to_result() }
     }
 }
 

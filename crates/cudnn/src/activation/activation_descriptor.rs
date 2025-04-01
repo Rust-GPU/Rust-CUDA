@@ -1,10 +1,11 @@
-use crate::{sys, ActivationMode, CudnnError, IntoResult, NanPropagation};
 use std::mem::MaybeUninit;
+
+use crate::{ActivationMode, CudnnError, IntoResult, NanPropagation};
 
 /// The descriptor of a neuron activation operation.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ActivationDescriptor {
-    pub(crate) raw: sys::cudnnActivationDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnActivationDescriptor_t,
 }
 
 impl ActivationDescriptor {
@@ -47,7 +48,7 @@ impl ActivationDescriptor {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreateActivationDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateActivationDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
@@ -56,7 +57,7 @@ impl ActivationDescriptor {
                 _ => 1.0,
             });
 
-            sys::cudnnSetActivationDescriptor(raw, mode.into(), nan_opt.into(), coefficient)
+            cudnn_sys::cudnnSetActivationDescriptor(raw, mode.into(), nan_opt.into(), coefficient)
                 .into_result()?;
 
             Ok(Self { raw })
@@ -67,7 +68,7 @@ impl ActivationDescriptor {
 impl Drop for ActivationDescriptor {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyActivationDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyActivationDescriptor(self.raw);
         }
     }
 }

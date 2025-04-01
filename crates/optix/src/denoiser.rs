@@ -12,18 +12,18 @@ use cust::{
     prelude::Stream,
 };
 
-use crate::{context::DeviceContext, error::Error, optix_call, sys};
+use crate::{context::DeviceContext, error::Error, optix_call};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 // can't zero initialize, OptixPixelFormat is not zero-initializable.
-fn null_optix_image() -> sys::OptixImage2D {
-    sys::OptixImage2D {
+fn null_optix_image() -> optix_sys::OptixImage2D {
+    optix_sys::OptixImage2D {
         data: 0,
         width: 0,
         height: 0,
         pixelStrideInBytes: 0,
         rowStrideInBytes: 0,
-        format: sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT2,
+        format: optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT2,
     }
 }
 
@@ -43,12 +43,12 @@ pub enum DenoiserModelKind {
 
 impl DenoiserModelKind {
     /// Converts this model kind to its raw counterpart.
-    pub fn to_raw(self) -> sys::OptixDenoiserModelKind::Type {
+    pub fn to_raw(self) -> optix_sys::OptixDenoiserModelKind::Type {
         match self {
-            Self::Ldr => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_LDR,
-            Self::Hdr => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_HDR,
-            Self::Aov => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_AOV,
-            Self::Temporal => sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_TEMPORAL,
+            Self::Ldr => optix_sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_LDR,
+            Self::Hdr => optix_sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_HDR,
+            Self::Aov => optix_sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_AOV,
+            Self::Temporal => optix_sys::OptixDenoiserModelKind::OPTIX_DENOISER_MODEL_KIND_TEMPORAL,
         }
     }
 }
@@ -69,8 +69,8 @@ pub struct DenoiserOptions {
 }
 
 impl DenoiserOptions {
-    pub fn to_raw(self) -> sys::OptixDenoiserOptions {
-        sys::OptixDenoiserOptions {
+    pub fn to_raw(self) -> optix_sys::OptixDenoiserOptions {
+        optix_sys::OptixDenoiserOptions {
             guideAlbedo: self.guide_albedo as u32,
             guideNormal: self.guide_normal as u32,
         }
@@ -86,7 +86,7 @@ pub struct DenoiserSizes {
 }
 
 impl DenoiserSizes {
-    pub fn from_raw(raw: sys::OptixDenoiserSizes) -> Self {
+    pub fn from_raw(raw: optix_sys::OptixDenoiserSizes) -> Self {
         Self {
             state_size_in_bytes: raw.stateSizeInBytes,
             scratch_size_in_bytes_with_overlap: raw.withOverlapScratchSizeInBytes,
@@ -111,7 +111,7 @@ struct InternalDenoiserState {
 /// High level wrapper for OptiX's GPU-accelerated AI image denoiser.
 #[derive(Debug)]
 pub struct Denoiser {
-    raw: sys::OptixDenoiser,
+    raw: optix_sys::OptixDenoiser,
     // retain the options and model kind for sanity-checks when invoking
     // the denoiser.
     options: DenoiserOptions,
@@ -122,7 +122,7 @@ pub struct Denoiser {
 impl Drop for Denoiser {
     fn drop(&mut self) {
         unsafe {
-            sys::optixDenoiserDestroy(self.raw);
+            optix_sys::optixDenoiserDestroy(self.raw);
         }
     }
 }
@@ -375,7 +375,7 @@ impl Denoiser {
         let mut out = input_image.to_raw();
         out.data = out_buffer.as_device_ptr().as_raw();
 
-        let layer = sys::OptixDenoiserLayer {
+        let layer = optix_sys::OptixDenoiserLayer {
             input: input_image.to_raw(),
             previousOutput: null_optix_image(),
             output: out,
@@ -421,8 +421,8 @@ pub struct DenoiserParams<'a> {
 }
 
 impl DenoiserParams<'_> {
-    pub fn to_raw(self) -> sys::OptixDenoiserParams {
-        sys::OptixDenoiserParams {
+    pub fn to_raw(self) -> optix_sys::OptixDenoiserParams {
+        optix_sys::OptixDenoiserParams {
             denoiseAlpha: self.denoise_alpha as u32,
             hdrIntensity: self
                 .hdr_intensity
@@ -457,8 +457,8 @@ pub struct DenoiserGuideImages<'a> {
 }
 
 impl DenoiserGuideImages<'_> {
-    pub fn to_raw(self) -> sys::OptixDenoiserGuideLayer {
-        sys::OptixDenoiserGuideLayer {
+    pub fn to_raw(self) -> optix_sys::OptixDenoiserGuideLayer {
+        optix_sys::OptixDenoiserGuideLayer {
             albedo: self
                 .albedo
                 .map(|i| i.to_raw())
@@ -500,18 +500,18 @@ pub enum ImageFormat {
 }
 
 impl ImageFormat {
-    pub fn to_raw(self) -> sys::OptixPixelFormat::Type {
+    pub fn to_raw(self) -> optix_sys::OptixPixelFormat::Type {
         use ImageFormat::*;
 
         match self {
-            Half2 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF2,
-            Half3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF3,
-            Half4 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF4,
-            Float2 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT2,
-            Float3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT3,
-            Float4 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4,
-            // Uchar3 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR3,
-            // Uchar4 => sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR4,
+            Half2 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF2,
+            Half3 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF3,
+            Half4 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_HALF4,
+            Float2 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT2,
+            Float3 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT3,
+            Float4 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4,
+            // Uchar3 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR3,
+            // Uchar4 => optix_sys::OptixPixelFormat::OPTIX_PIXEL_FORMAT_UCHAR4,
         }
     }
 
@@ -623,8 +623,8 @@ impl<'a> Image<'a> {
         self.format.byte_size()
     }
 
-    pub fn to_raw(&self) -> sys::OptixImage2D {
-        sys::OptixImage2D {
+    pub fn to_raw(&self) -> optix_sys::OptixImage2D {
+        optix_sys::OptixImage2D {
             width: self.width,
             height: self.height,
             rowStrideInBytes: self.row_stride_in_bytes(),

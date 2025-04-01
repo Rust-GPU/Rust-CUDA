@@ -1,3 +1,9 @@
+use std::mem::MaybeUninit;
+
+use cust::memory::GpuBuffer;
+
+use crate::{CudnnContext, CudnnError, IntoResult, WGradMode};
+
 mod attention_descriptor;
 mod attention_weights_kind;
 mod seq_data_axis;
@@ -7,10 +13,6 @@ pub use attention_descriptor::*;
 pub use attention_weights_kind::*;
 pub use seq_data_axis::*;
 pub use seq_data_descriptor::*;
-
-use crate::{sys, CudnnContext, CudnnError, IntoResult, WGradMode};
-use cust::memory::GpuBuffer;
-use std::mem::MaybeUninit;
 
 impl CudnnContext {
     /// This function computes weight, work, and reserve space buffer sizes used by the
@@ -46,7 +48,7 @@ impl CudnnContext {
         let mut reserve_space_size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetMultiHeadAttnBuffers(
+            cudnn_sys::cudnnGetMultiHeadAttnBuffers(
                 self.raw,
                 desc.raw,
                 weight_space_size.as_mut_ptr(),
@@ -149,7 +151,7 @@ impl CudnnContext {
             });
 
         unsafe {
-            sys::cudnnMultiHeadAttnForward(
+            cudnn_sys::cudnnMultiHeadAttnForward(
                 self.raw,
                 attn_desc.raw,
                 current_idx,
@@ -294,7 +296,7 @@ impl CudnnContext {
         let reserve_space_ptr = reserve_space.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnMultiHeadAttnBackwardData(
+            cudnn_sys::cudnnMultiHeadAttnBackwardData(
                 self.raw,
                 attn_desc.raw,
                 lo_win_idx.as_ptr(),
@@ -408,7 +410,7 @@ impl CudnnContext {
         let reserve_space_ptr = reserve_space.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnMultiHeadAttnBackwardWeights(
+            cudnn_sys::cudnnMultiHeadAttnBackwardWeights(
                 self.raw,
                 attn_desc.raw,
                 grad_mode.into(),

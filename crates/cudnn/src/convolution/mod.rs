@@ -1,3 +1,11 @@
+use std::mem::MaybeUninit;
+
+use cust::memory::GpuBuffer;
+
+use crate::{
+    ActivationDescriptor, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor,
+};
+
 mod convolution_algo;
 mod convolution_config;
 mod convolution_descriptor;
@@ -9,12 +17,6 @@ pub use convolution_config::*;
 pub use convolution_descriptor::*;
 pub use convolution_mode::*;
 pub use filter_descriptor::*;
-
-use crate::{
-    sys, ActivationDescriptor, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor,
-};
-use cust::memory::GpuBuffer;
-use std::mem::MaybeUninit;
 
 impl CudnnContext {
     /// This function serves as a heuristic for obtaining the best suited algorithm for
@@ -92,7 +94,7 @@ impl CudnnContext {
         let mut perf_results = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetConvolutionForwardAlgorithm_v7(
+            cudnn_sys::cudnnGetConvolutionForwardAlgorithm_v7(
                 self.raw,
                 x_desc.raw,
                 w_desc.raw,
@@ -207,7 +209,7 @@ impl CudnnContext {
         let mut perf_results = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetConvolutionBackwardDataAlgorithm_v7(
+            cudnn_sys::cudnnGetConvolutionBackwardDataAlgorithm_v7(
                 self.raw,
                 w_desc.raw,
                 dy_desc.raw,
@@ -322,7 +324,7 @@ impl CudnnContext {
         let mut perf_results = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetConvolutionBackwardFilterAlgorithm_v7(
+            cudnn_sys::cudnnGetConvolutionBackwardFilterAlgorithm_v7(
                 self.raw,
                 x_desc.raw,
                 dy_desc.raw,
@@ -453,7 +455,7 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetConvolutionForwardWorkspaceSize(
+            cudnn_sys::cudnnGetConvolutionForwardWorkspaceSize(
                 self.raw,
                 x_desc.raw,
                 w_desc.raw,
@@ -564,7 +566,7 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetConvolutionBackwardDataWorkspaceSize(
+            cudnn_sys::cudnnGetConvolutionBackwardDataWorkspaceSize(
                 self.raw,
                 w_desc.raw,
                 dy_desc.raw,
@@ -675,7 +677,7 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetConvolutionBackwardFilterWorkspaceSize(
+            cudnn_sys::cudnnGetConvolutionBackwardFilterWorkspaceSize(
                 self.raw,
                 x_desc.raw,
                 dy_desc.raw,
@@ -828,7 +830,7 @@ impl CudnnContext {
         };
 
         unsafe {
-            sys::cudnnConvolutionForward(
+            cudnn_sys::cudnnConvolutionForward(
                 self.raw,
                 alpha,
                 x_desc.raw,
@@ -1008,7 +1010,7 @@ impl CudnnContext {
         };
 
         unsafe {
-            sys::cudnnConvolutionBiasActivationForward(
+            cudnn_sys::cudnnConvolutionBiasActivationForward(
                 self.raw,
                 alpha,
                 x_desc.raw,
@@ -1162,7 +1164,7 @@ impl CudnnContext {
         };
 
         unsafe {
-            sys::cudnnConvolutionBackwardData(
+            cudnn_sys::cudnnConvolutionBackwardData(
                 self.raw,
                 alpha,
                 w_desc.raw,
@@ -1312,7 +1314,7 @@ impl CudnnContext {
         };
 
         unsafe {
-            sys::cudnnConvolutionBackwardFilter(
+            cudnn_sys::cudnnConvolutionBackwardFilter(
                 self.raw,
                 alpha,
                 x_desc.raw,

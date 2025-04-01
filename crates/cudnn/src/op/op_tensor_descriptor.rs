@@ -1,5 +1,6 @@
-use crate::{sys, BinaryOp, CudnnError, DataType, IntoResult, NanPropagation, UnaryOp};
 use std::{marker::PhantomData, mem::MaybeUninit};
+
+use crate::{BinaryOp, CudnnError, DataType, IntoResult, NanPropagation, UnaryOp};
 
 /// Initializes an op tensor descriptor.
 ///
@@ -9,16 +10,16 @@ use std::{marker::PhantomData, mem::MaybeUninit};
 /// * `op` - raw  operation type.
 /// * `nan_opt` - raw nan propagation policy.
 unsafe fn init_raw_op_descriptor<T: DataType>(
-    op: sys::cudnnOpTensorOp_t,
-    nan_opt: sys::cudnnNanPropagation_t,
-) -> Result<sys::cudnnOpTensorDescriptor_t, CudnnError> {
+    op: cudnn_sys::cudnnOpTensorOp_t,
+    nan_opt: cudnn_sys::cudnnNanPropagation_t,
+) -> Result<cudnn_sys::cudnnOpTensorDescriptor_t, CudnnError> {
     let mut raw = MaybeUninit::uninit();
 
-    sys::cudnnCreateOpTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+    cudnn_sys::cudnnCreateOpTensorDescriptor(raw.as_mut_ptr()).into_result()?;
 
     let raw = raw.assume_init();
 
-    sys::cudnnSetOpTensorDescriptor(raw, op, T::into_raw(), nan_opt).into_result()?;
+    cudnn_sys::cudnnSetOpTensorDescriptor(raw, op, T::into_raw(), nan_opt).into_result()?;
     Ok(raw)
 }
 
@@ -29,7 +30,7 @@ unsafe fn init_raw_op_descriptor<T: DataType>(
 /// respectively.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct UnaryOpTensorDescriptor<T: DataType> {
-    pub(crate) raw: sys::cudnnOpTensorDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnOpTensorDescriptor_t,
     comp_type: PhantomData<T>,
     op: UnaryOp,
 }
@@ -81,7 +82,7 @@ where
 impl<T: DataType> Drop for UnaryOpTensorDescriptor<T> {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyOpTensorDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyOpTensorDescriptor(self.raw);
         }
     }
 }
@@ -94,7 +95,7 @@ impl<T: DataType> Drop for UnaryOpTensorDescriptor<T> {
 /// respectively.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct BinaryOpTensorDescriptor<T: DataType> {
-    pub(crate) raw: sys::cudnnOpTensorDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnOpTensorDescriptor_t,
     comp_type: PhantomData<T>,
     op: BinaryOp,
 }
@@ -145,7 +146,7 @@ where
 impl<T: DataType> Drop for BinaryOpTensorDescriptor<T> {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyOpTensorDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyOpTensorDescriptor(self.raw);
         }
     }
 }

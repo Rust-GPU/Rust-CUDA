@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Selects how buffers holding gradients of the loss function, computed with respect to trainable
 /// parameters, are updated.
 ///
@@ -17,7 +15,7 @@ pub enum WGradMode {
     Add,
 }
 
-impl From<WGradMode> for sys::cudnnWgradMode_t {
+impl From<WGradMode> for cudnn_sys::cudnnWgradMode_t {
     fn from(mode: WGradMode) -> Self {
         match mode {
             WGradMode::Set => Self::CUDNN_WGRAD_MODE_SET,

@@ -1,6 +1,6 @@
 use crate::{
     backend::{Descriptor, EngineCfg},
-    sys, CudnnContext, CudnnError, IntoResult,
+    CudnnContext, CudnnError, IntoResult,
 };
 
 #[derive(Default, PartialEq, Debug)]
@@ -19,12 +19,12 @@ impl ExecutionPlanBuilder {
 
         unsafe {
             let mut descriptor = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR,
             )?;
 
             descriptor.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_EXECUTION_PLAN_ENGINE_CONFIG,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_EXECUTION_PLAN_ENGINE_CONFIG,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &engine_cfg.descriptor.inner(),
             )?;

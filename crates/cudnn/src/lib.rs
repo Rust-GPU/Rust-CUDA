@@ -16,7 +16,6 @@ mod pooling;
 mod reduction;
 mod rnn;
 mod softmax;
-mod sys;
 mod tensor;
 mod w_grad_mode;
 

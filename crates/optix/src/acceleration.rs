@@ -1,6 +1,6 @@
 #![allow(clippy::missing_safety_doc)]
 
-use crate::{const_assert, const_assert_eq, context::DeviceContext, error::Error, optix_call, sys};
+use crate::{const_assert, const_assert_eq, context::DeviceContext, error::Error, optix_call};
 use cust::memory::{
     CopyDestination, DeviceBox, DeviceBuffer, DeviceCopy, DevicePointer, DeviceSlice,
 };
@@ -16,18 +16,11 @@ use std::{
     marker::PhantomData,
 };
 
-use cust_raw::CUdeviceptr;
+use cust_raw::driver_sys::CUdeviceptr;
 use mint::{RowMatrix3x4, Vector3};
 
-// Kinda nasty hack to work around the fact taht bindgen generates an i32 for enums on windows,
-// but a u32 on linux
-#[cfg(windows)]
-type OptixEnumBaseType = i32;
-#[cfg(unix)]
-type OptixEnumBaseType = u32;
-
 pub trait BuildInput: std::hash::Hash {
-    fn to_sys(&self) -> sys::OptixBuildInput;
+    fn to_sys(&self) -> optix_sys::OptixBuildInput;
 }
 
 pub trait Traversable {
@@ -228,7 +221,7 @@ impl Accel {
     /// If this acceleration structure is copied multiple times, the same
     /// [`AccelRelocationInfo`] can also be used on all copies.
     pub fn get_relocation_info(&self, ctx: &DeviceContext) -> Result<AccelRelocationInfo> {
-        let mut inner = sys::OptixAccelRelocationInfo::default();
+        let mut inner = optix_sys::OptixAccelRelocationInfo::default();
         unsafe {
             Ok(optix_call!(optixAccelGetRelocationInfo(
                 ctx.raw,
@@ -563,7 +556,7 @@ pub unsafe fn accel_build<I: BuildInput>(
     emitted_properties: &mut [AccelEmitDesc],
 ) -> Result<TraversableHandle> {
     let mut traversable_handle = TraversableHandle { inner: 0 };
-    let properties: Vec<sys::OptixAccelEmitDesc> =
+    let properties: Vec<optix_sys::OptixAccelEmitDesc> =
         emitted_properties.iter_mut().map(|p| p.into()).collect();
 
     let build_sys: Vec<_> = build_inputs.iter().map(|b| b.to_sys()).collect();
@@ -689,24 +682,23 @@ bitflags::bitflags! {
     ///
     /// Note that `PREFER_FAST_TRACE` and `PREFER_FAST_BUILD` are mutually exclusive.
     #[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
-    pub struct BuildFlags: OptixEnumBaseType {
-        const NONE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_NONE;
-        const ALLOW_UPDATE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_UPDATE;
-        const ALLOW_COMPACTION = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
-        const PREFER_FAST_TRACE = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_PREFER_FAST_TRACE;
-        const PREFER_FAST_BUILD = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_PREFER_FAST_BUILD;
-        const ALLOW_RANDOM_VERTEX_ACCESS = sys::OptixBuildFlags_OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS;
+    pub struct BuildFlags: i32 {
+        const NONE = optix_sys::OptixBuildFlags::OPTIX_BUILD_FLAG_NONE as i32;
+        const ALLOW_UPDATE = optix_sys::OptixBuildFlags::OPTIX_BUILD_FLAG_ALLOW_UPDATE as i32;
+        const ALLOW_COMPACTION = optix_sys::OptixBuildFlags::OPTIX_BUILD_FLAG_ALLOW_COMPACTION as i32;
+        const PREFER_FAST_TRACE = optix_sys::OptixBuildFlags::OPTIX_BUILD_FLAG_PREFER_FAST_TRACE as i32;
+        const PREFER_FAST_BUILD = optix_sys::OptixBuildFlags::OPTIX_BUILD_FLAG_PREFER_FAST_BUILD as i32;
+        const ALLOW_RANDOM_VERTEX_ACCESS = optix_sys::OptixBuildFlags::OPTIX_BUILD_FLAG_ALLOW_RANDOM_VERTEX_ACCESS as i32;
     }
 }
 
 /// Select which operation to perform with [`accel_build()`].
-#[cfg_attr(windows, repr(i32))]
-#[cfg_attr(unix, repr(u32))]
+#[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum BuildOperation {
     #[default]
-    Build = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_BUILD,
-    Update = sys::OptixBuildOperation_OPTIX_BUILD_OPERATION_UPDATE,
+    Build = optix_sys::OptixBuildOperation::OPTIX_BUILD_OPERATION_BUILD as i32,
+    Update = optix_sys::OptixBuildOperation::OPTIX_BUILD_OPERATION_UPDATE as i32,
 }
 
 /// Configure how to handle ray times that are outside of the provided motion keys.
@@ -723,9 +715,9 @@ pub struct MotionFlags(u16);
 
 bitflags::bitflags! {
    impl MotionFlags: u16 {
-        const NONE = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_NONE as u16;
-        const START_VANISH = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_START_VANISH as u16;
-        const END_VANISH = sys::OptixMotionFlags_OPTIX_MOTION_FLAG_END_VANISH as u16;
+        const NONE = optix_sys::OptixMotionFlags::OPTIX_MOTION_FLAG_NONE as u16;
+        const START_VANISH = optix_sys::OptixMotionFlags::OPTIX_MOTION_FLAG_START_VANISH as u16;
+        const END_VANISH = optix_sys::OptixMotionFlags::OPTIX_MOTION_FLAG_END_VANISH as u16;
     }
 }
 
@@ -765,7 +757,7 @@ impl Default for MotionOptions {
 
 const_assert_eq!(
     std::mem::size_of::<MotionOptions>(),
-    std::mem::size_of::<sys::OptixMotionOptions>(),
+    std::mem::size_of::<optix_sys::OptixMotionOptions>(),
 );
 
 /// Options to configure the [`accel_build()`]
@@ -836,7 +828,7 @@ impl AccelBuildOptions {
 #[repr(transparent)]
 pub struct AccelRelocationInfo {
     #[allow(dead_code)]
-    inner: sys::OptixAccelRelocationInfo,
+    inner: optix_sys::OptixAccelRelocationInfo,
 }
 
 /// Struct used for OptiX to communicate the necessary buffer sizes for accel
@@ -889,16 +881,16 @@ impl Aabb {
     }
 }
 
-impl From<&mut AccelEmitDesc> for sys::OptixAccelEmitDesc {
+impl From<&mut AccelEmitDesc> for optix_sys::OptixAccelEmitDesc {
     fn from(aed: &mut AccelEmitDesc) -> Self {
         match aed {
             AccelEmitDesc::CompactedSize(p) => Self {
                 result: p.as_raw(),
-                type_: sys::OptixAccelPropertyType_OPTIX_PROPERTY_TYPE_COMPACTED_SIZE,
+                type_: optix_sys::OptixAccelPropertyType::OPTIX_PROPERTY_TYPE_COMPACTED_SIZE,
             },
             AccelEmitDesc::Aabbs(p) => Self {
                 result: p.as_raw(),
-                type_: sys::OptixAccelPropertyType_OPTIX_PROPERTY_TYPE_AABBS,
+                type_: optix_sys::OptixAccelPropertyType::OPTIX_PROPERTY_TYPE_AABBS,
             },
         }
     }
@@ -924,18 +916,18 @@ impl From<&mut AccelEmitDesc> for sys::OptixAccelEmitDesc {
 #[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Hash)]
 pub enum GeometryFlags {
-    None = sys::OptixGeometryFlags::None as u32,
-    DisableAnyHit = sys::OptixGeometryFlags::DisableAnyHit as u32,
-    RequireSingleAnyHitCall = sys::OptixGeometryFlags::RequireSingleAnyHitCall as u32,
+    None = optix_sys::OptixGeometryFlags::None as u32,
+    DisableAnyHit = optix_sys::OptixGeometryFlags::DisableAnyHit as u32,
+    RequireSingleAnyHitCall = optix_sys::OptixGeometryFlags::RequireSingleAnyHitCall as u32,
 }
 
-impl From<GeometryFlags> for sys::OptixGeometryFlags {
+impl From<GeometryFlags> for optix_sys::OptixGeometryFlags {
     fn from(f: GeometryFlags) -> Self {
         match f {
-            GeometryFlags::None => sys::OptixGeometryFlags::None,
-            GeometryFlags::DisableAnyHit => sys::OptixGeometryFlags::DisableAnyHit,
+            GeometryFlags::None => optix_sys::OptixGeometryFlags::None,
+            GeometryFlags::DisableAnyHit => optix_sys::OptixGeometryFlags::DisableAnyHit,
             GeometryFlags::RequireSingleAnyHitCall => {
-                sys::OptixGeometryFlags::RequireSingleAnyHitCall
+                optix_sys::OptixGeometryFlags::RequireSingleAnyHitCall
             }
         }
     }
@@ -944,10 +936,10 @@ impl From<GeometryFlags> for sys::OptixGeometryFlags {
 impl From<GeometryFlags> for u32 {
     fn from(f: GeometryFlags) -> Self {
         match f {
-            GeometryFlags::None => sys::OptixGeometryFlags::None as u32,
-            GeometryFlags::DisableAnyHit => sys::OptixGeometryFlags::DisableAnyHit as u32,
+            GeometryFlags::None => optix_sys::OptixGeometryFlags::None as u32,
+            GeometryFlags::DisableAnyHit => optix_sys::OptixGeometryFlags::DisableAnyHit as u32,
             GeometryFlags::RequireSingleAnyHitCall => {
-                sys::OptixGeometryFlags::RequireSingleAnyHitCall as u32
+                optix_sys::OptixGeometryFlags::RequireSingleAnyHitCall as u32
             }
         }
     }
@@ -1084,27 +1076,29 @@ impl<'v, 'w, 'i> CurveArray<'v, 'w, 'i> {
 }
 
 impl BuildInput for CurveArray<'_, '_, '_> {
-    fn to_sys(&self) -> sys::OptixBuildInput {
-        sys::OptixBuildInput {
-            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CURVES,
-            input: sys::OptixBuildInputUnion {
-                curve_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputCurveArray {
-                    curveType: self.curve_type.into(),
-                    numPrimitives: self.num_primitives,
-                    vertexBuffers: self.d_vertex_buffers.as_ptr() as *const CUdeviceptr,
-                    numVertices: self.num_vertices,
-                    vertexStrideInBytes: self.vertex_stride_in_bytes,
-                    widthBuffers: self.d_width_buffers.as_ptr() as *const CUdeviceptr,
-                    widthStrideInBytes: self.width_stride_in_bytes,
-                    normalBuffers: std::ptr::null(),
-                    normalStrideInBytes: 0,
-                    indexBuffer: self.index_buffer.as_device_ptr().as_raw(),
-                    indexStrideInBytes: self.index_stride_in_bytes,
-                    flag: self.flags as u32,
-                    primitiveIndexOffset: self.primitive_index_offset,
-                }),
-            },
-        }
+    fn to_sys(&self) -> optix_sys::OptixBuildInput {
+        let mut v = optix_sys::OptixBuildInput {
+            type_: optix_sys::OptixBuildInputType::OPTIX_BUILD_INPUT_TYPE_CURVES,
+            ..Default::default()
+        };
+        unsafe {
+            *v.__bindgen_anon_1.curveArray.as_mut() = optix_sys::OptixBuildInputCurveArray {
+                curveType: self.curve_type.into(),
+                numPrimitives: self.num_primitives,
+                vertexBuffers: self.d_vertex_buffers.as_ptr() as *const CUdeviceptr,
+                numVertices: self.num_vertices,
+                vertexStrideInBytes: self.vertex_stride_in_bytes,
+                widthBuffers: self.d_width_buffers.as_ptr() as *const CUdeviceptr,
+                widthStrideInBytes: self.width_stride_in_bytes,
+                normalBuffers: std::ptr::null(),
+                normalStrideInBytes: 0,
+                indexBuffer: self.index_buffer.as_device_ptr().as_raw(),
+                indexStrideInBytes: self.index_stride_in_bytes,
+                flag: self.flags as u32,
+                primitiveIndexOffset: self.primitive_index_offset,
+            };
+        };
+        v
     }
 }
 
@@ -1116,51 +1110,50 @@ pub enum CurveType {
     RoundCubicBSpline,
 }
 
-impl From<CurveType> for sys::OptixPrimitiveType {
+impl From<CurveType> for optix_sys::OptixPrimitiveType {
     fn from(c: CurveType) -> Self {
         match c {
-            CurveType::RoundLinear => sys::OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR,
+            CurveType::RoundLinear => {
+                optix_sys::OptixPrimitiveType::OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR
+            }
             CurveType::RoundQuadraticBSpline => {
-                sys::OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE
+                optix_sys::OptixPrimitiveType::OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE
             }
             CurveType::RoundCubicBSpline => {
-                sys::OptixPrimitiveType_OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE
+                optix_sys::OptixPrimitiveType::OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE
             }
         }
     }
 }
 
 /// Specifies the type of vertex data
-#[cfg_attr(windows, repr(i32))]
-#[cfg_attr(unix, repr(u32))]
+#[repr(i32)]
 #[derive(Copy, Clone, PartialEq)]
 pub enum VertexFormat {
-    None = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_NONE,
-    Float3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT3,
-    Float2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT2,
-    Half3 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF3,
-    Half2 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF2,
-    SNorm16 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_3,
-    SNorm32 = sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_2,
+    None = optix_sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_NONE as i32,
+    Float3 = optix_sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT3 as i32,
+    Float2 = optix_sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_FLOAT2 as i32,
+    Half3 = optix_sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF3 as i32,
+    Half2 = optix_sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_HALF2 as i32,
+    SNorm16 = optix_sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_3 as i32,
+    SNorm32 = optix_sys::OptixVertexFormat_OPTIX_VERTEX_FORMAT_SNORM16_2 as i32,
 }
 
 /// Specifies the type of index data
-#[cfg_attr(windows, repr(i32))]
-#[cfg_attr(unix, repr(u32))]
+#[repr(i32)]
 #[derive(Copy, Clone, PartialEq)]
 pub enum IndicesFormat {
-    None = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_NONE,
-    Short3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3,
-    Int3 = sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_INT3,
+    None = optix_sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_NONE as i32,
+    Short3 = optix_sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3 as i32,
+    Int3 = optix_sys::OptixIndicesFormat_OPTIX_INDICES_FORMAT_UNSIGNED_INT3 as i32,
 }
 
 /// Specifies the format of transform data
-#[cfg_attr(windows, repr(i32))]
-#[cfg_attr(unix, repr(u32))]
+#[repr(i32)]
 #[derive(Copy, Clone, PartialEq)]
 pub enum TransformFormat {
-    None = sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE,
-    MatrixFloat12 = sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12,
+    None = optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_NONE as i32,
+    MatrixFloat12 = optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12 as i32,
 }
 
 /// Trait allowing the triangle builds to be generic over the input vertex data.
@@ -1304,38 +1297,40 @@ impl<V: Vertex> Hash for TriangleArray<'_, '_, V> {
 }
 
 impl<V: Vertex> BuildInput for TriangleArray<'_, '_, V> {
-    fn to_sys(&self) -> sys::OptixBuildInput {
-        sys::OptixBuildInput {
-            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
-            input: sys::OptixBuildInputUnion {
-                triangle_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputTriangleArray {
-                    vertexBuffers: self.d_vertex_buffers.as_ptr() as *const u64,
-                    numVertices: self.num_vertices,
-                    vertexFormat: V::FORMAT as _,
-                    vertexStrideInBytes: V::STRIDE,
-                    indexBuffer: 0,
-                    numIndexTriplets: 0,
-                    indexFormat: 0,
-                    indexStrideInBytes: 0,
-                    flags: self.geometry_flags.as_ptr() as *const _,
-                    numSbtRecords: 1,
-                    sbtIndexOffsetBuffer: 0,
-                    sbtIndexOffsetSizeInBytes: 0,
-                    sbtIndexOffsetStrideInBytes: 0,
-                    primitiveIndexOffset: 0,
-                    preTransform: if let Some(t) = self.pre_transform {
-                        t.as_raw()
-                    } else {
-                        0
-                    },
-                    transformFormat: if self.pre_transform.is_some() {
-                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
-                    } else {
-                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE
-                    },
-                }),
-            },
-        }
+    fn to_sys(&self) -> optix_sys::OptixBuildInput {
+        let mut v = optix_sys::OptixBuildInput {
+            type_: optix_sys::OptixBuildInputType::OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
+            ..Default::default()
+        };
+        unsafe {
+            *v.__bindgen_anon_1.triangleArray.as_mut() = optix_sys::OptixBuildInputTriangleArray {
+                vertexBuffers: self.d_vertex_buffers.as_ptr(),
+                numVertices: self.num_vertices,
+                vertexFormat: V::FORMAT as _,
+                vertexStrideInBytes: V::STRIDE,
+                indexBuffer: 0,
+                numIndexTriplets: 0,
+                indexFormat: 0,
+                indexStrideInBytes: 0,
+                flags: self.geometry_flags.as_ptr() as *const _,
+                numSbtRecords: 1,
+                sbtIndexOffsetBuffer: 0,
+                sbtIndexOffsetSizeInBytes: 0,
+                sbtIndexOffsetStrideInBytes: 0,
+                primitiveIndexOffset: 0,
+                preTransform: if let Some(t) = self.pre_transform {
+                    t.as_raw()
+                } else {
+                    0
+                },
+                transformFormat: if self.pre_transform.is_some() {
+                    optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
+                } else {
+                    optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_NONE
+                },
+            };
+        };
+        v
     }
 }
 
@@ -1388,38 +1383,40 @@ impl<V: Vertex, I: IndexTriple> Hash for IndexedTriangleArray<'_, '_, V, I> {
 }
 
 impl<V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'_, '_, V, I> {
-    fn to_sys(&self) -> sys::OptixBuildInput {
-        sys::OptixBuildInput {
-            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
-            input: sys::OptixBuildInputUnion {
-                triangle_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputTriangleArray {
-                    vertexBuffers: self.d_vertex_buffers.as_ptr() as *const u64,
-                    numVertices: self.num_vertices,
-                    vertexFormat: V::FORMAT as _,
-                    vertexStrideInBytes: V::STRIDE,
-                    indexBuffer: self.index_buffer.as_device_ptr().as_raw(),
-                    numIndexTriplets: self.index_buffer.len() as u32,
-                    indexFormat: I::FORMAT as _,
-                    indexStrideInBytes: I::STRIDE,
-                    flags: self.geometry_flags.as_ptr() as *const _,
-                    numSbtRecords: 1,
-                    sbtIndexOffsetBuffer: 0,
-                    sbtIndexOffsetSizeInBytes: 0,
-                    sbtIndexOffsetStrideInBytes: 0,
-                    primitiveIndexOffset: 0,
-                    preTransform: if let Some(t) = self.pre_transform {
-                        t.as_raw()
-                    } else {
-                        0
-                    },
-                    transformFormat: if self.pre_transform.is_some() {
-                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
-                    } else {
-                        sys::OptixTransformFormat_OPTIX_TRANSFORM_FORMAT_NONE
-                    },
-                }),
-            },
-        }
+    fn to_sys(&self) -> optix_sys::OptixBuildInput {
+        let mut v = optix_sys::OptixBuildInput {
+            type_: optix_sys::OptixBuildInputType::OPTIX_BUILD_INPUT_TYPE_TRIANGLES,
+            ..Default::default()
+        };
+        unsafe {
+            *v.__bindgen_anon_1.triangleArray.as_mut() = optix_sys::OptixBuildInputTriangleArray {
+                vertexBuffers: self.d_vertex_buffers.as_ptr(),
+                numVertices: self.num_vertices,
+                vertexFormat: V::FORMAT as _,
+                vertexStrideInBytes: V::STRIDE,
+                indexBuffer: self.index_buffer.as_device_ptr().as_raw(),
+                numIndexTriplets: self.index_buffer.len() as u32,
+                indexFormat: I::FORMAT as _,
+                indexStrideInBytes: I::STRIDE,
+                flags: self.geometry_flags.as_ptr() as *const _,
+                numSbtRecords: 1,
+                sbtIndexOffsetBuffer: 0,
+                sbtIndexOffsetSizeInBytes: 0,
+                sbtIndexOffsetStrideInBytes: 0,
+                primitiveIndexOffset: 0,
+                preTransform: if let Some(t) = self.pre_transform {
+                    t.as_raw()
+                } else {
+                    0
+                },
+                transformFormat: if self.pre_transform.is_some() {
+                    optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12
+                } else {
+                    optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_NONE
+                },
+            };
+        };
+        v
     }
 }
 
@@ -1506,31 +1503,32 @@ impl<'a, 's> CustomPrimitiveArray<'a, 's> {
 }
 
 impl BuildInput for CustomPrimitiveArray<'_, '_> {
-    fn to_sys(&self) -> sys::OptixBuildInput {
-        sys::OptixBuildInput {
-            type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
-            input: sys::OptixBuildInputUnion {
-                custom_primitive_array: std::mem::ManuallyDrop::new(
-                    sys::OptixBuildInputCustomPrimitiveArray {
-                        aabbBuffers: self.aabb_buffers.as_ptr(),
-                        numPrimitives: self.num_primitives,
-                        strideInBytes: self.stride_in_bytes,
-                        flags: self.flags.as_ptr() as *const u32,
-                        numSbtRecords: self.num_sbt_records,
-                        sbtIndexOffsetBuffer: if let Some(sbt_index_offset_buffer) =
-                            self.sbt_index_offset_buffer
-                        {
-                            sbt_index_offset_buffer.as_device_ptr().as_raw()
-                        } else {
-                            0
-                        },
-                        sbtIndexOffsetSizeInBytes: 4,
-                        sbtIndexOffsetStrideInBytes: self.sbt_index_offset_stride_in_bytes,
-                        primitiveIndexOffset: self.primitive_index_offset,
+    fn to_sys(&self) -> optix_sys::OptixBuildInput {
+        let mut v = optix_sys::OptixBuildInput {
+            type_: optix_sys::OptixBuildInputType::OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES,
+            ..Default::default()
+        };
+        unsafe {
+            *v.__bindgen_anon_1.customPrimitiveArray.as_mut() =
+                optix_sys::OptixBuildInputCustomPrimitiveArray {
+                    aabbBuffers: self.aabb_buffers.as_ptr(),
+                    numPrimitives: self.num_primitives,
+                    strideInBytes: self.stride_in_bytes,
+                    flags: self.flags.as_ptr() as *const u32,
+                    numSbtRecords: self.num_sbt_records,
+                    sbtIndexOffsetBuffer: if let Some(sbt_index_offset_buffer) =
+                        self.sbt_index_offset_buffer
+                    {
+                        sbt_index_offset_buffer.as_device_ptr().as_raw()
+                    } else {
+                        0
                     },
-                ),
-            },
-        }
+                    sbtIndexOffsetSizeInBytes: 4,
+                    sbtIndexOffsetStrideInBytes: self.sbt_index_offset_stride_in_bytes,
+                    primitiveIndexOffset: self.primitive_index_offset,
+                };
+        };
+        v
     }
 }
 
@@ -1549,23 +1547,23 @@ pub struct Instance<'a> {
 
 const_assert_eq!(
     std::mem::align_of::<Instance>(),
-    sys::OptixInstanceByteAlignment
+    optix_sys::OptixInstanceByteAlignment
 );
 const_assert_eq!(
     std::mem::size_of::<Instance>(),
-    std::mem::size_of::<sys::OptixInstance>()
+    std::mem::size_of::<optix_sys::OptixInstance>()
 );
 
 #[derive(DeviceCopy, Clone, Copy, PartialEq, Eq, Debug)]
-pub struct InstanceFlags(OptixEnumBaseType);
+pub struct InstanceFlags(i32);
 bitflags::bitflags! {
-    impl InstanceFlags: OptixEnumBaseType {
-        const NONE = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_NONE;
-        const DISABLE_TRIANGLE_FACE_CULLING = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_TRIANGLE_FACE_CULLING;
-        const FLIP_TRIANGLE_FACING = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_FLIP_TRIANGLE_FACING;
-        const DISABLE_ANYHIT = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT;
-        const ENFORCE_ANYHIT = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_ENFORCE_ANYHIT;
-        const DISABLE_TRANSFORM = sys::OptixInstanceFlags_OPTIX_INSTANCE_FLAG_DISABLE_TRANSFORM;
+    impl InstanceFlags: i32 {
+        const NONE = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_NONE as i32;
+        const DISABLE_TRIANGLE_FACE_CULLING = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_DISABLE_TRIANGLE_FACE_CULLING as i32;
+        const FLIP_TRIANGLE_FACING = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_FLIP_TRIANGLE_FACING as i32;
+        const DISABLE_ANYHIT = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT as i32;
+        const ENFORCE_ANYHIT = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_ENFORCE_ANYHIT as i32;
+        const DISABLE_TRANSFORM = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_DISABLE_TRANSFORM as i32;
     }
 }
 
@@ -1649,32 +1647,22 @@ impl Hash for InstanceArray<'_, '_> {
 }
 
 impl BuildInput for InstanceArray<'_, '_> {
-    fn to_sys(&self) -> sys::OptixBuildInput {
-        cfg_if::cfg_if! {
-            if #[cfg(any(feature="optix72", feature="optix73"))] {
-                sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
-                    input: sys::OptixBuildInputUnion {
-                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
-                            instances: self.instances.as_device_ptr().as_raw(),
-                            numInstances: self.instances.len() as u32,
-                        })
-                    }
-                }
-            } else {
-                sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCES,
-                    input: sys::OptixBuildInputUnion {
-                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
-                            instances: self.instances.as_device_ptr(),
-                            numInstances: self.instances.len() as u32,
-                            aabbs: 0,
-                            numAabbs: 0,
-                        })
-                    }
-                }
-            }
-        }
+    fn to_sys(&self) -> optix_sys::OptixBuildInput {
+        let mut v = optix_sys::OptixBuildInput {
+            type_: optix_sys::OptixBuildInputType::OPTIX_BUILD_INPUT_TYPE_INSTANCES,
+            ..Default::default()
+        };
+        unsafe {
+            *v.__bindgen_anon_1.instanceArray.as_mut() = optix_sys::OptixBuildInputInstanceArray {
+                instances: self.instances.as_device_ptr().as_raw(),
+                numInstances: self.instances.len() as u32,
+                #[cfg(optix_build_input_instance_array_aabbs)]
+                aabbs: 0,
+                #[cfg(optix_build_input_instance_array_aabbs)]
+                numAabbs: 0,
+            };
+        };
+        v
     }
 }
 
@@ -1695,32 +1683,22 @@ impl Hash for InstancePointerArray<'_> {
 }
 
 impl BuildInput for InstancePointerArray<'_> {
-    fn to_sys(&self) -> sys::OptixBuildInput {
-        cfg_if::cfg_if! {
-            if #[cfg(any(feature="optix72", feature="optix73"))] {
-                sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
-                    input: sys::OptixBuildInputUnion {
-                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
-                            instances: self.instances.as_device_ptr().as_raw(),
-                            numInstances: self.instances.len() as u32,
-                        })
-                    }
-                }
-            } else {
-                sys::OptixBuildInput {
-                    type_: sys::OptixBuildInputType_OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
-                    input: sys::OptixBuildInputUnion {
-                        instance_array: std::mem::ManuallyDrop::new(sys::OptixBuildInputInstanceArray {
-                            instances: self.instances.as_device_ptr(),
-                            numInstances: self.instances.len() as u32,
-                            aabbs: 0,
-                            numAabbs: 0,
-                        })
-                    }
-                }
-            }
-        }
+    fn to_sys(&self) -> optix_sys::OptixBuildInput {
+        let mut v = optix_sys::OptixBuildInput {
+            type_: optix_sys::OptixBuildInputType::OPTIX_BUILD_INPUT_TYPE_INSTANCE_POINTERS,
+            ..Default::default()
+        };
+        unsafe {
+            *v.__bindgen_anon_1.instanceArray.as_mut() = optix_sys::OptixBuildInputInstanceArray {
+                instances: self.instances.as_device_ptr().as_raw(),
+                numInstances: self.instances.len() as u32,
+                #[cfg(optix_build_input_instance_array_aabbs)]
+                aabbs: 0,
+                #[cfg(optix_build_input_instance_array_aabbs)]
+                numAabbs: 0,
+            };
+        };
+        v
     }
 }
 
@@ -1728,13 +1706,13 @@ impl BuildInput for InstancePointerArray<'_> {
 /// ray traversal.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct StaticTransformWrapper(sys::OptixStaticTransform);
+pub struct StaticTransformWrapper(optix_sys::OptixStaticTransform);
 
 unsafe impl DeviceCopy for StaticTransformWrapper {}
 
 const_assert_eq!(
     std::mem::size_of::<StaticTransformWrapper>(),
-    std::mem::size_of::<sys::OptixStaticTransform>(),
+    std::mem::size_of::<optix_sys::OptixStaticTransform>(),
 );
 
 /// Stores the device memory and the [`TraversableHandle`] for a [`StaticTransform`]
@@ -1755,7 +1733,7 @@ impl StaticTransform {
     ) -> Result<StaticTransform> {
         let transform = (*transform).clone().into();
         let inv_transform = (*inv_transform).clone().into();
-        let buf = DeviceBox::new(&StaticTransformWrapper(sys::OptixStaticTransform {
+        let buf = DeviceBox::new(&StaticTransformWrapper(optix_sys::OptixStaticTransform {
             child: child.handle().inner,
             transform: transform.into(),
             invTransform: inv_transform.into(),
@@ -1791,7 +1769,7 @@ impl Traversable for StaticTransform {
 /// A scene graph node holding a child node with a motion transform to be applied
 /// during ray traversal, represented as SRT Data.
 ///
-/// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixMatrixMotionTransform`]
+/// Stores the device memory and the [`TraversableHandle`] for a [`optix_sys::OptixMatrixMotionTransform`]
 /// and an arbitrary number of motion keys
 pub struct MatrixMotionTransform {
     #[allow(dead_code)]
@@ -1823,9 +1801,9 @@ impl MatrixMotionTransform {
             return Err(Error::TooFewMotionKeys(num_keys));
         }
 
-        let mmt = sys::OptixMatrixMotionTransform {
+        let mmt = optix_sys::OptixMatrixMotionTransform {
             child: child.handle().inner,
-            motionOptions: sys::OptixMotionOptions {
+            motionOptions: optix_sys::OptixMotionOptions {
                 numKeys: num_keys as u16,
                 timeBegin: time_begin,
                 timeEnd: time_end,
@@ -1834,8 +1812,8 @@ impl MatrixMotionTransform {
             ..Default::default()
         };
 
-        let size =
-            size_of::<sys::OptixMatrixMotionTransform>() + size_of::<f32>() * 12 * (num_keys - 2);
+        let size = size_of::<optix_sys::OptixMatrixMotionTransform>()
+            + size_of::<f32>() * 12 * (num_keys - 2);
 
         // copy the transform data
         unsafe {
@@ -1845,7 +1823,7 @@ impl MatrixMotionTransform {
             // get the offset of the matrix data from the base of the struct
             let transform_ptr = buf
                 .as_device_ptr()
-                .add(offset_of!(sys::OptixMatrixMotionTransform, transform));
+                .add(offset_of!(optix_sys::OptixMatrixMotionTransform, transform));
 
             // copy the transform data.
             // Note we're writing 24 bytes of data for the transform field that
@@ -1854,7 +1832,7 @@ impl MatrixMotionTransform {
             cust::memory::memcpy_htod(
                 buf.as_device_ptr().as_raw(),
                 &mmt as *const _ as *const c_void,
-                size_of::<sys::OptixMatrixMotionTransform>(),
+                size_of::<optix_sys::OptixMatrixMotionTransform>(),
             )?;
 
             // copy the matrix data
@@ -1924,12 +1902,12 @@ impl Traversable for MatrixMotionTransform {
 ///
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug)]
-pub struct SrtData(sys::OptixSRTData);
+pub struct SrtData(optix_sys::OptixSRTData);
 
 unsafe impl DeviceCopy for SrtData {}
 
 impl Deref for SrtData {
-    type Target = sys::OptixSRTData;
+    type Target = optix_sys::OptixSRTData;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -1939,7 +1917,7 @@ impl Deref for SrtData {
 /// A scene graph node holding a child node with a motion transform to be applied
 /// during ray traversal, represented as SRT Data.
 ///
-/// Stores the device memory and the [`TraversableHandle`] for a [`sys::OptixSRTMotionTransform`]
+/// Stores the device memory and the [`TraversableHandle`] for a [`optix_sys::OptixSRTMotionTransform`]
 /// and an arbitrary number of motion keys
 pub struct SrtMotionTransform {
     // TODO(RDambrosio016): ask al what this is for :p
@@ -1972,9 +1950,9 @@ impl SrtMotionTransform {
             return Err(Error::TooFewMotionKeys(num_keys));
         }
 
-        let mmt = sys::OptixSRTMotionTransform {
+        let mmt = optix_sys::OptixSRTMotionTransform {
             child: child.handle().inner,
-            motionOptions: sys::OptixMotionOptions {
+            motionOptions: optix_sys::OptixMotionOptions {
                 numKeys: num_keys as u16,
                 timeBegin: time_begin,
                 timeEnd: time_end,
@@ -1983,7 +1961,7 @@ impl SrtMotionTransform {
             ..Default::default()
         };
 
-        let size = size_of::<sys::OptixSRTMotionTransform>()
+        let size = size_of::<optix_sys::OptixSRTMotionTransform>()
             + size_of::<f32>() * size_of::<SrtData>() * (num_keys - 2);
 
         // copy the transform data
@@ -1994,7 +1972,7 @@ impl SrtMotionTransform {
             // get the offset of the matrix data from the base of the struct
             let transform_ptr = buf
                 .as_device_ptr()
-                .add(offset_of!(sys::OptixSRTMotionTransform, srtData));
+                .add(offset_of!(optix_sys::OptixSRTMotionTransform, srtData));
 
             // copy the transform data.
             // Note we're writing 24 bytes of data for the transform field that
@@ -2003,7 +1981,7 @@ impl SrtMotionTransform {
             cust::memory::memcpy_htod(
                 buf.as_device_ptr().as_raw(),
                 &mmt as *const _ as *const c_void,
-                size_of::<sys::OptixSRTMotionTransform>(),
+                size_of::<optix_sys::OptixSRTMotionTransform>(),
             )?;
 
             // copy the matrix data
@@ -2043,17 +2021,17 @@ pub enum TraversableType {
     SrtMotionTransform,
 }
 
-impl From<TraversableType> for sys::OptixTraversableType {
+impl From<TraversableType> for optix_sys::OptixTraversableType {
     fn from(t: TraversableType) -> Self {
         match t {
             TraversableType::StaticTransform => {
-                sys::OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_STATIC_TRANSFORM
+                optix_sys::OptixTraversableType::OPTIX_TRAVERSABLE_TYPE_STATIC_TRANSFORM
             }
             TraversableType::MatrixMotionTransform => {
-                sys::OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_MATRIX_MOTION_TRANSFORM
+                optix_sys::OptixTraversableType::OPTIX_TRAVERSABLE_TYPE_MATRIX_MOTION_TRANSFORM
             }
             TraversableType::SrtMotionTransform => {
-                sys::OptixTraversableType_OPTIX_TRAVERSABLE_TYPE_SRT_MOTION_TRANSFORM
+                optix_sys::OptixTraversableType::OPTIX_TRAVERSABLE_TYPE_SRT_MOTION_TRANSFORM
             }
         }
     }

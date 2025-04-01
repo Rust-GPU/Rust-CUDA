@@ -3,7 +3,7 @@ use std::{
     os::raw::c_ulonglong,
 };
 
-use crate::sys::{
+use cust_raw::driver_sys::{
     cuSurfObjectCreate, cuSurfObjectDestroy, cuSurfObjectGetResourceDesc, CUsurfObject,
     CUDA_RESOURCE_DESC,
 };

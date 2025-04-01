@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies how the softmax input must be processed.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxMode_t)
@@ -13,7 +11,7 @@ pub enum SoftmaxMode {
     Channel,
 }
 
-impl From<SoftmaxMode> for sys::cudnnSoftmaxMode_t {
+impl From<SoftmaxMode> for cudnn_sys::cudnnSoftmaxMode_t {
     fn from(mode: SoftmaxMode) -> Self {
         match mode {
             SoftmaxMode::Channel => Self::CUDNN_SOFTMAX_MODE_CHANNEL,

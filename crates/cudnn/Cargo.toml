@@ -7,3 +7,4 @@ version = "0.1.0"
 [dependencies]
 bitflags = "2.8"
 cust = {version = "0.3.2", path = "../cust"}
+cudnn-sys = { path = "../cudnn-sys" }

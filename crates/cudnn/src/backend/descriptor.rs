@@ -1,15 +1,16 @@
-use crate::{sys, CudnnError, IntoResult};
 use std::{mem::MaybeUninit, rc::Rc};
+
+use crate::{CudnnError, IntoResult};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Inner {
-    pub(crate) raw: sys::cudnnBackendDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnBackendDescriptor_t,
 }
 
 impl Drop for Inner {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnBackendDestroyDescriptor(self.raw);
+            cudnn_sys::cudnnBackendDestroyDescriptor(self.raw);
         }
     }
 }
@@ -18,10 +19,12 @@ impl Drop for Inner {
 pub struct Descriptor(Rc<Inner>);
 
 impl Descriptor {
-    pub(crate) unsafe fn new(dtype: sys::cudnnBackendDescriptorType_t) -> Result<Self, CudnnError> {
+    pub(crate) unsafe fn new(
+        dtype: cudnn_sys::cudnnBackendDescriptorType_t,
+    ) -> Result<Self, CudnnError> {
         let mut raw = MaybeUninit::uninit();
 
-        sys::cudnnBackendCreateDescriptor(dtype, raw.as_mut_ptr()).into_result()?;
+        cudnn_sys::cudnnBackendCreateDescriptor(dtype, raw.as_mut_ptr()).into_result()?;
 
         let raw = raw.assume_init();
 
@@ -29,29 +32,29 @@ impl Descriptor {
     }
 
     pub(crate) unsafe fn finalize(&mut self) -> Result<(), CudnnError> {
-        sys::cudnnBackendFinalize(self.0.raw).into_result()
+        cudnn_sys::cudnnBackendFinalize(self.0.raw).into_result()
     }
 
     pub(crate) unsafe fn set_attribute<T: ?Sized>(
         &mut self,
-        aname: sys::cudnnBackendAttributeName_t,
-        atype: sys::cudnnBackendAttributeType_t,
+        aname: cudnn_sys::cudnnBackendAttributeName_t,
+        atype: cudnn_sys::cudnnBackendAttributeType_t,
         count: i64,
         val: &T,
     ) -> Result<(), CudnnError> {
         let ptr = val as *const T as *const std::ffi::c_void;
 
-        sys::cudnnBackendSetAttribute(self.0.raw, aname, atype, count, ptr).into_result()
+        cudnn_sys::cudnnBackendSetAttribute(self.0.raw, aname, atype, count, ptr).into_result()
     }
 
     pub(crate) unsafe fn get_attribute_count(
         &self,
-        aname: sys::cudnnBackendAttributeName_t,
-        atype: sys::cudnnBackendAttributeType_t,
+        aname: cudnn_sys::cudnnBackendAttributeName_t,
+        atype: cudnn_sys::cudnnBackendAttributeType_t,
     ) -> Result<i64, CudnnError> {
         let mut count = MaybeUninit::<i64>::uninit();
 
-        sys::cudnnBackendGetAttribute(
+        cudnn_sys::cudnnBackendGetAttribute(
             self.0.raw,
             aname,
             atype,
@@ -64,7 +67,7 @@ impl Descriptor {
         Ok(count.assume_init())
     }
 
-    pub(crate) fn inner(&self) -> sys::cudnnBackendDescriptor_t {
+    pub(crate) fn inner(&self) -> cudnn_sys::cudnnBackendDescriptor_t {
         self.0.raw
     }
 }

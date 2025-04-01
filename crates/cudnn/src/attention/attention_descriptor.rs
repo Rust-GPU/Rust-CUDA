@@ -1,6 +1,8 @@
-use crate::{sys, CudnnError, DataType, DropoutDescriptor, IntoResult, MathType, SeqDataType};
-use cust::memory::GpuBuffer;
 use std::{marker::PhantomData, mem::MaybeUninit};
+
+use cust::memory::GpuBuffer;
+
+use crate::{CudnnError, DataType, DropoutDescriptor, IntoResult, MathType, SeqDataType};
 
 bitflags::bitflags! {
     /// Miscellaneous switches for configuring auxiliary multi-head attention features.
@@ -29,7 +31,7 @@ where
     D1: GpuBuffer<u8>,
     D2: GpuBuffer<u8>,
 {
-    pub(crate) raw: sys::cudnnAttnDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnAttnDescriptor_t,
     data_type: PhantomData<T>,
     math_prec: PhantomData<U>,
     attn_dropout_desc: DropoutDescriptor<D1>,
@@ -110,11 +112,11 @@ where
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreateAttnDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateAttnDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
-            sys::cudnnSetAttnDescriptor(
+            cudnn_sys::cudnnSetAttnDescriptor(
                 raw,
                 mode.bits(),
                 n_heads,
@@ -158,7 +160,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyAttnDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyAttnDescriptor(self.raw);
         }
     }
 }

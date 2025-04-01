@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies the behavior of the first layer in a recurrent neural network.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNInputMode_t)
@@ -14,11 +12,12 @@ pub enum RnnInputMode {
     SkipInput,
 }
 
-impl From<RnnInputMode> for sys::cudnnRNNInputMode_t {
+impl From<RnnInputMode> for cudnn_sys::cudnnRNNInputMode_t {
     fn from(mode: RnnInputMode) -> Self {
+        use cudnn_sys::cudnnRNNInputMode_t::*;
         match mode {
-            RnnInputMode::LinearInput => sys::cudnnRNNInputMode_t::CUDNN_LINEAR_INPUT,
-            RnnInputMode::SkipInput => sys::cudnnRNNInputMode_t::CUDNN_SKIP_INPUT,
+            RnnInputMode::LinearInput => CUDNN_LINEAR_INPUT,
+            RnnInputMode::SkipInput => CUDNN_SKIP_INPUT,
         }
     }
 }

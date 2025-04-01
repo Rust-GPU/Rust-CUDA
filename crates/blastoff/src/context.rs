@@ -1,15 +1,20 @@
-use crate::{error::*, sys};
-use cust::stream::Stream;
 use std::ffi::CString;
 use std::mem::{self, MaybeUninit};
 use std::os::raw::c_char;
 use std::ptr;
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+use cust::stream::Stream;
+use cust_raw::cublas_sys;
+use cust_raw::driver_sys;
+
+use super::error::DropResult;
+use super::error::ToResult as _;
+
+type Result<T, E = super::error::Error> = std::result::Result<T, E>;
 
 bitflags::bitflags! {
     /// Configures precision levels for the math in cuBLAS.
-    #[derive(Default)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct MathMode: u32 {
         /// Highest performance mode which uses compute and intermediate storage precisions
         /// with at least the same number of mantissa and exponent bits as requested. Will
@@ -68,7 +73,7 @@ bitflags::bitflags! {
 /// - [Matrix Multiplication <span style="float:right;">`gemm`</span>](CublasContext::gemm)
 #[derive(Debug)]
 pub struct CublasContext {
-    pub(crate) raw: sys::v2::cublasHandle_t,
+    pub(crate) raw: cublas_sys::cublasHandle_t,
 }
 
 impl CublasContext {
@@ -87,10 +92,10 @@ impl CublasContext {
     pub fn new() -> Result<Self> {
         let mut raw = MaybeUninit::uninit();
         unsafe {
-            sys::v2::cublasCreate_v2(raw.as_mut_ptr()).to_result()?;
-            sys::v2::cublasSetPointerMode_v2(
+            cublas_sys::cublasCreate_v2(raw.as_mut_ptr()).to_result()?;
+            cublas_sys::cublasSetPointerMode_v2(
                 raw.assume_init(),
-                sys::v2::cublasPointerMode_t::CUBLAS_POINTER_MODE_DEVICE,
+                cublas_sys::cublasPointerMode_t::CUBLAS_POINTER_MODE_DEVICE,
             )
             .to_result()?;
             Ok(Self {
@@ -107,7 +112,7 @@ impl CublasContext {
 
         unsafe {
             let inner = mem::replace(&mut ctx.raw, ptr::null_mut());
-            match sys::v2::cublasDestroy_v2(inner).to_result() {
+            match cublas_sys::cublasDestroy_v2(inner).to_result() {
                 Ok(()) => {
                     mem::forget(ctx);
                     Ok(())
@@ -122,7 +127,7 @@ impl CublasContext {
         let mut raw = MaybeUninit::<u32>::uninit();
         unsafe {
             // getVersion can't fail
-            sys::v2::cublasGetVersion_v2(self.raw, raw.as_mut_ptr().cast())
+            cublas_sys::cublasGetVersion_v2(self.raw, raw.as_mut_ptr().cast())
                 .to_result()
                 .unwrap();
 
@@ -140,9 +145,9 @@ impl CublasContext {
     ) -> Result<T> {
         unsafe {
             // cudaStream_t is the same as CUstream
-            sys::v2::cublasSetStream_v2(
+            cublas_sys::cublasSetStream_v2(
                 self.raw,
-                mem::transmute::<*mut cust::sys::CUstream_st, *mut cublas_sys::v2::CUstream_st>(
+                mem::transmute::<*mut driver_sys::CUstream_st, *mut cublas_sys::CUstream_st>(
                     stream.as_inner(),
                 ),
             )
@@ -150,7 +155,7 @@ impl CublasContext {
             let res = func(self)?;
             // reset the stream back to NULL just in case someone calls with_stream, then drops the stream, and tries to
             // execute a raw sys function with the context's handle.
-            sys::v2::cublasSetStream_v2(self.raw, ptr::null_mut()).to_result()?;
+            cublas_sys::cublasSetStream_v2(self.raw, ptr::null_mut()).to_result()?;
             Ok(res)
         }
     }
@@ -180,12 +185,12 @@ impl CublasContext {
     /// ```
     pub fn set_atomics_mode(&self, allowed: bool) -> Result<()> {
         unsafe {
-            Ok(sys::v2::cublasSetAtomicsMode(
+            Ok(cublas_sys::cublasSetAtomicsMode(
                 self.raw,
                 if allowed {
-                    sys::v2::cublasAtomicsMode_t::CUBLAS_ATOMICS_ALLOWED
+                    cublas_sys::cublasAtomicsMode_t::CUBLAS_ATOMICS_ALLOWED
                 } else {
-                    sys::v2::cublasAtomicsMode_t::CUBLAS_ATOMICS_NOT_ALLOWED
+                    cublas_sys::cublasAtomicsMode_t::CUBLAS_ATOMICS_NOT_ALLOWED
                 },
             )
             .to_result()?)
@@ -210,10 +215,10 @@ impl CublasContext {
     pub fn get_atomics_mode(&self) -> Result<bool> {
         let mut mode = MaybeUninit::uninit();
         unsafe {
-            sys::v2::cublasGetAtomicsMode(self.raw, mode.as_mut_ptr()).to_result()?;
+            cublas_sys::cublasGetAtomicsMode(self.raw, mode.as_mut_ptr()).to_result()?;
             Ok(match mode.assume_init() {
-                sys::v2::cublasAtomicsMode_t::CUBLAS_ATOMICS_ALLOWED => true,
-                sys::v2::cublasAtomicsMode_t::CUBLAS_ATOMICS_NOT_ALLOWED => false,
+                cublas_sys::cublasAtomicsMode_t::CUBLAS_ATOMICS_ALLOWED => true,
+                cublas_sys::cublasAtomicsMode_t::CUBLAS_ATOMICS_NOT_ALLOWED => false,
             })
         }
     }
@@ -233,9 +238,9 @@ impl CublasContext {
     /// ```
     pub fn set_math_mode(&self, math_mode: MathMode) -> Result<()> {
         unsafe {
-            Ok(sys::v2::cublasSetMathMode(
+            Ok(cublas_sys::cublasSetMathMode(
                 self.raw,
-                mem::transmute::<u32, cublas_sys::v2::cublasMath_t>(math_mode.bits()),
+                mem::transmute::<u32, cublas_sys::cublasMath_t>(math_mode.bits()),
             )
             .to_result()?)
         }
@@ -258,7 +263,7 @@ impl CublasContext {
     pub fn get_math_mode(&self) -> Result<MathMode> {
         let mut mode = MaybeUninit::uninit();
         unsafe {
-            sys::v2::cublasGetMathMode(self.raw, mode.as_mut_ptr()).to_result()?;
+            cublas_sys::cublasGetMathMode(self.raw, mode.as_mut_ptr()).to_result()?;
             Ok(MathMode::from_bits(mode.assume_init() as u32)
                 .expect("Invalid MathMode from cuBLAS"))
         }
@@ -298,7 +303,7 @@ impl CublasContext {
             let path = log_file_name.map(|p| CString::new(p).expect("nul in log_file_name"));
             let path_ptr = path.map_or(ptr::null(), |s| s.as_ptr());
 
-            sys::v2::cublasLoggerConfigure(
+            cublas_sys::cublasLoggerConfigure(
                 enable as i32,
                 log_to_stdout as i32,
                 log_to_stderr as i32,
@@ -315,7 +320,7 @@ impl CublasContext {
     ///
     /// The callback must not panic and unwind.
     pub unsafe fn set_logger_callback(callback: Option<unsafe extern "C" fn(*const c_char)>) {
-        sys::v2::cublasSetLoggerCallback(callback)
+        cublas_sys::cublasSetLoggerCallback(callback)
             .to_result()
             .unwrap();
     }
@@ -324,7 +329,7 @@ impl CublasContext {
     pub fn get_logger_callback() -> Option<unsafe extern "C" fn(*const c_char)> {
         let mut cb = MaybeUninit::uninit();
         unsafe {
-            sys::v2::cublasGetLoggerCallback(cb.as_mut_ptr())
+            cublas_sys::cublasGetLoggerCallback(cb.as_mut_ptr())
                 .to_result()
                 .unwrap();
             cb.assume_init()
@@ -335,7 +340,7 @@ impl CublasContext {
 impl Drop for CublasContext {
     fn drop(&mut self) {
         unsafe {
-            sys::v2::cublasDestroy_v2(self.raw);
+            cublas_sys::cublasDestroy_v2(self.raw);
         }
     }
 }

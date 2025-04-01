@@ -1,6 +1,6 @@
 use crate::{
     backend::{Descriptor, Operation},
-    sys, CudnnContext, CudnnError,
+    CudnnContext, CudnnError,
 };
 
 #[derive(Default, PartialEq, Debug)]
@@ -26,12 +26,12 @@ impl GraphBuilder {
 
         unsafe {
             let mut descriptor = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATIONGRAPH_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATIONGRAPH_DESCRIPTOR,
             )?;
 
             descriptor.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATIONGRAPH_HANDLE,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_HANDLE,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATIONGRAPH_HANDLE,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_HANDLE,
                 1,
                 &context.raw,
             )?;
@@ -50,8 +50,8 @@ impl GraphBuilder {
                 .collect::<Vec<_>>();
 
             descriptor.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATIONGRAPH_OPS,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATIONGRAPH_OPS,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 descriptors.len() as i64,
                 descriptors.as_slice(),
             )?;

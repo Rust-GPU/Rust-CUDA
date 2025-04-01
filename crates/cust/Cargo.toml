@@ -14,7 +14,7 @@ readme = "../../README.md"
 
 [dependencies]
 cust_core = { path = "../cust_core", version = "0.1.0"}
-cust_raw = { path = "../cust_raw", version = "0.11.2"}
+cust_raw = { path = "../cust_raw", default-features = false, features = ["driver"] }
 bitflags = "2.8"
 cust_derive = { path = "../cust_derive", version = "0.2" }
 glam = { version = "0.29.2", features=["cuda"], optional = true }
@@ -32,7 +32,7 @@ impl_half = ["cust_core/half"]
 impl_num_complex = ["cust_core/num-complex", "num-complex"]
 
 [build-dependencies]
-find_cuda_helper = { path = "../find_cuda_helper", version = "0.2" }
+serde_json = "1.0.140"
 
 [dev-dependencies]
 image = "0.25.5"

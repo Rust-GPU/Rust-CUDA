@@ -1,6 +1,6 @@
 use crate::{
     backend::{Descriptor, Graph},
-    sys, CudnnError, IntoResult,
+    CudnnError, IntoResult,
 };
 
 #[derive(Default, Debug, PartialEq)]
@@ -26,19 +26,19 @@ impl EngineBuilder {
 
         unsafe {
             let mut descriptor = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_ENGINE_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_ENGINE_DESCRIPTOR,
             )?;
 
             descriptor.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_ENGINE_OPERATION_GRAPH,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_ENGINE_OPERATION_GRAPH,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &graph.descriptor.inner(),
             )?;
 
             descriptor.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_ENGINE_GLOBAL_INDEX,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_ENGINE_GLOBAL_INDEX,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_INT64,
                 1,
                 &global_index,
             )?;

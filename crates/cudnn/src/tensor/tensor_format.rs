@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Tensor formats in which each element of the tensor has scalar value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScalarC {
@@ -15,11 +13,11 @@ pub enum ScalarC {
     Nhwc,
 }
 
-impl From<ScalarC> for sys::cudnnTensorFormat_t {
+impl From<ScalarC> for cudnn_sys::cudnnTensorFormat_t {
     fn from(tensor_format: ScalarC) -> Self {
         match tensor_format {
-            ScalarC::Nchw => sys::cudnnTensorFormat_t::CUDNN_TENSOR_NCHW,
-            ScalarC::Nhwc => sys::cudnnTensorFormat_t::CUDNN_TENSOR_NHWC,
+            ScalarC::Nchw => cudnn_sys::cudnnTensorFormat_t::CUDNN_TENSOR_NCHW,
+            ScalarC::Nhwc => cudnn_sys::cudnnTensorFormat_t::CUDNN_TENSOR_NHWC,
         }
     }
 }
@@ -50,11 +48,11 @@ impl From<ScalarC> for TensorFormat {
     }
 }
 
-impl From<TensorFormat> for sys::cudnnTensorFormat_t {
+impl From<TensorFormat> for cudnn_sys::cudnnTensorFormat_t {
     fn from(tensor_format: TensorFormat) -> Self {
         match tensor_format {
             TensorFormat::ScalarC(fmt) => fmt.into(),
-            TensorFormat::NchwVectC => sys::cudnnTensorFormat_t::CUDNN_TENSOR_NCHW_VECT_C,
+            TensorFormat::NchwVectC => cudnn_sys::cudnnTensorFormat_t::CUDNN_TENSOR_NCHW_VECT_C,
         }
     }
 }

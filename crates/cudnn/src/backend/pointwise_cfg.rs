@@ -1,11 +1,11 @@
 use crate::{
     backend::{Descriptor, PointwiseMode},
-    sys, CudnnError, DataType, IntoResult, NanPropagation,
+    CudnnError, DataType, IntoResult, NanPropagation,
 };
 
 #[derive(Clone, Default, PartialEq, Debug)]
 pub struct PointwiseCfgBuilder {
-    math_precision: Option<sys::cudnnDataType_t>,
+    math_precision: Option<cudnn_sys::cudnnDataType_t>,
     mode: Option<PointwiseMode>,
     nan_propagation: Option<NanPropagation>,
     relu_lower_clip: Option<f64>,
@@ -66,36 +66,36 @@ impl PointwiseCfgBuilder {
     }
 
     pub fn build(&mut self) -> Result<PointwiseCfg, CudnnError> {
-        let mode: sys::cudnnPointwiseMode_t =
+        let mode: cudnn_sys::cudnnPointwiseMode_t =
             self.mode.expect("pointwise mode is required.").into();
 
         let math_precision = self
             .math_precision
-            .unwrap_or(sys::cudnnDataType_t::CUDNN_DATA_FLOAT);
+            .unwrap_or(cudnn_sys::cudnnDataType_t::CUDNN_DATA_FLOAT);
 
         unsafe {
             let mut raw = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_POINTWISE_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_POINTWISE_DESCRIPTOR,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_MATH_PREC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DATA_TYPE,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_MATH_PREC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DATA_TYPE,
                 1,
                 &math_precision,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_MODE,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_POINTWISE_MODE,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_MODE,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_POINTWISE_MODE,
                 1,
                 &mode,
             )?;
 
             if let Some(ref nan_propagation) = self.nan_propagation {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_NAN_PROPAGATION,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_NAN_PROPOGATION,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_NAN_PROPAGATION,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_NAN_PROPOGATION,
                     1,
                     nan_propagation,
                 )?;
@@ -103,8 +103,8 @@ impl PointwiseCfgBuilder {
 
             if let Some(ref relu_lower_clip) = self.relu_lower_clip {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_RELU_LOWER_CLIP,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_RELU_LOWER_CLIP,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     relu_lower_clip,
                 )?;
@@ -112,8 +112,8 @@ impl PointwiseCfgBuilder {
 
             if let Some(ref relu_upper_clip) = self.relu_upper_clip {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_RELU_UPPER_CLIP,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_RELU_UPPER_CLIP,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     relu_upper_clip,
                 )?;
@@ -121,8 +121,8 @@ impl PointwiseCfgBuilder {
 
             if let Some(ref relu_lower_clip_slope) = self.relu_lower_clip_slope {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_RELU_LOWER_CLIP_SLOPE,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_RELU_LOWER_CLIP_SLOPE,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     relu_lower_clip_slope,
                 )?;
@@ -130,8 +130,8 @@ impl PointwiseCfgBuilder {
 
             if let Some(ref elu_alpha) = self.elu_alpha {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_ELU_ALPHA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_ELU_ALPHA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     elu_alpha,
                 )?;
@@ -139,8 +139,8 @@ impl PointwiseCfgBuilder {
 
             if let Some(ref softplus_beta) = self.softplus_beta {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_SOFTPLUS_BETA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_SOFTPLUS_BETA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     softplus_beta,
                 )?;
@@ -148,8 +148,8 @@ impl PointwiseCfgBuilder {
 
             if let Some(ref swish_beta) = self.swish_beta {
                 raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_SWISH_BETA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_POINTWISE_SWISH_BETA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     swish_beta,
                 )?;
