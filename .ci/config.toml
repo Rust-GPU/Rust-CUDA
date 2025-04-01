@@ -1,0 +1,7 @@
+# Configuration for the target architecture building for on the GHA runner
+# and subsequently running on Modal (which uses Linux containers).
+[target.x86_64-unknown-linux-gnu]
+# The command to execute instead of the compiled test binary. Cargo will append the
+# actual path to the compiled test executable and any arguments (like --list, --exact,
+# --nocapture) after this command.
+runner = ["uv", "run", ".ci/modal.com/modal_test_runner.py"]
