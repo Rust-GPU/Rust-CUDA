@@ -19,7 +19,7 @@
 // TODO: write some docs about the terms used in this module.
 
 use cuda_std_macros::gpu_only;
-use vek::{Vec2, Vec3};
+use glam::{UVec2, UVec3};
 
 // different calling conventions dont exist in nvptx, so we just use C as a placeholder.
 extern "C" {
@@ -152,7 +152,7 @@ pub fn grid_dim_z() -> u32 {
 /// Gets the 3d index of the thread currently executing the kernel.
 #[gpu_only]
 #[inline(always)]
-pub fn thread_idx() -> Vec3<u32> {
+pub fn thread_idx() -> UVec3 {
     unsafe {
         Vec3::new(
             __nvvm_thread_idx_x(),
@@ -165,7 +165,7 @@ pub fn thread_idx() -> Vec3<u32> {
 /// Gets the 3d index of the block that the thread currently executing the kernel is located in.
 #[gpu_only]
 #[inline(always)]
-pub fn block_idx() -> Vec3<u32> {
+pub fn block_idx() -> UVec3 {
     unsafe {
         Vec3::new(
             __nvvm_block_idx_x(),
@@ -179,7 +179,7 @@ pub fn block_idx() -> Vec3<u32> {
 /// how many threads exist in each thread block in every direction.
 #[gpu_only]
 #[inline(always)]
-pub fn block_dim() -> Vec3<u32> {
+pub fn block_dim() -> UVec3 {
     unsafe {
         Vec3::new(
             __nvvm_block_dim_x(),
@@ -193,7 +193,7 @@ pub fn block_dim() -> Vec3<u32> {
 /// how many thread blocks exist in each grid in every direction.
 #[gpu_only]
 #[inline(always)]
-pub fn grid_dim() -> Vec3<u32> {
+pub fn grid_dim() -> UVec3 {
     unsafe {
         Vec3::new(
             __nvvm_grid_dim_x(),
@@ -232,18 +232,18 @@ pub fn index_1d() -> u32 {
 }
 
 #[inline(always)]
-pub fn index_2d() -> Vec2<u32> {
+pub fn index_2d() -> UVec2 {
     let i = thread_idx_x() + block_idx_x() * block_dim_x();
     let j = thread_idx_y() + block_idx_y() * block_dim_y();
-    Vec2::new(i, j)
+    UVec2::new(i, j)
 }
 
 #[inline(always)]
-pub fn index_3d() -> Vec3<u32> {
+pub fn index_3d() -> UVec3 {
     let i = thread_idx_x() + block_idx_x() * block_dim_x();
     let j = thread_idx_y() + block_idx_y() * block_dim_y();
     let k = thread_idx_z() + block_idx_z() * block_dim_z();
-    Vec3::new(i, j, k)
+    UVec3::new(i, j, k)
 }
 
 /// Whether this is the first thread (not the first thread to be executing). This function is guaranteed
@@ -251,7 +251,7 @@ pub fn index_3d() -> Vec3<u32> {
 /// once.
 #[inline(always)]
 pub fn first() -> bool {
-    block_idx() == Vec3::zero() && thread_idx() == Vec3::zero()
+    block_idx() == UVec3::ZERO && thread_idx() == UVec3::ZERO
 }
 
 /// Gets the number of threads inside of a warp. Currently 32 threads on every GPU architecture.

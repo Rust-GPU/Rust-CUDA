@@ -8,7 +8,7 @@ pub fn color(ray: Ray) -> Vec3 {
     (1.0 - t) * Vec3::one() + t * Vec3::new(0.5, 0.7, 1.0)
 }
 
-pub fn generate_ray(idx: vek::Vec2<u32>, view: &Viewport, offset: Vec2) -> Ray {
+pub fn generate_ray(idx: UVec2, view: &Viewport, offset: Vec2) -> Ray {
     let uv = (idx.numcast::<f32>().unwrap() + offset) / view.bounds.numcast().unwrap();
     Ray {
         origin: view.origin,
