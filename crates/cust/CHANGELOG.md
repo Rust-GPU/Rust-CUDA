@@ -4,6 +4,7 @@ Notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- `cuda_std::vek` is now deprecated. Use `cuda_std::glam`.
 - Add `memory::memcpy_dtoh` to allow copying from device to host.
 - `DeviceSlice` is represented as a slice again, but as `[()]` instead of `[T]`.
 - Reimplemented `Index` and `IndexMut` for `DeviceSlice` and removed `DeviceSlice::index`.

@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use glam::{Clamp, Vec2, Vec3};
 use gpu_rand::{DefaultRand, GpuRand};
 use imgui::Ui;
 use path_tracer_kernels::{
@@ -7,13 +8,12 @@ use path_tracer_kernels::{
 };
 use rayon::prelude::*;
 use sysinfo::System;
-use vek::{Clamp, Vec2, Vec3};
 
 use crate::{common::Camera, cuda::SEED};
 
 pub struct CpuRenderer {
     // this is basically the cuda buffers but not gpu buffers.
-    accumulated_buffer: Vec<Vec3<f32>>,
+    accumulated_buffer: Vec<Vec3>,
     out_buffer: Vec<Vec3<u8>>,
 
     viewport: Viewport,
@@ -23,7 +23,7 @@ pub struct CpuRenderer {
 }
 
 impl CpuRenderer {
-    pub fn new(dimensions: Vec2<usize>, camera: &Camera, scene: &Scene) -> Self {
+    pub fn new(dimensions: USizeVec2, camera: &Camera, scene: &Scene) -> Self {
         let accumulated_buffer = vec![Vec3::zero(); dimensions.product()];
         let out_buffer = vec![Vec3::zero(); dimensions.product()];
 
@@ -67,7 +67,7 @@ impl CpuRenderer {
         new_camera.as_viewport(&mut self.viewport);
     }
 
-    pub fn resize(&mut self, dimensions: Vec2<usize>) {
+    pub fn resize(&mut self, dimensions: USizeVec2) {
         self.accumulated_buffer
             .resize(dimensions.product(), Vec3::zero());
         self.out_buffer.resize(dimensions.product(), Vec3::zero());

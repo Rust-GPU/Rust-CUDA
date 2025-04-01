@@ -1,14 +1,14 @@
+use glam::{Vec2, Vec3};
 use glium::glutin::event::{
     ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
 use path_tracer_kernels::Viewport;
-use vek::{Vec2, Vec3};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Camera {
-    pub origin: Vec3<f32>,
-    pub lookat: Vec3<f32>,
-    pub vup: Vec3<f32>,
+    pub origin: Vec3,
+    pub lookat: Vec3,
+    pub vup: Vec3,
     pub fov: f32,
     pub aspect_ratio: f32,
 }
@@ -43,7 +43,7 @@ pub struct CameraController {
 }
 
 impl CameraController {
-    pub fn new(dimensions: Vec2<usize>) -> Self {
+    pub fn new(dimensions: USizeVec2) -> Self {
         CameraController {
             sensitivity: 0.1,
             last_mouse_pos: dimensions.numcast().unwrap() / 2.0,

@@ -5,9 +5,9 @@ use cust::{
     memory::{DeviceBuffer, DeviceCopy, UnifiedBuffer},
     util::SliceExt,
 };
+use glam::{Vec2, Vec3};
 use gpu_rand::DefaultRand;
 use path_tracer_kernels::{material::MaterialKind, scene::Scene, Object, Viewport};
-use vek::{Vec2, Vec3};
 
 use super::SEED;
 

@@ -49,7 +49,9 @@ mod float_ext;
 pub use cuda_std_macros::*;
 pub use float::GpuFloat;
 pub use float_ext::*;
+pub use glam;
 pub use half;
+#[deprecated(note = "The `vek` module is deprecated, use `glam` instead.")]
 pub use vek;
 
 pub use half::{bf16, f16};
