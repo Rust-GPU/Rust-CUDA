@@ -1,0 +1,88 @@
+name: "Common CI Steps"
+description: "Runs steps between builds, checks, and integration tests."
+inputs:
+  matrix_os:
+    description: "OS from matrix"
+    required: true
+  matrix_cuda:
+    description: "CUDA version from matrix"
+    required: true
+  matrix_target:
+    description: "Target triple from matrix"
+    required: true
+  matrix_gpu:
+    description: "GPU type from matrix"
+    required: true
+  matrix_linux_local_args:
+    description: "Linux local args from matrix (as JSON)"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Install CUDA
+      uses: Jimver/cuda-toolkit@v0.2.22
+      id: cuda-toolkit
+      with:
+        cuda: ${{ inputs.matrix_cuda }}
+        linux-local-args: ${{ inputs.matrix_linux_local_args }}
+        use-local-cache: false
+
+    - name: Verify CUDA installation
+      run: nvcc --version
+
+    - name: List CUDA_PATH files (Linux)
+      if: runner.os == 'Linux'
+      run: find "$CUDA_PATH" -type f
+
+    - name: List CUDA_PATH files (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: Get-ChildItem -Path $env:CUDA_PATH -Recurse | ForEach-Object { $_.FullName }
+
+    - name: Install rust-toolchain
+      run: cargo version
+
+    - name: Add rustup components
+      run: rustup component add rustfmt clippy
+
+    - name: Install dependencies for LLVM 7
+      if: inputs.matrix_os == 'ubuntu-24.04'
+      run: |
+        wget -O libffi7.deb http://security.ubuntu.com/ubuntu/pool/universe/libf/libffi7/libffi7_3.3-5ubuntu1_amd64.deb
+        sudo apt-get update
+        sudo apt-get install -y ./*.deb liblzma-dev libssl-dev libcurl4-openssl-dev
+
+    - name: Install LLVM 7
+      if: contains(inputs.matrix_os, 'ubuntu')
+      run: |
+        mkdir -p ~/llvm7 && cd ~/llvm7
+        wget http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7_7.0.1-12_amd64.deb \
+             http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-dev_7.0.1-12_amd64.deb \
+             http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/libllvm7_7.0.1-12_amd64.deb \
+             http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-runtime_7.0.1-12_amd64.deb
+        sudo apt-get update
+        sudo apt-get install -y ./*.deb
+        sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
+
+    - name: Load Rust Cache
+      uses: Swatinem/rust-cache@v2.7.7
+      with:
+        key: ${{ inputs.matrix_os }}-${{ inputs.matrix_target }}-${{ inputs.matrix_cuda }}
+
+    - name: Rustfmt
+      if: contains(inputs.matrix_os, 'ubuntu')
+      run: cargo fmt --all -- --check
+
+    - name: Build
+      run: cargo build --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
+
+    - name: Clippy
+      if: runner.os == 'Linux'
+      env:
+        RUSTFLAGS: -Dwarnings
+      run: cargo clippy --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
+
+    - name: Check documentation
+      env:
+        RUSTDOCFLAGS: -Dwarnings
+      run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"

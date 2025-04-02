@@ -1,10 +1,15 @@
 name: Rust CI
 
 on:
-  pull_request:
+  push:
     paths-ignore:
       - "**.md"
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.md"
+  pull_request_target:
+    types: [labeled]
     paths-ignore:
       - "**.md"
 
@@ -13,11 +18,9 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  rust:
-    name: Rust on ${{ matrix.os }} with CUDA ${{ matrix.cuda }}
+  build-and-check:
+    name: Build & check ${{ matrix.os }} with CUDA ${{ matrix.cuda }}
     runs-on: ${{ matrix.os }}
-    env:
-      LLVM_LINK_STATIC: 1
     strategy:
       fail-fast: false
       matrix:
@@ -30,8 +33,8 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             cuda: "12.8.1"
-            linux-local-args: ["--toolkit"]
             gpu: "T4"
+            linux-local-args: ["--toolkit"]
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             cuda: "11.2.2"
@@ -40,124 +43,78 @@ jobs:
             target: x86_64-pc-windows-msvc
             cuda: "12.8.1"
             linux-local-args: []
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install CUDA
-        uses: Jimver/cuda-toolkit@v0.2.22
-        id: cuda-toolkit
+      - name: Run common steps
+        uses: ./.github/actions/common-steps
         with:
-          cuda: ${{ matrix.cuda }}
-          linux-local-args: ${{ toJson(matrix.linux-local-args) }}
-          use-local-cache: false
+          matrix_os: ${{ matrix.os }}
+          matrix_cuda: ${{ matrix.cuda }}
+          matrix_target: ${{ matrix.target }}
+          matrix_gpu: ${{ matrix.gpu }}
+          matrix_linux_local_args: ${{ matrix.linux-local-args }}
 
-      - name: Verify CUDA installation
-        run: nvcc --version
-
-      - name: List CUDA_PATH files (Linux)
-        if: runner.os == 'Linux'
-        run: find "$CUDA_PATH" -type f
-
-      - name: List CUDA_PATH files (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: Get-ChildItem -Path $env:CUDA_PATH -Recurse | ForEach-Object { $_.FullName }
-
-      - name: Install rust-toolchain
-        run: cargo version
-
-      - name: Add rustup components
-        run: rustup component add rustfmt clippy
-
-      - name: Install dependencies for LLVM 7
-        if: matrix.os == 'ubuntu-24.04'
-        run: |
-          wget -O libffi7.deb http://security.ubuntu.com/ubuntu/pool/universe/libf/libffi7/libffi7_3.3-5ubuntu1_amd64.deb
-          sudo apt-get update
-          sudo apt-get install -y ./*.deb
-          sudo apt-get install -y liblzma-dev
-          sudo apt-get install -y libssl-dev
-          sudo apt-get install -y libcurl4-openssl-dev
-
-      - name: Install LLVM 7
-        if: contains(matrix.os, 'ubuntu')
-        run: |
-          mkdir -p ~/llvm7 && cd ~/llvm7
-          wget http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7_7.0.1-12_amd64.deb \
-               http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-dev_7.0.1-12_amd64.deb \
-               http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/libllvm7_7.0.1-12_amd64.deb \
-               http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-runtime_7.0.1-12_amd64.deb
-          sudo apt-get update
-          sudo apt-get install -y ./*.deb
-          sudo ln -s /usr/bin/llvm-config-7 /usr/local/bin/llvm-config
-
-      - name: Load Rust Cache
-        uses: Swatinem/rust-cache@v2.7.7
+  integration-tests:
+    name: Integration tests (after manual review) on ${{ matrix.os }} with CUDA ${{ matrix.cuda }}
+    runs-on: ${{ matrix.os }}
+    if: runner.os == 'Linux' && ( github.event_name == 'push' || (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')) )
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-20.04
+            target: x86_64-unknown-linux-gnu
+            cuda: "11.2.2"
+            gpu: "T4"
+            linux-local-args: ["--toolkit"]
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            cuda: "12.8.1"
+            gpu: "T4"
+            linux-local-args: ["--toolkit"]
+    env:
+      RUNNER_OS_NAME: ${{ matrix.os }}
+      RUNNER_CUDA_VERSION: ${{ matrix.cuda }}
+      MODAL_GPU_TYPE: ${{ matrix.gpu }}
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
         with:
-          key: ${{ matrix.os }}-${{ matrix.target }}-${{ matrix.cuda }}
+          ref: "${{ github.event_name == 'pull_request_target' ? github.event.pull_request.head.sha : github.ref }}"
 
-      - name: Rustfmt
-        if: contains(matrix.os, 'ubuntu')
-        run: cargo fmt --all -- --check
-
-      - name: Build
-        run: cargo build --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
-
-      - name: Clippy
-        if: runner.os == 'Linux'
-        env:
-          RUSTFLAGS: -Dwarnings
-        run: cargo clippy --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
-
-      - name: Check documentation
-        env:
-          RUSTDOCFLAGS: -Dwarnings
-        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
+      - name: Run common steps
+        uses: ./.github/actions/common-steps
+        with:
+          matrix_os: ${{ matrix.os }}
+          matrix_cuda: ${{ matrix.cuda }}
+          matrix_target: ${{ matrix.target }}
+          matrix_gpu: ${{ matrix.gpu }}
+          matrix_linux_local_args: ${{ matrix.linux-local-args }}
 
       - name: Install python (for CI test runner script)
-        if: >
-          runner.os == 'Linux' &&
-          (github.event_name == 'push' ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository &&
-           contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
+        if: runner.os == 'Linux'
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Install CI test runner deps
-        if: >
-          runner.os == 'Linux' &&
-          (github.event_name == 'push' ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository &&
-           contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
+        if: runner.os == 'Linux'
         working-directory: .ci/modal.com
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           uv sync
 
       - name: Check CI test runner formatting
-        if: >
-          runner.os == 'Linux' &&
-          (github.event_name == 'push' ||
-          (github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
+        if: runner.os == 'Linux'
         working-directory: .ci/modal.com
         run: uvx black --check .
 
-      # Secrets are not available in forked PRs, so we have to manually add a label and
-      # re-run.
-      - name: Run integration tests
-        if: >
-          runner.os == 'Linux' &&
-          (github.event_name == 'push' ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository &&
-           contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
+      - name: Run tests on the GPU
+        if: runner.os == 'Linux'
         env:
           RUNNER_OS_NAME: ${{ matrix.os }}
           RUNNER_CUDA_VERSION: ${{ matrix.cuda }}
