@@ -1,0 +1,9 @@
+[project]
+name = "modal-com"
+version = "0.1.0"
+description = "Cargo test runner script for Modal"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "modal>=0.73.138",
+]
