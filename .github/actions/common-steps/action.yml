@@ -28,10 +28,12 @@ runs:
         use-local-cache: false
 
     - name: Verify CUDA installation
+      shell: bash
       run: nvcc --version
 
     - name: List CUDA_PATH files (Linux)
       if: runner.os == 'Linux'
+      shell: bash
       run: find "$CUDA_PATH" -type f
 
     - name: List CUDA_PATH files (Windows)
@@ -40,6 +42,7 @@ runs:
       run: Get-ChildItem -Path $env:CUDA_PATH -Recurse | ForEach-Object { $_.FullName }
 
     - name: Install rust-toolchain
+      shell: bash
       run: cargo version
 
     - name: Add rustup components
@@ -47,6 +50,7 @@ runs:
 
     - name: Install dependencies for LLVM 7
       if: inputs.matrix_os == 'ubuntu-24.04'
+      shell: bash
       run: |
         wget -O libffi7.deb http://security.ubuntu.com/ubuntu/pool/universe/libf/libffi7/libffi7_3.3-5ubuntu1_amd64.deb
         sudo apt-get update
@@ -54,6 +58,7 @@ runs:
 
     - name: Install LLVM 7
       if: contains(inputs.matrix_os, 'ubuntu')
+      shell: bash
       run: |
         mkdir -p ~/llvm7 && cd ~/llvm7
         wget http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7_7.0.1-12_amd64.deb \
@@ -71,18 +76,22 @@ runs:
 
     - name: Rustfmt
       if: contains(inputs.matrix_os, 'ubuntu')
+      shell: bash
       run: cargo fmt --all -- --check
 
     - name: Build
+      shell: bash
       run: cargo build --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
 
     - name: Clippy
+      shell: bash
       if: runner.os == 'Linux'
       env:
         RUSTFLAGS: -Dwarnings
       run: cargo clippy --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
 
     - name: Check documentation
+      shell: bash
       env:
         RUSTDOCFLAGS: -Dwarnings
       run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
