@@ -14,9 +14,9 @@ use std::ptr::null;
 use std::ptr::null_mut;
 
 use cust_raw::driver_sys;
-use cust_raw::driver_sys::cuMemcpy2D_v2;
-use cust_raw::driver_sys::cuMemcpyAtoH_v2;
-use cust_raw::driver_sys::cuMemcpyHtoA_v2;
+use cust_raw::driver_sys::cuMemcpy2D;
+use cust_raw::driver_sys::cuMemcpyAtoH;
+use cust_raw::driver_sys::cuMemcpyHtoA;
 use cust_raw::driver_sys::CUDA_MEMCPY2D;
 use cust_raw::driver_sys::{CUarray, CUarray_format, CUarray_format_enum};
 
@@ -479,7 +479,7 @@ impl ArrayObject {
         }
 
         let mut handle = MaybeUninit::uninit();
-        unsafe { driver_sys::cuArray3DCreate_v2(handle.as_mut_ptr(), &descriptor.desc) }
+        unsafe { driver_sys::cuArray3DCreate(handle.as_mut_ptr(), &descriptor.desc) }
             .to_result()?;
         Ok(Self {
             handle: unsafe { handle.assume_init() },
@@ -731,7 +731,7 @@ impl ArrayObject {
     pub fn descriptor(&self) -> CudaResult<ArrayDescriptor> {
         // Use "zeroed" incase CUDA_ARRAY3D_DESCRIPTOR has uninitialized padding
         let mut raw_descriptor = MaybeUninit::zeroed();
-        unsafe { driver_sys::cuArray3DGetDescriptor_v2(raw_descriptor.as_mut_ptr(), self.handle) }
+        unsafe { driver_sys::cuArray3DGetDescriptor(raw_descriptor.as_mut_ptr(), self.handle) }
             .to_result()?;
 
         Ok(ArrayDescriptor::from_raw(unsafe {
@@ -764,8 +764,7 @@ impl ArrayObject {
         assert_eq!(self_size, other_size, "Array and value sizes don't match");
         unsafe {
             if desc.height() == 0 && desc.depth() == 0 {
-                cuMemcpyHtoA_v2(self.handle, 0, val.as_ptr() as *const c_void, self_size)
-                    .to_result()
+                cuMemcpyHtoA(self.handle, 0, val.as_ptr() as *const c_void, self_size).to_result()
             } else if desc.depth() == 0 {
                 let desc = CUDA_MEMCPY2D {
                     Height: desc.height(),
@@ -787,7 +786,7 @@ impl ArrayObject {
                     srcXInBytes: 0,
                     srcY: 0,
                 };
-                cuMemcpy2D_v2(&desc as *const _).to_result()
+                cuMemcpy2D(&desc as *const _).to_result()
             } else {
                 panic!();
             }
@@ -810,8 +809,7 @@ impl ArrayObject {
         assert_eq!(self_size, other_size, "Array and value sizes don't match");
         unsafe {
             if desc.height() == 0 && desc.depth() == 0 {
-                cuMemcpyAtoH_v2(val.as_mut_ptr() as *mut c_void, self.handle, 0, self_size)
-                    .to_result()
+                cuMemcpyAtoH(val.as_mut_ptr() as *mut c_void, self.handle, 0, self_size).to_result()
             } else if desc.depth() == 0 {
                 let width = desc.width() * desc.num_channels() as usize * desc.format().mem_size();
                 let desc = CUDA_MEMCPY2D {
@@ -832,7 +830,7 @@ impl ArrayObject {
                     srcXInBytes: 0,
                     srcY: 0,
                 };
-                cuMemcpy2D_v2(&desc as *const _).to_result()?;
+                cuMemcpy2D(&desc as *const _).to_result()?;
                 Ok(())
             } else {
                 panic!();

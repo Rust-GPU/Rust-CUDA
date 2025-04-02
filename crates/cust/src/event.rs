@@ -18,7 +18,7 @@ use std::ptr;
 use std::time::Duration;
 
 use cust_raw::driver_sys::{
-    cuEventCreate, cuEventDestroy_v2, cuEventElapsedTime, cuEventQuery, cuEventRecord,
+    cuEventCreate, cuEventDestroy, cuEventElapsedTime, cuEventQuery, cuEventRecord,
     cuEventSynchronize, CUevent,
 };
 
@@ -334,7 +334,7 @@ impl Event {
 
         unsafe {
             let inner = mem::replace(&mut event.0, ptr::null_mut());
-            match cuEventDestroy_v2(inner).to_result() {
+            match cuEventDestroy(inner).to_result() {
                 Ok(()) => {
                     mem::forget(event);
                     Ok(())
@@ -347,7 +347,7 @@ impl Event {
 
 impl Drop for Event {
     fn drop(&mut self) {
-        unsafe { cuEventDestroy_v2(self.0) };
+        unsafe { cuEventDestroy(self.0) };
     }
 }
 

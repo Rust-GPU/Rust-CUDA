@@ -232,12 +232,8 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
         unsafe {
             let new_buf = DeviceBuffer::uninitialized(size)?;
             if size_of::<T>() != 0 {
-                driver_sys::cuMemsetD8_v2(
-                    new_buf.as_device_ptr().as_raw(),
-                    0,
-                    size_of::<T>() * size,
-                )
-                .to_result()?;
+                driver_sys::cuMemsetD8(new_buf.as_device_ptr().as_raw(), 0, size_of::<T>() * size)
+                    .to_result()?;
             }
             Ok(new_buf)
         }

@@ -3,6 +3,8 @@ use std::error;
 use std::fs;
 use std::path;
 
+const OPTIX_ROOT_ENVS: &[&str] = &["OPTIX_ROOT", "OPTIX_ROOT_DIR"];
+
 /// Represents the OptiX SDK installation.
 #[derive(Debug, Clone)]
 pub struct OptiXSdk {
@@ -60,14 +62,19 @@ impl OptiXSdk {
         self.optix_version % 100
     }
 
+    pub fn related_optix_envs(&self) -> Vec<String> {
+        OPTIX_ROOT_ENVS.iter().map(|s| s.to_string()).collect()
+    }
+
     fn find_optix_root() -> Option<path::PathBuf> {
         // the optix SDK installer sets OPTIX_ROOT_DIR whenever it installs.
         // We also check OPTIX_ROOT first in case someone wants to override it without overriding
         // the SDK-set variable.
-        env::var("OPTIX_ROOT")
-            .ok()
-            .or_else(|| env::var("OPTIX_ROOT_DIR").ok())
+        OPTIX_ROOT_ENVS
+            .iter()
+            .filter_map(|env| env::var(env).ok())
             .map(path::PathBuf::from)
+            .next()
     }
 
     /// Parses the content of the `optix.h` header file to extract the OptiX version.

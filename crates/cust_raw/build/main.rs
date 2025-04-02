@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::path;
 
+pub mod callbacks;
 pub mod cuda_sdk;
 
 fn main() {
@@ -79,8 +80,15 @@ fn create_cuda_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         return;
     }
     let bindgen_path = path::PathBuf::from(format!("{}/driver_sys.rs", outdir.display()));
+    let header = "build/driver_wrapper.h";
     let bindings = bindgen::Builder::default()
-        .header("build/driver_wrapper.h")
+        .header(header)
+        .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
+            "cu",
+            outdir,
+            header,
+            sdk.cuda_include_paths().to_owned(),
+        )))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .clang_args(
             sdk.cuda_include_paths()
@@ -115,8 +123,15 @@ fn create_cuda_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         return;
     }
     let bindgen_path = path::PathBuf::from(format!("{}/runtime_sys.rs", outdir.display()));
+    let header = "build/runtime_wrapper.h";
     let bindings = bindgen::Builder::default()
-        .header("build/runtime_wrapper.h")
+        .header(header)
+        .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
+            "cuda",
+            outdir,
+            header,
+            sdk.cuda_include_paths().to_owned(),
+        )))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .clang_args(
             sdk.cuda_include_paths()
@@ -148,16 +163,23 @@ fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
     #[rustfmt::skip]
     let params = &[
         (cfg!(feature = "cublas"), "cublas", "^cublas.*", "^CUBLAS.*"),
-        (cfg!(feature = "cublaslt"), "cublaslt", "^cublasLt.*", "^CUBLASLT.*"),
-        (cfg!(feature = "cublasxt"), "cublasxt", "^cublasXt.*", "^CUBLASXT.*"),
+        (cfg!(feature = "cublaslt"), "cublasLt", "^cublasLt.*", "^CUBLASLT.*"),
+        (cfg!(feature = "cublasxt"), "cublasXt", "^cublasXt.*", "^CUBLASXT.*"),
     ];
     for (should_generate, pkg, tf, var) in params {
         if !should_generate {
             continue;
         }
         let bindgen_path = path::PathBuf::from(format!("{}/{pkg}_sys.rs", outdir.display()));
+        let header = format!("build/{pkg}_wrapper.h");
         let bindings = bindgen::Builder::default()
-            .header(format!("build/{pkg}_wrapper.h"))
+            .header(&header)
+            .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
+                pkg,
+                outdir,
+                header,
+                sdk.cuda_include_paths().to_owned(),
+            )))
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             .clang_args(
                 sdk.cuda_include_paths()

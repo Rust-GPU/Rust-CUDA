@@ -340,7 +340,7 @@ impl Module {
     /// ```
     #[deprecated(
         since = "0.3.0",
-        note = "load_from_string was an inconsistent name with inconsistent params, use from_ptx/from_ptx_cstr, passing 
+        note = "load_from_string was an inconsistent name with inconsistent params, use from_ptx/from_ptx_cstr, passing
     an empty slice of options (usually)
     "
     )]
@@ -390,7 +390,7 @@ impl Module {
             let mut ptr: DevicePointer<T> = DevicePointer::null();
             let mut size: usize = 0;
 
-            driver_sys::cuModuleGetGlobal_v2(
+            driver_sys::cuModuleGetGlobal(
                 &mut ptr as *mut DevicePointer<T> as *mut driver_sys::CUdeviceptr,
                 &mut size as *mut usize,
                 self.inner,
@@ -513,12 +513,8 @@ impl<T: DeviceCopy> CopyDestination<T> for Symbol<'_, T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyHtoD_v2(
-                    self.ptr.as_raw(),
-                    val as *const T as *const c_void,
-                    size,
-                )
-                .to_result()?
+                driver_sys::cuMemcpyHtoD(self.ptr.as_raw(), val as *const T as *const c_void, size)
+                    .to_result()?
             }
         }
         Ok(())
@@ -528,7 +524,7 @@ impl<T: DeviceCopy> CopyDestination<T> for Symbol<'_, T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyDtoH_v2(val as *const T as *mut c_void, self.ptr.as_raw(), size)
+                driver_sys::cuMemcpyDtoH(val as *const T as *mut c_void, self.ptr.as_raw(), size)
                     .to_result()?
             }
         }

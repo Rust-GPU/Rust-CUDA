@@ -215,13 +215,13 @@ impl Context {
     /// Nothing else should be using the primary context for this device, otherwise,
     /// spurious errors or segfaults will occur.
     pub unsafe fn reset(device: &Device) -> CudaResult<()> {
-        driver_sys::cuDevicePrimaryCtxReset_v2(device.as_raw()).to_result()
+        driver_sys::cuDevicePrimaryCtxReset(device.as_raw()).to_result()
     }
 
     /// Sets the flags for the device context, these flags will apply to any user of the primary
     /// context associated with this device.
     pub fn set_flags(&self, flags: ContextFlags) -> CudaResult<()> {
-        unsafe { driver_sys::cuDevicePrimaryCtxSetFlags_v2(self.device, flags.bits()).to_result() }
+        unsafe { driver_sys::cuDevicePrimaryCtxSetFlags(self.device, flags.bits()).to_result() }
     }
 
     /// Returns the raw handle to this context.
@@ -291,7 +291,7 @@ impl Context {
 
         unsafe {
             let inner = mem::replace(&mut ctx.inner, ptr::null_mut());
-            match driver_sys::cuDevicePrimaryCtxRelease_v2(ctx.device).to_result() {
+            match driver_sys::cuDevicePrimaryCtxRelease(ctx.device).to_result() {
                 Ok(()) => {
                     mem::forget(ctx);
                     Ok(())
@@ -316,7 +316,7 @@ impl Drop for Context {
 
         unsafe {
             self.inner = ptr::null_mut();
-            driver_sys::cuDevicePrimaryCtxRelease_v2(self.device);
+            driver_sys::cuDevicePrimaryCtxRelease(self.device);
         }
     }
 }

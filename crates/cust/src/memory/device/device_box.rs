@@ -164,7 +164,7 @@ impl<T: DeviceCopy + bytemuck::Zeroable> DeviceBox<T> {
         unsafe {
             let new_box = DeviceBox::uninitialized()?;
             if mem::size_of::<T>() != 0 {
-                driver_sys::cuMemsetD8_v2(new_box.as_device_ptr().as_raw(), 0, mem::size_of::<T>())
+                driver_sys::cuMemsetD8(new_box.as_device_ptr().as_raw(), 0, mem::size_of::<T>())
                     .to_result()?;
             }
             Ok(new_box)
@@ -430,12 +430,8 @@ impl<T: DeviceCopy> CopyDestination<T> for DeviceBox<T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyHtoD_v2(
-                    self.ptr.as_raw(),
-                    val as *const T as *const c_void,
-                    size,
-                )
-                .to_result()?
+                driver_sys::cuMemcpyHtoD(self.ptr.as_raw(), val as *const T as *const c_void, size)
+                    .to_result()?
             }
         }
         Ok(())
@@ -445,7 +441,7 @@ impl<T: DeviceCopy> CopyDestination<T> for DeviceBox<T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyDtoH_v2(val as *const T as *mut c_void, self.ptr.as_raw(), size)
+                driver_sys::cuMemcpyDtoH(val as *const T as *mut c_void, self.ptr.as_raw(), size)
                     .to_result()?
             }
         }
@@ -457,8 +453,7 @@ impl<T: DeviceCopy> CopyDestination<DeviceBox<T>> for DeviceBox<T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyDtoD_v2(self.ptr.as_raw(), val.ptr.as_raw(), size)
-                    .to_result()?
+                driver_sys::cuMemcpyDtoD(self.ptr.as_raw(), val.ptr.as_raw(), size).to_result()?
             }
         }
         Ok(())
@@ -468,8 +463,7 @@ impl<T: DeviceCopy> CopyDestination<DeviceBox<T>> for DeviceBox<T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyDtoD_v2(val.ptr.as_raw(), self.ptr.as_raw(), size)
-                    .to_result()?
+                driver_sys::cuMemcpyDtoD(val.ptr.as_raw(), self.ptr.as_raw(), size).to_result()?
             }
         }
         Ok(())
@@ -479,7 +473,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<T> for DeviceBox<T> {
     unsafe fn async_copy_from(&mut self, val: &T, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            driver_sys::cuMemcpyHtoDAsync_v2(
+            driver_sys::cuMemcpyHtoDAsync(
                 self.ptr.as_raw(),
                 val as *const _ as *const c_void,
                 size,
@@ -493,7 +487,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<T> for DeviceBox<T> {
     unsafe fn async_copy_to(&self, val: &mut T, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            driver_sys::cuMemcpyDtoHAsync_v2(
+            driver_sys::cuMemcpyDtoHAsync(
                 val as *mut _ as *mut c_void,
                 self.ptr.as_raw(),
                 size,
@@ -508,7 +502,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceBox<T>> for DeviceBox<T> {
     unsafe fn async_copy_from(&mut self, val: &DeviceBox<T>, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            driver_sys::cuMemcpyDtoDAsync_v2(
+            driver_sys::cuMemcpyDtoDAsync(
                 self.ptr.as_raw(),
                 val.ptr.as_raw(),
                 size,
@@ -522,7 +516,7 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceBox<T>> for DeviceBox<T> {
     unsafe fn async_copy_to(&self, val: &mut DeviceBox<T>, stream: &Stream) -> CudaResult<()> {
         let size = mem::size_of::<T>();
         if size != 0 {
-            driver_sys::cuMemcpyDtoDAsync_v2(
+            driver_sys::cuMemcpyDtoDAsync(
                 val.ptr.as_raw(),
                 self.ptr.as_raw(),
                 size,

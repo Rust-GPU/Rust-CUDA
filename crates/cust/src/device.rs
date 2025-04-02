@@ -295,7 +295,7 @@ impl Device {
     pub fn total_memory(self) -> CudaResult<usize> {
         unsafe {
             let mut memory = 0;
-            driver_sys::cuDeviceTotalMem_v2(&mut memory as *mut usize, self.device).to_result()?;
+            driver_sys::cuDeviceTotalMem(&mut memory as *mut usize, self.device).to_result()?;
             Ok(memory)
         }
     }

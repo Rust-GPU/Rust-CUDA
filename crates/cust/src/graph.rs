@@ -395,7 +395,7 @@ impl Graph {
             let deps_ptr = deps.as_ptr().cast();
             let mut node = MaybeUninit::<GraphNode>::uninit();
             let params = invocation.to_raw();
-            driver_sys::cuGraphAddKernelNode_v2(
+            driver_sys::cuGraphAddKernelNode(
                 node.as_mut_ptr().cast(),
                 self.raw,
                 deps_ptr,
@@ -476,7 +476,7 @@ impl Graph {
         );
         unsafe {
             let mut params = MaybeUninit::uninit();
-            driver_sys::cuGraphKernelNodeGetParams_v2(node.to_raw(), params.as_mut_ptr());
+            driver_sys::cuGraphKernelNodeGetParams(node.to_raw(), params.as_mut_ptr());
             Ok(KernelInvocation::from_raw(params.assume_init()))
         }
     }

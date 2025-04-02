@@ -103,7 +103,7 @@ impl Level1 for f32 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIsamax_v2(handle, n, x, incx, result)
+        cublasIsamax(handle, n, x, incx, result)
     }
     unsafe fn amin(
         handle: cublasHandle_t,
@@ -112,7 +112,7 @@ impl Level1 for f32 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIsamin_v2(handle, n, x, incx, result)
+        cublasIsamin(handle, n, x, incx, result)
     }
     unsafe fn axpy(
         handle: cublasHandle_t,
@@ -123,7 +123,7 @@ impl Level1 for f32 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasSaxpy_v2(handle, n, alpha, x, incx, y, incy)
+        cublasSaxpy(handle, n, alpha, x, incx, y, incy)
     }
     unsafe fn copy(
         handle: cublasHandle_t,
@@ -133,7 +133,7 @@ impl Level1 for f32 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasScopy_v2(handle, n, x, incx, y, incy)
+        cublasScopy(handle, n, x, incx, y, incy)
     }
     unsafe fn nrm2(
         handle: cublasHandle_t,
@@ -142,7 +142,7 @@ impl Level1 for f32 {
         incx: c_int,
         result: *mut Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasSnrm2_v2(handle, n, x, incx, result)
+        cublasSnrm2(handle, n, x, incx, result)
     }
     unsafe fn rot(
         handle: cublasHandle_t,
@@ -154,7 +154,7 @@ impl Level1 for f32 {
         c: *const Self::FloatTy,
         s: *const Self,
     ) -> cublasStatus_t {
-        cublasSrot_v2(handle, n, x, incx, y, incy, c, s)
+        cublasSrot(handle, n, x, incx, y, incy, c, s)
     }
     unsafe fn rotg(
         handle: cublasHandle_t,
@@ -163,7 +163,7 @@ impl Level1 for f32 {
         c: *mut Self::FloatTy,
         s: *mut Self,
     ) -> cublasStatus_t {
-        cublasSrotg_v2(handle, a, b, c, s)
+        cublasSrotg(handle, a, b, c, s)
     }
     unsafe fn rotm(
         handle: cublasHandle_t,
@@ -174,7 +174,7 @@ impl Level1 for f32 {
         incy: c_int,
         param: *const Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasSrotm_v2(handle, n, x, incx, y, incy, param)
+        cublasSrotm(handle, n, x, incx, y, incy, param)
     }
     unsafe fn rotmg(
         handle: cublasHandle_t,
@@ -184,7 +184,7 @@ impl Level1 for f32 {
         y1: *const Self,
         param: *mut Self,
     ) -> cublasStatus_t {
-        cublasSrotmg_v2(handle, d1, d2, x1, y1, param)
+        cublasSrotmg(handle, d1, d2, x1, y1, param)
     }
     unsafe fn scal(
         handle: cublasHandle_t,
@@ -193,7 +193,7 @@ impl Level1 for f32 {
         x: *mut Self,
         incx: c_int,
     ) -> cublasStatus_t {
-        cublasSscal_v2(handle, n, alpha, x, incx)
+        cublasSscal(handle, n, alpha, x, incx)
     }
     unsafe fn swap(
         handle: cublasHandle_t,
@@ -203,7 +203,7 @@ impl Level1 for f32 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasSswap_v2(handle, n, x, incx, y, incy)
+        cublasSswap(handle, n, x, incx, y, incy)
     }
 }
 
@@ -215,7 +215,7 @@ impl Level1 for f64 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIdamax_v2(handle, n, x, incx, result)
+        cublasIdamax(handle, n, x, incx, result)
     }
     unsafe fn amin(
         handle: cublasHandle_t,
@@ -224,7 +224,7 @@ impl Level1 for f64 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIdamin_v2(handle, n, x, incx, result)
+        cublasIdamin(handle, n, x, incx, result)
     }
     unsafe fn axpy(
         handle: cublasHandle_t,
@@ -235,7 +235,7 @@ impl Level1 for f64 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasDaxpy_v2(handle, n, alpha, x, incx, y, incy)
+        cublasDaxpy(handle, n, alpha, x, incx, y, incy)
     }
     unsafe fn copy(
         handle: cublasHandle_t,
@@ -245,7 +245,7 @@ impl Level1 for f64 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasDcopy_v2(handle, n, x, incx, y, incy)
+        cublasDcopy(handle, n, x, incx, y, incy)
     }
     unsafe fn nrm2(
         handle: cublasHandle_t,
@@ -254,7 +254,7 @@ impl Level1 for f64 {
         incx: c_int,
         result: *mut Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasDnrm2_v2(handle, n, x, incx, result)
+        cublasDnrm2(handle, n, x, incx, result)
     }
     unsafe fn rot(
         handle: cublasHandle_t,
@@ -266,7 +266,7 @@ impl Level1 for f64 {
         c: *const Self::FloatTy,
         s: *const Self,
     ) -> cublasStatus_t {
-        cublasDrot_v2(handle, n, x, incx, y, incy, c, s)
+        cublasDrot(handle, n, x, incx, y, incy, c, s)
     }
     unsafe fn rotg(
         handle: cublasHandle_t,
@@ -275,7 +275,7 @@ impl Level1 for f64 {
         c: *mut Self::FloatTy,
         s: *mut Self,
     ) -> cublasStatus_t {
-        cublasDrotg_v2(handle, a, b, c, s)
+        cublasDrotg(handle, a, b, c, s)
     }
     unsafe fn rotm(
         handle: cublasHandle_t,
@@ -286,7 +286,7 @@ impl Level1 for f64 {
         incy: c_int,
         param: *const Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasDrotm_v2(handle, n, x, incx, y, incy, param)
+        cublasDrotm(handle, n, x, incx, y, incy, param)
     }
     unsafe fn rotmg(
         handle: cublasHandle_t,
@@ -296,7 +296,7 @@ impl Level1 for f64 {
         y1: *const Self,
         param: *mut Self,
     ) -> cublasStatus_t {
-        cublasDrotmg_v2(handle, d1, d2, x1, y1, param)
+        cublasDrotmg(handle, d1, d2, x1, y1, param)
     }
     unsafe fn scal(
         handle: cublasHandle_t,
@@ -305,7 +305,7 @@ impl Level1 for f64 {
         x: *mut Self,
         incx: c_int,
     ) -> cublasStatus_t {
-        cublasDscal_v2(handle, n, alpha, x, incx)
+        cublasDscal(handle, n, alpha, x, incx)
     }
     unsafe fn swap(
         handle: cublasHandle_t,
@@ -315,7 +315,7 @@ impl Level1 for f64 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasDswap_v2(handle, n, x, incx, y, incy)
+        cublasDswap(handle, n, x, incx, y, incy)
     }
 }
 
@@ -327,7 +327,7 @@ impl Level1 for Complex32 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIcamax_v2(handle, n, x.cast(), incx, result)
+        cublasIcamax(handle, n, x.cast(), incx, result)
     }
     unsafe fn amin(
         handle: cublasHandle_t,
@@ -336,7 +336,7 @@ impl Level1 for Complex32 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIcamin_v2(handle, n, x.cast(), incx, result)
+        cublasIcamin(handle, n, x.cast(), incx, result)
     }
     unsafe fn axpy(
         handle: cublasHandle_t,
@@ -347,7 +347,7 @@ impl Level1 for Complex32 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasCaxpy_v2(handle, n, alpha.cast(), x.cast(), incx, y.cast(), incy)
+        cublasCaxpy(handle, n, alpha.cast(), x.cast(), incx, y.cast(), incy)
     }
     unsafe fn copy(
         handle: cublasHandle_t,
@@ -357,7 +357,7 @@ impl Level1 for Complex32 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasCcopy_v2(handle, n, x.cast(), incx, y.cast(), incy)
+        cublasCcopy(handle, n, x.cast(), incx, y.cast(), incy)
     }
     unsafe fn nrm2(
         handle: cublasHandle_t,
@@ -366,7 +366,7 @@ impl Level1 for Complex32 {
         incx: c_int,
         result: *mut Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasScnrm2_v2(handle, n, x.cast(), incx, result)
+        cublasScnrm2(handle, n, x.cast(), incx, result)
     }
     unsafe fn rot(
         handle: cublasHandle_t,
@@ -378,7 +378,7 @@ impl Level1 for Complex32 {
         c: *const Self::FloatTy,
         s: *const Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasCsrot_v2(handle, n, x.cast(), incx, y.cast(), incy, c, s)
+        cublasCsrot(handle, n, x.cast(), incx, y.cast(), incy, c, s)
     }
     unsafe fn rotg(
         handle: cublasHandle_t,
@@ -387,7 +387,7 @@ impl Level1 for Complex32 {
         c: *mut Self::FloatTy,
         s: *mut Self,
     ) -> cublasStatus_t {
-        cublasCrotg_v2(handle, a.cast(), b.cast(), c, s.cast())
+        cublasCrotg(handle, a.cast(), b.cast(), c, s.cast())
     }
     unsafe fn rotm(
         _handle: cublasHandle_t,
@@ -417,7 +417,7 @@ impl Level1 for Complex32 {
         x: *mut Self,
         incx: c_int,
     ) -> cublasStatus_t {
-        cublasCscal_v2(handle, n, alpha.cast(), x.cast(), incx)
+        cublasCscal(handle, n, alpha.cast(), x.cast(), incx)
     }
     unsafe fn swap(
         handle: cublasHandle_t,
@@ -427,7 +427,7 @@ impl Level1 for Complex32 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasCswap_v2(handle, n, x.cast(), incx, y.cast(), incy)
+        cublasCswap(handle, n, x.cast(), incx, y.cast(), incy)
     }
 }
 
@@ -439,7 +439,7 @@ impl Level1 for Complex64 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIzamax_v2(handle, n, x.cast(), incx, result)
+        cublasIzamax(handle, n, x.cast(), incx, result)
     }
     unsafe fn amin(
         handle: cublasHandle_t,
@@ -448,7 +448,7 @@ impl Level1 for Complex64 {
         incx: c_int,
         result: *mut c_int,
     ) -> cublasStatus_t {
-        cublasIzamin_v2(handle, n, x.cast(), incx, result)
+        cublasIzamin(handle, n, x.cast(), incx, result)
     }
     unsafe fn axpy(
         handle: cublasHandle_t,
@@ -459,7 +459,7 @@ impl Level1 for Complex64 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasZaxpy_v2(handle, n, alpha.cast(), x.cast(), incx, y.cast(), incy)
+        cublasZaxpy(handle, n, alpha.cast(), x.cast(), incx, y.cast(), incy)
     }
     unsafe fn copy(
         handle: cublasHandle_t,
@@ -469,7 +469,7 @@ impl Level1 for Complex64 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasZcopy_v2(handle, n, x.cast(), incx, y.cast(), incy)
+        cublasZcopy(handle, n, x.cast(), incx, y.cast(), incy)
     }
     unsafe fn nrm2(
         handle: cublasHandle_t,
@@ -478,7 +478,7 @@ impl Level1 for Complex64 {
         incx: c_int,
         result: *mut Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasDznrm2_v2(handle, n, x.cast(), incx, result)
+        cublasDznrm2(handle, n, x.cast(), incx, result)
     }
     unsafe fn rot(
         handle: cublasHandle_t,
@@ -490,7 +490,7 @@ impl Level1 for Complex64 {
         c: *const Self::FloatTy,
         s: *const Self::FloatTy,
     ) -> cublasStatus_t {
-        cublasZdrot_v2(handle, n, x.cast(), incx, y.cast(), incy, c, s)
+        cublasZdrot(handle, n, x.cast(), incx, y.cast(), incy, c, s)
     }
     unsafe fn rotg(
         handle: cublasHandle_t,
@@ -499,7 +499,7 @@ impl Level1 for Complex64 {
         c: *mut Self::FloatTy,
         s: *mut Self,
     ) -> cublasStatus_t {
-        cublasZrotg_v2(handle, a.cast(), b.cast(), c, s.cast())
+        cublasZrotg(handle, a.cast(), b.cast(), c, s.cast())
     }
     unsafe fn rotm(
         _handle: cublasHandle_t,
@@ -529,7 +529,7 @@ impl Level1 for Complex64 {
         x: *mut Self,
         incx: c_int,
     ) -> cublasStatus_t {
-        cublasZscal_v2(handle, n, alpha.cast(), x.cast(), incx)
+        cublasZscal(handle, n, alpha.cast(), x.cast(), incx)
     }
     unsafe fn swap(
         handle: cublasHandle_t,
@@ -539,7 +539,7 @@ impl Level1 for Complex64 {
         y: *mut Self,
         incy: c_int,
     ) -> cublasStatus_t {
-        cublasZswap_v2(handle, n, x.cast(), incx, y.cast(), incy)
+        cublasZswap(handle, n, x.cast(), incx, y.cast(), incy)
     }
 }
 
@@ -575,7 +575,7 @@ impl ComplexLevel1 for Complex32 {
         incy: c_int,
         result: *mut Self,
     ) -> cublasStatus_t {
-        cublasCdotu_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+        cublasCdotu(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
     }
     unsafe fn dotc(
         handle: cublasHandle_t,
@@ -586,7 +586,7 @@ impl ComplexLevel1 for Complex32 {
         incy: c_int,
         result: *mut Self,
     ) -> cublasStatus_t {
-        cublasCdotc_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+        cublasCdotc(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
     }
 }
 
@@ -600,7 +600,7 @@ impl ComplexLevel1 for Complex64 {
         incy: c_int,
         result: *mut Self,
     ) -> cublasStatus_t {
-        cublasZdotu_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+        cublasZdotu(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
     }
     unsafe fn dotc(
         handle: cublasHandle_t,
@@ -611,7 +611,7 @@ impl ComplexLevel1 for Complex64 {
         incy: c_int,
         result: *mut Self,
     ) -> cublasStatus_t {
-        cublasZdotc_v2(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
+        cublasZdotc(handle, n, x.cast(), incx, y.cast(), incy, result.cast())
     }
 }
 
@@ -638,7 +638,7 @@ impl FloatLevel1 for f32 {
         incy: c_int,
         result: *mut Self,
     ) -> cublasStatus_t {
-        cublasSdot_v2(handle, n, x, incx, y, incy, result)
+        cublasSdot(handle, n, x, incx, y, incy, result)
     }
 }
 
@@ -652,6 +652,6 @@ impl FloatLevel1 for f64 {
         incy: c_int,
         result: *mut Self,
     ) -> cublasStatus_t {
-        cublasDdot_v2(handle, n, x, incx, y, incy, result)
+        cublasDdot(handle, n, x, incx, y, incy, result)
     }
 }

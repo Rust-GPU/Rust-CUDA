@@ -5,7 +5,7 @@ fn main() {
     println!("cargo::rerun-if-changed=build.rs");
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let optix_include_paths = env::var_os("DEP_OPTIX_OPTIX_INCLUDE")
+    let optix_include_paths = env::var_os("DEP_OPTIX_INCLUDE_DIR")
         .map(|s| env::split_paths(s.as_os_str()).collect::<Vec<_>>())
         .expect("Cannot find transitive metadata 'optix_include' from optix-sys package.");
 
