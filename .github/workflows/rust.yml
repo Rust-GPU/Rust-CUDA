@@ -58,7 +58,7 @@ jobs:
   integration-tests:
     name: Integration tests (after manual review) on ${{ matrix.os }} with CUDA ${{ matrix.cuda }}
     runs-on: ${{ matrix.os }}
-    if: runner.os == 'Linux' && ( github.event_name == 'push' || (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')) )
+    if: ( github.event_name == 'push' || (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')) )
     strategy:
       fail-fast: false
       matrix:
@@ -85,7 +85,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          
+
       - name: Checkout for push
         if: github.event_name != 'pull_request_target'
         uses: actions/checkout@v2
