@@ -7,4 +7,4 @@ set -e
 # We need this script because the cwd that cargo runs the runner in changes
 # depending on crate.
 
-cd "$GITHUB_WORKSPACE/.ci/modal.com" && uv run modal_test_runner.py "$@"
+cd "$GITHUB_WORKSPACE/.ci/modal.com" && uv run modal_runner.py "$@"
