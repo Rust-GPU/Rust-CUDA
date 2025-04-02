@@ -141,7 +141,7 @@ jobs:
       - name: Run tests
         if: runner.os == 'Linux'
         env:
-          # Pass runtime config TO THE python runner script
+          # Pass runtime config to the python runner script
           RUNNER_OS_NAME: ${{ matrix.os }}
           RUNNER_CUDA_VERSION: ${{ matrix.cuda }}
           MODAL_GPU_TYPE: ${{ matrix.gpu }}
