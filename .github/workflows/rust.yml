@@ -65,7 +65,6 @@ jobs:
         shell: pwsh
         run: Get-ChildItem -Path $env:CUDA_PATH -Recurse | ForEach-Object { $_.FullName }
 
-      # random command that forces rustup to install stuff in rust-toolchain
       - name: Install rust-toolchain
         run: cargo version
 
@@ -117,37 +116,54 @@ jobs:
           RUSTDOCFLAGS: -Dwarnings
         run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
 
-      # We now run tests. We run them last because they run on donated machines with
-      # GPUs.
-
       - name: Install python (for CI test runner script)
-        if: runner.os == 'Linux'
+        if: >
+          runner.os == 'Linux' &&
+          (github.event_name == 'push' ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Install CI test runner deps
-        if: runner.os == 'Linux'
+        if: >
+          runner.os == 'Linux' &&
+          (github.event_name == 'push' ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
         working-directory: .ci/modal.com
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           uv sync
 
       - name: Check CI test runner formatting
-        if: runner.os == 'Linux'
+        if: >
+          runner.os == 'Linux' &&
+          (github.event_name == 'push' ||
+          (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
         working-directory: .ci/modal.com
         run: uvx black --check .
 
-      - name: Run tests
-        if: runner.os == 'Linux'
+      # Secrets are not available in forked PRs, so we have to manually add a label and
+      # re-run.
+      - name: Run integration tests
+        if: >
+          runner.os == 'Linux' &&
+          (github.event_name == 'push' ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           contains(github.event.pull_request.labels.*.name, 'DANGER-expose-secrets-and-run-tests')))
         env:
-          # Pass runtime config to the python runner script
           RUNNER_OS_NAME: ${{ matrix.os }}
           RUNNER_CUDA_VERSION: ${{ matrix.cuda }}
           MODAL_GPU_TYPE: ${{ matrix.gpu }}
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-        # Run the tests, but point at a config that sets the runner to our test runner.
         run: |
           export PATH="$PATH:$GITHUB_WORKSPACE/.ci"
           cargo --config .ci/config.toml test --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*" --exclude "cudnn"
