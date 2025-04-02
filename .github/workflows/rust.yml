@@ -80,10 +80,15 @@ jobs:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
     steps:
-      - name: Checkout repository
+      - name: Checkout for PR (target)
+        if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v2
         with:
-          ref: "${{ github.event_name == 'pull_request_target' ? github.event.pull_request.head.sha : github.ref }}"
+          ref: ${{ github.event.pull_request.head.sha }}
+          
+      - name: Checkout for push
+        if: github.event_name != 'pull_request_target'
+        uses: actions/checkout@v2
 
       - name: Run common steps
         uses: ./.github/actions/common-steps
