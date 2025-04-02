@@ -125,7 +125,7 @@ def create_runtime_image(
             .run_commands(
                 # These commands modify the filesystem *before* the file is added
                 "mkdir -p /app",
-                "echo '[Remote] Container environment baseline ready.'",  # Use log_remote style
+                "echo '[remote] Container environment baseline ready.'",
             )
             # Add any other apt_install, pip_install, run_commands etc. HERE if needed later
         )
