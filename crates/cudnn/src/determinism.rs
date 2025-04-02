@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Enum stating whether or not the computed results are deterministic (reproducible).
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnDeterminism_t)
@@ -12,20 +10,22 @@ pub enum Determinism {
     NonDeterministic,
 }
 
-impl From<sys::cudnnDeterminism_t> for Determinism {
-    fn from(raw: sys::cudnnDeterminism_t) -> Self {
+impl From<cudnn_sys::cudnnDeterminism_t> for Determinism {
+    fn from(raw: cudnn_sys::cudnnDeterminism_t) -> Self {
+        use cudnn_sys::cudnnDeterminism_t::*;
         match raw {
-            sys::cudnnDeterminism_t::CUDNN_DETERMINISTIC => Self::Deterministic,
-            sys::cudnnDeterminism_t::CUDNN_NON_DETERMINISTIC => Self::NonDeterministic,
+            CUDNN_DETERMINISTIC => Self::Deterministic,
+            CUDNN_NON_DETERMINISTIC => Self::NonDeterministic,
         }
     }
 }
 
-impl From<Determinism> for sys::cudnnDeterminism_t {
+impl From<Determinism> for cudnn_sys::cudnnDeterminism_t {
     fn from(determinism: Determinism) -> Self {
+        use cudnn_sys::cudnnDeterminism_t::*;
         match determinism {
-            Determinism::Deterministic => sys::cudnnDeterminism_t::CUDNN_DETERMINISTIC,
-            Determinism::NonDeterministic => sys::cudnnDeterminism_t::CUDNN_NON_DETERMINISTIC,
+            Determinism::Deterministic => CUDNN_DETERMINISTIC,
+            Determinism::NonDeterministic => CUDNN_NON_DETERMINISTIC,
         }
     }
 }

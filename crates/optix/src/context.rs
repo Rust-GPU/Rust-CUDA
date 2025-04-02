@@ -6,7 +6,7 @@ use std::{
 
 use cust::context::ContextHandle;
 
-use crate::{error::Error, optix_call, sys};
+use crate::{error::Error, optix_call};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A certain property belonging to an OptiX device.
@@ -37,18 +37,18 @@ pub enum DeviceProperty {
 impl DeviceProperty {
     // we could repr this the same as the sys version, but for better compatability
     // and safety in the future, we just match.
-    pub fn to_raw(self) -> sys::OptixDeviceProperty::Type {
+    pub fn to_raw(self) -> optix_sys::OptixDeviceProperty::Type {
         use DeviceProperty::*;
         match self {
-        MaxTraceDepth => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRACE_DEPTH,
-        MaxTraversableGraphDepth => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRAVERSABLE_GRAPH_DEPTH,
-        MaxPrimitivesPerGas => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_PRIMITIVES_PER_GAS,
-        MaxInstancesPerIas => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_INSTANCES_PER_IAS,
-        RtCoreVersion => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_RTCORE_VERSION,
-        MaxInstanceId => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_INSTANCE_ID,
-        NumBitsInstanceVisibilityMask => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_NUM_BITS_INSTANCE_VISIBILITY_MASK,
-        MaxSbtRecordsPerGas => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_SBT_RECORDS_PER_GAS,
-        MaxSbtOffset => sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_SBT_OFFSET,
+        MaxTraceDepth => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRACE_DEPTH,
+        MaxTraversableGraphDepth => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRAVERSABLE_GRAPH_DEPTH,
+        MaxPrimitivesPerGas => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_PRIMITIVES_PER_GAS,
+        MaxInstancesPerIas => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_INSTANCES_PER_IAS,
+        RtCoreVersion => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_RTCORE_VERSION,
+        MaxInstanceId => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_INSTANCE_ID,
+        NumBitsInstanceVisibilityMask => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_NUM_BITS_INSTANCE_VISIBILITY_MASK,
+        MaxSbtRecordsPerGas => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_SBT_RECORDS_PER_GAS,
+        MaxSbtOffset => optix_sys::OptixDeviceProperty::OPTIX_DEVICE_PROPERTY_LIMIT_MAX_SBT_OFFSET,
         }
     }
 }
@@ -56,13 +56,13 @@ impl DeviceProperty {
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct DeviceContext {
-    pub(crate) raw: sys::OptixDeviceContext,
+    pub(crate) raw: optix_sys::OptixDeviceContext,
 }
 
 impl Drop for DeviceContext {
     fn drop(&mut self) {
         unsafe {
-            sys::optixDeviceContextDestroy(self.raw);
+            optix_sys::optixDeviceContextDestroy(self.raw);
         }
     }
 }
@@ -79,10 +79,10 @@ impl DeviceContext {
     pub fn new(cuda_ctx: &impl ContextHandle, enable_validation: bool) -> Result<Self> {
         let mut raw = MaybeUninit::uninit();
 
-        let mut opt = sys::OptixDeviceContextOptions::default();
+        let mut opt = optix_sys::OptixDeviceContextOptions::default();
         if enable_validation {
             opt.validationMode =
-                sys::OptixDeviceContextValidationMode_OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
+                optix_sys::OptixDeviceContextValidationMode::OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
         }
 
         unsafe {
@@ -258,7 +258,7 @@ impl DeviceContext {
     }
 
     /// Get the FFI context representation
-    pub fn as_raw(&self) -> sys::OptixDeviceContext {
+    pub fn as_raw(&self) -> optix_sys::OptixDeviceContext {
         self.raw
     }
 }

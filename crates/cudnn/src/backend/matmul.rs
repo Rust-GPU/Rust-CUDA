@@ -2,7 +2,7 @@ use cust::memory::bytemuck::Contiguous;
 
 use crate::{
     backend::{Descriptor, MatMulCfg, Operation, Tensor},
-    sys, CudnnError, DataType, IntoResult,
+    CudnnError, DataType, IntoResult,
 };
 
 #[derive(Clone, Default, PartialEq, Eq, Hash, Debug)]
@@ -42,33 +42,33 @@ impl MatMulBuilder {
 
         unsafe {
             let mut raw = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_MATMUL_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_MATMUL_DESCRIPTOR,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_ADESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_ADESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &a.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_BDESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_BDESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &b.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_CDESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_CDESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &c.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_DESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_MATMUL_DESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &cfg.raw.inner(),
             )?;

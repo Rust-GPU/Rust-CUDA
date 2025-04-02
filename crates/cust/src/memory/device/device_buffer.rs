@@ -1,16 +1,18 @@
+use std::mem::{self, align_of, size_of, transmute, ManuallyDrop};
+use std::ops::{Deref, DerefMut};
+
+#[cfg(feature = "bytemuck")]
+pub use bytemuck;
+#[cfg(feature = "bytemuck")]
+use bytemuck::{Pod, PodCastError, Zeroable};
+use cust_raw::driver_sys;
+
 use crate::error::{CudaResult, DropResult, ToResult};
 use crate::memory::device::{AsyncCopyDestination, CopyDestination, DeviceSlice};
 use crate::memory::malloc::{cuda_free, cuda_malloc};
 use crate::memory::{cuda_free_async, DevicePointer};
 use crate::memory::{cuda_malloc_async, DeviceCopy};
 use crate::stream::Stream;
-use crate::sys as cuda;
-#[cfg(feature = "bytemuck")]
-pub use bytemuck;
-#[cfg(feature = "bytemuck")]
-use bytemuck::{Pod, PodCastError, Zeroable};
-use std::mem::{self, align_of, size_of, transmute, ManuallyDrop};
-use std::ops::{Deref, DerefMut};
 
 /// Fixed-size device-side buffer. Provides basic access to device memory.
 #[derive(Debug)]
@@ -230,8 +232,12 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
         unsafe {
             let new_buf = DeviceBuffer::uninitialized(size)?;
             if size_of::<T>() != 0 {
-                cuda::cuMemsetD8_v2(new_buf.as_device_ptr().as_raw(), 0, size_of::<T>() * size)
-                    .to_result()?;
+                driver_sys::cuMemsetD8_v2(
+                    new_buf.as_device_ptr().as_raw(),
+                    0,
+                    size_of::<T>() * size,
+                )
+                .to_result()?;
             }
             Ok(new_buf)
         }
@@ -272,7 +278,7 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
     pub unsafe fn zeroed_async(size: usize, stream: &Stream) -> CudaResult<Self> {
         let new_buf = DeviceBuffer::uninitialized_async(size, stream)?;
         if size_of::<T>() != 0 {
-            cuda::cuMemsetD8Async(
+            driver_sys::cuMemsetD8Async(
                 new_buf.as_device_ptr().as_raw(),
                 0,
                 size_of::<T>() * size,
@@ -437,6 +443,7 @@ mod test_device_buffer {
     use super::*;
     use crate::stream::{Stream, StreamFlags};
 
+    #[expect(dead_code)]
     #[derive(Clone, Copy, Debug)]
     struct ZeroSizedType;
     unsafe impl DeviceCopy for ZeroSizedType {}

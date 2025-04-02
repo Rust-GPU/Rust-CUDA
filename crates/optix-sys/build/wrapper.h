@@ -21,7 +21,8 @@ static const size_t OptixShaderBindingTableSize = sizeof(OptixShaderBindingTable
 /**
  * <div rustbindgen replaces="OptixGeometryFlags"></div>
  */
-enum GeometryFlags {
+enum GeometryFlags
+{
     None = OPTIX_GEOMETRY_FLAG_NONE,
     DisableAnyHit = OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT,
     RequireSingleAnyHitCall = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL

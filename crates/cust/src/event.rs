@@ -13,16 +13,17 @@
 // TODO: I'm not sure that these events are/can be safe by Rust's model of safety; they inherently
 // create state which can be mutated even while an immutable borrow is held.
 
-use crate::error::{CudaError, CudaResult, DropResult, ToResult};
-use crate::stream::Stream;
-use crate::sys::{
+use std::mem;
+use std::ptr;
+use std::time::Duration;
+
+use cust_raw::driver_sys::{
     cuEventCreate, cuEventDestroy_v2, cuEventElapsedTime, cuEventQuery, cuEventRecord,
     cuEventSynchronize, CUevent,
 };
 
-use std::mem;
-use std::ptr;
-use std::time::Duration;
+use crate::error::{CudaError, CudaResult, DropResult, ToResult};
+use crate::stream::Stream;
 
 bitflags::bitflags! {
     /// Bit flags for configuring a CUDA Event.

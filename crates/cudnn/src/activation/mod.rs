@@ -1,13 +1,14 @@
+use cust::memory::GpuBuffer;
+
+use crate::{
+    private, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
+};
+
 mod activation_descriptor;
 mod activation_mode;
 
 pub use activation_descriptor::*;
 pub use activation_mode::*;
-
-use crate::{
-    private, sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
-};
-use cust::memory::GpuBuffer;
 
 impl CudnnContext {
     /// Applies a specific neuron activation functions element wise of the provided
@@ -87,7 +88,7 @@ impl CudnnContext {
         let y_ptr = y.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnActivationForward(
+            cudnn_sys::cudnnActivationForward(
                 self.raw,
                 activation_desc.raw,
                 alpha_ptr,
@@ -155,7 +156,7 @@ impl CudnnContext {
         let dx_ptr = dx.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnActivationBackward(
+            cudnn_sys::cudnnActivationBackward(
                 self.raw,
                 activation_desc.raw,
                 alpha_ptr,

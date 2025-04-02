@@ -1,83 +1,24 @@
-use find_cuda_helper::{find_cuda_root, find_optix_root};
-use std::path::{Path, PathBuf};
+use std::env;
 
-// OptiX is a bit exotic in how it provides its functions. It uses a function table
-// approach, a function table struct holds function pointers to every optix function. Then
-// the Optix driver dll is loaded at runtime and the function table is loaded from that.
-// OptiX provides this logic inside optix_stubs.h in the include dir, so we need to compile that
-// to a lib and link it in so that we have the initialization and C function logic.
 fn main() {
-    let mut optix_include = find_optix_root().expect(
-        "Unable to find the OptiX SDK, make sure you installed it and
-    that OPTIX_ROOT or OPTIX_ROOT_DIR are set",
-    );
-    optix_include = optix_include.join("include");
+    let optix_version = env::var("DEP_OPTIX_VERSION")
+        .expect("Cannot find transitive metadata 'version' from optix-sys package.")
+        .parse::<u32>()
+        .expect("Failed to parse OptiX version");
 
-    let mut cuda_include = find_cuda_root().expect(
-        "Unable to find the CUDA Toolkit, make sure you installed it and
-    that CUDA_ROOT, CUDA_PATH or CUDA_TOOLKIT_ROOT_DIR are set",
-    );
-    cuda_include = cuda_include.join("include");
+    println!("cargo::rustc-check-cfg=cfg(optix_build_input_instance_array_aabbs)");
+    println!("cargo::rustc-check-cfg=cfg(optix_module_compile_options_bound_values)");
+    println!("cargo::rustc-check-cfg=cfg(optix_pipeline_compile_options_reserved)");
+    println!("cargo::rustc-check-cfg=cfg(optix_program_group_options_reserved)");
 
-    bindgen_optix(&optix_include, &cuda_include);
-
-    println!("cargo:rerun-if-changed=optix_stubs.c");
-    cc::Build::new()
-        .file("./optix_stubs.c")
-        .include(optix_include)
-        .include(cuda_include)
-        .cpp(false)
-        .compile("optix_stubs");
-}
-
-fn bindgen_optix(optix_include: &Path, cuda_include: &Path) {
-    let out_path = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("optix_wrapper.rs");
-
-    let bindings = bindgen::Builder::default()
-        .header("src/optix_wrapper.h")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        .clang_arg(format!("-I{}", optix_include.display()))
-        .clang_arg(format!("-I{}", cuda_include.display()))
-        .allowlist_recursively(false)
-        .allowlist_type("Optix.*")
-        .allowlist_type("RaygenRecord")
-        .allowlist_type("MissRecord")
-        .allowlist_type("HitgroupRecord")
-        .blocklist_type("OptixBuildInput")
-        .allowlist_function("optix.*")
-        .allowlist_var("OptixSbtRecordHeaderSize")
-        .allowlist_var("OptixSbtRecordAlignment")
-        .allowlist_var("OptixAccelBufferByteAlignment")
-        .allowlist_var("OptixInstanceByteAlignment")
-        .allowlist_var("OptixAabbBufferByteAlignment")
-        .allowlist_var("OptixGeometryTransformByteAlignment")
-        .allowlist_var("OptixTransformByteAlignment")
-        .allowlist_var("OptixVersion")
-        .allowlist_var("OptixBuildInputSize")
-        .allowlist_var("OptixShaderBindingTableSize")
-        .layout_tests(false)
-        .generate_comments(false)
-        .newtype_enum("OptixResult")
-        .constified_enum_module("OptixCompileOptimizationLevel")
-        .constified_enum_module("OptixCompileDebugLevel")
-        .constified_enum_module("OptixTraversableGraphFlags")
-        .constified_enum_module("OptixExceptionFlags")
-        .constified_enum_module("OptixProgramGroupKind")
-        .constified_enum_module("OptixDeviceProperty")
-        .constified_enum_module("OptixPixelFormat")
-        .constified_enum_module("OptixDenoiserModelKind")
-        .rustified_enum("GeometryFlags")
-        .rustified_enum("OptixGeometryFlags")
-        .constified_enum("OptixVertexFormat")
-        .constified_enum("OptixIndicesFormat")
-        .rust_target(bindgen::RustTarget::nightly())
-        .derive_default(true)
-        .derive_partialeq(true)
-        .formatter(bindgen::Formatter::Rustfmt)
-        .generate()
-        .expect("Unable to generate optix bindings");
-
-    bindings
-        .write_to_file(out_path)
-        .expect("Couldn't write bindings!");
+    if optix_version < 70200 {
+        println!("cargo::rustc-cfg=optix_build_input_instance_array_aabbs");
+    }
+    if optix_version >= 70200 {
+        println!("cargo::rustc-cfg=optix_module_compile_options_bound_values");
+    }
+    if optix_version >= 70300 {
+        println!("cargo::rustc-cfg=optix_pipeline_compile_options_reserved");
+        println!("cargo::rustc-cfg=optix_program_group_options_reserved");
+    }
 }

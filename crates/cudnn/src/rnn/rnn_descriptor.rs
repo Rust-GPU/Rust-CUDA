@@ -1,9 +1,11 @@
+use std::{marker::PhantomData, mem::MaybeUninit};
+
+use cust::memory::GpuBuffer;
+
 use crate::{
-    sys, CudnnError, DataType, DropoutDescriptor, IntoResult, MathType, NanPropagation, RnnAlgo,
+    CudnnError, DataType, DropoutDescriptor, IntoResult, MathType, NanPropagation, RnnAlgo,
     RnnBiasMode, RnnClipMode, RnnDirectionMode, RnnInputMode, RnnMode,
 };
-use cust::memory::GpuBuffer;
-use std::{marker::PhantomData, mem::MaybeUninit};
 
 bitflags::bitflags! {
     /// Miscellaneous switches for configuring auxiliary recurrent neural network features.
@@ -27,7 +29,7 @@ where
     T: DataType,
     U: SupportedRnn<T>,
 {
-    pub(crate) raw: sys::cudnnRNNDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnRNNDescriptor_t,
     data_type: PhantomData<T>,
     math_prec: PhantomData<U>,
 }
@@ -157,14 +159,14 @@ where
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreateRNNDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateRNNDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
             let proj_size = projection_size.into().unwrap_or(0);
             let dropout_desc = dropout_desc.map_or(std::ptr::null_mut(), |desc| desc.raw);
 
-            sys::cudnnSetRNNDescriptor_v8(
+            cudnn_sys::cudnnSetRNNDescriptor_v8(
                 raw,
                 algo.into(),
                 cell_mode.into(),
@@ -227,7 +229,7 @@ where
         right_clip: f64,
     ) -> Result<(), CudnnError> {
         unsafe {
-            sys::cudnnRNNSetClip_v8(
+            cudnn_sys::cudnnRNNSetClip_v8(
                 self.raw,
                 clip_mode.into(),
                 nan_opt.into(),
@@ -246,7 +248,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyRNNDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyRNNDescriptor(self.raw);
         }
     }
 }

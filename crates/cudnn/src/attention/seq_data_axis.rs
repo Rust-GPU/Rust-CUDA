@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Describes and indexes active dimensions in the `SeqDataDescriptor` `dim` field. This enum is
 /// also used in the `axis` argument of the `SeqDataDescriptor` constructor to  define the layout
 /// of the sequence data buffer in memory.
@@ -18,13 +16,13 @@ pub enum SeqDataAxis {
     VectDim,
 }
 
-impl From<SeqDataAxis> for sys::cudnnSeqDataAxis_t {
+impl From<SeqDataAxis> for cudnn_sys::cudnnSeqDataAxis_t {
     fn from(axis: SeqDataAxis) -> Self {
         match axis {
-            SeqDataAxis::TimeDim => sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_TIME_DIM,
-            SeqDataAxis::BatchDim => sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_BATCH_DIM,
-            SeqDataAxis::BeamDim => sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_BEAM_DIM,
-            SeqDataAxis::VectDim => sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_VECT_DIM,
+            SeqDataAxis::TimeDim => cudnn_sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_TIME_DIM,
+            SeqDataAxis::BatchDim => cudnn_sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_BATCH_DIM,
+            SeqDataAxis::BeamDim => cudnn_sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_BEAM_DIM,
+            SeqDataAxis::VectDim => cudnn_sys::cudnnSeqDataAxis_t::CUDNN_SEQDATA_VECT_DIM,
         }
     }
 }
@@ -33,14 +31,14 @@ impl<T> std::ops::Index<SeqDataAxis> for [T; 4] {
     type Output = T;
 
     fn index(&self, index: SeqDataAxis) -> &Self::Output {
-        let raw: sys::cudnnSeqDataAxis_t = index.into();
+        let raw: cudnn_sys::cudnnSeqDataAxis_t = index.into();
         self.index(raw as usize)
     }
 }
 
 impl<T> std::ops::IndexMut<SeqDataAxis> for [T; 4] {
     fn index_mut(&mut self, index: SeqDataAxis) -> &mut Self::Output {
-        let raw: sys::cudnnSeqDataAxis_t = index.into();
+        let raw: cudnn_sys::cudnnSeqDataAxis_t = index.into();
         self.index_mut(raw as usize)
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     backend::{ConvCfg, Descriptor, FloatDataType, Operation, Real, Tensor},
-    sys, CudnnError, DataType, IntoResult,
+    CudnnError, DataType, IntoResult,
 };
 
 pub struct ConvFwdBuilder {
@@ -61,26 +61,26 @@ impl ConvFwdBuilder {
 
         unsafe {
             let mut raw = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_CONVOLUTION_FORWARD_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_CONVOLUTION_FORWARD_DESCRIPTOR,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_CONV_DESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_CONV_DESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &cfg.raw.inner(),
             )?;
 
             match self.alpha {
                 Some(Real::Float(ref alpha)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_ALPHA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_ALPHA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
                     1,
                     alpha,
                 )?,
                 Some(Real::Double(ref alpha)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_ALPHA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_ALPHA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     alpha,
                 )?,
@@ -89,14 +89,14 @@ impl ConvFwdBuilder {
 
             match self.beta {
                 Some(Real::Float(ref beta)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_BETA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_BETA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
                     1,
                     beta,
                 )?,
                 Some(Real::Double(ref beta)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_BETA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_BETA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     beta,
                 )?,
@@ -104,22 +104,22 @@ impl ConvFwdBuilder {
             }
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_W,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_W,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &w.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_X,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_X,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &x.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_Y,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_FORWARD_Y,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &y.raw.inner(),
             )?;

@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies inference or training mode in RNN API.
 ///
 /// This parameter allows the cuDNN library to tune more precisely the size of the workspace buffer
@@ -15,11 +13,12 @@ pub enum ForwardMode {
     Training,
 }
 
-impl From<ForwardMode> for sys::cudnnForwardMode_t {
+impl From<ForwardMode> for cudnn_sys::cudnnForwardMode_t {
     fn from(mode: ForwardMode) -> Self {
+        use cudnn_sys::cudnnForwardMode_t::*;
         match mode {
-            ForwardMode::Training => sys::cudnnForwardMode_t::CUDNN_FWD_MODE_TRAINING,
-            ForwardMode::Inference => sys::cudnnForwardMode_t::CUDNN_FWD_MODE_INFERENCE,
+            ForwardMode::Training => CUDNN_FWD_MODE_TRAINING,
+            ForwardMode::Inference => CUDNN_FWD_MODE_INFERENCE,
         }
     }
 }

@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Indicates whether a reduction operation should compute indices or not.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -11,7 +9,7 @@ pub enum ReduceIndices {
     Flattened,
 }
 
-impl From<ReduceIndices> for sys::cudnnReduceTensorIndices_t {
+impl From<ReduceIndices> for cudnn_sys::cudnnReduceTensorIndices_t {
     fn from(mode: ReduceIndices) -> Self {
         match mode {
             ReduceIndices::None => Self::CUDNN_REDUCE_TENSOR_NO_INDICES,

@@ -8,10 +8,11 @@ use std::{
     ptr,
 };
 
+use cust_raw::driver_sys;
+
 use crate::{
     error::{CudaResult, ToResult},
     function::{BlockSize, GridSize},
-    sys as cuda,
 };
 
 /// Creates a kernel invocation using the same syntax as [`launch`] to be used to insert kernel launches inside graphs.
@@ -56,7 +57,7 @@ pub struct KernelInvocation {
     pub block_dim: BlockSize,
     pub grid_dim: GridSize,
     pub shared_mem_bytes: u32,
-    func: cuda::CUfunction,
+    func: driver_sys::CUfunction,
     params: Box<*mut c_void>,
     params_len: Option<usize>,
 }
@@ -67,7 +68,7 @@ impl KernelInvocation {
         block_dim: BlockSize,
         grid_dim: GridSize,
         shared_mem_bytes: u32,
-        func: cuda::CUfunction,
+        func: driver_sys::CUfunction,
         params: Box<*mut c_void>,
         params_len: usize,
     ) -> Self {
@@ -81,8 +82,8 @@ impl KernelInvocation {
         }
     }
 
-    pub fn to_raw(self) -> cuda::CUDA_KERNEL_NODE_PARAMS {
-        cuda::CUDA_KERNEL_NODE_PARAMS {
+    pub fn to_raw(self) -> driver_sys::CUDA_KERNEL_NODE_PARAMS {
+        driver_sys::CUDA_KERNEL_NODE_PARAMS {
             func: self.func,
             gridDimX: self.grid_dim.x,
             gridDimY: self.grid_dim.y,
@@ -93,6 +94,8 @@ impl KernelInvocation {
             kernelParams: Box::into_raw(self.params),
             sharedMemBytes: self.shared_mem_bytes,
             extra: ptr::null_mut(),
+            kern: ptr::null_mut(),
+            ctx: ptr::null_mut(),
         }
     }
 
@@ -103,7 +106,7 @@ impl KernelInvocation {
     /// The function pointer must be a valid CUfunction pointer and
     /// params' "ownership" must be able to be transferred to the invocation
     /// (it will be turned into a Box).
-    pub unsafe fn from_raw(raw: cuda::CUDA_KERNEL_NODE_PARAMS) -> Self {
+    pub unsafe fn from_raw(raw: driver_sys::CUDA_KERNEL_NODE_PARAMS) -> Self {
         Self {
             func: raw.func,
             grid_dim: GridSize::xyz(raw.gridDimX, raw.gridDimY, raw.gridDimZ),
@@ -120,7 +123,7 @@ impl KernelInvocation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct GraphNode {
-    raw: cuda::CUgraphNode,
+    raw: driver_sys::CUgraphNode,
 }
 
 unsafe impl Send for GraphNode {}
@@ -129,12 +132,12 @@ unsafe impl Sync for GraphNode {}
 impl GraphNode {
     /// Creates a new node from a raw handle. This is safe because node checks
     /// happen on the graph when functions are called.
-    pub fn from_raw(raw: cuda::CUgraphNode) -> Self {
+    pub fn from_raw(raw: driver_sys::CUgraphNode) -> Self {
         Self { raw }
     }
 
     /// Converts this node into a raw handle.
-    pub fn to_raw(self) -> cuda::CUgraphNode {
+    pub fn to_raw(self) -> driver_sys::CUgraphNode {
         self.raw
     }
 }
@@ -167,46 +170,55 @@ pub enum GraphNodeType {
     MemoryAllocation,
     /// Frees some memory.
     MemoryFree,
+    /// Batch memory operation.
+    BatchMemoryOperation,
+    /// Conditional node.
+    #[cfg(conditional_node)]
+    Conditional,
 }
 
 impl GraphNodeType {
     /// Converts a raw type to a [`GraphNodeType`].
-    pub fn from_raw(raw: cuda::CUgraphNodeType) -> Self {
+    pub fn from_raw(raw: driver_sys::CUgraphNodeType) -> Self {
+        use driver_sys::CUgraphNodeType::*;
         match raw {
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_KERNEL => GraphNodeType::KernelInvocation,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEMCPY => GraphNodeType::Memcpy,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEMSET => GraphNodeType::Memset,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_HOST => GraphNodeType::HostExecute,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_GRAPH => GraphNodeType::ChildGraph,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EMPTY => GraphNodeType::Empty,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_WAIT_EVENT => GraphNodeType::WaitEvent,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EVENT_RECORD => GraphNodeType::EventRecord,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EXT_SEMAS_SIGNAL => {
-                GraphNodeType::SemaphoreSignal
-            }
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EXT_SEMAS_WAIT => {
-                GraphNodeType::SemaphoreWait
-            }
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEM_ALLOC => GraphNodeType::MemoryAllocation,
-            cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEM_FREE => GraphNodeType::MemoryFree,
+            CU_GRAPH_NODE_TYPE_KERNEL => GraphNodeType::KernelInvocation,
+            CU_GRAPH_NODE_TYPE_MEMCPY => GraphNodeType::Memcpy,
+            CU_GRAPH_NODE_TYPE_MEMSET => GraphNodeType::Memset,
+            CU_GRAPH_NODE_TYPE_HOST => GraphNodeType::HostExecute,
+            CU_GRAPH_NODE_TYPE_GRAPH => GraphNodeType::ChildGraph,
+            CU_GRAPH_NODE_TYPE_EMPTY => GraphNodeType::Empty,
+            CU_GRAPH_NODE_TYPE_WAIT_EVENT => GraphNodeType::WaitEvent,
+            CU_GRAPH_NODE_TYPE_EVENT_RECORD => GraphNodeType::EventRecord,
+            CU_GRAPH_NODE_TYPE_EXT_SEMAS_SIGNAL => GraphNodeType::SemaphoreSignal,
+            CU_GRAPH_NODE_TYPE_EXT_SEMAS_WAIT => GraphNodeType::SemaphoreWait,
+            CU_GRAPH_NODE_TYPE_MEM_ALLOC => GraphNodeType::MemoryAllocation,
+            CU_GRAPH_NODE_TYPE_MEM_FREE => GraphNodeType::MemoryFree,
+            CU_GRAPH_NODE_TYPE_BATCH_MEM_OP => GraphNodeType::BatchMemoryOperation,
+            #[cfg(conditional_node)]
+            CU_GRAPH_NODE_TYPE_CONDITIONAL => GraphNodeType::Conditional,
         }
     }
 
     /// Converts this type to its raw counterpart.
-    pub fn to_raw(self) -> cuda::CUgraphNodeType {
+    pub fn to_raw(self) -> driver_sys::CUgraphNodeType {
+        use driver_sys::CUgraphNodeType::*;
         match self {
-            Self::KernelInvocation => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_KERNEL,
-            Self::Memcpy => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEMCPY,
-            Self::Memset => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEMSET,
-            Self::HostExecute => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_HOST,
-            Self::ChildGraph => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_GRAPH,
-            Self::Empty => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EMPTY,
-            Self::WaitEvent => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_WAIT_EVENT,
-            Self::EventRecord => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EVENT_RECORD,
-            Self::SemaphoreSignal => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EXT_SEMAS_SIGNAL,
-            Self::SemaphoreWait => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_EXT_SEMAS_WAIT,
-            Self::MemoryAllocation => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEM_ALLOC,
-            Self::MemoryFree => cuda::CUgraphNodeType::CU_GRAPH_NODE_TYPE_MEM_FREE,
+            Self::KernelInvocation => CU_GRAPH_NODE_TYPE_KERNEL,
+            Self::Memcpy => CU_GRAPH_NODE_TYPE_MEMCPY,
+            Self::Memset => CU_GRAPH_NODE_TYPE_MEMSET,
+            Self::HostExecute => CU_GRAPH_NODE_TYPE_HOST,
+            Self::ChildGraph => CU_GRAPH_NODE_TYPE_GRAPH,
+            Self::Empty => CU_GRAPH_NODE_TYPE_EMPTY,
+            Self::WaitEvent => CU_GRAPH_NODE_TYPE_WAIT_EVENT,
+            Self::EventRecord => CU_GRAPH_NODE_TYPE_EVENT_RECORD,
+            Self::SemaphoreSignal => CU_GRAPH_NODE_TYPE_EXT_SEMAS_SIGNAL,
+            Self::SemaphoreWait => CU_GRAPH_NODE_TYPE_EXT_SEMAS_WAIT,
+            Self::MemoryAllocation => CU_GRAPH_NODE_TYPE_MEM_ALLOC,
+            Self::MemoryFree => CU_GRAPH_NODE_TYPE_MEM_FREE,
+            Self::BatchMemoryOperation => CU_GRAPH_NODE_TYPE_BATCH_MEM_OP,
+            #[cfg(conditional_node)]
+            Self::Conditional => CU_GRAPH_NODE_TYPE_CONDITIONAL,
         }
     }
 }
@@ -238,7 +250,7 @@ impl GraphNodeType {
 /// send graphs between threads.
 #[derive(Debug)]
 pub struct Graph {
-    raw: cuda::CUgraph,
+    raw: driver_sys::CUgraph,
     // a cache of nodes, this cache is None when the node cache is out of date,
     // it will get refreshed when get_nodes is called.
     node_cache: Option<Vec<GraphNode>>,
@@ -291,7 +303,7 @@ impl Graph {
     pub fn num_nodes(&mut self) -> CudaResult<usize> {
         unsafe {
             let mut len = MaybeUninit::uninit();
-            cuda::cuGraphGetNodes(self.raw, ptr::null_mut(), len.as_mut_ptr()).to_result()?;
+            driver_sys::cuGraphGetNodes(self.raw, ptr::null_mut(), len.as_mut_ptr()).to_result()?;
             Ok(len.assume_init())
         }
     }
@@ -302,9 +314,9 @@ impl Graph {
             unsafe {
                 let mut len = self.num_nodes()?;
                 let mut vec = Vec::with_capacity(len);
-                cuda::cuGraphGetNodes(
+                driver_sys::cuGraphGetNodes(
                     self.raw,
-                    vec.as_mut_ptr() as *mut cuda::CUgraphNode,
+                    vec.as_mut_ptr() as *mut driver_sys::CUgraphNode,
                     &mut len as *mut usize,
                 )
                 .to_result()?;
@@ -320,7 +332,7 @@ impl Graph {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            cuda::cuGraphCreate(raw.as_mut_ptr(), flags.bits()).to_result()?;
+            driver_sys::cuGraphCreate(raw.as_mut_ptr(), flags.bits()).to_result()?;
 
             Ok(Self {
                 raw: raw.assume_init(),
@@ -333,15 +345,6 @@ impl Graph {
     /// This dotfile can be turned into an image with graphviz.
     #[cfg(any(windows, unix))]
     pub fn dump_debug_dotfile<P: AsRef<Path>>(&mut self, path: P) -> CudaResult<()> {
-        // not currently present in cuda-driver-sys for some reason
-        extern "C" {
-            fn cuGraphDebugDotPrint(
-                hGraph: cuda::CUgraph,
-                path: *const c_char,
-                flags: c_uint,
-            ) -> cuda::CUresult;
-        }
-
         let path = path.as_ref();
         let mut buf = Vec::new();
         #[cfg(unix)]
@@ -366,7 +369,14 @@ impl Graph {
             );
         }
 
-        unsafe { cuGraphDebugDotPrint(self.raw, "./out.dot\0".as_ptr().cast(), 1 << 0).to_result() }
+        unsafe {
+            driver_sys::cuGraphDebugDotPrint(
+                self.raw,
+                c"./out.dot".as_ptr(),
+                driver_sys::CUgraphDebugDot_flags::CU_GRAPH_DEBUG_DOT_FLAGS_VERBOSE as u32,
+            )
+            .to_result()
+        }
     }
 
     /// Adds a kernel invocation node to this graph, [`KernelInvocation`] can be created using
@@ -385,7 +395,7 @@ impl Graph {
             let deps_ptr = deps.as_ptr().cast();
             let mut node = MaybeUninit::<GraphNode>::uninit();
             let params = invocation.to_raw();
-            cuda::cuGraphAddKernelNode(
+            driver_sys::cuGraphAddKernelNode_v2(
                 node.as_mut_ptr().cast(),
                 self.raw,
                 deps_ptr,
@@ -401,7 +411,7 @@ impl Graph {
     pub fn num_edges(&mut self) -> CudaResult<usize> {
         unsafe {
             let mut size = MaybeUninit::uninit();
-            cuda::cuGraphGetEdges(
+            driver_sys::cuGraphGetEdges(
                 self.raw,
                 ptr::null_mut(),
                 ptr::null_mut(),
@@ -425,7 +435,7 @@ impl Graph {
             let mut from = vec![ptr::null_mut(); num_edges].into_boxed_slice();
             let mut to = vec![ptr::null_mut(); num_edges].into_boxed_slice();
 
-            cuda::cuGraphGetEdges(
+            driver_sys::cuGraphGetEdges(
                 self.raw,
                 from.as_mut_ptr(),
                 to.as_mut_ptr(),
@@ -446,7 +456,7 @@ impl Graph {
         self.check_deps_are_valid("node_type", &[node])?;
         unsafe {
             let mut ty = MaybeUninit::uninit();
-            cuda::cuGraphNodeGetType(node.to_raw(), ty.as_mut_ptr()).to_result()?;
+            driver_sys::cuGraphNodeGetType(node.to_raw(), ty.as_mut_ptr()).to_result()?;
             let raw = ty.assume_init();
             Ok(GraphNodeType::from_raw(raw))
         }
@@ -466,7 +476,7 @@ impl Graph {
         );
         unsafe {
             let mut params = MaybeUninit::uninit();
-            cuda::cuGraphKernelNodeGetParams(node.to_raw(), params.as_mut_ptr());
+            driver_sys::cuGraphKernelNodeGetParams_v2(node.to_raw(), params.as_mut_ptr());
             Ok(KernelInvocation::from_raw(params.assume_init()))
         }
     }
@@ -479,7 +489,7 @@ impl Graph {
     /// - This handle is exclusive, nothing else can use it in any way, including trying to drop it.
     /// - It must be a valid handle. This invariant must be upheld, the library is allowed to rely on
     /// the fact that the handle is valid in terms of safety, therefore failure to uphold this invariant is UB.
-    pub unsafe fn from_raw(raw: cuda::CUgraph) -> Self {
+    pub unsafe fn from_raw(raw: driver_sys::CUgraph) -> Self {
         Self {
             raw,
             node_cache: None,
@@ -488,7 +498,7 @@ impl Graph {
 
     /// Consumes this [`Graph`], turning it into a raw handle. The handle will not be dropped,
     /// it is up to the caller to ensure the graph is destroyed.
-    pub fn into_raw(self) -> cuda::CUgraph {
+    pub fn into_raw(self) -> driver_sys::CUgraph {
         let me = ManuallyDrop::new(self);
         me.raw
     }
@@ -497,7 +507,7 @@ impl Graph {
 impl Drop for Graph {
     fn drop(&mut self) {
         unsafe {
-            cuda::cuGraphDestroy(self.raw);
+            driver_sys::cuGraphDestroy(self.raw);
         }
     }
 }

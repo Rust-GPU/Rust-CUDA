@@ -1,11 +1,14 @@
 //! Functions and types for working with CUDA kernels.
 
+use std::marker::PhantomData;
+use std::mem::{transmute, MaybeUninit};
+
+use cust_raw::driver_sys;
+use cust_raw::driver_sys::CUfunction;
+
 use crate::context::{CacheConfig, SharedMemoryConfig};
 use crate::error::{CudaResult, ToResult};
 use crate::module::Module;
-use crate::sys::{self as cuda, CUfunction};
-use std::marker::PhantomData;
-use std::mem::{transmute, MaybeUninit};
 
 /// Dimensions of a grid, or the number of thread blocks in a kernel launch.
 ///
@@ -240,10 +243,10 @@ impl Function<'_> {
     pub fn get_attribute(&self, attr: FunctionAttribute) -> CudaResult<i32> {
         unsafe {
             let mut val = 0i32;
-            cuda::cuFuncGetAttribute(
+            driver_sys::cuFuncGetAttribute(
                 &mut val as *mut i32,
                 // This should be safe, as the repr and values of FunctionAttribute should match.
-                ::std::mem::transmute::<FunctionAttribute, cust_raw::CUfunction_attribute_enum>(
+                ::std::mem::transmute::<FunctionAttribute, driver_sys::CUfunction_attribute_enum>(
                     attr,
                 ),
                 self.inner,
@@ -283,9 +286,9 @@ impl Function<'_> {
     /// ```
     pub fn set_cache_config(&mut self, config: CacheConfig) -> CudaResult<()> {
         unsafe {
-            cuda::cuFuncSetCacheConfig(
+            driver_sys::cuFuncSetCacheConfig(
                 self.inner,
-                transmute::<CacheConfig, cust_raw::CUfunc_cache_enum>(config),
+                transmute::<CacheConfig, driver_sys::CUfunc_cache_enum>(config),
             )
             .to_result()
         }
@@ -316,9 +319,9 @@ impl Function<'_> {
     /// ```
     pub fn set_shared_memory_config(&mut self, cfg: SharedMemoryConfig) -> CudaResult<()> {
         unsafe {
-            cuda::cuFuncSetSharedMemConfig(
+            driver_sys::cuFuncSetSharedMemConfig(
                 self.inner,
-                transmute::<SharedMemoryConfig, cust_raw::CUsharedconfig_enum>(cfg),
+                transmute::<SharedMemoryConfig, driver_sys::CUsharedconfig_enum>(cfg),
             )
             .to_result()
         }
@@ -343,7 +346,7 @@ impl Function<'_> {
 
         let mut result = MaybeUninit::uninit();
         unsafe {
-            cuda::cuOccupancyAvailableDynamicSMemPerBlock(
+            driver_sys::cuOccupancyAvailableDynamicSMemPerBlock(
                 result.as_mut_ptr(),
                 self.to_raw(),
                 num_blocks as i32,
@@ -365,7 +368,7 @@ impl Function<'_> {
 
         let mut num_blocks = MaybeUninit::uninit();
         unsafe {
-            cuda::cuOccupancyMaxActiveBlocksPerMultiprocessor(
+            driver_sys::cuOccupancyMaxActiveBlocksPerMultiprocessor(
                 num_blocks.as_mut_ptr(),
                 self.to_raw(),
                 total_block_size as i32,
@@ -402,7 +405,7 @@ impl Function<'_> {
         let total_block_size_limit = block_size_limit.x * block_size_limit.y * block_size_limit.z;
 
         unsafe {
-            cuda::cuOccupancyMaxPotentialBlockSize(
+            driver_sys::cuOccupancyMaxPotentialBlockSize(
                 min_grid_size.as_mut_ptr(),
                 block_size.as_mut_ptr(),
                 self.to_raw(),

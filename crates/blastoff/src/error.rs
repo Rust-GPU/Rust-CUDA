@@ -1,6 +1,7 @@
-use crate::sys;
-use cust::error::CudaError;
 use std::{ffi::CStr, fmt::Display};
+
+use cust::error::CudaError;
+use cust_raw::cublas_sys;
 
 /// Result that contains the un-dropped value on error.
 pub type DropResult<T> = std::result::Result<(), (CublasError, T)>;
@@ -24,7 +25,7 @@ impl std::error::Error for CublasError {}
 impl Display for CublasError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
-            let ptr = sys::v2::cublasGetStatusString(self.into_raw());
+            let ptr = cublas_sys::cublasGetStatusString(self.into_raw());
             let cow = CStr::from_ptr(ptr).to_string_lossy();
             f.write_str(cow.as_ref())
         }
@@ -35,39 +36,41 @@ pub trait ToResult {
     fn to_result(self) -> Result<(), CublasError>;
 }
 
-impl ToResult for sys::v2::cublasStatus_t {
+impl ToResult for cublas_sys::cublasStatus_t {
     fn to_result(self) -> Result<(), CublasError> {
+        use cust_raw::cublas_sys::cublasStatus_t::*;
         use CublasError::*;
 
         Err(match self {
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_SUCCESS => return Ok(()),
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_NOT_INITIALIZED => NotInitialized,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_ALLOC_FAILED => AllocFailed,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_INVALID_VALUE => InvalidValue,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH => ArchMismatch,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_MAPPING_ERROR => MappingError,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_EXECUTION_FAILED => ExecutionFailed,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_INTERNAL_ERROR => InternalError,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED => NotSupported,
-            sys::v2::cublasStatus_t::CUBLAS_STATUS_LICENSE_ERROR => LicenseError,
+            CUBLAS_STATUS_SUCCESS => return Ok(()),
+            CUBLAS_STATUS_NOT_INITIALIZED => NotInitialized,
+            CUBLAS_STATUS_ALLOC_FAILED => AllocFailed,
+            CUBLAS_STATUS_INVALID_VALUE => InvalidValue,
+            CUBLAS_STATUS_ARCH_MISMATCH => ArchMismatch,
+            CUBLAS_STATUS_MAPPING_ERROR => MappingError,
+            CUBLAS_STATUS_EXECUTION_FAILED => ExecutionFailed,
+            CUBLAS_STATUS_INTERNAL_ERROR => InternalError,
+            CUBLAS_STATUS_NOT_SUPPORTED => NotSupported,
+            CUBLAS_STATUS_LICENSE_ERROR => LicenseError,
         })
     }
 }
 
 impl CublasError {
-    pub fn into_raw(self) -> sys::v2::cublasStatus_t {
+    pub fn into_raw(self) -> cublas_sys::cublasStatus_t {
+        use cust_raw::cublas_sys::cublasStatus_t::*;
         use CublasError::*;
 
         match self {
-            NotInitialized => sys::v2::cublasStatus_t::CUBLAS_STATUS_NOT_INITIALIZED,
-            AllocFailed => sys::v2::cublasStatus_t::CUBLAS_STATUS_ALLOC_FAILED,
-            InvalidValue => sys::v2::cublasStatus_t::CUBLAS_STATUS_INVALID_VALUE,
-            ArchMismatch => sys::v2::cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH,
-            MappingError => sys::v2::cublasStatus_t::CUBLAS_STATUS_MAPPING_ERROR,
-            ExecutionFailed => sys::v2::cublasStatus_t::CUBLAS_STATUS_EXECUTION_FAILED,
-            InternalError => sys::v2::cublasStatus_t::CUBLAS_STATUS_INTERNAL_ERROR,
-            NotSupported => sys::v2::cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED,
-            LicenseError => sys::v2::cublasStatus_t::CUBLAS_STATUS_LICENSE_ERROR,
+            NotInitialized => CUBLAS_STATUS_NOT_INITIALIZED,
+            AllocFailed => CUBLAS_STATUS_ALLOC_FAILED,
+            InvalidValue => CUBLAS_STATUS_INVALID_VALUE,
+            ArchMismatch => CUBLAS_STATUS_ARCH_MISMATCH,
+            MappingError => CUBLAS_STATUS_MAPPING_ERROR,
+            ExecutionFailed => CUBLAS_STATUS_EXECUTION_FAILED,
+            InternalError => CUBLAS_STATUS_INTERNAL_ERROR,
+            NotSupported => CUBLAS_STATUS_NOT_SUPPORTED,
+            LicenseError => CUBLAS_STATUS_LICENSE_ERROR,
         }
     }
 }

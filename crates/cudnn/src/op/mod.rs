@@ -1,13 +1,12 @@
+use cust::memory::GpuBuffer;
+
+use crate::{CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor};
+
 mod op_tensor_descriptor;
 mod op_tensor_op;
 
 pub use op_tensor_descriptor::*;
 pub use op_tensor_op::*;
-
-use crate::{
-    sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
-};
-use cust::memory::GpuBuffer;
 
 impl CudnnContext {
     /// This function computes a binary element-wise tensor core operation according to the
@@ -108,7 +107,7 @@ impl CudnnContext {
         let gamma = &gamma as *const CompT as *const std::ffi::c_void;
 
         unsafe {
-            sys::cudnnOpTensor(
+            cudnn_sys::cudnnOpTensor(
                 self.raw,
                 op_desc.raw,
                 alpha,
@@ -215,7 +214,7 @@ impl CudnnContext {
         unsafe {
             // The second tensor and the second scaling factors here are ignored.
             // We use the left operand twice to make cuDNN happy, as it won't accept a null pointer.
-            sys::cudnnOpTensor(
+            cudnn_sys::cudnnOpTensor(
                 self.raw,
                 op_desc.raw,
                 alpha,
@@ -310,7 +309,7 @@ impl CudnnContext {
         let gamma = &gamma as *const CompT as *const std::ffi::c_void;
 
         unsafe {
-            sys::cudnnAddTensor(
+            cudnn_sys::cudnnAddTensor(
                 self.raw, alpha, a_desc.raw, a_data, gamma, c_desc.raw, c_data,
             )
             .into_result()
@@ -371,7 +370,7 @@ impl CudnnContext {
 
         let value = &value as *const CompT as *const std::ffi::c_void;
 
-        unsafe { sys::cudnnSetTensor(self.raw, desc.raw, data, value).into_result() }
+        unsafe { cudnn_sys::cudnnSetTensor(self.raw, desc.raw, data, value).into_result() }
     }
 
     /// This function scales all the element of a tensor by a given value.
@@ -428,6 +427,6 @@ impl CudnnContext {
 
         let value = &value as *const CompT as *const std::ffi::c_void;
 
-        unsafe { sys::cudnnScaleTensor(self.raw, desc.raw, data, value).into_result() }
+        unsafe { cudnn_sys::cudnnScaleTensor(self.raw, desc.raw, data, value).into_result() }
     }
 }

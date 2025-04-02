@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// A recurrent neural network algorithm.
 ///
 /// **Do note** that double precision is only supported by `RnnAlgo::Standard`.
@@ -15,13 +13,14 @@ pub enum RnnAlgo {
     PersistStaticSmallH,
 }
 
-impl From<RnnAlgo> for sys::cudnnRNNAlgo_t {
+impl From<RnnAlgo> for cudnn_sys::cudnnRNNAlgo_t {
     fn from(algo: RnnAlgo) -> Self {
+        use cudnn_sys::cudnnRNNAlgo_t::*;
         match algo {
-            RnnAlgo::Standard => sys::cudnnRNNAlgo_t::CUDNN_RNN_ALGO_STANDARD,
-            RnnAlgo::PersistStatic => sys::cudnnRNNAlgo_t::CUDNN_RNN_ALGO_PERSIST_STATIC,
-            RnnAlgo::PersistDynamic => sys::cudnnRNNAlgo_t::CUDNN_RNN_ALGO_PERSIST_DYNAMIC,
-            RnnAlgo::PersistStaticSmallH => sys::cudnnRNNAlgo_t::CUDNN_RNN_ALGO_PERSIST_STATIC,
+            RnnAlgo::Standard => CUDNN_RNN_ALGO_STANDARD,
+            RnnAlgo::PersistStatic => CUDNN_RNN_ALGO_PERSIST_STATIC,
+            RnnAlgo::PersistDynamic => CUDNN_RNN_ALGO_PERSIST_DYNAMIC,
+            RnnAlgo::PersistStaticSmallH => CUDNN_RNN_ALGO_PERSIST_STATIC,
         }
     }
 }

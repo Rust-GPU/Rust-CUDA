@@ -7,7 +7,6 @@
 //! cust) can fail. Even those functions which have no normal failure conditions can return
 //! errors related to previous asynchronous launches.
 
-use crate::sys::{self as cuda, cudaError_enum};
 use std::error::Error;
 use std::ffi::CStr;
 use std::fmt;
@@ -15,6 +14,9 @@ use std::mem;
 use std::os::raw::c_char;
 use std::ptr;
 use std::result::Result;
+
+use cust_raw::driver_sys;
+use cust_raw::driver_sys::cudaError_enum;
 
 /// Error enum which represents all the potential errors returned by the CUDA driver API.
 #[repr(u32)]
@@ -96,8 +98,8 @@ impl fmt::Display for CudaError {
                 let value = other as u32;
                 let mut ptr: *const c_char = ptr::null();
                 unsafe {
-                    cuda::cuGetErrorString(
-                        mem::transmute::<u32, cust_raw::cudaError_enum>(value),
+                    driver_sys::cuGetErrorString(
+                        mem::transmute::<u32, cudaError_enum>(value),
                         &mut ptr as *mut *const c_char,
                     )
                     .to_result()

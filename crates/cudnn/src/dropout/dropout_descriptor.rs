@@ -1,4 +1,3 @@
-use crate::sys;
 use cust::memory::GpuBuffer;
 
 /// The descriptor of a dropout operation.
@@ -7,7 +6,7 @@ pub struct DropoutDescriptor<T>
 where
     T: GpuBuffer<u8>,
 {
-    pub(crate) raw: sys::cudnnDropoutDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnDropoutDescriptor_t,
     pub(crate) states: T,
 }
 
@@ -17,7 +16,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyDropoutDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyDropoutDescriptor(self.raw);
         }
     }
 }

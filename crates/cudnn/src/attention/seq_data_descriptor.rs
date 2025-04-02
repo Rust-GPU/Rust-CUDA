@@ -1,5 +1,6 @@
-use crate::{private, sys, CudnnError, DataType, IntoResult, SeqDataAxis};
 use std::{marker::PhantomData, mem::MaybeUninit};
+
+use crate::{private, CudnnError, DataType, IntoResult, SeqDataAxis};
 
 /// Specifies the allowed types for the sequential data buffer.
 ///
@@ -15,7 +16,7 @@ pub struct SeqDataDescriptor<T>
 where
     T: SeqDataType,
 {
-    pub(crate) raw: sys::cudnnSeqDataDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnSeqDataDescriptor_t,
     data_type: PhantomData<T>,
 }
 
@@ -123,13 +124,13 @@ where
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreateSeqDataDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateSeqDataDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
             let raw_axes = axes.map(SeqDataAxis::into);
 
-            sys::cudnnSetSeqDataDescriptor(
+            cudnn_sys::cudnnSetSeqDataDescriptor(
                 raw,
                 T::into_raw(),
                 4_i32,
@@ -155,7 +156,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroySeqDataDescriptor(self.raw);
+            cudnn_sys::cudnnDestroySeqDataDescriptor(self.raw);
         }
     }
 }

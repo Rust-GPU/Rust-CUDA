@@ -4,9 +4,7 @@ pub use nvvm::*;
 use serde::Deserialize;
 use std::{
     borrow::Borrow,
-    env,
-    ffi::OsString,
-    fmt,
+    env, fmt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -340,21 +338,6 @@ fn find_rustc_codegen_nvvm() -> PathBuf {
     panic!("Could not find {} in library path", filename);
 }
 
-fn get_new_path_var() -> OsString {
-    let split_paths = env::var_os(dylib_path_envvar()).unwrap_or_default();
-    let mut paths = env::split_paths(&split_paths).collect::<Vec<_>>();
-    let possible_paths = if cfg!(target_os = "windows") {
-        vec![find_cuda_helper::find_cuda_root()
-            .unwrap()
-            .join("nvvm")
-            .join("bin")]
-    } else {
-        find_cuda_helper::find_cuda_lib_dirs()
-    };
-    paths.extend(possible_paths);
-    env::join_paths(&paths).expect("Failed to join paths for PATH")
-}
-
 /// Joins strings together while ensuring none of the strings contain the separator.
 fn join_checking_for_separators(strings: Vec<impl Borrow<str>>, sep: &str) -> String {
     for s in &strings {
@@ -373,8 +356,6 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     // see https://github.com/EmbarkStudios/rust-gpu/blob/main/crates/spirv-builder/src/lib.rs#L385-L392
     // on what this does
     let rustc_codegen_nvvm = find_rustc_codegen_nvvm();
-
-    let new_path = get_new_path_var();
 
     let mut rustflags = vec![
         format!("-Zcodegen-backend={}", rustc_codegen_nvvm.display()),
@@ -444,8 +425,6 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     ]);
 
     cargo.args(&builder.build_args);
-
-    cargo.env(dylib_path_envvar(), new_path);
 
     if builder.release {
         cargo.arg("--release");

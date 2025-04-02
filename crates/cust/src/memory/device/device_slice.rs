@@ -1,12 +1,3 @@
-use crate::error::{CudaResult, ToResult};
-use crate::memory::device::AsyncCopyDestination;
-use crate::memory::device::{CopyDestination, DeviceBuffer};
-use crate::memory::DevicePointer;
-use crate::memory::{DeviceCopy, DeviceMemory};
-use crate::stream::Stream;
-use crate::sys as cuda;
-#[cfg(feature = "bytemuck")]
-use bytemuck::{Pod, Zeroable};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::ops::{
@@ -15,6 +6,17 @@ use std::ops::{
 use std::os::raw::c_void;
 use std::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::slice;
+
+#[cfg(feature = "bytemuck")]
+use bytemuck::{Pod, Zeroable};
+use cust_raw::driver_sys;
+
+use crate::error::{CudaResult, ToResult};
+use crate::memory::device::AsyncCopyDestination;
+use crate::memory::device::{CopyDestination, DeviceBuffer};
+use crate::memory::DevicePointer;
+use crate::memory::{DeviceCopy, DeviceMemory};
+use crate::stream::Stream;
 
 /// Fixed-size device-side slice.
 #[repr(transparent)]
@@ -247,7 +249,9 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
 
         // SAFETY: We know T can hold any value because it is `Pod`, and
         // sub-byte alignment isn't a thing so we know the alignment is right.
-        unsafe { cuda::cuMemsetD8_v2(self.as_raw_ptr(), value, self.size_in_bytes()).to_result() }
+        unsafe {
+            driver_sys::cuMemsetD8_v2(self.as_raw_ptr(), value, self.size_in_bytes()).to_result()
+        }
     }
 
     /// Sets the memory range of this buffer to contiguous `8-bit` values of `value` asynchronously.
@@ -264,7 +268,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             return Ok(());
         }
 
-        cuda::cuMemsetD8Async(
+        driver_sys::cuMemsetD8Async(
             self.as_raw_ptr(),
             value,
             self.size_in_bytes(),
@@ -296,7 +300,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 2 bytes!"
         );
-        unsafe { cuda::cuMemsetD16_v2(self.as_raw_ptr(), value, data_len / 2).to_result() }
+        unsafe { driver_sys::cuMemsetD16_v2(self.as_raw_ptr(), value, data_len / 2).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `16-bit` values of `value` asynchronously.
@@ -327,7 +331,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 2 bytes!"
         );
-        cuda::cuMemsetD16Async(self.as_raw_ptr(), value, data_len / 2, stream.as_inner())
+        driver_sys::cuMemsetD16Async(self.as_raw_ptr(), value, data_len / 2, stream.as_inner())
             .to_result()
     }
 
@@ -354,7 +358,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 4 bytes!"
         );
-        unsafe { cuda::cuMemsetD32_v2(self.as_raw_ptr(), value, data_len / 4).to_result() }
+        unsafe { driver_sys::cuMemsetD32_v2(self.as_raw_ptr(), value, data_len / 4).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `32-bit` values of `value` asynchronously.
@@ -385,7 +389,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 4 bytes!"
         );
-        cuda::cuMemsetD32Async(self.as_raw_ptr(), value, data_len / 4, stream.as_inner())
+        driver_sys::cuMemsetD32Async(self.as_raw_ptr(), value, data_len / 4, stream.as_inner())
             .to_result()
     }
 }
@@ -647,7 +651,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> CopyDestination<I> for 
         let size = self.size_in_bytes();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyHtoD_v2(self.as_raw_ptr(), val.as_ptr() as *const c_void, size)
+                driver_sys::cuMemcpyHtoD_v2(self.as_raw_ptr(), val.as_ptr() as *const c_void, size)
                     .to_result()?
             }
         }
@@ -663,8 +667,12 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> CopyDestination<I> for 
         let size = self.size_in_bytes();
         if size != 0 {
             unsafe {
-                cuda::cuMemcpyDtoH_v2(val.as_mut_ptr() as *mut c_void, self.as_raw_ptr(), size)
-                    .to_result()?
+                driver_sys::cuMemcpyDtoH_v2(
+                    val.as_mut_ptr() as *mut c_void,
+                    self.as_raw_ptr(),
+                    size,
+                )
+                .to_result()?
             }
         }
         Ok(())
@@ -678,7 +686,10 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            unsafe { cuda::cuMemcpyDtoD_v2(self.as_raw_ptr(), val.as_raw_ptr(), size).to_result()? }
+            unsafe {
+                driver_sys::cuMemcpyDtoD_v2(self.as_raw_ptr(), val.as_raw_ptr(), size)
+                    .to_result()?
+            }
         }
         Ok(())
     }
@@ -690,7 +701,10 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            unsafe { cuda::cuMemcpyDtoD_v2(val.as_raw_ptr(), self.as_raw_ptr(), size).to_result()? }
+            unsafe {
+                driver_sys::cuMemcpyDtoD_v2(val.as_raw_ptr(), self.as_raw_ptr(), size)
+                    .to_result()?
+            }
         }
         Ok(())
     }
@@ -715,7 +729,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> AsyncCopyDestination<I>
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            cuda::cuMemcpyHtoDAsync_v2(
+            driver_sys::cuMemcpyHtoDAsync_v2(
                 self.as_raw_ptr(),
                 val.as_ptr() as *const c_void,
                 size,
@@ -734,7 +748,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> AsyncCopyDestination<I>
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            cuda::cuMemcpyDtoHAsync_v2(
+            driver_sys::cuMemcpyDtoHAsync_v2(
                 val.as_mut_ptr() as *mut c_void,
                 self.as_raw_ptr(),
                 size,
@@ -753,8 +767,13 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            cuda::cuMemcpyDtoDAsync_v2(self.as_raw_ptr(), val.as_raw_ptr(), size, stream.as_inner())
-                .to_result()?
+            driver_sys::cuMemcpyDtoDAsync_v2(
+                self.as_raw_ptr(),
+                val.as_raw_ptr(),
+                size,
+                stream.as_inner(),
+            )
+            .to_result()?
         }
         Ok(())
     }
@@ -766,8 +785,13 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            cuda::cuMemcpyDtoDAsync_v2(val.as_raw_ptr(), self.as_raw_ptr(), size, stream.as_inner())
-                .to_result()?
+            driver_sys::cuMemcpyDtoDAsync_v2(
+                val.as_raw_ptr(),
+                self.as_raw_ptr(),
+                size,
+                stream.as_inner(),
+            )
+            .to_result()?
         }
         Ok(())
     }

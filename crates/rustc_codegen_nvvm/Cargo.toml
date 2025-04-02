@@ -15,6 +15,7 @@ readme = "../../README.md"
 crate-type = ["dylib"]
 
 [dependencies]
+cust_raw = { path = "../cust_raw" }
 nvvm = { version = "0.1", path = "../nvvm" }
 rustc-demangle = "0.1.24"
 libc = "0.2.169"
@@ -26,7 +27,6 @@ bitflags = "2.8.0"
 # by `rustc_codegen_ssa` via its `thorin-dwp` dependency.
 gimli = "0.30"
 tracing = { version = "0.1.41", features = ["release_max_level_debug"] }
-find_cuda_helper = { version = "0.2", path = "../find_cuda_helper" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 rustc_codegen_nvvm_macros = { version = "0.1", path = "../rustc_codegen_nvvm_macros" }
 smallvec = { version = "1.14.0", features = ["union", "may_dangle"] }

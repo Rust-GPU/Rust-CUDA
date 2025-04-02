@@ -1,12 +1,3 @@
-use super::DeviceCopy;
-use crate::device::Device;
-#[allow(unused_imports)]
-use crate::device::DeviceAttribute;
-use crate::error::*;
-use crate::memory::malloc::{cuda_free_unified, cuda_malloc_unified};
-use crate::memory::UnifiedPointer;
-use crate::prelude::Stream;
-use crate::sys as cuda;
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::Ordering;
 use std::convert::{AsMut, AsRef};
@@ -16,6 +7,17 @@ use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::slice;
+
+use cust_raw::driver_sys;
+
+use super::DeviceCopy;
+use crate::device::Device;
+#[allow(unused_imports)]
+use crate::device::DeviceAttribute;
+use crate::error::*;
+use crate::memory::malloc::{cuda_free_unified, cuda_malloc_unified};
+use crate::memory::UnifiedPointer;
+use crate::prelude::Stream;
 
 /// A pointer type for heap-allocation in CUDA unified memory.
 ///
@@ -638,8 +640,8 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            cuda::cuMemPrefetchAsync(
-                slice.as_ptr() as cuda::CUdeviceptr,
+            driver_sys::cuMemPrefetchAsync(
+                slice.as_ptr() as driver_sys::CUdeviceptr,
                 mem_size,
                 -1, // CU_DEVICE_CPU #define
                 stream.as_inner(),
@@ -675,8 +677,8 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            cuda::cuMemPrefetchAsync(
-                slice.as_ptr() as cuda::CUdeviceptr,
+            driver_sys::cuMemPrefetchAsync(
+                slice.as_ptr() as driver_sys::CUdeviceptr,
                 mem_size,
                 device.as_raw(),
                 stream.as_inner(),
@@ -701,14 +703,19 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         let advice = if read_mostly {
-            cuda::CUmem_advise::CU_MEM_ADVISE_SET_READ_MOSTLY
+            driver_sys::CUmem_advise::CU_MEM_ADVISE_SET_READ_MOSTLY
         } else {
-            cuda::CUmem_advise::CU_MEM_ADVISE_UNSET_READ_MOSTLY
+            driver_sys::CUmem_advise::CU_MEM_ADVISE_UNSET_READ_MOSTLY
         };
 
         unsafe {
-            cuda::cuMemAdvise(slice.as_ptr() as cuda::CUdeviceptr, mem_size, advice, 0)
-                .to_result()?;
+            driver_sys::cuMemAdvise(
+                slice.as_ptr() as driver_sys::CUdeviceptr,
+                mem_size,
+                advice,
+                0,
+            )
+            .to_result()?;
         }
         Ok(())
     }
@@ -737,10 +744,10 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            cuda::cuMemAdvise(
-                slice.as_ptr() as cuda::CUdeviceptr,
+            driver_sys::cuMemAdvise(
+                slice.as_ptr() as driver_sys::CUdeviceptr,
                 mem_size,
-                cuda::CUmem_advise::CU_MEM_ADVISE_SET_PREFERRED_LOCATION,
+                driver_sys::CUmem_advise::CU_MEM_ADVISE_SET_PREFERRED_LOCATION,
                 preferred_location.map(|d| d.as_raw()).unwrap_or(-1),
             )
             .to_result()?;
@@ -754,10 +761,10 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            cuda::cuMemAdvise(
-                slice.as_ptr() as cuda::CUdeviceptr,
+            driver_sys::cuMemAdvise(
+                slice.as_ptr() as driver_sys::CUdeviceptr,
                 mem_size,
-                cuda::CUmem_advise::CU_MEM_ADVISE_UNSET_PREFERRED_LOCATION,
+                driver_sys::CUmem_advise::CU_MEM_ADVISE_UNSET_PREFERRED_LOCATION,
                 0,
             )
             .to_result()?;

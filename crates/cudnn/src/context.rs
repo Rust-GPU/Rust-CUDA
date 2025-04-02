@@ -1,5 +1,6 @@
-use crate::{sys, CudnnError, IntoResult};
 use std::mem::MaybeUninit;
+
+use crate::{CudnnError, IntoResult};
 
 /// cuDNN library context. It's the central structure required to interact with cuDNN.
 /// It holds and manages internal memory allocations.
@@ -24,7 +25,7 @@ use std::mem::MaybeUninit;
 /// You should generally create and drop context outside of performance critical code paths.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct CudnnContext {
-    pub(crate) raw: sys::cudnnHandle_t,
+    pub(crate) raw: cudnn_sys::cudnnHandle_t,
 }
 
 impl CudnnContext {
@@ -49,7 +50,7 @@ impl CudnnContext {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreate(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreate(raw.as_mut_ptr()).into_result()?;
             let raw = raw.assume_init();
 
             Ok(Self { raw })
@@ -63,7 +64,7 @@ impl CudnnContext {
     pub fn version(&self) -> (u32, u32, u32) {
         unsafe {
             // cudnnGetVersion does not return a state as it never fails.
-            let version = sys::cudnnGetVersion();
+            let version = cudnn_sys::cudnnGetVersion();
             (
                 (version / 1000) as u32,
                 ((version % 1000) / 100) as u32,
@@ -81,7 +82,7 @@ impl CudnnContext {
     pub fn cuda_version(&self) -> (u32, u32, u32) {
         unsafe {
             // cudnnGetCudartVersion does not return a state as it never fails.
-            let version = sys::cudnnGetCudartVersion();
+            let version = cudnn_sys::cudnnGetCudartVersion();
             (
                 (version / 1000) as u32,
                 ((version % 1000) / 100) as u32,
@@ -112,7 +113,8 @@ impl CudnnContext {
     /// stream and the cuDNN handle context.
     pub fn set_stream(&mut self, stream: &cust::stream::Stream) -> Result<(), CudnnError> {
         unsafe {
-            sys::cudnnSetStream(self.raw, stream.as_inner() as sys::cudaStream_t).into_result()
+            cudnn_sys::cudnnSetStream(self.raw, stream.as_inner() as cudnn_sys::cudaStream_t)
+                .into_result()
         }
     }
 }
@@ -122,7 +124,7 @@ impl Drop for CudnnContext {
         unsafe {
             // This can be either a valid cuDNN handle or a null pointer.
             // Since it's getting dropped we shouldn't bother much.
-            sys::cudnnDestroy(self.raw);
+            cudnn_sys::cudnnDestroy(self.raw);
         }
     }
 }

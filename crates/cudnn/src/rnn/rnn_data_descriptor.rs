@@ -1,5 +1,6 @@
-use crate::{private, sys, CudnnError, DataType, IntoResult, RnnDataLayout};
 use std::{marker::PhantomData, mem::MaybeUninit};
+
+use crate::{private, CudnnError, DataType, IntoResult, RnnDataLayout};
 
 /// Specifies the allowed types for the recurrent neural network inputs and outputs.
 ///
@@ -16,7 +17,7 @@ pub struct RnnDataDescriptor<T>
 where
     T: RnnDataType,
 {
-    pub(crate) raw: sys::cudnnRNNDataDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnRNNDataDescriptor_t,
     data_type: PhantomData<T>,
 }
 
@@ -114,7 +115,7 @@ where
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreateRNNDataDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateRNNDataDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
@@ -122,7 +123,7 @@ where
                 .into()
                 .map_or(std::ptr::null_mut(), |mut el| &mut el as *mut T);
 
-            sys::cudnnSetRNNDataDescriptor(
+            cudnn_sys::cudnnSetRNNDataDescriptor(
                 raw,
                 T::into_raw(),
                 layout.into(),
@@ -148,7 +149,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyRNNDataDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyRNNDataDescriptor(self.raw);
         }
     }
 }

@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Indicates the data type of the indices computed by a reduction operation.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -10,7 +8,7 @@ pub enum IndicesType {
     U64,
 }
 
-impl From<IndicesType> for sys::cudnnIndicesType_t {
+impl From<IndicesType> for cudnn_sys::cudnnIndicesType_t {
     fn from(mode: IndicesType) -> Self {
         match mode {
             IndicesType::U8 => Self::CUDNN_8BIT_INDICES,

@@ -1,19 +1,12 @@
-use crate::{context::DeviceContext, error::Error, optix_call, sys};
+use crate::{context::DeviceContext, error::Error, optix_call};
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 use std::cmp::min;
 use std::ffi::{CStr, CString};
 
-// Kinda nasty hack to work around the fact taht bindgen generates an i32 for enums on windows,
-// but a u32 on linux
-#[cfg(windows)]
-type OptixEnumBaseType = i32;
-#[cfg(unix)]
-type OptixEnumBaseType = u32;
-
 #[repr(transparent)]
 pub struct Pipeline {
-    pub(crate) raw: sys::OptixPipeline,
+    pub(crate) raw: optix_sys::OptixPipeline,
 }
 
 #[repr(C)]
@@ -23,9 +16,9 @@ pub struct PipelineLinkOptions {
     pub debug_level: CompileDebugLevel,
 }
 
-impl From<PipelineLinkOptions> for sys::OptixPipelineLinkOptions {
+impl From<PipelineLinkOptions> for optix_sys::OptixPipelineLinkOptions {
     fn from(o: PipelineLinkOptions) -> Self {
-        sys::OptixPipelineLinkOptions {
+        optix_sys::OptixPipelineLinkOptions {
             maxTraceDepth: o.max_trace_depth,
             debugLevel: o.debug_level as _,
         }
@@ -42,12 +35,12 @@ impl Pipeline {
     ) -> Result<(Pipeline, String)> {
         let popt = pipeline_compile_options.build();
 
-        let link_options: sys::OptixPipelineLinkOptions = link_options.into();
+        let link_options: optix_sys::OptixPipelineLinkOptions = link_options.into();
 
         let mut log = [0u8; 4096];
         let mut log_len = log.len();
 
-        let mut raw: sys::OptixPipeline = std::ptr::null_mut();
+        let mut raw: optix_sys::OptixPipeline = std::ptr::null_mut();
 
         let res = unsafe {
             optix_call!(optixPipelineCreate(
@@ -77,7 +70,7 @@ impl Pipeline {
 impl Drop for Pipeline {
     fn drop(&mut self) {
         unsafe {
-            sys::optixPipelineDestroy(self.raw);
+            optix_sys::optixPipelineDestroy(self.raw);
         }
     }
 }
@@ -129,69 +122,55 @@ impl Pipeline {
 
 #[repr(transparent)]
 pub struct Module {
-    pub(crate) raw: sys::OptixModule,
+    pub(crate) raw: optix_sys::OptixModule,
 }
 
 /// Module compilation optimization level
-#[cfg_attr(windows, repr(i32))]
-#[cfg_attr(unix, repr(u32))]
+#[repr(i32)]
 #[derive(Debug, Hash, PartialEq, Copy, Clone, Default)]
 pub enum CompileOptimizationLevel {
     #[default]
-    Default = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_DEFAULT,
-    Level0 = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_0,
-    Level1 = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_1,
-    Level2 = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_2,
-    Level3 = sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_3,
+    Default = optix_sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_DEFAULT as i32,
+    Level0 = optix_sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_0 as i32,
+    Level1 = optix_sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_1 as i32,
+    Level2 = optix_sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_2 as i32,
+    Level3 = optix_sys::OptixCompileOptimizationLevel::OPTIX_COMPILE_OPTIMIZATION_LEVEL_3 as i32,
 }
 
 /// Module compilation debug level
-#[cfg_attr(windows, repr(i32))]
-#[cfg_attr(unix, repr(u32))]
+#[repr(i32)]
 #[derive(Debug, Hash, PartialEq, Copy, Clone, Default)]
 pub enum CompileDebugLevel {
     #[default]
-    None = sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_NONE,
-    LineInfo = sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO,
-    Full = sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_FULL,
+    None = optix_sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_NONE as i32,
+    LineInfo = optix_sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO as i32,
+    Full = optix_sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_FULL as i32,
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(any(feature="optix72", feature="optix73"))] {
-        #[repr(C)]
-        #[derive(Debug, Hash, PartialEq, Copy, Clone)]
-        pub struct ModuleCompileOptions {
-            pub max_register_count: i32,
-            pub opt_level: CompileOptimizationLevel,
-            pub debug_level: CompileDebugLevel,
-        }
+#[repr(C)]
+#[derive(Debug, Hash, PartialEq, Copy, Clone)]
+pub struct ModuleCompileOptions {
+    pub max_register_count: i32,
+    pub opt_level: CompileOptimizationLevel,
+    pub debug_level: CompileDebugLevel,
+}
 
-        impl From<&ModuleCompileOptions> for sys::OptixModuleCompileOptions {
-            fn from(o: &ModuleCompileOptions) -> sys::OptixModuleCompileOptions {
-                sys::OptixModuleCompileOptions {
+impl From<&ModuleCompileOptions> for optix_sys::OptixModuleCompileOptions {
+    fn from(o: &ModuleCompileOptions) -> optix_sys::OptixModuleCompileOptions {
+        cfg_if::cfg_if! {
+            if #[cfg(optix_module_compile_options_bound_values)] {
+                optix_sys::OptixModuleCompileOptions {
                     maxRegisterCount: o.max_register_count,
                     optLevel: o.opt_level as _,
                     debugLevel: o.debug_level as _,
                     boundValues: std::ptr::null(),
                     numBoundValues: 0,
                 }
-            }
-        }
-    } else {
-        #[repr(C)]
-        #[derive(Debug, Hash, PartialEq, Copy, Clone)]
-        pub struct ModuleCompileOptions {
-            pub max_register_count: i32,
-            pub opt_level: CompileOptimizationLevel,
-            pub debug_level: CompileDebugLevel,
-        }
-
-        impl From<&ModuleCompileOptions> for sys::OptixModuleCompileOptions {
-            fn from(o: &ModuleCompileOptions) -> sys::OptixModuleCompileOptions {
-                sys::OptixModuleCompileOptions {
+            } else {
+                optix_sys::OptixModuleCompileOptions {
                     maxRegisterCount: o.max_register_count,
-                    optLevel: o.opt_level as u32,
-                    debugLevel: o.debug_level as u32,
+                    optLevel: o.opt_level as _,
+                    debugLevel: o.debug_level as _,
                 }
             }
         }
@@ -200,21 +179,21 @@ cfg_if::cfg_if! {
 
 bitflags::bitflags! {
     #[derive(Default, Hash, Clone, Copy, PartialEq, Eq, Debug)]
-    pub struct TraversableGraphFlags: OptixEnumBaseType {
-        const ALLOW_ANY = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY;
-        const ALLOW_SINGLE_GAS = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;
-        const ALLOW_SINGLE_LEVEL_INSTANCING = sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
+    pub struct TraversableGraphFlags: i32 {
+        const ALLOW_ANY = optix_sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY as i32;
+        const ALLOW_SINGLE_GAS = optix_sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS as i32;
+        const ALLOW_SINGLE_LEVEL_INSTANCING = optix_sys::OptixTraversableGraphFlags::OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING as i32;
     }
 }
 
 bitflags::bitflags! {
     #[derive(Default, Hash, Clone, Copy, PartialEq, Eq, Debug)]
-    pub struct ExceptionFlags: OptixEnumBaseType {
-        const NONE = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_NONE;
-        const STACK_OVERFLOW = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW;
-        const TRACE_DEPTH = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_TRACE_DEPTH;
-        const USER = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_USER;
-        const DEBUG = sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_DEBUG;
+    pub struct ExceptionFlags: i32 {
+        const NONE = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_NONE as i32;
+        const STACK_OVERFLOW = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW as i32;
+        const TRACE_DEPTH = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_TRACE_DEPTH as i32;
+        const USER = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_USER as i32;
+        const DEBUG = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_DEBUG as i32;
     }
 }
 
@@ -222,22 +201,24 @@ bitflags::bitflags! {
     #[derive(Default, Hash, Clone, Copy, PartialEq, Eq, Debug)]
     pub struct PrimitiveTypeFlags: i32 {
         const DEFAULT = 0;
-        const CUSTOM =  sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
-        const ROUND_QUADRATIC_BSPLINE = sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE;
-        const ROUND_CUBIC_BSPLINE =  sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE;
-        const ROUND_LINEAR =  sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
-        const TRIANGLE = sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
+        const CUSTOM =  optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM as i32;
+        const ROUND_QUADRATIC_BSPLINE = optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE as i32;
+        const ROUND_CUBIC_BSPLINE =  optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE as i32;
+        const ROUND_LINEAR =  optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR as i32;
+        const TRIANGLE = optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE as i32;
     }
 }
 
-#[repr(u32)]
+#[repr(i32)]
 pub enum PrimitiveType {
     RoundQuadraticBspline =
-        sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE as u32,
+        optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_QUADRATIC_BSPLINE
+            as i32,
     RoundCubicBspline =
-        sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE as u32,
-    RoundLinear = sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR as u32,
-    Triangle = sys::OptixPrimitiveTypeFlags_OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE as u32,
+        optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE as i32,
+    RoundLinear =
+        optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR as i32,
+    Triangle = optix_sys::OptixPrimitiveTypeFlags::OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE as i32,
 }
 
 #[derive(Debug, Hash, PartialEq, Clone, Default)]
@@ -264,41 +245,25 @@ impl PipelineCompileOptions {
         }
     }
 
-    pub fn build(&self) -> sys::OptixPipelineCompileOptions {
-        cfg_if::cfg_if! {
-        if #[cfg(feature="optix73")] {
-                sys::OptixPipelineCompileOptions {
-                    usesMotionBlur: if self.uses_motion_blur { 1 } else { 0 },
-                    traversableGraphFlags: self.traversable_graph_flags.bits() as _,
-                    numPayloadValues: self.num_payload_values,
-                    numAttributeValues: self.num_attribute_values,
-                    exceptionFlags: self.exception_flags.bits() as _,
-                    pipelineLaunchParamsVariableName: if let Some(ref name) = self
-                        .pipeline_launch_params_variable_name {
-                            name.as_ptr()
-                        } else {
-                            std::ptr::null()
-                        },
-                    usesPrimitiveTypeFlags: self.primitive_type_flags.bits() as u32,
-                    reserved: 0,
-                    reserved2: 0,
-                }
+    pub fn build(&self) -> optix_sys::OptixPipelineCompileOptions {
+        optix_sys::OptixPipelineCompileOptions {
+            usesMotionBlur: if self.uses_motion_blur { 1 } else { 0 },
+            traversableGraphFlags: self.traversable_graph_flags.bits() as _,
+            numPayloadValues: self.num_payload_values,
+            numAttributeValues: self.num_attribute_values,
+            exceptionFlags: self.exception_flags.bits() as _,
+            pipelineLaunchParamsVariableName: if let Some(ref name) =
+                self.pipeline_launch_params_variable_name
+            {
+                name.as_ptr()
             } else {
-                sys::OptixPipelineCompileOptions {
-                    usesMotionBlur: if self.uses_motion_blur { 1 } else { 0 },
-                    traversableGraphFlags: self.traversable_graph_flags.bits(),
-                    numPayloadValues: self.num_payload_values,
-                    numAttributeValues: self.num_attribute_values,
-                    exceptionFlags: self.exception_flags.bits(),
-                    pipelineLaunchParamsVariableName: if let Some(ref name) = self
-                        .pipeline_launch_params_variable_name {
-                            name.as_ptr()
-                        } else {
-                            std::ptr::null()
-                        },
-                    usesPrimitiveTypeFlags: self.primitive_type_flags.bits() as u32,
-                }
-            }
+                std::ptr::null()
+            },
+            usesPrimitiveTypeFlags: self.primitive_type_flags.bits() as u32,
+            #[cfg(optix_pipeline_compile_options_reserved)]
+            reserved: 0,
+            #[cfg(optix_pipeline_compile_options_reserved)]
+            reserved2: 0,
         }
     }
 
@@ -386,8 +351,17 @@ impl Module {
         builtin_is_module_type: PrimitiveType,
         uses_motion_blur: bool,
     ) -> Result<Module> {
-        let is_options = sys::OptixBuiltinISOptions {
-            builtinISModuleType: builtin_is_module_type as _,
+        use optix_sys::OptixPrimitiveType::*;
+
+        let is_options = optix_sys::OptixBuiltinISOptions {
+            builtinISModuleType: match builtin_is_module_type {
+                PrimitiveType::RoundQuadraticBspline => {
+                    OPTIX_PRIMITIVE_TYPE_ROUND_QUADRATIC_BSPLINE
+                }
+                PrimitiveType::RoundCubicBspline => OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE,
+                PrimitiveType::RoundLinear => OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR,
+                PrimitiveType::Triangle => OPTIX_PRIMITIVE_TYPE_TRIANGLE,
+            },
             usesMotionBlur: if uses_motion_blur { 1 } else { 0 },
         };
 
@@ -410,7 +384,7 @@ impl Module {
 impl Drop for Module {
     fn drop(&mut self) {
         unsafe {
-            sys::optixModuleDestroy(self.raw);
+            optix_sys::optixModuleDestroy(self.raw);
         }
     }
 }
@@ -513,7 +487,7 @@ impl<'m> ProgramGroupDesc<'m> {
 ///  FIXME (AL): make this sound by storing module lifetimes here
 #[repr(transparent)]
 pub struct ProgramGroup {
-    pub(crate) raw: sys::OptixProgramGroup,
+    pub(crate) raw: optix_sys::OptixProgramGroup,
 }
 
 impl ProgramGroup {
@@ -548,18 +522,18 @@ impl ProgramGroup {
         ctx: &mut DeviceContext,
         desc: &[ProgramGroupDesc],
     ) -> Result<(Vec<ProgramGroup>, String)> {
-        cfg_if::cfg_if! {
-        if #[cfg(any(feature="optix73"))] {
-            let pg_options = sys::OptixProgramGroupOptions { reserved: 0 };
-        } else {
-            let pg_options = sys::OptixProgramGroupOptions { placeholder: 0 };
-        }
-        }
+        let pg_options = optix_sys::OptixProgramGroupOptions {
+            #[cfg(optix_program_group_options_reserved)]
+            reserved: 0,
+            #[cfg(not(optix_program_group_options_reserved))]
+            placeholder: 0,
+        };
 
         let mut log = [0u8; 4096];
         let mut log_len = log.len();
 
-        let pg_desc: Vec<sys::OptixProgramGroupDesc> = desc.iter().map(|d| d.into()).collect();
+        let pg_desc: Vec<optix_sys::OptixProgramGroupDesc> =
+            desc.iter().map(|d| d.into()).collect();
 
         let mut raws = vec![std::ptr::null_mut(); pg_desc.len()];
 
@@ -594,18 +568,17 @@ impl ProgramGroup {
         ctx: &mut DeviceContext,
         desc: &ProgramGroupDesc,
     ) -> Result<(ProgramGroup, String)> {
-        cfg_if::cfg_if! {
-        if #[cfg(any(feature="optix73"))] {
-            let pg_options = sys::OptixProgramGroupOptions { reserved: 0 };
-        } else {
-            let pg_options = sys::OptixProgramGroupOptions { placeholder: 0 };
-        }
-        }
+        let pg_options = optix_sys::OptixProgramGroupOptions {
+            #[cfg(optix_program_group_options_reserved)]
+            reserved: 0,
+            #[cfg(not(optix_program_group_options_reserved))]
+            placeholder: 0,
+        };
 
         let mut log = [0u8; 4096];
         let mut log_len = log.len();
 
-        let pg_desc: sys::OptixProgramGroupDesc = desc.into();
+        let pg_desc: optix_sys::OptixProgramGroupDesc = desc.into();
 
         let mut raw = std::ptr::null_mut();
 
@@ -678,21 +651,21 @@ impl ProgramGroup {
 impl Drop for ProgramGroup {
     fn drop(&mut self) {
         unsafe {
-            sys::optixProgramGroupDestroy(self.raw);
+            optix_sys::optixProgramGroupDestroy(self.raw);
         }
     }
 }
 
-impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
-    fn from(desc: &ProgramGroupDesc<'m>) -> sys::OptixProgramGroupDesc {
+impl<'m> From<&ProgramGroupDesc<'m>> for optix_sys::OptixProgramGroupDesc {
+    fn from(desc: &ProgramGroupDesc<'m>) -> optix_sys::OptixProgramGroupDesc {
         match &desc {
             ProgramGroupDesc::Raygen(ProgramGroupModule {
                 module,
                 entry_function_name,
-            }) => sys::OptixProgramGroupDesc {
-                kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_RAYGEN,
-                __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                    raygen: sys::OptixProgramGroupSingleModule {
+            }) => optix_sys::OptixProgramGroupDesc {
+                kind: optix_sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_RAYGEN,
+                __bindgen_anon_1: optix_sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                    raygen: optix_sys::OptixProgramGroupSingleModule {
                         module: module.raw,
                         entryFunctionName: entry_function_name.as_ptr(),
                     },
@@ -702,10 +675,10 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
             ProgramGroupDesc::Miss(ProgramGroupModule {
                 module,
                 entry_function_name,
-            }) => sys::OptixProgramGroupDesc {
-                kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_MISS,
-                __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                    miss: sys::OptixProgramGroupSingleModule {
+            }) => optix_sys::OptixProgramGroupDesc {
+                kind: optix_sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_MISS,
+                __bindgen_anon_1: optix_sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                    miss: optix_sys::OptixProgramGroupSingleModule {
                         module: module.raw,
                         entryFunctionName: entry_function_name.as_ptr(),
                     },
@@ -715,10 +688,10 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
             ProgramGroupDesc::Exception(ProgramGroupModule {
                 module,
                 entry_function_name,
-            }) => sys::OptixProgramGroupDesc {
-                kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_EXCEPTION,
-                __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                    miss: sys::OptixProgramGroupSingleModule {
+            }) => optix_sys::OptixProgramGroupDesc {
+                kind: optix_sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_EXCEPTION,
+                __bindgen_anon_1: optix_sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                    miss: optix_sys::OptixProgramGroupSingleModule {
                         module: module.raw,
                         entryFunctionName: entry_function_name.as_ptr(),
                     },
@@ -751,10 +724,10 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
                     std::ptr::null_mut()
                 };
 
-                sys::OptixProgramGroupDesc {
-                    kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_HITGROUP,
-                    __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                        hitgroup: sys::OptixProgramGroupHitgroup {
+                optix_sys::OptixProgramGroupDesc {
+                    kind: optix_sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_HITGROUP,
+                    __bindgen_anon_1: optix_sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                        hitgroup: optix_sys::OptixProgramGroupHitgroup {
                             moduleCH: module_ch,
                             entryFunctionNameCH: efn_ch_ptr,
                             moduleAH: module_ah,
@@ -779,10 +752,10 @@ impl<'m> From<&ProgramGroupDesc<'m>> for sys::OptixProgramGroupDesc {
                     (std::ptr::null_mut(), std::ptr::null())
                 };
 
-                sys::OptixProgramGroupDesc {
-                    kind: sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_CALLABLES,
-                    __bindgen_anon_1: sys::OptixProgramGroupDesc__bindgen_ty_1 {
-                        callables: sys::OptixProgramGroupCallables {
+                optix_sys::OptixProgramGroupDesc {
+                    kind: optix_sys::OptixProgramGroupKind::OPTIX_PROGRAM_GROUP_KIND_CALLABLES,
+                    __bindgen_anon_1: optix_sys::OptixProgramGroupDesc__bindgen_ty_1 {
+                        callables: optix_sys::OptixProgramGroupCallables {
                             moduleDC: module_dc,
                             entryFunctionNameDC: efn_dc,
                             moduleCC: module_cc,

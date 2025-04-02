@@ -1,7 +1,4 @@
-use crate::{
-    backend::{ConvCfg, Descriptor, MatMulCfg, PointwiseCfg, Real, ReductionCfg, Tensor},
-    sys,
-};
+use crate::backend::{ConvCfg, Descriptor, MatMulCfg, PointwiseCfg, Real, ReductionCfg, Tensor};
 
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Debug)]

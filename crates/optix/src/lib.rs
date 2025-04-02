@@ -65,8 +65,6 @@ pub mod prelude;
 pub mod shader_binding_table;
 use shader_binding_table::ShaderBindingTable;
 
-pub mod sys;
-
 pub use cust;
 use cust::memory::DeviceMemory;
 use error::{Error, ToResult};
@@ -86,7 +84,7 @@ pub fn init() -> Result<()> {
 #[cold]
 #[inline(never)]
 fn init_cold() -> Result<()> {
-    unsafe { Ok(sys::optixInit().to_result()?) }
+    unsafe { Ok(optix_sys::optixInit().to_result()?) }
 }
 
 /// Whether OptiX is initialized. If you are calling raw [`sys`] functions you must make sure
@@ -98,11 +96,11 @@ pub fn optix_is_initialized() -> bool {
     // Option for each field, and None is explicitly defined to be represented as a nullptr for Option<fn()>,
     // so its default should be the same as the zero-initialized global.
     // And, while we do not currently expose it, optix library unloading zero initializes the global.
-    unsafe { g_optixFunctionTable != sys::OptixFunctionTable::default() }
+    unsafe { g_optixFunctionTable != optix_sys::OptixFunctionTable::default() }
 }
 
 extern "C" {
-    pub(crate) static g_optixFunctionTable: sys::OptixFunctionTable;
+    pub(crate) static g_optixFunctionTable: optix_sys::OptixFunctionTable;
 }
 
 /// Call a raw OptiX sys function, making sure that OptiX is initialized. Returning
@@ -114,7 +112,7 @@ macro_rules! optix_call {
           if !$crate::optix_is_initialized() {
               Err($crate::error::OptixError::OptixNotInitialized)
           } else {
-              <$crate::sys::OptixResult as $crate::error::ToResult>::to_result($crate::sys::$name($($param),*))
+              <optix_sys::OptixResult as $crate::error::ToResult>::to_result(optix_sys::$name($($param),*))
           }
     }};
 }

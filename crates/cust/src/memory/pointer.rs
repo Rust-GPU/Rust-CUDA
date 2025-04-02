@@ -1,6 +1,3 @@
-use crate::memory::DeviceCopy;
-use cust_raw::CUdeviceptr;
-
 use core::{
     fmt::{self, Debug, Pointer},
     hash::Hash,
@@ -10,6 +7,9 @@ use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::size_of;
 
+use cust_raw::driver_sys::CUdeviceptr;
+
+use crate::memory::DeviceCopy;
 /// A pointer to device memory.
 ///
 /// `DevicePointer` cannot be dereferenced by the CPU, as it is a pointer to a memory allocation in

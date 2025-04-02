@@ -1,8 +1,21 @@
 use crate::{const_assert, const_assert_eq};
-use crate::{error::Error, optix_call, pipeline::ProgramGroup, sys};
+use crate::{error::Error, optix_call, pipeline::ProgramGroup};
 use cust::memory::{DeviceCopy, DeviceSlice};
 
 type Result<T, E = Error> = std::result::Result<T, E>;
+
+// The SBT record header is an opaque blob used by optix
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+pub struct SbtRecordHeader {
+    header: [u8; optix_sys::OptixSbtRecordHeaderSize as usize],
+}
+
+impl SbtRecordHeader {
+    pub fn as_mut_ptr(&mut self) -> *mut std::os::raw::c_void {
+        self.header.as_mut_ptr() as *mut std::os::raw::c_void
+    }
+}
 
 #[repr(C)]
 #[repr(align(16))]
@@ -11,7 +24,7 @@ pub struct SbtRecord<T>
 where
     T: Copy,
 {
-    header: sys::SbtRecordHeader,
+    header: SbtRecordHeader,
     data: T,
 }
 
@@ -23,7 +36,7 @@ where
 {
     pub fn pack(data: T, program_group: &ProgramGroup) -> Result<SbtRecord<T>> {
         let mut rec = SbtRecord {
-            header: sys::SbtRecordHeader::default(),
+            header: SbtRecordHeader::default(),
             data,
         };
 
@@ -40,12 +53,12 @@ where
 unsafe impl<T: DeviceCopy> DeviceCopy for SbtRecord<T> {}
 
 #[repr(transparent)]
-pub struct ShaderBindingTable(pub(crate) sys::OptixShaderBindingTable);
+pub struct ShaderBindingTable(pub(crate) optix_sys::OptixShaderBindingTable);
 
 impl ShaderBindingTable {
     pub fn new<RG: DeviceCopy>(buf_raygen_record: &DeviceSlice<SbtRecord<RG>>) -> Self {
         let raygen_record = buf_raygen_record.as_device_ptr().as_raw();
-        ShaderBindingTable(sys::OptixShaderBindingTable {
+        ShaderBindingTable(optix_sys::OptixShaderBindingTable {
             raygenRecord: raygen_record,
             exceptionRecord: 0,
             missRecordBase: 0,
@@ -110,9 +123,9 @@ impl ShaderBindingTable {
 
 const_assert_eq!(
     std::mem::align_of::<ShaderBindingTable>(),
-    std::mem::align_of::<sys::OptixShaderBindingTable>(),
+    std::mem::align_of::<optix_sys::OptixShaderBindingTable>(),
 );
 const_assert_eq!(
     std::mem::size_of::<ShaderBindingTable>(),
-    std::mem::size_of::<sys::OptixShaderBindingTable>()
+    std::mem::size_of::<optix_sys::OptixShaderBindingTable>()
 );

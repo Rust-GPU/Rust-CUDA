@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// The data layout for input and output of a recurrent neural network.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNDataLayout_t)
@@ -14,18 +12,13 @@ pub enum RnnDataLayout {
     BatchMajorUnpacked,
 }
 
-impl From<RnnDataLayout> for sys::cudnnRNNDataLayout_t {
+impl From<RnnDataLayout> for cudnn_sys::cudnnRNNDataLayout_t {
     fn from(rnn_data_layout: RnnDataLayout) -> Self {
+        use cudnn_sys::cudnnRNNDataLayout_t::*;
         match rnn_data_layout {
-            RnnDataLayout::SeqMajorUnpacked => {
-                sys::cudnnRNNDataLayout_t::CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED
-            }
-            RnnDataLayout::SeqMajorPacked => {
-                sys::cudnnRNNDataLayout_t::CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_PACKED
-            }
-            RnnDataLayout::BatchMajorUnpacked => {
-                sys::cudnnRNNDataLayout_t::CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED
-            }
+            RnnDataLayout::SeqMajorUnpacked => CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED,
+            RnnDataLayout::SeqMajorPacked => CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_PACKED,
+            RnnDataLayout::BatchMajorUnpacked => CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED,
         }
     }
 }

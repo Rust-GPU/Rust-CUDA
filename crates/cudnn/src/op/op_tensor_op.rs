@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// A unary tensor core operation.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnOpTensorOp_t)
@@ -11,7 +9,7 @@ pub enum UnaryOp {
     Not,
 }
 
-impl From<UnaryOp> for sys::cudnnOpTensorOp_t {
+impl From<UnaryOp> for cudnn_sys::cudnnOpTensorOp_t {
     fn from(op: UnaryOp) -> Self {
         match op {
             UnaryOp::Sqrt => Self::CUDNN_OP_TENSOR_SQRT,
@@ -33,7 +31,7 @@ pub enum BinaryOp {
     Max,
 }
 
-impl From<BinaryOp> for sys::cudnnOpTensorOp_t {
+impl From<BinaryOp> for cudnn_sys::cudnnOpTensorOp_t {
     fn from(op: BinaryOp) -> Self {
         match op {
             BinaryOp::Add => Self::CUDNN_OP_TENSOR_ADD,

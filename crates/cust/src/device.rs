@@ -1,9 +1,11 @@
 //! Functions and types for enumerating CUDA devices and retrieving information about them.
 
-use crate::error::{CudaResult, ToResult};
-use crate::sys::*;
 use std::ffi::CStr;
 use std::ops::Range;
+
+use cust_raw::driver_sys;
+
+use crate::error::{CudaResult, ToResult};
 
 /// All supported device attributes for [Device::get_attribute](struct.Device.html#method.get_attribute)
 #[repr(u32)]
@@ -198,7 +200,7 @@ pub enum DeviceAttribute {
 /// Opaque handle to a CUDA device.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct Device {
-    pub(crate) device: CUdevice,
+    pub(crate) device: driver_sys::CUdevice,
 }
 impl Device {
     /// Get the number of CUDA-capable devices.
@@ -221,7 +223,7 @@ impl Device {
     pub fn num_devices() -> CudaResult<u32> {
         unsafe {
             let mut num_devices = 0i32;
-            cuDeviceGetCount(&mut num_devices as *mut i32).to_result()?;
+            driver_sys::cuDeviceGetCount(&mut num_devices as *mut i32).to_result()?;
             Ok(num_devices as u32)
         }
     }
@@ -245,7 +247,11 @@ impl Device {
     pub fn get_device(ordinal: u32) -> CudaResult<Device> {
         unsafe {
             let mut device = Device { device: 0 };
-            cuDeviceGet(&mut device.device as *mut CUdevice, ordinal as i32).to_result()?;
+            driver_sys::cuDeviceGet(
+                &mut device.device as *mut driver_sys::CUdevice,
+                ordinal as i32,
+            )
+            .to_result()?;
             Ok(device)
         }
     }
@@ -289,7 +295,7 @@ impl Device {
     pub fn total_memory(self) -> CudaResult<usize> {
         unsafe {
             let mut memory = 0;
-            cuDeviceTotalMem_v2(&mut memory as *mut usize, self.device).to_result()?;
+            driver_sys::cuDeviceTotalMem_v2(&mut memory as *mut usize, self.device).to_result()?;
             Ok(memory)
         }
     }
@@ -311,7 +317,7 @@ impl Device {
     pub fn name(self) -> CudaResult<String> {
         unsafe {
             let mut name = [0u8; 128]; // Hopefully this is big enough...
-            cuDeviceGetName(
+            driver_sys::cuDeviceGetName(
                 &mut name[0] as *mut u8 as *mut ::std::os::raw::c_char,
                 128,
                 self.device,
@@ -342,9 +348,9 @@ impl Device {
     /// # }
     /// ```
     pub fn uuid(self) -> CudaResult<[u8; 16]> {
-        let mut cu_uuid = CUuuid { bytes: [0; 16] };
+        let mut cu_uuid = driver_sys::CUuuid { bytes: [0; 16] };
         unsafe {
-            cuDeviceGetUuid(&mut cu_uuid, self.device).to_result()?;
+            driver_sys::cuDeviceGetUuid(&mut cu_uuid, self.device).to_result()?;
         }
         let uuid: [u8; 16] = cu_uuid.bytes.map(|byte| byte as u8);
         Ok(uuid)
@@ -368,10 +374,10 @@ impl Device {
     pub fn get_attribute(self, attr: DeviceAttribute) -> CudaResult<i32> {
         unsafe {
             let mut val = 0i32;
-            cuDeviceGetAttribute(
+            driver_sys::cuDeviceGetAttribute(
                 &mut val as *mut i32,
                 // This should be safe, as the repr and values of DeviceAttribute should match.
-                ::std::mem::transmute::<DeviceAttribute, cust_raw::CUdevice_attribute_enum>(attr),
+                ::std::mem::transmute::<DeviceAttribute, driver_sys::CUdevice_attribute_enum>(attr),
                 self.device,
             )
             .to_result()?;
@@ -381,7 +387,7 @@ impl Device {
 
     /// Returns a raw handle to this device, not handing over ownership, meaning that dropping
     /// this device will try to drop the underlying device.
-    pub fn as_raw(&self) -> CUdevice {
+    pub fn as_raw(&self) -> driver_sys::CUdevice {
         self.device
     }
 }

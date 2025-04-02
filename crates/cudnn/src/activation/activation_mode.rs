@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies a neuron activation function.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnActivationMode_t)
@@ -26,7 +24,7 @@ pub enum ActivationMode {
     Identity,
 }
 
-impl From<ActivationMode> for sys::cudnnActivationMode_t {
+impl From<ActivationMode> for cudnn_sys::cudnnActivationMode_t {
     fn from(mode: ActivationMode) -> Self {
         match mode {
             ActivationMode::Sigmoid => Self::CUDNN_ACTIVATION_SIGMOID,

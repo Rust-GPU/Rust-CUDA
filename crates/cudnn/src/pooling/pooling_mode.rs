@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies the pooling method.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnPoolingMode_t)
@@ -18,7 +16,7 @@ pub enum PoolingMode {
     MaxDeterministic,
 }
 
-impl From<PoolingMode> for sys::cudnnPoolingMode_t {
+impl From<PoolingMode> for cudnn_sys::cudnnPoolingMode_t {
     fn from(mode: PoolingMode) -> Self {
         match mode {
             PoolingMode::Max => Self::CUDNN_POOLING_MAX,

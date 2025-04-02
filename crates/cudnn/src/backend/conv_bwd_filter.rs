@@ -1,6 +1,6 @@
 use crate::{
     backend::{ConvCfg, Descriptor, FloatDataType, Operation, Real, Tensor},
-    sys, CudnnError, DataType, IntoResult,
+    CudnnError, DataType, IntoResult,
 };
 
 pub struct ConvBwdFilterBuilder {
@@ -60,26 +60,26 @@ impl ConvBwdFilterBuilder {
 
         unsafe {
             let mut raw = Descriptor::new(
-                sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_CONVOLUTION_BACKWARD_FILTER_DESCRIPTOR,
+                cudnn_sys::cudnnBackendDescriptorType_t::CUDNN_BACKEND_OPERATION_CONVOLUTION_BACKWARD_FILTER_DESCRIPTOR,
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_CONV_DESC,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_CONV_DESC,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &cfg.raw.inner(),
             )?;
 
             match self.alpha {
                 Some(Real::Float(ref alpha)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_ALPHA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_ALPHA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
                     1,
                     alpha,
                 )?,
                 Some(Real::Double(ref alpha)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_ALPHA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_ALPHA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     alpha,
                 )?,
@@ -88,14 +88,14 @@ impl ConvBwdFilterBuilder {
 
             match self.beta {
                 Some(Real::Float(ref beta)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_BETA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_BETA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_FLOAT,
                     1,
                     beta,
                 )?,
                 Some(Real::Double(ref beta)) => raw.set_attribute(
-                    sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_BETA,
-                    sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
+                    cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_BETA,
+                    cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_DOUBLE,
                     1,
                     beta,
                 )?,
@@ -103,22 +103,22 @@ impl ConvBwdFilterBuilder {
             }
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_DW,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_DW,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &dw.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_X,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_X,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &x.raw.inner(),
             )?;
 
             raw.set_attribute(
-                sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_DY,
-                sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
+                cudnn_sys::cudnnBackendAttributeName_t::CUDNN_ATTR_OPERATION_CONVOLUTION_BWD_FILTER_DY,
+                cudnn_sys::cudnnBackendAttributeType_t::CUDNN_TYPE_BACKEND_DESCRIPTOR,
                 1,
                 &dy.raw.inner(),
             )?;

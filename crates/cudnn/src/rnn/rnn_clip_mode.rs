@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Selects the LSTM cell clipping mode.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNClipMode_t)
@@ -13,11 +11,12 @@ pub enum RnnClipMode {
     ClipMinMax,
 }
 
-impl From<RnnClipMode> for sys::cudnnRNNClipMode_t {
+impl From<RnnClipMode> for cudnn_sys::cudnnRNNClipMode_t {
     fn from(mode: RnnClipMode) -> Self {
+        use cudnn_sys::cudnnRNNClipMode_t::*;
         match mode {
-            RnnClipMode::ClipNone => sys::cudnnRNNClipMode_t::CUDNN_RNN_CLIP_NONE,
-            RnnClipMode::ClipMinMax => sys::cudnnRNNClipMode_t::CUDNN_RNN_CLIP_MINMAX,
+            RnnClipMode::ClipNone => CUDNN_RNN_CLIP_NONE,
+            RnnClipMode::ClipMinMax => CUDNN_RNN_CLIP_MINMAX,
         }
     }
 }

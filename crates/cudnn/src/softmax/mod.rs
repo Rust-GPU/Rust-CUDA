@@ -1,11 +1,12 @@
+use cust::memory::GpuBuffer;
+
+use crate::{private, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
+
 mod softmax_algo;
 mod softmax_mode;
 
 pub use softmax_algo::*;
 pub use softmax_mode::*;
-
-use crate::{private, sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
-use cust::memory::GpuBuffer;
 
 impl CudnnContext {
     /// Computes the softmax function.
@@ -58,7 +59,7 @@ impl CudnnContext {
         let y_ptr = y.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnSoftmaxForward(
+            cudnn_sys::cudnnSoftmaxForward(
                 self.raw,
                 algo.into(),
                 mode.into(),
@@ -122,7 +123,7 @@ impl CudnnContext {
         let dx_ptr = dx.as_device_ptr().as_mut_ptr() as *mut _;
 
         unsafe {
-            sys::cudnnSoftmaxBackward(
+            cudnn_sys::cudnnSoftmaxBackward(
                 self.raw,
                 algo.into(),
                 mode.into(),

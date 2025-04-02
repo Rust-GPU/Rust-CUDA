@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies a group of weights or biases for the multi-head attention layer.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnMultiHeadAttnWeightKind_t)
@@ -24,7 +22,7 @@ pub enum AttnWeight {
     OBiases,
 }
 
-impl From<AttnWeight> for sys::cudnnMultiHeadAttnWeightKind_t {
+impl From<AttnWeight> for cudnn_sys::cudnnMultiHeadAttnWeightKind_t {
     fn from(kind: AttnWeight) -> Self {
         match kind {
             AttnWeight::QWeights => Self::CUDNN_MH_ATTN_Q_WEIGHTS,

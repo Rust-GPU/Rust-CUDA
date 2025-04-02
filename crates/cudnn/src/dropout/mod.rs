@@ -1,10 +1,12 @@
+use std::mem::MaybeUninit;
+
+use cust::memory::GpuBuffer;
+
+use crate::{CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
+
 mod dropout_descriptor;
 
 pub use dropout_descriptor::DropoutDescriptor;
-
-use crate::{sys, CudnnContext, CudnnError, DataType, IntoResult, TensorDescriptor};
-use cust::memory::GpuBuffer;
-use std::mem::MaybeUninit;
 
 impl CudnnContext {
     /// This function is used to query the amount of space required to store the states of the
@@ -35,7 +37,7 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnDropoutGetStatesSize(self.raw, size.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnDropoutGetStatesSize(self.raw, size.as_mut_ptr()).into_result()?;
 
             Ok(size.assume_init())
         }
@@ -88,7 +90,8 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnDropoutGetReserveSpaceSize(desc.raw, size.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnDropoutGetReserveSpaceSize(desc.raw, size.as_mut_ptr())
+                .into_result()?;
 
             Ok(size.assume_init())
         }
@@ -148,12 +151,19 @@ impl CudnnContext {
         let states_size = states.len();
 
         unsafe {
-            sys::cudnnCreateDropoutDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateDropoutDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
-            sys::cudnnSetDropoutDescriptor(raw, self.raw, dropout, states_ptr, states_size, seed)
-                .into_result()?;
+            cudnn_sys::cudnnSetDropoutDescriptor(
+                raw,
+                self.raw,
+                dropout,
+                states_ptr,
+                states_size,
+                seed,
+            )
+            .into_result()?;
 
             Ok(DropoutDescriptor { raw, states })
         }
@@ -245,7 +255,7 @@ impl CudnnContext {
         let reserve_space_size = reserve_space.len();
 
         unsafe {
-            sys::cudnnDropoutForward(
+            cudnn_sys::cudnnDropoutForward(
                 self.raw,
                 dropout_desc.raw,
                 x_desc.raw,
@@ -345,7 +355,7 @@ impl CudnnContext {
         let reserve_space_size = reserve_space.len();
 
         unsafe {
-            sys::cudnnDropoutBackward(
+            cudnn_sys::cudnnDropoutBackward(
                 self.raw,
                 dropout_desc.raw,
                 dy_desc.raw,

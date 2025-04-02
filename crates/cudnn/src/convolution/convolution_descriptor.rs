@@ -1,6 +1,6 @@
-use crate::{sys, ConvMode, CudnnError, DataType, IntoResult, MathType};
-
 use std::{marker::PhantomData, mem::MaybeUninit};
+
+use crate::{ConvMode, CudnnError, DataType, IntoResult, MathType};
 
 /// A generic description of an n-dimensional convolution.
 ///
@@ -9,7 +9,7 @@ use std::{marker::PhantomData, mem::MaybeUninit};
 /// the same layer.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ConvDescriptor<T: DataType> {
-    pub(crate) raw: sys::cudnnConvolutionDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnConvolutionDescriptor_t,
     comp_type: PhantomData<T>,
 }
 
@@ -96,14 +96,14 @@ impl<T: DataType> ConvDescriptor<T> {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnCreateConvolutionDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateConvolutionDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let conv_desc = Self {
                 raw: raw.assume_init(),
                 comp_type: PhantomData,
             };
 
-            sys::cudnnSetConvolutionNdDescriptor(
+            cudnn_sys::cudnnSetConvolutionNdDescriptor(
                 conv_desc.raw,
                 N as i32,
                 padding.as_ptr(),
@@ -152,7 +152,7 @@ impl<T: DataType> ConvDescriptor<T> {
     /// # }
     /// ```
     pub fn set_math_type(&mut self, math_type: MathType) -> Result<(), CudnnError> {
-        unsafe { sys::cudnnSetConvolutionMathType(self.raw, math_type.into()).into_result() }
+        unsafe { cudnn_sys::cudnnSetConvolutionMathType(self.raw, math_type.into()).into_result() }
     }
 
     /// Sets the group count for this convolution descriptor instance.
@@ -187,14 +187,14 @@ impl<T: DataType> ConvDescriptor<T> {
     /// # }
     /// ```
     pub fn set_group_count(&mut self, groups: i32) -> Result<(), CudnnError> {
-        unsafe { sys::cudnnSetConvolutionGroupCount(self.raw, groups) }.into_result()
+        unsafe { cudnn_sys::cudnnSetConvolutionGroupCount(self.raw, groups) }.into_result()
     }
 }
 
 impl<T: DataType> Drop for ConvDescriptor<T> {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyConvolutionDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyConvolutionDescriptor(self.raw);
         }
     }
 }

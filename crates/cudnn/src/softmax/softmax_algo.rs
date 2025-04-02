@@ -1,5 +1,3 @@
-use crate::sys;
-
 /// Specifies the implementation of the softmax function.
 ///
 /// cuDNN [docs](https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnSoftmaxAlgorithm_t)
@@ -16,7 +14,7 @@ pub enum SoftmaxAlgo {
     Log,
 }
 
-impl From<SoftmaxAlgo> for sys::cudnnSoftmaxAlgorithm_t {
+impl From<SoftmaxAlgo> for cudnn_sys::cudnnSoftmaxAlgorithm_t {
     fn from(algo: SoftmaxAlgo) -> Self {
         match algo {
             SoftmaxAlgo::Fast => Self::CUDNN_SOFTMAX_FAST,

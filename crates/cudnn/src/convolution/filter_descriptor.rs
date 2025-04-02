@@ -1,5 +1,6 @@
-use crate::{sys, CudnnError, DataType, IntoResult, ScalarC, TensorFormat, VecType};
 use std::{marker::PhantomData, mem::MaybeUninit};
+
+use crate::{CudnnError, DataType, IntoResult, ScalarC, TensorFormat, VecType};
 
 /// A generic description of an n-dimensional filter dataset.
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -7,7 +8,7 @@ pub struct FilterDescriptor<T>
 where
     T: DataType,
 {
-    pub(crate) raw: sys::cudnnFilterDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnFilterDescriptor_t,
     data_type: PhantomData<T>,
 }
 
@@ -59,11 +60,11 @@ where
         let ndims = shape.len();
 
         unsafe {
-            sys::cudnnCreateFilterDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateFilterDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
-            sys::cudnnSetFilterNdDescriptor(
+            cudnn_sys::cudnnSetFilterNdDescriptor(
                 raw,
                 T::into_raw(),
                 format.into(),
@@ -112,11 +113,11 @@ where
         let format = TensorFormat::NchwVectC;
 
         unsafe {
-            sys::cudnnCreateFilterDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateFilterDescriptor(raw.as_mut_ptr()).into_result()?;
 
             let raw = raw.assume_init();
 
-            sys::cudnnSetFilterNdDescriptor(
+            cudnn_sys::cudnnSetFilterNdDescriptor(
                 raw,
                 V::into_raw(),
                 format.into(),
@@ -139,7 +140,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyFilterDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyFilterDescriptor(self.raw);
         }
     }
 }

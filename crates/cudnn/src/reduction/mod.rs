@@ -1,3 +1,9 @@
+use std::mem::MaybeUninit;
+
+use cust::memory::GpuBuffer;
+
+use crate::{CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor};
+
 mod indices_type;
 mod reduce_indices;
 mod reduce_op;
@@ -7,14 +13,6 @@ pub use indices_type::*;
 pub use reduce_indices::*;
 pub use reduce_op::*;
 pub use reduction_descriptor::*;
-
-use std::mem::MaybeUninit;
-
-use cust::memory::GpuBuffer;
-
-use crate::{
-    sys, CudnnContext, CudnnError, DataType, IntoResult, ScalingDataType, TensorDescriptor,
-};
 
 impl CudnnContext {
     /// Returns the minimum size of the workspace to be passed to the reduction given
@@ -39,7 +37,7 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetReductionWorkspaceSize(
+            cudnn_sys::cudnnGetReductionWorkspaceSize(
                 self.raw,
                 desc.raw,
                 a_desc.raw,
@@ -74,7 +72,7 @@ impl CudnnContext {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            sys::cudnnGetReductionIndicesSize(
+            cudnn_sys::cudnnGetReductionIndicesSize(
                 self.raw,
                 desc.raw,
                 a_desc.raw,
@@ -190,7 +188,7 @@ impl CudnnContext {
         let gamma = &gamma as *const CompT as _;
 
         unsafe {
-            sys::cudnnReduceTensor(
+            cudnn_sys::cudnnReduceTensor(
                 self.raw,
                 desc.raw,
                 indices_ptr,

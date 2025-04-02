@@ -5,8 +5,6 @@ use std::{
 
 use cust::error::CudaError;
 
-use crate::sys;
-
 /// Any error which may occur when executing an OptiX function.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -53,51 +51,60 @@ pub enum OptixError {
 }
 
 impl OptixError {
-    pub fn to_raw(self) -> sys::OptixResult {
+    pub fn to_raw(self) -> optix_sys::OptixResult {
         use OptixError::*;
+
         match self {
-            InvalidValue => sys::OptixResult::OPTIX_ERROR_INVALID_VALUE,
-            HostOutOfMemory => sys::OptixResult::OPTIX_ERROR_HOST_OUT_OF_MEMORY,
-            InvalidOperation => sys::OptixResult::OPTIX_ERROR_INVALID_OPERATION,
-            FileIoError => sys::OptixResult::OPTIX_ERROR_FILE_IO_ERROR,
-            InvalidFileFormat => sys::OptixResult::OPTIX_ERROR_INVALID_FILE_FORMAT,
-            DiskCacheInvalidPath => sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_PATH,
-            DiskCachePermissionError => sys::OptixResult::OPTIX_ERROR_DISK_CACHE_PERMISSION_ERROR,
-            DiskCacheDatabaseError => sys::OptixResult::OPTIX_ERROR_DISK_CACHE_DATABASE_ERROR,
-            DiskCacheInvalidData => sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_DATA,
-            LaunchFailure => sys::OptixResult::OPTIX_ERROR_LAUNCH_FAILURE,
-            InvalidDeviceContext => sys::OptixResult::OPTIX_ERROR_INVALID_DEVICE_CONTEXT,
-            CudaNotInitialized => sys::OptixResult::OPTIX_ERROR_CUDA_NOT_INITIALIZED,
-            ValidationFailure => sys::OptixResult::OPTIX_ERROR_VALIDATION_FAILURE,
-            InvalidPtx => sys::OptixResult::OPTIX_ERROR_INVALID_PTX,
-            InvalidLaunchParameter => sys::OptixResult::OPTIX_ERROR_INVALID_LAUNCH_PARAMETER,
-            InvalidPayloadAccess => sys::OptixResult::OPTIX_ERROR_INVALID_PAYLOAD_ACCESS,
-            InvalidAttributeAccess => sys::OptixResult::OPTIX_ERROR_INVALID_ATTRIBUTE_ACCESS,
-            InvalidFunctionUse => sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_USE,
-            InvalidFunctionArguments => sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_ARGUMENTS,
+            InvalidValue => optix_sys::OptixResult::OPTIX_ERROR_INVALID_VALUE,
+            HostOutOfMemory => optix_sys::OptixResult::OPTIX_ERROR_HOST_OUT_OF_MEMORY,
+            InvalidOperation => optix_sys::OptixResult::OPTIX_ERROR_INVALID_OPERATION,
+            FileIoError => optix_sys::OptixResult::OPTIX_ERROR_FILE_IO_ERROR,
+            InvalidFileFormat => optix_sys::OptixResult::OPTIX_ERROR_INVALID_FILE_FORMAT,
+            DiskCacheInvalidPath => optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_PATH,
+            DiskCachePermissionError => {
+                optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_PERMISSION_ERROR
+            }
+            DiskCacheDatabaseError => optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_DATABASE_ERROR,
+            DiskCacheInvalidData => optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_DATA,
+            LaunchFailure => optix_sys::OptixResult::OPTIX_ERROR_LAUNCH_FAILURE,
+            InvalidDeviceContext => optix_sys::OptixResult::OPTIX_ERROR_INVALID_DEVICE_CONTEXT,
+            CudaNotInitialized => optix_sys::OptixResult::OPTIX_ERROR_CUDA_NOT_INITIALIZED,
+            ValidationFailure => optix_sys::OptixResult::OPTIX_ERROR_VALIDATION_FAILURE,
+            InvalidPtx => optix_sys::OptixResult::OPTIX_ERROR_INVALID_PTX,
+            InvalidLaunchParameter => optix_sys::OptixResult::OPTIX_ERROR_INVALID_LAUNCH_PARAMETER,
+            InvalidPayloadAccess => optix_sys::OptixResult::OPTIX_ERROR_INVALID_PAYLOAD_ACCESS,
+            InvalidAttributeAccess => optix_sys::OptixResult::OPTIX_ERROR_INVALID_ATTRIBUTE_ACCESS,
+            InvalidFunctionUse => optix_sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_USE,
+            InvalidFunctionArguments => {
+                optix_sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_ARGUMENTS
+            }
             PipelineOutOfConstantMemory => {
-                sys::OptixResult::OPTIX_ERROR_PIPELINE_OUT_OF_CONSTANT_MEMORY
+                optix_sys::OptixResult::OPTIX_ERROR_PIPELINE_OUT_OF_CONSTANT_MEMORY
             }
-            PipelineLinkError => sys::OptixResult::OPTIX_ERROR_PIPELINE_LINK_ERROR,
-            IllegalDuringTaskExecute => sys::OptixResult::OPTIX_ERROR_ILLEGAL_DURING_TASK_EXECUTE,
-            InternalCompilerError => sys::OptixResult::OPTIX_ERROR_INTERNAL_COMPILER_ERROR,
-            DenoiserModelNotSet => sys::OptixResult::OPTIX_ERROR_DENOISER_MODEL_NOT_SET,
-            DenoiserNotInitialized => sys::OptixResult::OPTIX_ERROR_DENOISER_NOT_INITIALIZED,
-            AccelNotCompatible => sys::OptixResult::OPTIX_ERROR_ACCEL_NOT_COMPATIBLE,
-            NotSupported => sys::OptixResult::OPTIX_ERROR_NOT_SUPPORTED,
-            UnsupportedAbiVersion => sys::OptixResult::OPTIX_ERROR_UNSUPPORTED_ABI_VERSION,
-            FunctionTableSizeMismatch => sys::OptixResult::OPTIX_ERROR_FUNCTION_TABLE_SIZE_MISMATCH,
+            PipelineLinkError => optix_sys::OptixResult::OPTIX_ERROR_PIPELINE_LINK_ERROR,
+            IllegalDuringTaskExecute => {
+                optix_sys::OptixResult::OPTIX_ERROR_ILLEGAL_DURING_TASK_EXECUTE
+            }
+            InternalCompilerError => optix_sys::OptixResult::OPTIX_ERROR_INTERNAL_COMPILER_ERROR,
+            DenoiserModelNotSet => optix_sys::OptixResult::OPTIX_ERROR_DENOISER_MODEL_NOT_SET,
+            DenoiserNotInitialized => optix_sys::OptixResult::OPTIX_ERROR_DENOISER_NOT_INITIALIZED,
+            AccelNotCompatible => optix_sys::OptixResult::OPTIX_ERROR_ACCEL_NOT_COMPATIBLE,
+            NotSupported => optix_sys::OptixResult::OPTIX_ERROR_NOT_SUPPORTED,
+            UnsupportedAbiVersion => optix_sys::OptixResult::OPTIX_ERROR_UNSUPPORTED_ABI_VERSION,
+            FunctionTableSizeMismatch => {
+                optix_sys::OptixResult::OPTIX_ERROR_FUNCTION_TABLE_SIZE_MISMATCH
+            }
             InvalidEntryFunctionOptions => {
-                sys::OptixResult::OPTIX_ERROR_INVALID_ENTRY_FUNCTION_OPTIONS
+                optix_sys::OptixResult::OPTIX_ERROR_INVALID_ENTRY_FUNCTION_OPTIONS
             }
-            LibraryNotFound => sys::OptixResult::OPTIX_ERROR_LIBRARY_NOT_FOUND,
-            EntrySymbolNotFound => sys::OptixResult::OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND,
-            LibraryUnloadFailure => sys::OptixResult::OPTIX_ERROR_LIBRARY_UNLOAD_FAILURE,
-            CudaError => sys::OptixResult::OPTIX_ERROR_CUDA_ERROR,
-            InternalError => sys::OptixResult::OPTIX_ERROR_INTERNAL_ERROR,
-            Unknown => sys::OptixResult::OPTIX_ERROR_UNKNOWN,
+            LibraryNotFound => optix_sys::OptixResult::OPTIX_ERROR_LIBRARY_NOT_FOUND,
+            EntrySymbolNotFound => optix_sys::OptixResult::OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND,
+            LibraryUnloadFailure => optix_sys::OptixResult::OPTIX_ERROR_LIBRARY_UNLOAD_FAILURE,
+            CudaError => optix_sys::OptixResult::OPTIX_ERROR_CUDA_ERROR,
+            InternalError => optix_sys::OptixResult::OPTIX_ERROR_INTERNAL_ERROR,
+            Unknown => optix_sys::OptixResult::OPTIX_ERROR_UNKNOWN,
             // close enough
-            OptixNotInitialized => sys::OptixResult::OPTIX_ERROR_CUDA_NOT_INITIALIZED,
+            OptixNotInitialized => optix_sys::OptixResult::OPTIX_ERROR_CUDA_NOT_INITIALIZED,
         }
     }
 }
@@ -122,7 +129,7 @@ impl Display for OptixError {
             }
             // optix_stubs special cases this function if optix is not initialized so we dont need to
             // optix_call this.
-            let ptr = sys::optixGetErrorString(self.to_raw());
+            let ptr = optix_sys::optixGetErrorString(self.to_raw());
             let cow = CStr::from_ptr(ptr).to_string_lossy();
             f.write_str(cow.as_ref())
         }
@@ -137,52 +144,60 @@ pub trait ToResult {
     fn to_result(self) -> Result<(), OptixError>;
 }
 
-impl ToResult for sys::OptixResult {
+impl ToResult for optix_sys::OptixResult {
     fn to_result(self) -> Result<(), OptixError> {
         use OptixError::*;
 
         Err(match self {
-            sys::OptixResult::OPTIX_SUCCESS => return Ok(()),
-            sys::OptixResult::OPTIX_ERROR_INVALID_VALUE => InvalidValue,
-            sys::OptixResult::OPTIX_ERROR_HOST_OUT_OF_MEMORY => HostOutOfMemory,
-            sys::OptixResult::OPTIX_ERROR_INVALID_OPERATION => InvalidOperation,
-            sys::OptixResult::OPTIX_ERROR_FILE_IO_ERROR => FileIoError,
-            sys::OptixResult::OPTIX_ERROR_INVALID_FILE_FORMAT => InvalidFileFormat,
-            sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_PATH => DiskCacheInvalidPath,
-            sys::OptixResult::OPTIX_ERROR_DISK_CACHE_PERMISSION_ERROR => DiskCachePermissionError,
-            sys::OptixResult::OPTIX_ERROR_DISK_CACHE_DATABASE_ERROR => DiskCacheDatabaseError,
-            sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_DATA => DiskCacheInvalidData,
-            sys::OptixResult::OPTIX_ERROR_LAUNCH_FAILURE => LaunchFailure,
-            sys::OptixResult::OPTIX_ERROR_INVALID_DEVICE_CONTEXT => InvalidDeviceContext,
-            sys::OptixResult::OPTIX_ERROR_CUDA_NOT_INITIALIZED => CudaNotInitialized,
-            sys::OptixResult::OPTIX_ERROR_VALIDATION_FAILURE => ValidationFailure,
-            sys::OptixResult::OPTIX_ERROR_INVALID_PTX => InvalidPtx,
-            sys::OptixResult::OPTIX_ERROR_INVALID_LAUNCH_PARAMETER => InvalidLaunchParameter,
-            sys::OptixResult::OPTIX_ERROR_INVALID_PAYLOAD_ACCESS => InvalidPayloadAccess,
-            sys::OptixResult::OPTIX_ERROR_INVALID_ATTRIBUTE_ACCESS => InvalidAttributeAccess,
-            sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_USE => InvalidFunctionUse,
-            sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_ARGUMENTS => InvalidFunctionArguments,
-            sys::OptixResult::OPTIX_ERROR_PIPELINE_OUT_OF_CONSTANT_MEMORY => {
+            optix_sys::OptixResult::OPTIX_SUCCESS => return Ok(()),
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_VALUE => InvalidValue,
+            optix_sys::OptixResult::OPTIX_ERROR_HOST_OUT_OF_MEMORY => HostOutOfMemory,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_OPERATION => InvalidOperation,
+            optix_sys::OptixResult::OPTIX_ERROR_FILE_IO_ERROR => FileIoError,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_FILE_FORMAT => InvalidFileFormat,
+            optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_PATH => DiskCacheInvalidPath,
+            optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_PERMISSION_ERROR => {
+                DiskCachePermissionError
+            }
+            optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_DATABASE_ERROR => DiskCacheDatabaseError,
+            optix_sys::OptixResult::OPTIX_ERROR_DISK_CACHE_INVALID_DATA => DiskCacheInvalidData,
+            optix_sys::OptixResult::OPTIX_ERROR_LAUNCH_FAILURE => LaunchFailure,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_DEVICE_CONTEXT => InvalidDeviceContext,
+            optix_sys::OptixResult::OPTIX_ERROR_CUDA_NOT_INITIALIZED => CudaNotInitialized,
+            optix_sys::OptixResult::OPTIX_ERROR_VALIDATION_FAILURE => ValidationFailure,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_PTX => InvalidPtx,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_LAUNCH_PARAMETER => InvalidLaunchParameter,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_PAYLOAD_ACCESS => InvalidPayloadAccess,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_ATTRIBUTE_ACCESS => InvalidAttributeAccess,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_USE => InvalidFunctionUse,
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_FUNCTION_ARGUMENTS => {
+                InvalidFunctionArguments
+            }
+            optix_sys::OptixResult::OPTIX_ERROR_PIPELINE_OUT_OF_CONSTANT_MEMORY => {
                 PipelineOutOfConstantMemory
             }
-            sys::OptixResult::OPTIX_ERROR_PIPELINE_LINK_ERROR => PipelineLinkError,
-            sys::OptixResult::OPTIX_ERROR_ILLEGAL_DURING_TASK_EXECUTE => IllegalDuringTaskExecute,
-            sys::OptixResult::OPTIX_ERROR_INTERNAL_COMPILER_ERROR => InternalCompilerError,
-            sys::OptixResult::OPTIX_ERROR_DENOISER_MODEL_NOT_SET => DenoiserModelNotSet,
-            sys::OptixResult::OPTIX_ERROR_DENOISER_NOT_INITIALIZED => DenoiserNotInitialized,
-            sys::OptixResult::OPTIX_ERROR_ACCEL_NOT_COMPATIBLE => AccelNotCompatible,
-            sys::OptixResult::OPTIX_ERROR_NOT_SUPPORTED => NotSupported,
-            sys::OptixResult::OPTIX_ERROR_UNSUPPORTED_ABI_VERSION => UnsupportedAbiVersion,
-            sys::OptixResult::OPTIX_ERROR_FUNCTION_TABLE_SIZE_MISMATCH => FunctionTableSizeMismatch,
-            sys::OptixResult::OPTIX_ERROR_INVALID_ENTRY_FUNCTION_OPTIONS => {
+            optix_sys::OptixResult::OPTIX_ERROR_PIPELINE_LINK_ERROR => PipelineLinkError,
+            optix_sys::OptixResult::OPTIX_ERROR_ILLEGAL_DURING_TASK_EXECUTE => {
+                IllegalDuringTaskExecute
+            }
+            optix_sys::OptixResult::OPTIX_ERROR_INTERNAL_COMPILER_ERROR => InternalCompilerError,
+            optix_sys::OptixResult::OPTIX_ERROR_DENOISER_MODEL_NOT_SET => DenoiserModelNotSet,
+            optix_sys::OptixResult::OPTIX_ERROR_DENOISER_NOT_INITIALIZED => DenoiserNotInitialized,
+            optix_sys::OptixResult::OPTIX_ERROR_ACCEL_NOT_COMPATIBLE => AccelNotCompatible,
+            optix_sys::OptixResult::OPTIX_ERROR_NOT_SUPPORTED => NotSupported,
+            optix_sys::OptixResult::OPTIX_ERROR_UNSUPPORTED_ABI_VERSION => UnsupportedAbiVersion,
+            optix_sys::OptixResult::OPTIX_ERROR_FUNCTION_TABLE_SIZE_MISMATCH => {
+                FunctionTableSizeMismatch
+            }
+            optix_sys::OptixResult::OPTIX_ERROR_INVALID_ENTRY_FUNCTION_OPTIONS => {
                 InvalidEntryFunctionOptions
             }
-            sys::OptixResult::OPTIX_ERROR_LIBRARY_NOT_FOUND => LibraryNotFound,
-            sys::OptixResult::OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND => EntrySymbolNotFound,
-            sys::OptixResult::OPTIX_ERROR_LIBRARY_UNLOAD_FAILURE => LibraryUnloadFailure,
-            sys::OptixResult::OPTIX_ERROR_CUDA_ERROR => CudaError,
-            sys::OptixResult::OPTIX_ERROR_INTERNAL_ERROR => InternalError,
-            sys::OptixResult::OPTIX_ERROR_UNKNOWN => Unknown,
+            optix_sys::OptixResult::OPTIX_ERROR_LIBRARY_NOT_FOUND => LibraryNotFound,
+            optix_sys::OptixResult::OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND => EntrySymbolNotFound,
+            optix_sys::OptixResult::OPTIX_ERROR_LIBRARY_UNLOAD_FAILURE => LibraryUnloadFailure,
+            optix_sys::OptixResult::OPTIX_ERROR_CUDA_ERROR => CudaError,
+            optix_sys::OptixResult::OPTIX_ERROR_INTERNAL_ERROR => InternalError,
+            optix_sys::OptixResult::OPTIX_ERROR_UNKNOWN => Unknown,
             value => panic!("Unhandled OptixResult value {:?}", value),
         })
     }

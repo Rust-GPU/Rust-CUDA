@@ -1,4 +1,4 @@
-use crate::{sys, CudnnError, Determinism, IntoResult, MathType};
+use crate::{CudnnError, Determinism, IntoResult, MathType};
 
 /// The best suited algorithm according to the layer specifications obtained through a heuristic.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -73,7 +73,7 @@ pub enum ConvFwdAlgo {
     WinogradNonFused,
 }
 
-impl From<ConvFwdAlgo> for sys::cudnnConvolutionFwdAlgo_t {
+impl From<ConvFwdAlgo> for cudnn_sys::cudnnConvolutionFwdAlgo_t {
     fn from(algo: ConvFwdAlgo) -> Self {
         match algo {
             ConvFwdAlgo::ImplicitGemm => Self::CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM,
@@ -90,40 +90,29 @@ impl From<ConvFwdAlgo> for sys::cudnnConvolutionFwdAlgo_t {
     }
 }
 
-impl From<sys::cudnnConvolutionFwdAlgo_t> for ConvFwdAlgo {
-    fn from(algo: sys::cudnnConvolutionFwdAlgo_t) -> Self {
+impl From<cudnn_sys::cudnnConvolutionFwdAlgo_t> for ConvFwdAlgo {
+    fn from(algo: cudnn_sys::cudnnConvolutionFwdAlgo_t) -> Self {
+        use cudnn_sys::cudnnConvolutionFwdAlgo_t::*;
         match algo {
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM => {
-                ConvFwdAlgo::ImplicitGemm
-            }
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM => {
-                ConvFwdAlgo::ImplicitPrecompGemm
-            }
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_GEMM => ConvFwdAlgo::Gemm,
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_DIRECT => {
-                ConvFwdAlgo::Direct
-            }
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_FFT => ConvFwdAlgo::Fft,
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING => {
-                ConvFwdAlgo::FftTiling
-            }
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD => {
-                ConvFwdAlgo::Winograd
-            }
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED => {
-                ConvFwdAlgo::WinogradNonFused
-            }
-            sys::cudnnConvolutionFwdAlgo_t::CUDNN_CONVOLUTION_FWD_ALGO_COUNT => unreachable!(),
+            CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM => ConvFwdAlgo::ImplicitGemm,
+            CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM => ConvFwdAlgo::ImplicitPrecompGemm,
+            CUDNN_CONVOLUTION_FWD_ALGO_GEMM => ConvFwdAlgo::Gemm,
+            CUDNN_CONVOLUTION_FWD_ALGO_DIRECT => ConvFwdAlgo::Direct,
+            CUDNN_CONVOLUTION_FWD_ALGO_FFT => ConvFwdAlgo::Fft,
+            CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING => ConvFwdAlgo::FftTiling,
+            CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD => ConvFwdAlgo::Winograd,
+            CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED => ConvFwdAlgo::WinogradNonFused,
+            CUDNN_CONVOLUTION_FWD_ALGO_COUNT => unreachable!(),
         }
     }
 }
 
 /// BestHeuristic for the forward convolution algorithm.
-impl TryFrom<sys::cudnnConvolutionFwdAlgoPerf_t> for BestHeuristic<ConvFwdAlgo> {
+impl TryFrom<cudnn_sys::cudnnConvolutionFwdAlgoPerf_t> for BestHeuristic<ConvFwdAlgo> {
     type Error = CudnnError;
 
-    fn try_from(raw: sys::cudnnConvolutionFwdAlgoPerf_t) -> Result<Self, Self::Error> {
-        let sys::cudnnConvolutionFwdAlgoPerf_t {
+    fn try_from(raw: cudnn_sys::cudnnConvolutionFwdAlgoPerf_t) -> Result<Self, Self::Error> {
+        let cudnn_sys::cudnnConvolutionFwdAlgoPerf_t {
             algo,
             status,
             time,
@@ -168,7 +157,7 @@ pub enum ConvBwdDataAlgo {
     WinogradNonFused,
 }
 
-impl From<ConvBwdDataAlgo> for sys::cudnnConvolutionBwdDataAlgo_t {
+impl From<ConvBwdDataAlgo> for cudnn_sys::cudnnConvolutionBwdDataAlgo_t {
     fn from(algo: ConvBwdDataAlgo) -> Self {
         match algo {
             ConvBwdDataAlgo::Algo0 => Self::CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
@@ -183,26 +172,27 @@ impl From<ConvBwdDataAlgo> for sys::cudnnConvolutionBwdDataAlgo_t {
     }
 }
 
-impl From<sys::cudnnConvolutionBwdDataAlgo_t> for ConvBwdDataAlgo {
-    fn from(algo: sys::cudnnConvolutionBwdDataAlgo_t) -> Self {
+impl From<cudnn_sys::cudnnConvolutionBwdDataAlgo_t> for ConvBwdDataAlgo {
+    fn from(algo: cudnn_sys::cudnnConvolutionBwdDataAlgo_t) -> Self {
+        use cudnn_sys::cudnnConvolutionBwdDataAlgo_t::*;
         match algo {
-            sys::cudnnConvolutionBwdDataAlgo_t::CUDNN_CONVOLUTION_BWD_DATA_ALGO_0 => Self::Algo0,
-            sys::cudnnConvolutionBwdDataAlgo_t::CUDNN_CONVOLUTION_BWD_DATA_ALGO_1 => Self::Algo1,
-            sys::cudnnConvolutionBwdDataAlgo_t::CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT => Self::Fft,
-            sys::cudnnConvolutionBwdDataAlgo_t::CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING => Self::FftTiling,
-            sys::cudnnConvolutionBwdDataAlgo_t::CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD => Self::Winograd,
-            sys::cudnnConvolutionBwdDataAlgo_t::CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED => Self::WinogradNonFused,
-            sys::cudnnConvolutionBwdDataAlgo_t::CUDNN_CONVOLUTION_BWD_DATA_ALGO_COUNT => unreachable!()
+            CUDNN_CONVOLUTION_BWD_DATA_ALGO_0 => Self::Algo0,
+            CUDNN_CONVOLUTION_BWD_DATA_ALGO_1 => Self::Algo1,
+            CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT => Self::Fft,
+            CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING => Self::FftTiling,
+            CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD => Self::Winograd,
+            CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED => Self::WinogradNonFused,
+            CUDNN_CONVOLUTION_BWD_DATA_ALGO_COUNT => unreachable!(),
         }
     }
 }
 
 /// BestHeuristic for the backward data convolution algorithm.
-impl TryFrom<sys::cudnnConvolutionBwdDataAlgoPerf_t> for BestHeuristic<ConvBwdDataAlgo> {
+impl TryFrom<cudnn_sys::cudnnConvolutionBwdDataAlgoPerf_t> for BestHeuristic<ConvBwdDataAlgo> {
     type Error = CudnnError;
 
-    fn try_from(raw: sys::cudnnConvolutionBwdDataAlgoPerf_t) -> Result<Self, Self::Error> {
-        let sys::cudnnConvolutionBwdDataAlgoPerf_t {
+    fn try_from(raw: cudnn_sys::cudnnConvolutionBwdDataAlgoPerf_t) -> Result<Self, Self::Error> {
+        let cudnn_sys::cudnnConvolutionBwdDataAlgoPerf_t {
             algo,
             status,
             time,
@@ -250,69 +240,56 @@ pub enum ConvBwdFilterAlgo {
     WinogradNonFused,
 }
 
-impl From<ConvBwdFilterAlgo> for sys::cudnnConvolutionBwdFilterAlgo_t {
+impl From<ConvBwdFilterAlgo> for cudnn_sys::cudnnConvolutionBwdFilterAlgo_t {
     fn from(algo: ConvBwdFilterAlgo) -> Self {
         match algo {
             ConvBwdFilterAlgo::Algo0 => {
-                sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0
+                cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0
             }
             ConvBwdFilterAlgo::Algo1 => {
-                sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1
+                cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1
             }
             ConvBwdFilterAlgo::Algo3 => {
-                sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3
+                cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3
             }
             ConvBwdFilterAlgo::Fft => {
-                sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT
+                cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT
             }
             ConvBwdFilterAlgo::FftTiling => {
-                sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT_TILING
+                cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT_TILING
             }
             ConvBwdFilterAlgo::Winograd => {
-                sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD
+                cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD
             }
             ConvBwdFilterAlgo::WinogradNonFused => {
-                sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD_NONFUSED
+                cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD_NONFUSED
             }
         }
     }
 }
 
-impl From<sys::cudnnConvolutionBwdFilterAlgo_t> for ConvBwdFilterAlgo {
-    fn from(algo: sys::cudnnConvolutionBwdFilterAlgo_t) -> Self {
+impl From<cudnn_sys::cudnnConvolutionBwdFilterAlgo_t> for ConvBwdFilterAlgo {
+    fn from(algo: cudnn_sys::cudnnConvolutionBwdFilterAlgo_t) -> Self {
+        use cudnn_sys::cudnnConvolutionBwdFilterAlgo_t::*;
         match algo {
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0 => {
-                Self::Algo0
-            }
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1 => {
-                Self::Algo1
-            }
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3 => {
-                Self::Algo3
-            }
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT =>  {
-                Self::Fft
-            }
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT_TILING => {
-                Self::FftTiling
-            }
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD => {
-                Self::Winograd
-            }
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD_NONFUSED => {
-                Self::WinogradNonFused
-            }
-            sys::cudnnConvolutionBwdFilterAlgo_t::CUDNN_CONVOLUTION_BWD_FILTER_ALGO_COUNT => unreachable!()
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0 => Self::Algo0,
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1 => Self::Algo1,
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3 => Self::Algo3,
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT => Self::Fft,
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT_TILING => Self::FftTiling,
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD => Self::Winograd,
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD_NONFUSED => Self::WinogradNonFused,
+            CUDNN_CONVOLUTION_BWD_FILTER_ALGO_COUNT => unreachable!(),
         }
     }
 }
 
 /// BestHeuristic for the backward filter convolution algorithm.
-impl TryFrom<sys::cudnnConvolutionBwdFilterAlgoPerf_t> for BestHeuristic<ConvBwdFilterAlgo> {
+impl TryFrom<cudnn_sys::cudnnConvolutionBwdFilterAlgoPerf_t> for BestHeuristic<ConvBwdFilterAlgo> {
     type Error = CudnnError;
 
-    fn try_from(raw: sys::cudnnConvolutionBwdFilterAlgoPerf_t) -> Result<Self, Self::Error> {
-        let sys::cudnnConvolutionBwdFilterAlgoPerf_t {
+    fn try_from(raw: cudnn_sys::cudnnConvolutionBwdFilterAlgoPerf_t) -> Result<Self, Self::Error> {
+        let cudnn_sys::cudnnConvolutionBwdFilterAlgoPerf_t {
             algo,
             status,
             time,

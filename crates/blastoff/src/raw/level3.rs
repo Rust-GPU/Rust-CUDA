@@ -1,6 +1,9 @@
-use crate::{sys::v2::*, GemmDatatype};
-use num_complex::{Complex32, Complex64};
 use std::os::raw::c_int;
+
+use cust_raw::cublas_sys::*;
+use num_complex::{Complex32, Complex64};
+
+use crate::GemmDatatype;
 
 pub trait GemmOps: GemmDatatype {
     unsafe fn gemm(

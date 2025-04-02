@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::{
-    sys, CudnnError, DataType, IndicesType, IntoResult, NanPropagation, ReduceIndices, ReduceOp,
+    CudnnError, DataType, IndicesType, IntoResult, NanPropagation, ReduceIndices, ReduceOp,
 };
 
 /// Descriptor of a tensor reduction operation.
@@ -9,7 +9,7 @@ pub struct ReductionDescriptor<T>
 where
     T: DataType,
 {
-    pub(crate) raw: sys::cudnnReduceTensorDescriptor_t,
+    pub(crate) raw: cudnn_sys::cudnnReduceTensorDescriptor_t,
     comp_type: PhantomData<T>,
 }
 
@@ -61,10 +61,10 @@ where
         let indices_type = indices_type.into().unwrap_or(IndicesType::U8);
 
         unsafe {
-            sys::cudnnCreateReduceTensorDescriptor(raw.as_mut_ptr()).into_result()?;
+            cudnn_sys::cudnnCreateReduceTensorDescriptor(raw.as_mut_ptr()).into_result()?;
             let raw = raw.assume_init();
 
-            sys::cudnnSetReduceTensorDescriptor(
+            cudnn_sys::cudnnSetReduceTensorDescriptor(
                 raw,
                 op.into(),
                 T::into_raw(),
@@ -88,7 +88,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            sys::cudnnDestroyReduceTensorDescriptor(self.raw);
+            cudnn_sys::cudnnDestroyReduceTensorDescriptor(self.raw);
         }
     }
 }
