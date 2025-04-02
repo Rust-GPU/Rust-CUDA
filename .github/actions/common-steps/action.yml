@@ -46,6 +46,7 @@ runs:
       run: cargo version
 
     - name: Add rustup components
+      shell: bash
       run: rustup component add rustfmt clippy
 
     - name: Install dependencies for LLVM 7
