@@ -7,11 +7,23 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 
-APP_PREFIX = "rust-cuda-test-runner"
-RUNNER_LOG_PREFIX = "[runner]"
-REMOTE_LOG_PREFIX = "[remote]"
-
 TestResult = Dict[str, Any]
+
+APP_PREFIX = "rust-cuda-test-runner"
+
+RED = "\033[31m"
+BLUE = "\033[34m"
+
+
+def _colorize_prefix(prefix: str, color_code: str) -> str:
+    """Adds color to a prefix if running in a TTY."""
+    if sys.stderr.isatty():
+        return f"{color_code}{prefix}\033[0m"
+    return prefix
+
+
+RUNNER_LOG_PREFIX = _colorize_prefix("[runner]", RED)
+REMOTE_LOG_PREFIX = _colorize_prefix("[remote]", BLUE)
 
 
 @dataclass(frozen=True)  # Immutable config object
