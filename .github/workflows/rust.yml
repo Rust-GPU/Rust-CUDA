@@ -26,18 +26,22 @@ jobs:
             target: x86_64-unknown-linux-gnu
             cuda: "11.2.2"
             linux-local-args: ["--toolkit"]
+            sub-packages: []
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             cuda: "12.8.1"
             linux-local-args: ["--toolkit"]
+            sub-packages: []
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             cuda: "11.2.2"
             linux-local-args: []
+            sub-packages: ["nvcc", "nvrtc", "nvrtc_dev", "cudart", "cublas", "cublas_dev", "curand", "curand_dev"]
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             cuda: "12.8.1"
             linux-local-args: []
+            sub-packages: ["nvcc", "nvrtc", "nvrtc_dev", "cuda_profiler_api", "cudart", "cublas", "cublas_dev", "curand", "curand_dev"]
 
     steps:
       - name: Checkout repository
@@ -48,8 +52,11 @@ jobs:
         id: cuda-toolkit
         with:
           cuda: ${{ matrix.cuda }}
+          method: network
           linux-local-args: ${{ toJson(matrix.linux-local-args) }}
           use-local-cache: false
+          sub-packages: ${{ toJson(matrix.sub-packages) }}
+          log-file-suffix: '${{matrix.os}}-${{matrix.cuda}}'
 
       - name: Verify CUDA installation
         run: nvcc --version
