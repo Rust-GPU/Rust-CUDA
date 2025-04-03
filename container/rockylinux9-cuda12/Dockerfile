@@ -1,12 +1,22 @@
 FROM nvidia/cuda:12.8.1-cudnn-devel-rockylinux9
 
 RUN dnf -y install \
+    clang \
     openssl-devel \
     pkgconfig \
     redhat-rpm-config \
     which \
     xz \
     zlib-devel
+
+# Needed to build `path_tracer`, `optix/ex03_window` example
+RUN dnf -y install \
+    cmake \
+    fontconfig-devel \
+    libX11-devel  \
+    libXcursor-devel \
+    libXi-devel \
+    libXrandr-devel
 
 # Get LLVM 7 & libffi.so.6
 WORKDIR /data/llvm7
@@ -23,9 +33,10 @@ RUN curl -sSf -L https://sh.rustup.rs | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Setup the workspace
-ADD . /data/Rust-CUDA
+ADD ./rust-toolchain.toml /data/Rust-CUDA/
 WORKDIR /data/Rust-CUDA
 RUN rustup show
+RUN rm -f "rust-toolchain.toml"
 
 ENV LLVM_LINK_STATIC=1
 ENV RUST_LOG=info
