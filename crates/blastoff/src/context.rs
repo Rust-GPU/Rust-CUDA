@@ -92,8 +92,8 @@ impl CublasContext {
     pub fn new() -> Result<Self> {
         let mut raw = MaybeUninit::uninit();
         unsafe {
-            cublas_sys::cublasCreate_v2(raw.as_mut_ptr()).to_result()?;
-            cublas_sys::cublasSetPointerMode_v2(
+            cublas_sys::cublasCreate(raw.as_mut_ptr()).to_result()?;
+            cublas_sys::cublasSetPointerMode(
                 raw.assume_init(),
                 cublas_sys::cublasPointerMode_t::CUBLAS_POINTER_MODE_DEVICE,
             )
@@ -112,7 +112,7 @@ impl CublasContext {
 
         unsafe {
             let inner = mem::replace(&mut ctx.raw, ptr::null_mut());
-            match cublas_sys::cublasDestroy_v2(inner).to_result() {
+            match cublas_sys::cublasDestroy(inner).to_result() {
                 Ok(()) => {
                     mem::forget(ctx);
                     Ok(())
@@ -127,7 +127,7 @@ impl CublasContext {
         let mut raw = MaybeUninit::<u32>::uninit();
         unsafe {
             // getVersion can't fail
-            cublas_sys::cublasGetVersion_v2(self.raw, raw.as_mut_ptr().cast())
+            cublas_sys::cublasGetVersion(self.raw, raw.as_mut_ptr().cast())
                 .to_result()
                 .unwrap();
 
@@ -145,7 +145,7 @@ impl CublasContext {
     ) -> Result<T> {
         unsafe {
             // cudaStream_t is the same as CUstream
-            cublas_sys::cublasSetStream_v2(
+            cublas_sys::cublasSetStream(
                 self.raw,
                 mem::transmute::<*mut driver_sys::CUstream_st, *mut cublas_sys::CUstream_st>(
                     stream.as_inner(),
@@ -155,7 +155,7 @@ impl CublasContext {
             let res = func(self)?;
             // reset the stream back to NULL just in case someone calls with_stream, then drops the stream, and tries to
             // execute a raw sys function with the context's handle.
-            cublas_sys::cublasSetStream_v2(self.raw, ptr::null_mut()).to_result()?;
+            cublas_sys::cublasSetStream(self.raw, ptr::null_mut()).to_result()?;
             Ok(res)
         }
     }
@@ -340,7 +340,7 @@ impl CublasContext {
 impl Drop for CublasContext {
     fn drop(&mut self) {
         unsafe {
-            cublas_sys::cublasDestroy_v2(self.raw);
+            cublas_sys::cublasDestroy(self.raw);
         }
     }
 }

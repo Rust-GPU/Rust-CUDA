@@ -205,25 +205,25 @@ mod private {
     impl<T: DeviceCopy> Sealed for DeviceBox<T> {}
 }
 
-/// Simple wrapper over cuMemcpyHtoD_v2
+/// Simple wrapper over cuMemcpyHtoD
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn memcpy_htod(
     d_ptr: driver_sys::CUdeviceptr,
     src_ptr: *const c_void,
     size: usize,
 ) -> CudaResult<()> {
-    driver_sys::cuMemcpyHtoD_v2(d_ptr, src_ptr, size).to_result()?;
+    driver_sys::cuMemcpyHtoD(d_ptr, src_ptr, size).to_result()?;
     Ok(())
 }
 
-/// Simple wrapper over cuMemcpyDtoH_v2
+/// Simple wrapper over cuMemcpyDtoH
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn memcpy_dtoh(
     d_ptr: *mut c_void,
     src_ptr: driver_sys::CUdeviceptr,
     size: usize,
 ) -> CudaResult<()> {
-    driver_sys::cuMemcpyDtoH_v2(d_ptr, src_ptr, size).to_result()?;
+    driver_sys::cuMemcpyDtoH(d_ptr, src_ptr, size).to_result()?;
     Ok(())
 }
 
@@ -309,7 +309,7 @@ pub unsafe fn memcpy_2d_htod<T: DeviceCopy>(
         Height: height,
     };
 
-    driver_sys::cuMemcpy2D_v2(&pcopy).to_result()?;
+    driver_sys::cuMemcpy2D(&pcopy).to_result()?;
     Ok(())
 }
 
@@ -395,7 +395,7 @@ pub unsafe fn memcpy_2d_dtoh<T: DeviceCopy>(
         Height: height,
     };
 
-    driver_sys::cuMemcpy2D_v2(&pcopy).to_result()?;
+    driver_sys::cuMemcpy2D(&pcopy).to_result()?;
     Ok(())
 }
 
@@ -409,7 +409,7 @@ pub fn mem_get_info() -> CudaResult<(usize, usize)> {
     let mut mem_free = 0;
     let mut mem_total = 0;
     unsafe {
-        driver_sys::cuMemGetInfo_v2(&mut mem_free, &mut mem_total).to_result()?;
+        driver_sys::cuMemGetInfo(&mut mem_free, &mut mem_total).to_result()?;
     }
     Ok((mem_free, mem_total))
 }

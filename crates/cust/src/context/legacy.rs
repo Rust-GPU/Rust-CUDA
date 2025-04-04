@@ -262,7 +262,7 @@ impl Context {
             // lifetime guarantees so we create-and-push, then pop, then the programmer has to
             // push again.
             let mut ctx: CUcontext = ptr::null_mut();
-            driver_sys::cuCtxCreate_v2(&mut ctx as *mut CUcontext, flags.bits(), device.as_raw())
+            driver_sys::cuCtxCreate(&mut ctx as *mut CUcontext, flags.bits(), device.as_raw())
                 .to_result()?;
             Ok(Context { inner: ctx })
         }
@@ -354,7 +354,7 @@ impl Context {
 
         unsafe {
             let inner = mem::replace(&mut ctx.inner, ptr::null_mut());
-            match driver_sys::cuCtxDestroy_v2(inner).to_result() {
+            match driver_sys::cuCtxDestroy(inner).to_result() {
                 Ok(()) => {
                     mem::forget(ctx);
                     Ok(())
@@ -372,7 +372,7 @@ impl Drop for Context {
 
         unsafe {
             let inner = mem::replace(&mut self.inner, ptr::null_mut());
-            driver_sys::cuCtxDestroy_v2(inner);
+            driver_sys::cuCtxDestroy(inner);
         }
     }
 }
@@ -456,7 +456,7 @@ impl ContextStack {
     pub fn pop() -> CudaResult<UnownedContext> {
         unsafe {
             let mut ctx: CUcontext = ptr::null_mut();
-            driver_sys::cuCtxPopCurrent_v2(&mut ctx as *mut CUcontext).to_result()?;
+            driver_sys::cuCtxPopCurrent(&mut ctx as *mut CUcontext).to_result()?;
             Ok(UnownedContext { inner: ctx })
         }
     }
@@ -481,7 +481,7 @@ impl ContextStack {
     /// ```
     pub fn push<C: ContextHandle>(ctx: &C) -> CudaResult<()> {
         unsafe {
-            driver_sys::cuCtxPushCurrent_v2(ctx.get_inner()).to_result()?;
+            driver_sys::cuCtxPushCurrent(ctx.get_inner()).to_result()?;
             Ok(())
         }
     }

@@ -85,7 +85,7 @@ impl GemmOps for f32 {
         c: *mut Self,
         ldc: c_int,
     ) -> cublasStatus_t {
-        cublasSgemm_v2(
+        cublasSgemm(
             handle, transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
         )
     }
@@ -108,7 +108,7 @@ impl GemmOps for f64 {
         c: *mut Self,
         ldc: c_int,
     ) -> cublasStatus_t {
-        cublasDgemm_v2(
+        cublasDgemm(
             handle, transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
         )
     }
@@ -131,7 +131,7 @@ impl GemmOps for Complex32 {
         c: *mut Self,
         ldc: c_int,
     ) -> cublasStatus_t {
-        cublasCgemm_v2(
+        cublasCgemm(
             handle,
             transa,
             transb,
@@ -167,7 +167,7 @@ impl GemmOps for Complex64 {
         c: *mut Self,
         ldc: c_int,
     ) -> cublasStatus_t {
-        cublasCgemm_v2(
+        cublasCgemm(
             handle,
             transa,
             transb,

@@ -48,7 +48,7 @@ pub unsafe fn cuda_malloc<T: DeviceCopy>(count: usize) -> CudaResult<DevicePoint
     }
 
     let mut ptr = 0;
-    driver_sys::cuMemAlloc_v2(&mut ptr, size).to_result()?;
+    driver_sys::cuMemAlloc(&mut ptr, size).to_result()?;
     Ok(DevicePointer::from_raw(ptr))
 }
 
@@ -203,7 +203,7 @@ pub unsafe fn cuda_malloc_pitched<T: DeviceCopy>(
 
     let mut ptr = 0;
     let mut pitch = 0;
-    driver_sys::cuMemAllocPitch_v2(&mut ptr, &mut pitch, width_bytes, height, element_size)
+    driver_sys::cuMemAllocPitch(&mut ptr, &mut pitch, width_bytes, height, element_size)
         .to_result()?;
     Ok((DevicePointer::from_raw(ptr), pitch))
 }
@@ -236,7 +236,7 @@ pub unsafe fn cuda_free<T: DeviceCopy>(ptr: DevicePointer<T>) -> CudaResult<()> 
         return Err(CudaError::InvalidMemoryAllocation);
     }
 
-    driver_sys::cuMemFree_v2(ptr.as_raw()).to_result()?;
+    driver_sys::cuMemFree(ptr.as_raw()).to_result()?;
     Ok(())
 }
 
@@ -269,7 +269,7 @@ pub unsafe fn cuda_free_unified<T: DeviceCopy>(mut p: UnifiedPointer<T>) -> Cuda
         return Err(CudaError::InvalidMemoryAllocation);
     }
 
-    driver_sys::cuMemFree_v2(ptr as u64).to_result()?;
+    driver_sys::cuMemFree(ptr as u64).to_result()?;
     Ok(())
 }
 
@@ -311,7 +311,7 @@ pub unsafe fn cuda_malloc_locked<T>(count: usize) -> CudaResult<*mut T> {
     }
 
     let mut ptr: *mut c_void = ptr::null_mut();
-    driver_sys::cuMemAllocHost_v2(&mut ptr as *mut *mut c_void, size).to_result()?;
+    driver_sys::cuMemAllocHost(&mut ptr as *mut *mut c_void, size).to_result()?;
     let ptr = ptr as *mut T;
     Ok(ptr)
 }

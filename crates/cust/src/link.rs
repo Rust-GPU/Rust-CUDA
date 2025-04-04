@@ -27,7 +27,7 @@ impl Linker {
 
         unsafe {
             let mut raw = MaybeUninit::uninit();
-            driver_sys::cuLinkCreate_v2(0, null_mut(), null_mut(), raw.as_mut_ptr()).to_result()?;
+            driver_sys::cuLinkCreate(0, null_mut(), null_mut(), raw.as_mut_ptr()).to_result()?;
             Ok(Self {
                 raw: raw.assume_init(),
             })
@@ -48,7 +48,7 @@ impl Linker {
         let ptx = ptx.as_ref();
 
         unsafe {
-            driver_sys::cuLinkAddData_v2(
+            driver_sys::cuLinkAddData(
                 self.raw,
                 driver_sys::CUjitInputType::CU_JIT_INPUT_PTX,
                 // cuda_sys wants *mut but from the API docs we know we retain ownership so
@@ -73,7 +73,7 @@ impl Linker {
         let cubin = cubin.as_ref();
 
         unsafe {
-            driver_sys::cuLinkAddData_v2(
+            driver_sys::cuLinkAddData(
                 self.raw,
                 driver_sys::CUjitInputType::CU_JIT_INPUT_CUBIN,
                 // cuda_sys wants *mut but from the API docs we know we retain ownership so
@@ -98,7 +98,7 @@ impl Linker {
         let fatbin = fatbin.as_ref();
 
         unsafe {
-            driver_sys::cuLinkAddData_v2(
+            driver_sys::cuLinkAddData(
                 self.raw,
                 driver_sys::CUjitInputType::CU_JIT_INPUT_FATBINARY,
                 // cuda_sys wants *mut but from the API docs we know we retain ownership so

@@ -15,6 +15,9 @@ fn main() {
         .expect("Cannot find transitive metadata 'cuda_include' from cust_raw package.");
 
     println!("cargo::rerun-if-changed=build");
+    for e in sdk.related_optix_envs() {
+        println!("cargo::rerun-if-env-changed={}", e);
+    }
     // Emit metadata for the build script.
     println!("cargo::metadata=root={}", sdk.optix_root().display());
     println!("cargo::metadata=version={}", sdk.optix_version());
