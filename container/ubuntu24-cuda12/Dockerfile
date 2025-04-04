@@ -3,12 +3,23 @@ FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     build-essential \
+    clang \
     curl \
     libssl-dev \
     libtinfo-dev \
     pkg-config \
     xz-utils \
     zlib1g-dev
+
+# Needed to build `path_tracer`, `optix/ex03_window` example
+RUN DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
+    cmake \
+    libfontconfig-dev \
+    libx11-xcb-dev \
+    libxcursor-dev \
+    libxi-dev \
+    libxinerama-dev \
+    libxrandr-dev
 
 # Get LLVM 7 & libffi7
 WORKDIR /data/llvm7
@@ -25,9 +36,10 @@ RUN curl -sSf -L https://sh.rustup.rs | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Setup the workspace
-ADD . /data/Rust-CUDA
+ADD ./rust-toolchain.toml /data/Rust-CUDA/
 WORKDIR /data/Rust-CUDA
 RUN rustup show
+RUN rm -f "rust-toolchain.toml"
 
 ENV LLVM_LINK_STATIC=1
 ENV RUST_LOG=info

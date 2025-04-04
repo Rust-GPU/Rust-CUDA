@@ -1,0 +1,74 @@
+name: Build CI Container Images
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/container_images.yml"
+      - "container/**"
+  push:
+    paths:
+      - ".github/workflows/container_images.yml"
+      - "container/**"
+env:
+  REGISTRY: ghcr.io
+jobs:
+  build-images:
+    name: ${{ matrix.variance.name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        variance:
+          - name: Ubuntu-22.04/CUDA-11.8.0
+            image: "${{ github.repository }}-ubuntu22-cuda11"
+            dockerfile: ./container/ubuntu22-cuda11/Dockerfile
+          - name: Ubuntu-22.04/CUDA-12.8.1
+            image: "${{ github.repository }}-ubuntu22-cuda12"
+            dockerfile: ./container/ubuntu22-cuda12/Dockerfile
+          - name: Ubuntu-24.04/CUDA-12.8.1
+            image: "${{ github.repository }}-ubuntu24-cuda12"
+            dockerfile: ./container/ubuntu24-cuda12/Dockerfile
+          - name: RockyLinux-9/CUDA-12.8.1
+            image: "${{ github.repository }}-rockylinux9-cuda12"
+            dockerfile: ./container/rockylinux9-cuda12/Dockerfile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for containers
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.variance.image }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
+            type=raw,value=latest
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push container images
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.variance.dockerfile }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ github.event_name != 'pull_request' }}
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ matrix.variance.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
