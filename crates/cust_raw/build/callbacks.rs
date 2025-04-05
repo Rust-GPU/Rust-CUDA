@@ -3,7 +3,6 @@ use std::fs;
 use std::path;
 use std::sync;
 
-use bimap;
 use bindgen::callbacks::{ItemInfo, ItemKind, MacroParsingBehavior, ParseCallbacks};
 
 /// Struct to handle renaming of functions through macro expansion.
@@ -40,18 +39,24 @@ impl FunctionRenames {
 
     fn expand(&self) -> &bimap::BiHashMap<String, String> {
         self.func_remaps.get_or_init(|| {
+            if self.macro_names.borrow().is_empty() {
+                return bimap::BiHashMap::new();
+            }
+
             let expand_me = self.out_dir.join("expand_macros.c");
             let includes = fs::read_to_string(&self.includes)
                 .expect("Failed to read includes for function renames");
 
             let mut template = format!(
                 r#"{includes}
-#define RENAMED2(from, to) RUST_RENAMED##from##_TO_##to
-#define RENAMED(from, to) RENAMED2(from, to)
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define RENAMED(from, to) "RUST_RENAMED" TOSTRING(from) TOSTRING(to)
 "#
             );
 
             for name in self.macro_names.borrow().iter() {
+                // Add an underscore to the left so that it won't get expanded.
                 template.push_str(&format!("RENAMED(_{name}, {name})\n"));
             }
 
@@ -74,11 +79,15 @@ impl FunctionRenames {
 
             let mut remaps = bimap::BiHashMap::new();
             for line in expanded.lines().rev() {
-                let rename_prefix = "RUST_RENAMED_";
+                let rename_prefix = "\"RUST_RENAMED\" ";
 
                 if let Some((original, expanded)) = line
                     .strip_prefix(rename_prefix)
-                    .and_then(|s| s.split_once("_TO_"))
+                    .map(|s| s.replace("\"", ""))
+                    .and_then(|s| {
+                        s.split_once(' ')
+                            .map(|(l, r)| (l[1..].to_string(), r.to_string()))
+                    })
                     .filter(|(l, r)| l != r && !r.is_empty())
                 {
                     remaps.insert(original.to_string(), expanded.to_string());
