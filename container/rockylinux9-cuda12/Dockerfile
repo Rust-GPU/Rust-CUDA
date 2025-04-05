@@ -38,5 +38,8 @@ WORKDIR /data/Rust-CUDA
 RUN rustup show
 RUN rm -f "rust-toolchain.toml"
 
+# Add nvvm to LD_LIBRARY_PATH.
+ENV LD_LIBRARY_PATH="/usr/local/cuda/nvvm/lib64:${LD_LIBRARY_PATH}"
+
 ENV LLVM_LINK_STATIC=1
 ENV RUST_LOG=info
