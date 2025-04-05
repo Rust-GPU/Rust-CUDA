@@ -62,6 +62,9 @@ jobs:
         with:
           key: ${{ matrix.os }}-${{ matrix.target }}-${{ matrix.cuda }}
 
+      - name: Build all bindings
+        run: cargo build --all-features -p cust_raw
+
       - name: Build
         run: cargo build --workspace --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*" --exclude "cudnn*"
 
