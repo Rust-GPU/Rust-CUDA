@@ -1,6 +1,6 @@
 use std::os::raw::c_int;
 
-use cust_raw::cublas_sys::*;
+use cust_raw::cublas::*;
 use num_complex::{Complex32, Complex64};
 
 use crate::BlasDatatype;

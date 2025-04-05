@@ -15,8 +15,8 @@ use std::os::raw::c_char;
 use std::ptr;
 use std::result::Result;
 
-use cust_raw::driver_sys;
-use cust_raw::driver_sys::cudaError_enum;
+use cust_raw::driver;
+use cust_raw::driver::cudaError_enum;
 
 /// Error enum which represents all the potential errors returned by the CUDA driver API.
 #[repr(u32)]
@@ -98,7 +98,7 @@ impl fmt::Display for CudaError {
                 let value = other as u32;
                 let mut ptr: *const c_char = ptr::null();
                 unsafe {
-                    driver_sys::cuGetErrorString(
+                    driver::cuGetErrorString(
                         mem::transmute::<u32, cudaError_enum>(value),
                         &mut ptr as *mut *const c_char,
                     )

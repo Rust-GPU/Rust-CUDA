@@ -28,8 +28,8 @@ use std::env;
 use std::fs;
 use std::path;
 
-pub mod callbacks;
-pub mod cuda_sdk;
+mod callbacks;
+mod cuda_sdk;
 
 fn main() {
     let outdir = path::PathBuf::from(
@@ -63,8 +63,9 @@ fn main() {
         println!("cargo::rerun-if-env-changed={}", e);
     }
 
-    create_cuda_driver_bindings(&sdk, outdir.as_path());
-    create_cuda_runtime_bindings(&sdk, outdir.as_path());
+    create_driver_bindings(&sdk, outdir.as_path());
+    create_runtime_bindings(&sdk, outdir.as_path());
+    create_runtime_types_bindings(&sdk, outdir.as_path());
     create_cublas_bindings(&sdk, outdir.as_path());
     create_nptx_compiler_bindings(&sdk, outdir.as_path());
     create_nvvm_bindings(&sdk, outdir.as_path());
@@ -73,8 +74,8 @@ fn main() {
         feature = "driver",
         feature = "runtime",
         feature = "cublas",
-        feature = "cublaslt",
-        feature = "cublasxt"
+        feature = "cublasLt",
+        feature = "cublasXt"
     )) {
         for libdir in sdk.cuda_library_paths() {
             println!("cargo::rustc-link-search=native={}", libdir.display());
@@ -84,11 +85,11 @@ fn main() {
     if cfg!(feature = "runtime") {
         println!("cargo::rustc-link-lib=dylib=cudart");
     }
-    if cfg!(feature = "cublas") || cfg!(feature = "cublasxt") {
+    if cfg!(feature = "cublas") || cfg!(feature = "cublasXt") {
         println!("cargo::rustc-link-lib=dylib=cublas");
     }
-    if cfg!(feature = "cublaslt") {
-        println!("cargo::rustc-link-lib=dylib=cublaslt");
+    if cfg!(feature = "cublasLt") {
+        println!("cargo::rustc-link-lib=dylib=cublasLt");
     }
     if cfg!(feature = "nvvm") {
         for libdir in sdk.nvvm_library_paths() {
@@ -101,7 +102,53 @@ fn main() {
     }
 }
 
-fn create_cuda_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+fn create_runtime_types_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+    let params = &[
+        (cfg!(feature = "driver_types"), "driver_types"),
+        (cfg!(feature = "library_types"), "library_types"),
+        (cfg!(feature = "vector_types"), "vector_types"),
+        (cfg!(feature = "texture_types"), "texture_types"),
+        (cfg!(feature = "surface_types"), "surface_types"),
+        (cfg!(feature = "cuComplex"), "cuComplex"),
+    ];
+    for (should_generate, pkg) in params {
+        if !should_generate {
+            continue;
+        }
+        let bindgen_path = path::PathBuf::from(format!("{}/{}_sys.rs", outdir.display(), pkg));
+        let header = sdk
+            .cuda_root()
+            .join(format!("include/{}.h", pkg))
+            .display()
+            .to_string();
+        let bindings = bindgen::Builder::default()
+            .header(&header)
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+            .clang_args(
+                sdk.cuda_include_paths()
+                    .iter()
+                    .map(|p| format!("-I{}", p.display())),
+            )
+            .allowlist_file(format!(r".*{pkg}\.h"))
+            .allowlist_recursively(false)
+            .default_enum_style(bindgen::EnumVariation::Rust {
+                non_exhaustive: false,
+            })
+            .derive_default(true)
+            .derive_eq(true)
+            .derive_hash(true)
+            .derive_ord(true)
+            .size_t_is_usize(true)
+            .layout_tests(true)
+            .generate()
+            .unwrap_or_else(|e| panic!("Unable to generate {pkg} bindings: {e}"));
+        bindings
+            .write_to_file(bindgen_path.as_path())
+            .unwrap_or_else(|e| panic!("Cannot write {pkg} bindgen output to file: {e}"));
+    }
+}
+
+fn create_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
     if !cfg!(feature = "driver") {
         return;
     }
@@ -121,13 +168,7 @@ fn create_cuda_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
                 .iter()
                 .map(|p| format!("-I{}", p.display())),
         )
-        .allowlist_type("^CU.*")
-        .allowlist_type("^cuuint(32|64)_t")
-        .allowlist_type("^cudaError_enum")
-        .allowlist_type("^cu.*Complex$")
-        .allowlist_type("^cuda.*")
-        .allowlist_var("^CU.*")
-        .allowlist_function("^cu.*")
+        .allowlist_file(r".*cuda[^/\\]*\.h")
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })
@@ -145,7 +186,7 @@ fn create_cuda_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .expect("Cannot write CUDA driver bindgen output to file.");
 }
 
-fn create_cuda_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+fn create_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
     if !cfg!(feature = "runtime") {
         return;
     }
@@ -165,14 +206,13 @@ fn create_cuda_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
                 .iter()
                 .map(|p| format!("-I{}", p.display())),
         )
-        .allowlist_type("^CU.*")
-        .allowlist_type("^cuda.*")
-        .allowlist_type("^libraryPropertyType.*")
-        .allowlist_var("^CU.*")
-        .allowlist_function("^cu.*")
+        .allowlist_file(r".*cuda[^/\\]*\.h")
+        .allowlist_file(r".*cuComplex\.h")
+        .allowlist_recursively(false)
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })
+        .disable_nested_struct_naming()
         .derive_default(true)
         .derive_eq(true)
         .derive_hash(true)
@@ -188,19 +228,51 @@ fn create_cuda_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
 }
 
 fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
-    #[rustfmt::skip]
     let params = &[
-        (cfg!(feature = "cublas"), "cublas", "^cublas.*", "^CUBLAS.*"),
-        (cfg!(feature = "cublaslt"), "cublasLt", "^cublasLt.*", "^CUBLASLT.*"),
-        (cfg!(feature = "cublasxt"), "cublasXt", "^cublasXt.*", "^CUBLASXT.*"),
+        (
+            cfg!(feature = "cublas"),
+            "cublas",
+            vec![r".*cublas(_api|_v2)\.h"],
+            vec![
+                r".*cuComplex\.h",
+                r".*driver_types\.h",
+                r".*library_types\.h",
+                r".*vector_types\.h",
+            ],
+        ),
+        (
+            cfg!(feature = "cublasLt"),
+            "cublasLt",
+            vec![r".*cublasLt\.h"],
+            vec![
+                r".*cublas(_api|_v2)*\.h",
+                r".*cuComplex\.h",
+                r".*driver_types\.h",
+                r".*library_types\.h",
+                r".*vector_types\.h",
+                r".*std\w+\.h",
+            ],
+        ),
+        (
+            cfg!(feature = "cublasXt"),
+            "cublasXt",
+            vec![r".*cublasXt\.h"],
+            vec![
+                r".*cublas(_api|_v2)*\.h",
+                r".*cuComplex\.h",
+                r".*driver_types\.h",
+                r".*library_types\.h",
+                r".*vector_types\.h",
+            ],
+        ),
     ];
-    for (should_generate, pkg, tf, var) in params {
+    for (should_generate, pkg, allowed, blocked) in params {
         if !should_generate {
             continue;
         }
         let bindgen_path = path::PathBuf::from(format!("{}/{pkg}_sys.rs", outdir.display()));
         let header = format!("build/{pkg}_wrapper.h");
-        let bindings = bindgen::Builder::default()
+        let mut bindings = bindgen::Builder::default()
             .header(&header)
             .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
                 pkg,
@@ -214,9 +286,16 @@ fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
                     .iter()
                     .map(|p| format!("-I{}", p.display())),
             )
-            .allowlist_type(tf)
-            .allowlist_function(tf)
-            .allowlist_var(var)
+            .allowlist_recursively(false);
+
+        for file in allowed {
+            bindings = bindings.allowlist_file(file);
+        }
+        for file in blocked {
+            bindings = bindings.blocklist_file(file);
+        }
+
+        let bindings = bindings
             .default_enum_style(bindgen::EnumVariation::Rust {
                 non_exhaustive: false,
             })

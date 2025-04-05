@@ -17,7 +17,7 @@ use std::mem;
 use std::ptr;
 use std::time::Duration;
 
-use cust_raw::driver_sys::{
+use cust_raw::driver::{
     cuEventCreate, cuEventDestroy, cuEventElapsedTime, cuEventQuery, cuEventRecord,
     cuEventSynchronize, CUevent,
 };

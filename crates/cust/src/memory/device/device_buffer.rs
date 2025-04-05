@@ -5,7 +5,7 @@ use std::ops::{Deref, DerefMut};
 pub use bytemuck;
 #[cfg(feature = "bytemuck")]
 use bytemuck::{Pod, PodCastError, Zeroable};
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 use crate::error::{CudaResult, DropResult, ToResult};
 use crate::memory::device::{AsyncCopyDestination, CopyDestination, DeviceSlice};
@@ -232,7 +232,7 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
         unsafe {
             let new_buf = DeviceBuffer::uninitialized(size)?;
             if size_of::<T>() != 0 {
-                driver_sys::cuMemsetD8(new_buf.as_device_ptr().as_raw(), 0, size_of::<T>() * size)
+                driver::cuMemsetD8(new_buf.as_device_ptr().as_raw(), 0, size_of::<T>() * size)
                     .to_result()?;
             }
             Ok(new_buf)
@@ -274,7 +274,7 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
     pub unsafe fn zeroed_async(size: usize, stream: &Stream) -> CudaResult<Self> {
         let new_buf = DeviceBuffer::uninitialized_async(size, stream)?;
         if size_of::<T>() != 0 {
-            driver_sys::cuMemsetD8Async(
+            driver::cuMemsetD8Async(
                 new_buf.as_device_ptr().as_raw(),
                 0,
                 size_of::<T>() * size,

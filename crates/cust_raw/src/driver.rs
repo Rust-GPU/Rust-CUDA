@@ -1,5 +1,7 @@
+//! Bindings to the CUDA Driver API
+
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-include!(concat!(env!("OUT_DIR"), "/runtime_sys.rs"));
+include!(concat!(env!("OUT_DIR"), "/driver_sys.rs"));

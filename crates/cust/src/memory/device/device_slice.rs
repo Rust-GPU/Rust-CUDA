@@ -9,7 +9,7 @@ use std::slice;
 
 #[cfg(feature = "bytemuck")]
 use bytemuck::{Pod, Zeroable};
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 use crate::error::{CudaResult, ToResult};
 use crate::memory::device::AsyncCopyDestination;
@@ -249,9 +249,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
 
         // SAFETY: We know T can hold any value because it is `Pod`, and
         // sub-byte alignment isn't a thing so we know the alignment is right.
-        unsafe {
-            driver_sys::cuMemsetD8(self.as_raw_ptr(), value, self.size_in_bytes()).to_result()
-        }
+        unsafe { driver::cuMemsetD8(self.as_raw_ptr(), value, self.size_in_bytes()).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `8-bit` values of `value` asynchronously.
@@ -268,7 +266,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             return Ok(());
         }
 
-        driver_sys::cuMemsetD8Async(
+        driver::cuMemsetD8Async(
             self.as_raw_ptr(),
             value,
             self.size_in_bytes(),
@@ -300,7 +298,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 2 bytes!"
         );
-        unsafe { driver_sys::cuMemsetD16(self.as_raw_ptr(), value, data_len / 2).to_result() }
+        unsafe { driver::cuMemsetD16(self.as_raw_ptr(), value, data_len / 2).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `16-bit` values of `value` asynchronously.
@@ -331,7 +329,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 2 bytes!"
         );
-        driver_sys::cuMemsetD16Async(self.as_raw_ptr(), value, data_len / 2, stream.as_inner())
+        driver::cuMemsetD16Async(self.as_raw_ptr(), value, data_len / 2, stream.as_inner())
             .to_result()
     }
 
@@ -358,7 +356,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 4 bytes!"
         );
-        unsafe { driver_sys::cuMemsetD32(self.as_raw_ptr(), value, data_len / 4).to_result() }
+        unsafe { driver::cuMemsetD32(self.as_raw_ptr(), value, data_len / 4).to_result() }
     }
 
     /// Sets the memory range of this buffer to contiguous `32-bit` values of `value` asynchronously.
@@ -389,7 +387,7 @@ impl<T: DeviceCopy + Pod> DeviceSlice<T> {
             0,
             "Buffer pointer is not aligned to at least 4 bytes!"
         );
-        driver_sys::cuMemsetD32Async(self.as_raw_ptr(), value, data_len / 4, stream.as_inner())
+        driver::cuMemsetD32Async(self.as_raw_ptr(), value, data_len / 4, stream.as_inner())
             .to_result()
     }
 }
@@ -651,7 +649,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> CopyDestination<I> for 
         let size = self.size_in_bytes();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyHtoD(self.as_raw_ptr(), val.as_ptr() as *const c_void, size)
+                driver::cuMemcpyHtoD(self.as_raw_ptr(), val.as_ptr() as *const c_void, size)
                     .to_result()?
             }
         }
@@ -667,7 +665,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> CopyDestination<I> for 
         let size = self.size_in_bytes();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyDtoH(val.as_mut_ptr() as *mut c_void, self.as_raw_ptr(), size)
+                driver::cuMemcpyDtoH(val.as_mut_ptr() as *mut c_void, self.as_raw_ptr(), size)
                     .to_result()?
             }
         }
@@ -682,9 +680,7 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            unsafe {
-                driver_sys::cuMemcpyDtoD(self.as_raw_ptr(), val.as_raw_ptr(), size).to_result()?
-            }
+            unsafe { driver::cuMemcpyDtoD(self.as_raw_ptr(), val.as_raw_ptr(), size).to_result()? }
         }
         Ok(())
     }
@@ -696,9 +692,7 @@ impl<T: DeviceCopy> CopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            unsafe {
-                driver_sys::cuMemcpyDtoD(val.as_raw_ptr(), self.as_raw_ptr(), size).to_result()?
-            }
+            unsafe { driver::cuMemcpyDtoD(val.as_raw_ptr(), self.as_raw_ptr(), size).to_result()? }
         }
         Ok(())
     }
@@ -723,7 +717,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> AsyncCopyDestination<I>
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            driver_sys::cuMemcpyHtoDAsync(
+            driver::cuMemcpyHtoDAsync(
                 self.as_raw_ptr(),
                 val.as_ptr() as *const c_void,
                 size,
@@ -742,7 +736,7 @@ impl<T: DeviceCopy, I: AsRef<[T]> + AsMut<[T]> + ?Sized> AsyncCopyDestination<I>
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            driver_sys::cuMemcpyDtoHAsync(
+            driver::cuMemcpyDtoHAsync(
                 val.as_mut_ptr() as *mut c_void,
                 self.as_raw_ptr(),
                 size,
@@ -761,13 +755,8 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            driver_sys::cuMemcpyDtoDAsync(
-                self.as_raw_ptr(),
-                val.as_raw_ptr(),
-                size,
-                stream.as_inner(),
-            )
-            .to_result()?
+            driver::cuMemcpyDtoDAsync(self.as_raw_ptr(), val.as_raw_ptr(), size, stream.as_inner())
+                .to_result()?
         }
         Ok(())
     }
@@ -779,13 +768,8 @@ impl<T: DeviceCopy> AsyncCopyDestination<DeviceSlice<T>> for DeviceSlice<T> {
         );
         let size = self.size_in_bytes();
         if size != 0 {
-            driver_sys::cuMemcpyDtoDAsync(
-                val.as_raw_ptr(),
-                self.as_raw_ptr(),
-                size,
-                stream.as_inner(),
-            )
-            .to_result()?
+            driver::cuMemcpyDtoDAsync(val.as_raw_ptr(), self.as_raw_ptr(), size, stream.as_inner())
+                .to_result()?
         }
         Ok(())
     }

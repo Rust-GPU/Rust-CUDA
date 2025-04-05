@@ -3,7 +3,7 @@ use std::{
     os::raw::c_ulonglong,
 };
 
-use cust_raw::driver_sys::{
+use cust_raw::driver::{
     cuSurfObjectCreate, cuSurfObjectDestroy, cuSurfObjectGetResourceDesc, CUsurfObject,
     CUDA_RESOURCE_DESC,
 };

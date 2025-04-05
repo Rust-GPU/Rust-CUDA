@@ -3,8 +3,8 @@
 use std::marker::PhantomData;
 use std::mem::{transmute, MaybeUninit};
 
-use cust_raw::driver_sys;
-use cust_raw::driver_sys::CUfunction;
+use cust_raw::driver;
+use cust_raw::driver::CUfunction;
 
 use crate::context::{CacheConfig, SharedMemoryConfig};
 use crate::error::{CudaResult, ToResult};
@@ -243,12 +243,10 @@ impl Function<'_> {
     pub fn get_attribute(&self, attr: FunctionAttribute) -> CudaResult<i32> {
         unsafe {
             let mut val = 0i32;
-            driver_sys::cuFuncGetAttribute(
+            driver::cuFuncGetAttribute(
                 &mut val as *mut i32,
                 // This should be safe, as the repr and values of FunctionAttribute should match.
-                ::std::mem::transmute::<FunctionAttribute, driver_sys::CUfunction_attribute_enum>(
-                    attr,
-                ),
+                ::std::mem::transmute::<FunctionAttribute, driver::CUfunction_attribute_enum>(attr),
                 self.inner,
             )
             .to_result()?;
@@ -286,9 +284,9 @@ impl Function<'_> {
     /// ```
     pub fn set_cache_config(&mut self, config: CacheConfig) -> CudaResult<()> {
         unsafe {
-            driver_sys::cuFuncSetCacheConfig(
+            driver::cuFuncSetCacheConfig(
                 self.inner,
-                transmute::<CacheConfig, driver_sys::CUfunc_cache_enum>(config),
+                transmute::<CacheConfig, driver::CUfunc_cache_enum>(config),
             )
             .to_result()
         }
@@ -319,9 +317,9 @@ impl Function<'_> {
     /// ```
     pub fn set_shared_memory_config(&mut self, cfg: SharedMemoryConfig) -> CudaResult<()> {
         unsafe {
-            driver_sys::cuFuncSetSharedMemConfig(
+            driver::cuFuncSetSharedMemConfig(
                 self.inner,
-                transmute::<SharedMemoryConfig, driver_sys::CUsharedconfig_enum>(cfg),
+                transmute::<SharedMemoryConfig, driver::CUsharedconfig_enum>(cfg),
             )
             .to_result()
         }
@@ -346,7 +344,7 @@ impl Function<'_> {
 
         let mut result = MaybeUninit::uninit();
         unsafe {
-            driver_sys::cuOccupancyAvailableDynamicSMemPerBlock(
+            driver::cuOccupancyAvailableDynamicSMemPerBlock(
                 result.as_mut_ptr(),
                 self.to_raw(),
                 num_blocks as i32,
@@ -368,7 +366,7 @@ impl Function<'_> {
 
         let mut num_blocks = MaybeUninit::uninit();
         unsafe {
-            driver_sys::cuOccupancyMaxActiveBlocksPerMultiprocessor(
+            driver::cuOccupancyMaxActiveBlocksPerMultiprocessor(
                 num_blocks.as_mut_ptr(),
                 self.to_raw(),
                 total_block_size as i32,
@@ -405,7 +403,7 @@ impl Function<'_> {
         let total_block_size_limit = block_size_limit.x * block_size_limit.y * block_size_limit.z;
 
         unsafe {
-            driver_sys::cuOccupancyMaxPotentialBlockSize(
+            driver::cuOccupancyMaxPotentialBlockSize(
                 min_grid_size.as_mut_ptr(),
                 block_size.as_mut_ptr(),
                 self.to_raw(),

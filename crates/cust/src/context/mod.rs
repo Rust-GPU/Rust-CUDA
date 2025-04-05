@@ -38,7 +38,7 @@ use std::{
     ptr,
 };
 
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 /// Legacy context handling.
 pub mod legacy;
@@ -52,11 +52,11 @@ use crate::{
 };
 
 pub trait ContextHandle: Sealed {
-    fn get_inner(&self) -> driver_sys::CUcontext;
+    fn get_inner(&self) -> driver::CUcontext;
 }
 impl Sealed for Context {}
 impl ContextHandle for Context {
-    fn get_inner(&self) -> driver_sys::CUcontext {
+    fn get_inner(&self) -> driver::CUcontext {
         self.inner
     }
 }
@@ -165,8 +165,8 @@ bitflags::bitflags! {
 
 #[derive(Debug)]
 pub struct Context {
-    inner: driver_sys::CUcontext,
-    device: driver_sys::CUdevice,
+    inner: driver::CUcontext,
+    device: driver::CUdevice,
 }
 
 unsafe impl Send for Context {}
@@ -194,10 +194,9 @@ impl Context {
     pub fn new(device: Device) -> CudaResult<Self> {
         let mut inner = MaybeUninit::uninit();
         unsafe {
-            driver_sys::cuDevicePrimaryCtxRetain(inner.as_mut_ptr(), device.as_raw())
-                .to_result()?;
+            driver::cuDevicePrimaryCtxRetain(inner.as_mut_ptr(), device.as_raw()).to_result()?;
             let inner = inner.assume_init();
-            driver_sys::cuCtxSetCurrent(inner).to_result()?;
+            driver::cuCtxSetCurrent(inner).to_result()?;
             Ok(Self {
                 inner,
                 device: device.as_raw(),
@@ -215,17 +214,17 @@ impl Context {
     /// Nothing else should be using the primary context for this device, otherwise,
     /// spurious errors or segfaults will occur.
     pub unsafe fn reset(device: &Device) -> CudaResult<()> {
-        driver_sys::cuDevicePrimaryCtxReset(device.as_raw()).to_result()
+        driver::cuDevicePrimaryCtxReset(device.as_raw()).to_result()
     }
 
     /// Sets the flags for the device context, these flags will apply to any user of the primary
     /// context associated with this device.
     pub fn set_flags(&self, flags: ContextFlags) -> CudaResult<()> {
-        unsafe { driver_sys::cuDevicePrimaryCtxSetFlags(self.device, flags.bits()).to_result() }
+        unsafe { driver::cuDevicePrimaryCtxSetFlags(self.device, flags.bits()).to_result() }
     }
 
     /// Returns the raw handle to this context.
-    pub fn as_raw(&self) -> driver_sys::CUcontext {
+    pub fn as_raw(&self) -> driver::CUcontext {
         self.inner
     }
 
@@ -251,7 +250,7 @@ impl Context {
     pub fn get_api_version(&self) -> CudaResult<CudaApiVersion> {
         unsafe {
             let mut api_version = 0u32;
-            driver_sys::cuCtxGetApiVersion(self.inner, &mut api_version as *mut u32).to_result()?;
+            driver::cuCtxGetApiVersion(self.inner, &mut api_version as *mut u32).to_result()?;
             Ok(CudaApiVersion {
                 version: api_version as i32,
             })
@@ -291,7 +290,7 @@ impl Context {
 
         unsafe {
             let inner = mem::replace(&mut ctx.inner, ptr::null_mut());
-            match driver_sys::cuDevicePrimaryCtxRelease(ctx.device).to_result() {
+            match driver::cuDevicePrimaryCtxRelease(ctx.device).to_result() {
                 Ok(()) => {
                     mem::forget(ctx);
                     Ok(())
@@ -316,7 +315,7 @@ impl Drop for Context {
 
         unsafe {
             self.inner = ptr::null_mut();
-            let _ = driver_sys::cuDevicePrimaryCtxRelease(self.device);
+            let _ = driver::cuDevicePrimaryCtxRelease(self.device);
         }
     }
 }
@@ -350,8 +349,8 @@ impl CurrentContext {
     pub fn get_cache_config() -> CudaResult<CacheConfig> {
         unsafe {
             let mut config = CacheConfig::PreferNone;
-            driver_sys::cuCtxGetCacheConfig(
-                &mut config as *mut CacheConfig as *mut driver_sys::CUfunc_cache,
+            driver::cuCtxGetCacheConfig(
+                &mut config as *mut CacheConfig as *mut driver::CUfunc_cache,
             )
             .to_result()?;
             Ok(config)
@@ -378,8 +377,7 @@ impl CurrentContext {
     pub fn get_device() -> CudaResult<Device> {
         unsafe {
             let mut device = Device { device: 0 };
-            driver_sys::cuCtxGetDevice(&mut device.device as *mut driver_sys::CUdevice)
-                .to_result()?;
+            driver::cuCtxGetDevice(&mut device.device as *mut driver::CUdevice).to_result()?;
             Ok(device)
         }
     }
@@ -404,7 +402,7 @@ impl CurrentContext {
     pub fn get_flags() -> CudaResult<ContextFlags> {
         unsafe {
             let mut flags = 0u32;
-            driver_sys::cuCtxGetFlags(&mut flags as *mut u32).to_result()?;
+            driver::cuCtxGetFlags(&mut flags as *mut u32).to_result()?;
             Ok(ContextFlags::from_bits_truncate(flags))
         }
     }
@@ -429,9 +427,9 @@ impl CurrentContext {
     pub fn get_resource_limit(resource: ResourceLimit) -> CudaResult<usize> {
         unsafe {
             let mut limit: usize = 0;
-            driver_sys::cuCtxGetLimit(
+            driver::cuCtxGetLimit(
                 &mut limit as *mut usize,
-                transmute::<ResourceLimit, driver_sys::CUlimit_enum>(resource),
+                transmute::<ResourceLimit, driver::CUlimit_enum>(resource),
             )
             .to_result()?;
             Ok(limit)
@@ -458,8 +456,8 @@ impl CurrentContext {
     pub fn get_shared_memory_config() -> CudaResult<SharedMemoryConfig> {
         unsafe {
             let mut cfg = SharedMemoryConfig::DefaultBankSize;
-            driver_sys::cuCtxGetSharedMemConfig(
-                &mut cfg as *mut SharedMemoryConfig as *mut driver_sys::CUsharedconfig,
+            driver::cuCtxGetSharedMemConfig(
+                &mut cfg as *mut SharedMemoryConfig as *mut driver::CUsharedconfig,
             )
             .to_result()?;
             Ok(cfg)
@@ -493,7 +491,7 @@ impl CurrentContext {
                 least: 0,
                 greatest: 0,
             };
-            driver_sys::cuCtxGetStreamPriorityRange(
+            driver::cuCtxGetStreamPriorityRange(
                 &mut range.least as *mut i32,
                 &mut range.greatest as *mut i32,
             )
@@ -529,10 +527,8 @@ impl CurrentContext {
     /// ```
     pub fn set_cache_config(cfg: CacheConfig) -> CudaResult<()> {
         unsafe {
-            driver_sys::cuCtxSetCacheConfig(
-                transmute::<CacheConfig, driver_sys::CUfunc_cache_enum>(cfg),
-            )
-            .to_result()
+            driver::cuCtxSetCacheConfig(transmute::<CacheConfig, driver::CUfunc_cache_enum>(cfg))
+                .to_result()
         }
     }
 
@@ -581,8 +577,8 @@ impl CurrentContext {
     /// ```
     pub fn set_resource_limit(resource: ResourceLimit, limit: usize) -> CudaResult<()> {
         unsafe {
-            driver_sys::cuCtxSetLimit(
-                transmute::<ResourceLimit, driver_sys::CUlimit_enum>(resource),
+            driver::cuCtxSetLimit(
+                transmute::<ResourceLimit, driver::CUlimit_enum>(resource),
                 limit,
             )
             .to_result()?;
@@ -612,9 +608,9 @@ impl CurrentContext {
     /// ```
     pub fn set_shared_memory_config(cfg: SharedMemoryConfig) -> CudaResult<()> {
         unsafe {
-            driver_sys::cuCtxSetSharedMemConfig(transmute::<
+            driver::cuCtxSetSharedMemConfig(transmute::<
                 SharedMemoryConfig,
-                driver_sys::CUsharedconfig_enum,
+                driver::CUsharedconfig_enum,
             >(cfg))
             .to_result()
         }
@@ -639,7 +635,7 @@ impl CurrentContext {
     /// ```
     pub fn set_current<C: ContextHandle>(c: &C) -> CudaResult<()> {
         unsafe {
-            driver_sys::cuCtxSetCurrent(c.get_inner()).to_result()?;
+            driver::cuCtxSetCurrent(c.get_inner()).to_result()?;
             Ok(())
         }
     }
@@ -647,7 +643,7 @@ impl CurrentContext {
     /// Block to wait for a context's tasks to complete.
     pub fn synchronize() -> CudaResult<()> {
         unsafe {
-            driver_sys::cuCtxSynchronize().to_result()?;
+            driver::cuCtxSynchronize().to_result()?;
             Ok(())
         }
     }

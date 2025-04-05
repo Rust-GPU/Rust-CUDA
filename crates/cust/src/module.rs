@@ -8,7 +8,7 @@ use std::os::raw::c_uint;
 use std::path::Path;
 use std::ptr;
 
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 use crate::error::{CudaResult, DropResult, ToResult};
 use crate::function::Function;
@@ -17,7 +17,7 @@ use crate::memory::{CopyDestination, DeviceCopy, DevicePointer};
 /// A compiled CUDA module, loaded into a context.
 #[derive(Debug)]
 pub struct Module {
-    inner: driver_sys::CUmodule,
+    inner: driver::CUmodule,
 }
 
 unsafe impl Send for Module {}
@@ -93,7 +93,7 @@ pub enum ModuleJitOption {
 }
 
 impl ModuleJitOption {
-    pub fn into_raw(opts: &[Self]) -> (Vec<driver_sys::CUjit_option>, Vec<*mut c_void>) {
+    pub fn into_raw(opts: &[Self]) -> (Vec<driver::CUjit_option>, Vec<*mut c_void>) {
         // And here we stumble across one of the most horrific things i have ever seen in my entire
         // journey of working with many parts of CUDA. As a background, CUDA usually wants an array
         // of pointers to values when it takes void**, after all, this is what is expected by anyone.
@@ -109,30 +109,30 @@ impl ModuleJitOption {
         for opt in opts {
             match opt {
                 Self::MaxRegisters(regs) => {
-                    raw_opts.push(driver_sys::CUjit_option::CU_JIT_MAX_REGISTERS);
+                    raw_opts.push(driver::CUjit_option::CU_JIT_MAX_REGISTERS);
                     raw_vals.push(*regs as usize as *mut c_void);
                 }
                 Self::OptLevel(level) => {
-                    raw_opts.push(driver_sys::CUjit_option::CU_JIT_OPTIMIZATION_LEVEL);
+                    raw_opts.push(driver::CUjit_option::CU_JIT_OPTIMIZATION_LEVEL);
                     raw_vals.push(*level as usize as *mut c_void);
                 }
                 Self::DetermineTargetFromContext => {
-                    raw_opts.push(driver_sys::CUjit_option::CU_JIT_TARGET_FROM_CUCONTEXT);
+                    raw_opts.push(driver::CUjit_option::CU_JIT_TARGET_FROM_CUCONTEXT);
                 }
                 Self::Target(target) => {
-                    raw_opts.push(driver_sys::CUjit_option::CU_JIT_TARGET);
+                    raw_opts.push(driver::CUjit_option::CU_JIT_TARGET);
                     raw_vals.push(*target as usize as *mut c_void);
                 }
                 Self::Fallback(fallback) => {
-                    raw_opts.push(driver_sys::CUjit_option::CU_JIT_FALLBACK_STRATEGY);
+                    raw_opts.push(driver::CUjit_option::CU_JIT_FALLBACK_STRATEGY);
                     raw_vals.push(*fallback as usize as *mut c_void);
                 }
                 Self::GenenerateDebugInfo(gen) => {
-                    raw_opts.push(driver_sys::CUjit_option::CU_JIT_GENERATE_DEBUG_INFO);
+                    raw_opts.push(driver::CUjit_option::CU_JIT_GENERATE_DEBUG_INFO);
                     raw_vals.push(*gen as usize as *mut c_void);
                 }
                 Self::GenerateLineInfo(gen) => {
-                    raw_opts.push(driver_sys::CUjit_option::CU_JIT_GENERATE_LINE_INFO);
+                    raw_opts.push(driver::CUjit_option::CU_JIT_GENERATE_LINE_INFO);
                     raw_vals.push(*gen as usize as *mut c_void)
                 }
             }
@@ -181,8 +181,8 @@ impl Module {
             let mut module = Module {
                 inner: ptr::null_mut(),
             };
-            driver_sys::cuModuleLoad(
-                &mut module.inner as *mut driver_sys::CUmodule,
+            driver::cuModuleLoad(
+                &mut module.inner as *mut driver::CUmodule,
                 bytes.as_ptr() as *const _,
             )
             .to_result()?;
@@ -255,8 +255,8 @@ impl Module {
             inner: ptr::null_mut(),
         };
         let (mut options, mut option_values) = ModuleJitOption::into_raw(options);
-        driver_sys::cuModuleLoadDataEx(
-            &mut module.inner as *mut driver_sys::CUmodule,
+        driver::cuModuleLoadDataEx(
+            &mut module.inner as *mut driver::CUmodule,
             image,
             options.len() as c_uint,
             options.as_mut_ptr(),
@@ -349,8 +349,8 @@ impl Module {
             let mut module = Module {
                 inner: ptr::null_mut(),
             };
-            driver_sys::cuModuleLoadData(
-                &mut module.inner as *mut driver_sys::CUmodule,
+            driver::cuModuleLoadData(
+                &mut module.inner as *mut driver::CUmodule,
                 image.as_ptr() as *const c_void,
             )
             .to_result()?;
@@ -390,8 +390,8 @@ impl Module {
             let mut ptr: DevicePointer<T> = DevicePointer::null();
             let mut size: usize = 0;
 
-            driver_sys::cuModuleGetGlobal(
-                &mut ptr as *mut DevicePointer<T> as *mut driver_sys::CUdeviceptr,
+            driver::cuModuleGetGlobal(
+                &mut ptr as *mut DevicePointer<T> as *mut driver::CUdeviceptr,
                 &mut size as *mut usize,
                 self.inner,
                 name.as_ptr(),
@@ -427,10 +427,10 @@ impl Module {
         unsafe {
             let name = name.as_ref();
             let cstr = CString::new(name).expect("Argument to get_function had a nul");
-            let mut func: driver_sys::CUfunction = ptr::null_mut();
+            let mut func: driver::CUfunction = ptr::null_mut();
 
-            driver_sys::cuModuleGetFunction(
-                &mut func as *mut driver_sys::CUfunction,
+            driver::cuModuleGetFunction(
+                &mut func as *mut driver::CUfunction,
                 self.inner,
                 cstr.as_ptr(),
             )
@@ -473,7 +473,7 @@ impl Module {
 
         unsafe {
             let inner = mem::replace(&mut module.inner, ptr::null_mut());
-            match driver_sys::cuModuleUnload(inner).to_result() {
+            match driver::cuModuleUnload(inner).to_result() {
                 Ok(()) => {
                     mem::forget(module);
                     Ok(())
@@ -491,7 +491,7 @@ impl Drop for Module {
         unsafe {
             // No choice but to panic if this fails...
             let module = mem::replace(&mut self.inner, ptr::null_mut());
-            let _ = driver_sys::cuModuleUnload(module);
+            let _ = driver::cuModuleUnload(module);
         }
     }
 }
@@ -513,7 +513,7 @@ impl<T: DeviceCopy> CopyDestination<T> for Symbol<'_, T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyHtoD(self.ptr.as_raw(), val as *const T as *const c_void, size)
+                driver::cuMemcpyHtoD(self.ptr.as_raw(), val as *const T as *const c_void, size)
                     .to_result()?
             }
         }
@@ -524,7 +524,7 @@ impl<T: DeviceCopy> CopyDestination<T> for Symbol<'_, T> {
         let size = mem::size_of::<T>();
         if size != 0 {
             unsafe {
-                driver_sys::cuMemcpyDtoH(val as *const T as *mut c_void, self.ptr.as_raw(), size)
+                driver::cuMemcpyDtoH(val as *const T as *mut c_void, self.ptr.as_raw(), size)
                     .to_result()?
             }
         }

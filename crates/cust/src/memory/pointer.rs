@@ -7,7 +7,7 @@ use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::size_of;
 
-use cust_raw::driver_sys::CUdeviceptr;
+use cust_raw::driver::CUdeviceptr;
 
 use crate::memory::DeviceCopy;
 /// A pointer to device memory.

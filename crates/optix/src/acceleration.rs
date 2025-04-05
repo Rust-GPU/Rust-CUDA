@@ -16,7 +16,7 @@ use std::{
     marker::PhantomData,
 };
 
-use cust_raw::driver_sys::CUdeviceptr;
+use cust_raw::driver::CUdeviceptr;
 use mint::{RowMatrix3x4, Vector3};
 
 pub trait BuildInput: std::hash::Hash {
