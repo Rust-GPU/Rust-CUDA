@@ -44,10 +44,10 @@ jobs:
       - name: Clippy
         env:
           RUSTFLAGS: -Dwarnings
-        run: cargo clippy --workspace --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*" --exclude "cudnn*"
+        run: cargo clippy --workspace --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*"
       - name: Build
-        run: cargo build --workspace --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*" --exclude "cudnn*"
+        run: cargo build --workspace --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*"
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -Dwarnings
-        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*" --exclude "cudnn*" --exclude "cust_raw"
+        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*" --exclude "cust_raw"
