@@ -147,9 +147,7 @@ impl CublasContext {
             // cudaStream_t is the same as CUstream
             cublas_sys::cublasSetStream(
                 self.raw,
-                mem::transmute::<*mut driver_sys::CUstream_st, *mut cublas_sys::CUstream_st>(
-                    stream.as_inner(),
-                ),
+                mem::transmute::<driver_sys::CUstream, cublas_sys::cudaStream_t>(stream.as_inner()),
             )
             .to_result()?;
             let res = func(self)?;
