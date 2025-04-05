@@ -1,7 +1,6 @@
 FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
-RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     build-essential \
     curl \
     clang \
@@ -9,39 +8,41 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     libtinfo-dev \
     pkg-config \
     xz-utils \
-    zlib1g-dev
+    zlib1g-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Needed to build `path_tracer`, `optix/ex03_window` example
-RUN DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     cmake \
     libfontconfig-dev \
     libx11-xcb-dev \
     libxcursor-dev \
     libxi-dev \
     libxinerama-dev \
-    libxrandr-dev
+    libxrandr-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Get LLVM 7
 WORKDIR /data/llvm7
-RUN curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7_7.0.1-12_amd64.deb
-RUN curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-dev_7.0.1-12_amd64.deb
-RUN curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/libllvm7_7.0.1-12_amd64.deb
-RUN curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-runtime_7.0.1-12_amd64.deb
-RUN apt-get install -y ./*.deb
-RUN ln -s /usr/bin/llvm-config-7 /usr/bin/llvm-config
+RUN curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7_7.0.1-12_amd64.deb && \
+    curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-dev_7.0.1-12_amd64.deb && \
+    curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/libllvm7_7.0.1-12_amd64.deb && \
+    curl -sSf -L -O http://mirrors.kernel.org/ubuntu/pool/universe/l/llvm-toolchain-7/llvm-7-runtime_7.0.1-12_amd64.deb && \
+    apt-get update && apt-get install -y ./*.deb && \
+    ln -s /usr/bin/llvm-config-7 /usr/bin/llvm-config && \
+    rm -rf ./*.deb && \
+    rm -rf /var/lib/apt/lists/*
 
 # Get Rust
 RUN curl -sSf -L https://sh.rustup.rs | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Setup the workspace
-ADD ./rust-toolchain.toml /data/Rust-CUDA/
 WORKDIR /data/Rust-CUDA
-RUN rustup show
-RUN rm -f "rust-toolchain.toml"
+RUN --mount=type=bind,source=rust-toolchain.toml,target=/data/Rust-CUDA/rust-toolchain.toml \
+    rustup show
 
 # Add nvvm to LD_LIBRARY_PATH.
 ENV LD_LIBRARY_PATH="/usr/local/cuda/nvvm/lib64:${LD_LIBRARY_PATH}"
-
 ENV LLVM_LINK_STATIC=1
 ENV RUST_LOG=info
