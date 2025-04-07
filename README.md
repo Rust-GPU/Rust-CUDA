@@ -2,7 +2,7 @@
   <h1>The Rust CUDA Project</h1>
 
   <p>
-    <strong>An ecosystem of libraries and tools for writing and executing extremely fast GPU code fully in 
+    <strong>An ecosystem of libraries and tools for writing and executing extremely fast GPU code fully in
     <a href="https://www.rust-lang.org/">Rust</a></strong>
   </p>
 
@@ -13,7 +13,7 @@
     <span> | </span>
     <a href="guide/src/features.md">Features</a>
   </h3>
-<strong>⚠️ The project is still in early development, expect bugs, safety issues, and things that don't work ⚠️</strong> 
+<strong>⚠️ The project is still in early development, expect bugs, safety issues, and things that don't work ⚠️</strong>
 </div>
 
 <br/>
@@ -94,12 +94,14 @@ cargo build
 
 ## Use Rust-CUDA in Container Environments
 
+The distribution related Dockerfile are located in `container` folder.
+Taking ubuntu 24.04 as an example, run the following command in repository root:
 ```bash
-# The distribution related Dockerfile are located in `container` folder.
-# Taking ubuntu 24.04 as an example, run the following command in repository root:
 docker build -f ./container/ubuntu24/Dockerfile -t rust-cuda-ubuntu24 .
 docker run --rm --runtime=nvidia --gpus all -it rust-cuda-ubuntu24
 ```
+
+A sample `.devcontainer.json` file is also included, configured for Ubuntu 24.02. Copy this to `.devcontainer/devcontainer.json` to make additonal customizations.
 
 ## License
 

@@ -1,0 +1,20 @@
+{
+  "image" : "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest",
+  // Uncoment the following lines to use a Dockerfile instead of a prebuilt image.
+  // "build": {
+  //   "dockerfile": "${localWorkspaceFolder}/container/ubuntu24-cuda12/Dockerfile",
+  //   "context": "${localWorkspaceFolder}"
+  // },
+  "containerEnv": {
+    "NVIDIA_DRIVER_CAPABILITIES": "all"
+  },
+  "runArgs": ["--runtime=nvidia", "--gpus", "all"],
+  "customizations": {
+    "vscode": {
+      "extensions": ["rust-lang.rust-analyzer"]
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  }
+}
