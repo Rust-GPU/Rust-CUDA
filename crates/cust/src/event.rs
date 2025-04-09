@@ -347,7 +347,9 @@ impl Event {
 
 impl Drop for Event {
     fn drop(&mut self) {
-        unsafe { cuEventDestroy(self.0) };
+        unsafe {
+            let _ = cuEventDestroy(self.0);
+        };
     }
 }
 

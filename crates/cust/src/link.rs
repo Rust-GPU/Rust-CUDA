@@ -137,6 +137,8 @@ impl Linker {
 
 impl Drop for Linker {
     fn drop(&mut self) {
-        unsafe { driver_sys::cuLinkDestroy(self.raw) };
+        unsafe {
+            let _ = driver_sys::cuLinkDestroy(self.raw);
+        };
     }
 }

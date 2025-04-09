@@ -197,7 +197,7 @@ impl Context {
             driver_sys::cuDevicePrimaryCtxRetain(inner.as_mut_ptr(), device.as_raw())
                 .to_result()?;
             let inner = inner.assume_init();
-            driver_sys::cuCtxSetCurrent(inner);
+            driver_sys::cuCtxSetCurrent(inner).to_result()?;
             Ok(Self {
                 inner,
                 device: device.as_raw(),
@@ -316,7 +316,7 @@ impl Drop for Context {
 
         unsafe {
             self.inner = ptr::null_mut();
-            driver_sys::cuDevicePrimaryCtxRelease(self.device);
+            let _ = driver_sys::cuDevicePrimaryCtxRelease(self.device);
         }
     }
 }

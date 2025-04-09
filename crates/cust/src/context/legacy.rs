@@ -372,7 +372,7 @@ impl Drop for Context {
 
         unsafe {
             let inner = mem::replace(&mut self.inner, ptr::null_mut());
-            driver_sys::cuCtxDestroy(inner);
+            let _ = driver_sys::cuCtxDestroy(inner);
         }
     }
 }

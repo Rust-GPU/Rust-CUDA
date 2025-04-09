@@ -415,7 +415,7 @@ impl Drop for Texture {
                 }
             }
 
-            cuTexObjectDestroy(self.handle);
+            let _ = cuTexObjectDestroy(self.handle);
         }
     }
 }

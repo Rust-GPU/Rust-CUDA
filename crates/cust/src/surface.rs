@@ -30,7 +30,7 @@ impl Drop for Surface {
                 }
             }
 
-            cuSurfObjectDestroy(self.handle);
+            let _ = cuSurfObjectDestroy(self.handle);
         }
     }
 }

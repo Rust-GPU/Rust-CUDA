@@ -111,6 +111,7 @@ fn create_cuda_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .derive_ord(true)
         .size_t_is_usize(true)
         .layout_tests(true)
+        .must_use_type("CUresult")
         .generate()
         .expect("Unable to generate CUDA driver bindings.");
     bindings
@@ -152,6 +153,7 @@ fn create_cuda_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .derive_ord(true)
         .size_t_is_usize(true)
         .layout_tests(true)
+        .must_use_type("cudaError_t")
         .generate()
         .expect("Unable to generate CUDA runtime bindings.");
     bindings
@@ -198,6 +200,7 @@ fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
             .derive_ord(true)
             .size_t_is_usize(true)
             .layout_tests(true)
+            .must_use_type("cublasStatus_t")
             .generate()
             .unwrap_or_else(|_| panic!("Unable to generate {pkg} bindings."));
         bindings
@@ -231,6 +234,7 @@ fn create_nptx_compiler_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .derive_ord(true)
         .size_t_is_usize(true)
         .layout_tests(true)
+        .must_use_type("nvPTXCompileResult")
         .generate()
         .expect("Unable to generate nvptx-compiler bindings.");
     bindings
@@ -261,6 +265,7 @@ fn create_nvvm_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .derive_ord(true)
         .size_t_is_usize(true)
         .layout_tests(true)
+        .must_use_type("nvvmResult")
         .generate()
         .expect("Unable to generate libNVVM bindings.");
     bindings

@@ -867,7 +867,9 @@ impl std::fmt::Debug for ArrayObject {
 
 impl Drop for ArrayObject {
     fn drop(&mut self) {
-        unsafe { driver_sys::cuArrayDestroy(self.handle) };
+        unsafe {
+            let _ = driver_sys::cuArrayDestroy(self.handle);
+        };
     }
 }
 

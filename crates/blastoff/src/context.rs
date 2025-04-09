@@ -340,7 +340,7 @@ impl CublasContext {
 impl Drop for CublasContext {
     fn drop(&mut self) {
         unsafe {
-            cublas_sys::cublasDestroy(self.raw);
+            let _ = cublas_sys::cublasDestroy(self.raw);
         }
     }
 }
