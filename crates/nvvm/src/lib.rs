@@ -10,6 +10,8 @@ use std::{
 
 use cust_raw::nvvm_sys;
 
+pub use cust_raw::nvvm_sys::LIBDEVICE_BITCODE;
+
 /// Get the major and minor NVVM IR version.
 pub fn ir_version() -> (i32, i32) {
     unsafe {
