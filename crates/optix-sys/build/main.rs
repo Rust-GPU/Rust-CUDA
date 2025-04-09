@@ -10,7 +10,7 @@ pub mod optix_sdk;
 // to a lib and link it in so that we have the initialization and C function logic.
 fn main() {
     let sdk = optix_sdk::OptiXSdk::new().expect("Cannot create OptiX SDK instance.");
-    let cuda_include_paths = env::var_os("DEP_CUDA_CUDA_INCLUDE")
+    let cuda_include_paths = env::var_os("DEP_CUDA_INCLUDES")
         .map(|s| env::split_paths(s.as_os_str()).collect::<Vec<_>>())
         .expect("Cannot find transitive metadata 'cuda_include' from cust_raw package.");
 

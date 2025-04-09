@@ -5,7 +5,7 @@ pub mod cudnn_sdk;
 
 fn main() {
     let sdk = cudnn_sdk::CudnnSdk::new().expect("Cannot create cuDNN SDK instance.");
-    let cuda_include_paths = env::var_os("DEP_CUDA_CUDA_INCLUDE")
+    let cuda_include_paths = env::var_os("DEP_CUDA_INCLUDES")
         .map(|s| env::split_paths(s.as_os_str()).collect::<Vec<_>>())
         .expect("Cannot find transitive metadata 'cuda_include' from cust_raw package.");
 
