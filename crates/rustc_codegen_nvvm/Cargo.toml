@@ -15,7 +15,6 @@ readme = "../../README.md"
 crate-type = ["dylib"]
 
 [dependencies]
-cust_raw = { path = "../cust_raw" }
 nvvm = { version = "0.1", path = "../nvvm" }
 rustc-demangle = "0.1.24"
 libc = "0.2.169"

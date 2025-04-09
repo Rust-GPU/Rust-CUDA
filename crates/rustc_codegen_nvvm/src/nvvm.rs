@@ -6,7 +6,6 @@ use crate::common::AsCCharPtr;
 use crate::context::CodegenArgs;
 use crate::llvm::*;
 use crate::lto::ThinBuffer;
-use cust_raw::nvvm_sys;
 use nvvm::*;
 use rustc_codegen_ssa::traits::ThinBufferMethods;
 use rustc_session::{Session, config::DebugInfo};
@@ -105,7 +104,7 @@ pub fn codegen_bitcode_modules(
     let buf = ThinBuffer::new(module);
 
     prog.add_module(buf.data(), "merged".to_string())?;
-    prog.add_lazy_module(nvvm_sys::LIBDEVICE_BITCODE, "libdevice".to_string())?;
+    prog.add_lazy_module(LIBDEVICE_BITCODE, "libdevice".to_string())?;
     prog.add_lazy_module(LIBINTRINSICS, "libintrinsics".to_string())?;
 
     // for now, while the codegen is young, we always run verification on the program.
