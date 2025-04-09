@@ -344,7 +344,7 @@ impl Drop for Stream {
         unsafe {
             let inner = mem::replace(&mut self.inner, ptr::null_mut());
 
-            driver_sys::cuStreamDestroy(inner);
+            let _ = driver_sys::cuStreamDestroy(inner);
         }
     }
 }

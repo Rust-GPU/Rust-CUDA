@@ -20,7 +20,7 @@ pub fn ir_version() -> (i32, i32) {
         let mut major_dbg = MaybeUninit::uninit();
         let mut minor_dbg = MaybeUninit::uninit();
         // according to the docs this cant fail
-        nvvm_sys::nvvmIRVersion(
+        let _ = nvvm_sys::nvvmIRVersion(
             major_ir.as_mut_ptr(),
             minor_ir.as_mut_ptr(),
             major_dbg.as_mut_ptr(),
@@ -38,7 +38,7 @@ pub fn dbg_version() -> (i32, i32) {
         let mut major_dbg = MaybeUninit::uninit();
         let mut minor_dbg = MaybeUninit::uninit();
         // according to the docs this cant fail
-        nvvm_sys::nvvmIRVersion(
+        let _ = nvvm_sys::nvvmIRVersion(
             major_ir.as_mut_ptr(),
             minor_ir.as_mut_ptr(),
             major_dbg.as_mut_ptr(),
@@ -54,7 +54,7 @@ pub fn nvvm_version() -> (i32, i32) {
         let mut major = MaybeUninit::uninit();
         let mut minor = MaybeUninit::uninit();
         // according to the docs this cant fail
-        nvvm_sys::nvvmVersion(major.as_mut_ptr(), minor.as_mut_ptr());
+        let _ = nvvm_sys::nvvmVersion(major.as_mut_ptr(), minor.as_mut_ptr());
         (major.assume_init(), minor.assume_init())
     }
 }

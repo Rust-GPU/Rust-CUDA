@@ -491,7 +491,7 @@ impl Drop for Module {
         unsafe {
             // No choice but to panic if this fails...
             let module = mem::replace(&mut self.inner, ptr::null_mut());
-            driver_sys::cuModuleUnload(module);
+            let _ = driver_sys::cuModuleUnload(module);
         }
     }
 }
