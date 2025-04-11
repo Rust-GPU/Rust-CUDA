@@ -20,7 +20,7 @@
 
 > [!IMPORTANT]
 > This project is no longer dormant and is [being
-> rebooted](https://rust-gpu.github.io/blog/2025/01/27/rust-cuda-reboot).
+> rebooted](https://rust-gpu.github.io/blog/2025/01/27/rust-cuda-reboot). Read the [latest status update](https://rust-gpu.github.io/blog/2025/03/18/rust-cuda-update).
 > Please contribute!
 
 ## Goal
