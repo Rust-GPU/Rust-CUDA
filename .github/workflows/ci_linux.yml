@@ -90,13 +90,13 @@ jobs:
     # This job depends on the build job completing successfully for the same matrix entry
     needs: build
     # Run this job ONLY IF:
-    # - The build job succeeded ('needs.build.result == 'success'')
+    # - The build job succeeded
     # - AND EITHER:
     #   - The event was a push to the 'main' branch
     #   - OR The event was a manual trigger
     #   - OR The event was a pull_request AND the author is an OWNER or MEMBER of the repo
     if: >
-      always() && needs.build.result == 'success' &&
+      needs.build.result == 'success' &&
       (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
         github.event_name == 'workflow_dispatch' ||
