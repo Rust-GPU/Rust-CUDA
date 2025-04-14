@@ -38,17 +38,24 @@ jobs:
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
           - name: RockyLinux-9/CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
+    outputs:
+      # Output the result of the permission check
+      actor_has_write_permission: ${{ steps.permission_check.outputs.has-permission }}
+      # Output the buile artifact details so the test job can use them
+      artifact_name: ${{ steps.artifact_details.outputs.name }}
+      artifact_path: ${{ steps.artifact_details.outputs.path }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug Info
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "Event Name: ${{ github.event_name }}"
-          echo "Author Association: ${{ github.event.pull_request.author_association }}"
-          echo "Is Owner/Member?: ${{ contains(fromJson('["OWNER", "MEMBER"]'), github.event.pull_request.author_association) }}"
+      - name: Check if triggering actor has write permission
+        id: permission_check
+        uses: scherermichael-oss/action-has-permission@v1
+        with:
+          required-permission: write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify CUDA, Rust installation
         run: |
@@ -57,7 +64,6 @@ jobs:
       - name: Load Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          # Use the specific commit SHA for the most accurate build cache key
           key: ${{ matrix.variance.name }}-${{ github.sha }}
 
       - name: Rustfmt
@@ -79,39 +85,38 @@ jobs:
           RUSTDOCFLAGS: -Dwarnings
         run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*" --exclude "cust_raw"
 
-      - name: Set artifact name
-        id: artifact_name
+      - name: Prepare artifact details
+        id: artifact_details
         run: |
-          ARTIFACT_NAME="target_debug-$(echo '${{ matrix.variance.name }}' | sed 's/\//-/g')-${{ github.run_id }}"
-          echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          SANITIZED_NAME=$(echo '${{ matrix.variance.name }}' | sed 's/[^a-zA-Z0-9.-]/-/g')
+          ARTIFACT_NAME="target_debug-${SANITIZED_NAME}-${{ github.run_id }}"
+          ARTIFACT_PATH="target/debug" # Define the path consistently
+          echo "name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          echo "path=${ARTIFACT_PATH}" >> $GITHUB_OUTPUT # Output the path variable
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.artifact_name.outputs.artifact_name }}
-          path: target/debug
+          name: ${{ steps.artifact_details.outputs.name }}
+          path: ${{ steps.artifact_details.outputs.path }}
           retention-days: 1
-
 
   test:
     name: ${{ matrix.variance.name }}
-    # This job depends on the build job completing successfully for the same matrix entry
+    # Depends on the build job
     needs: build
-    # Run this job ONLY IF:
-    # - The build job succeeded
-    # - AND EITHER:
-    #   - The event was a push to the 'main' branch
-    #   - OR The event was a manual trigger
-    #   - OR The event was a pull_request AND the author is an OWNER or MEMBER of the repo
+    # Run ONLY IF:
+    # - The corresponding 'build' job succeeded AND
+    # - EITHER:
+    #   - Event is 'push' to 'main'
+    #   - OR Event is 'workflow_dispatch'
+    #   - OR Event is 'pull_request' AND the 'actor_has_write_permission' output from build is 'true'
     if: >
       needs.build.result == 'success' &&
       (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
         github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'pull_request' &&
-          contains(fromJson('["OWNER","MEMBER"]'), github.event.pull_request.author_association)
-        )
+        (github.event_name == 'pull_request' && needs.build.outputs.actor_has_write_permission == 'true')
       )
     runs-on: ubuntu-latest
     # Use the exact same container image as the build job
@@ -123,8 +128,8 @@ jobs:
       matrix:
         variance:
           # Must match the build job's matrix definition
-          # - name: Ubuntu-22.04/CUDA-11.8.0
-          #   image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
+          # - name: Ubuntu-22.04/CUDA-11.8.0 image:
+          #   "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
           - name: Ubuntu-22.04/CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
           - name: Ubuntu-24.04/CUDA-12.8.1
@@ -132,26 +137,19 @@ jobs:
           - name: RockyLinux-9/CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
     steps:
-      - name: Set artifact name
-        id: artifact_name
-        run: |
-          ARTIFACT_NAME="target_debug-$(echo '${{ matrix.variance.name }}' | sed 's/\//-/g')-${{ github.run_id }}"
-          echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
-
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ steps.artifact_name.outputs.artifact_name }}
-          path: target/debug
+          name: ${{ needs.build.outputs.artifact_name }}
+          path: ${{ needs.build.outputs.artifact_path }}
 
       - name: List downloaded files
-        run: ls -lR target/debug
+        run: ls -lR ${{ needs.build.outputs.artifact_path }}
 
       - name: Run remote tests
         env:
           # Inject the id and secret ONLY in this job, which is conditionally run
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-          # Add any other env vars needed for testing
         run: |
           echo "Stubbed out"
