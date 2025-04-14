@@ -1,4 +1,4 @@
-name: Rust CI
+name: CI on Windows
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ env:
 
 jobs:
   rust:
-    name: Rust on ${{ matrix.os }} with CUDA ${{ matrix.cuda }}
+    name: ${{ matrix.os }}/CUDA-${{ matrix.cuda }}
     runs-on: ${{ matrix.os }}
     env:
       LLVM_LINK_STATIC: 1
