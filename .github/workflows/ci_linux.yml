@@ -1,15 +1,25 @@
 name: CI on Linux
 
 on:
+  # Trigger builds on pull requests
   pull_request:
     paths-ignore:
       - "**.md"
+
+  # Trigger builds AND tests on push to main
   push:
+    branches:
+      - main
     paths-ignore:
       - "**.md"
+
+  # Add manual trigger via Actions UI for running BOTH build and test
+  workflow_dispatch:
+
 env:
   RUST_LOG: info
   RUST_BACKTRACE: 1
+
 jobs:
   build:
     name: ${{ matrix.variance.name }}
@@ -28,9 +38,11 @@ jobs:
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
           - name: RockyLinux-9/CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Verify CUDA, Rust installation
         run: |
           nvcc --version
@@ -38,18 +50,91 @@ jobs:
       - name: Load Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.variance.name }}
+          # Use the specific commit SHA for the most accurate build cache key
+          key: ${{ matrix.variance.name }}-${{ github.sha }}
+
       - name: Rustfmt
         run: cargo fmt --all -- --check
+
       - name: Clippy
         env:
           RUSTFLAGS: -Dwarnings
         run: cargo clippy --workspace --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*"
+
       - name: Build all bindings
         run: cargo build --all-features -p cust_raw
-      - name: Build
+
+      - name: Build workspace
         run: cargo build --workspace --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*"
+
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -Dwarnings
         run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*" --exclude "cust_raw"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          # Use github.run_id for a unique name per workflow run
+          name: target_debug-${{ matrix.variance.name }}-${{ github.run_id }}
+          path: |
+            target/debug
+          retention-days: 1
+
+  test-remote:
+    name: Test ${{ matrix.variance.name }}
+    # This job depends on the build job completing successfully for the same matrix entry
+    needs: build
+    # Run this job ONLY IF:
+    # - The build job succeeded ('needs.build.result == 'success'')
+    # - AND EITHER:
+    #   - The event was a push to the 'main' branch
+    #   - OR The event was a manual trigger 
+    #   - OR The event was a pull_request AND the author is an OWNER or MEMBER of the repo
+    if: >
+      always() && needs.build.result == 'success' &&
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'pull_request' &&
+          contains(fromJson('["OWNER","MEMBER"]'), github.event.pull_request.author_association)
+        )
+      )
+    runs-on: ubuntu-latest
+    # Use the exact same container image as the build job
+    container:
+      image: ${{ matrix.variance.image }}
+    strategy:
+      # Save some credits
+      fail-fast: true
+      matrix:
+        variance:
+          # Must match the build job's matrix definition
+          # - name: Ubuntu-22.04/CUDA-11.8.0
+          #   image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
+          - name: Ubuntu-22.04/CUDA-12.8.1
+            image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
+          - name: Ubuntu-24.04/CUDA-12.8.1
+            image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
+          - name: RockyLinux-9/CUDA-12.8.1
+            image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # Match the unique artifact name from the build job using the workflow run_id
+          name: target_debug-${{ matrix.variance.name }}-${{ github.run_id }}
+          path: target/debug
+
+      - name: List downloaded files
+        run: ls -lR target/debug
+
+      - name: Run remote tests
+        env:
+          # Inject the id and secret ONLY in this job, which is conditionally run
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+          # Add any other env vars needed for testing
+        run: |
+          echo "Stubbed out"
