@@ -72,24 +72,28 @@ jobs:
           RUSTDOCFLAGS: -Dwarnings
         run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path_tracer" --exclude "denoiser" --exclude "ex*" --exclude "cudnn*" --exclude "cust_raw"
 
+      - name: Set artifact name
+        id: artifact_name
+        run: |
+          ARTIFACT_NAME="target_debug-$(echo '${{ matrix.variance.name }}' | sed 's/\//-/g')-${{ github.run_id }}"
+          echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          # Use github.run_id for a unique name per workflow run
-          name: target_debug-${{ matrix.variance.name }}-${{ github.run_id }}
-          path: |
-            target/debug
+          name: ${{ steps.artifact_name.outputs.artifact_name }}
+          path: target/debug
           retention-days: 1
 
-  test-remote:
-    name: Test ${{ matrix.variance.name }}
+  test:
+    name: ${{ matrix.variance.name }}
     # This job depends on the build job completing successfully for the same matrix entry
     needs: build
     # Run this job ONLY IF:
     # - The build job succeeded ('needs.build.result == 'success'')
     # - AND EITHER:
     #   - The event was a push to the 'main' branch
-    #   - OR The event was a manual trigger 
+    #   - OR The event was a manual trigger
     #   - OR The event was a pull_request AND the author is an OWNER or MEMBER of the repo
     if: >
       always() && needs.build.result == 'success' &&
@@ -120,11 +124,16 @@ jobs:
           - name: RockyLinux-9/CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
     steps:
+      - name: Set artifact name
+        id: artifact_name
+        run: |
+          ARTIFACT_NAME="target_debug-$(echo '${{ matrix.variance.name }}' | sed 's/\//-/g')-${{ github.run_id }}"
+          echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          # Match the unique artifact name from the build job using the workflow run_id
-          name: target_debug-${{ matrix.variance.name }}-${{ github.run_id }}
+          name: ${{ steps.artifact_name.outputs.artifact_name }}
           path: target/debug
 
       - name: List downloaded files
