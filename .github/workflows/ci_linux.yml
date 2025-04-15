@@ -120,10 +120,6 @@ jobs:
         (github.event_name == 'pull_request' && needs.build.outputs.actor_has_write_permission == 'true')
       )
     runs-on: ubuntu-latest
-    env:
-      # Inject the id and secret ONLY in this job, which is conditionally run
-      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
     # Use the exact same container image as the build job
     container:
       image: ${{ matrix.variance.image }}
