@@ -152,7 +152,8 @@ jobs:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
-          echo "Stubbed out"
+          export PATH="$PATH:$GITHUB_WORKSPACE/.ci"
+          cargo --config .ci/config.toml test --workspace --exclude "optix" --exclude "path_tracer" --exclude "denoiser" --exclude "add" --exclude "ex*"
   compiletest:
     name: Compile tests
     runs-on: ubuntu-latest
