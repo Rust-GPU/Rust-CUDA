@@ -90,9 +90,9 @@ jobs:
         run: |
           SANITIZED_NAME=$(echo '${{ matrix.variance.name }}' | sed 's/[^a-zA-Z0-9.-]/-/g')
           ARTIFACT_NAME="target_debug-${SANITIZED_NAME}-${{ github.run_id }}"
-          ARTIFACT_PATH="target/debug" # Define the path consistently
+          ARTIFACT_PATH="target/debug"
           echo "name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
-          echo "path=${ARTIFACT_PATH}" >> $GITHUB_OUTPUT # Output the path variable
+          echo "path=${ARTIFACT_PATH}" >> $GITHUB_OUTPUT
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -102,7 +102,7 @@ jobs:
           retention-days: 1
 
   test:
-    name: ${{ matrix.variance.name }}
+    name: ${{ matrix.variance.name || 'Tests' }}
     # Depends on the build job
     needs: build
     # Run ONLY IF:
