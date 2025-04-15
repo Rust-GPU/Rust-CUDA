@@ -41,7 +41,7 @@ jobs:
     outputs:
       # Output the result of the permission check
       actor_has_write_permission: ${{ steps.check_access.outputs.require-result }}
-      # Output the buile artifact details so the test job can use them
+      # Output the build artifact details so the test job can use them
       artifact_name: ${{ steps.artifact_details.outputs.name }}
       artifact_path: ${{ steps.artifact_details.outputs.path }}
 
