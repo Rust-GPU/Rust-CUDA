@@ -22,7 +22,7 @@ env:
 
 jobs:
   build:
-    name: Build/${{ matrix.variance.name }}
+    name: Build / ${{ matrix.variance.name }}
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.variance.image }}
@@ -32,11 +32,11 @@ jobs:
         variance:
           # - name: Ubuntu-22.04/CUDA-11.8.0
           #   image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
-          - name: Ubuntu-22.04/CUDA-12.8.1
+          - name: Ubuntu-22.04 / CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
-          - name: Ubuntu-24.04/CUDA-12.8.1
+          - name: Ubuntu-24.04 / CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
-          - name: RockyLinux-9/CUDA-12.8.1
+          - name: RockyLinux-9 / CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
     outputs:
       # Output the result of the permission check
@@ -103,7 +103,7 @@ jobs:
           retention-days: 1
 
   test:
-    name: Test/${{ matrix.variance.name }}
+    name: Test / ${{ matrix.variance.name }}
     # Depends on the build job
     needs: build
     # Run ONLY IF:
@@ -120,6 +120,10 @@ jobs:
         (github.event_name == 'pull_request' && needs.build.outputs.actor_has_write_permission == 'true')
       )
     runs-on: ubuntu-latest
+    env:
+      # Inject the id and secret ONLY in this job, which is conditionally run
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
     # Use the exact same container image as the build job
     container:
       image: ${{ matrix.variance.image }}
@@ -129,13 +133,13 @@ jobs:
       matrix:
         variance:
           # Must match the build job's matrix definition
-          # - name: Ubuntu-22.04/CUDA-11.8.0 image:
+          # - name: Ubuntu-22.04 / CUDA-11.8.0 image:
           #   "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
-          - name: Ubuntu-22.04/CUDA-12.8.1
+          - name: Ubuntu-22.04 / CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
-          - name: Ubuntu-24.04/CUDA-12.8.1
+          - name: Ubuntu-24.04 / CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
-          - name: RockyLinux-9/CUDA-12.8.1
+          - name: RockyLinux-9 / CUDA-12.8.1
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
     steps:
       - name: Download build artifacts
@@ -149,7 +153,6 @@ jobs:
 
       - name: Run remote tests
         env:
-          # Inject the id and secret ONLY in this job, which is conditionally run
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
