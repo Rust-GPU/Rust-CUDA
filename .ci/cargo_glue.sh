@@ -9,3 +9,4 @@ set -e
 
 cd "$GITHUB_WORKSPACE/.ci/;
 echo "In glue script with cwd: $(pwd)"
+echo "Got args: $@"
