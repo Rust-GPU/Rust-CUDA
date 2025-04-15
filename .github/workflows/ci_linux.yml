@@ -147,10 +147,13 @@ jobs:
       - name: List downloaded files
         run: ls -lR ${{ needs.build.outputs.artifact_path }}
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       # random command that forces rustup to install stuff in rust-toolchain
       - name: Install rust-toolchain
         run: cargo version
-      
+
       - name: Run remote tests
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
