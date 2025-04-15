@@ -22,7 +22,7 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.variance.name }}
+    name: Build/${{ matrix.variance.name }}
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.variance.image }}
@@ -103,7 +103,7 @@ jobs:
           retention-days: 1
 
   test:
-    name: ${{ matrix.variance.name || 'Tests' }}
+    name: Test/${{ matrix.variance.name }}
     # Depends on the build job
     needs: build
     # Run ONLY IF:

@@ -14,7 +14,7 @@ env:
 
 jobs:
   rust:
-    name: ${{ matrix.os }}/CUDA-${{ matrix.cuda }}
+    name: Build/${{ matrix.os }}/CUDA-${{ matrix.cuda }}
     runs-on: ${{ matrix.os }}
     env:
       LLVM_LINK_STATIC: 1
