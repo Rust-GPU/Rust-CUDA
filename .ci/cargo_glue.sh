@@ -7,6 +7,6 @@ set -e
 # We need this script because the cwd that cargo runs the runner in changes
 # depending on crate.
 
-cd "$GITHUB_WORKSPACE/.ci/;
+cd "$GITHUB_WORKSPACE/.ci/"
 echo "In glue script with cwd: $(pwd)"
 echo "Got args: $@"
