@@ -3,7 +3,7 @@
 use crate::trace::{RayFlags, TraversableHandle};
 #[cfg(target_os = "cuda")]
 use core::arch::asm;
-use cuda_std::gpu_only;
+use cuda_std::{glam, gpu_only};
 use glam::Vec3;
 use paste::paste;
 
