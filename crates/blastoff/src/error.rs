@@ -1,7 +1,7 @@
 use std::{ffi::CStr, fmt::Display};
 
 use cust::error::CudaError;
-use cust_raw::cublas_sys;
+use cust_raw::cublas;
 
 /// Result that contains the un-dropped value on error.
 pub type DropResult<T> = std::result::Result<(), (CublasError, T)>;
@@ -25,7 +25,7 @@ impl std::error::Error for CublasError {}
 impl Display for CublasError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
-            let ptr = cublas_sys::cublasGetStatusString(self.into_raw());
+            let ptr = cublas::cublasGetStatusString(self.into_raw());
             let cow = CStr::from_ptr(ptr).to_string_lossy();
             f.write_str(cow.as_ref())
         }
@@ -36,9 +36,9 @@ pub trait ToResult {
     fn to_result(self) -> Result<(), CublasError>;
 }
 
-impl ToResult for cublas_sys::cublasStatus_t {
+impl ToResult for cublas::cublasStatus_t {
     fn to_result(self) -> Result<(), CublasError> {
-        use cust_raw::cublas_sys::cublasStatus_t::*;
+        use cust_raw::cublas::cublasStatus_t::*;
         use CublasError::*;
 
         Err(match self {
@@ -57,8 +57,8 @@ impl ToResult for cublas_sys::cublasStatus_t {
 }
 
 impl CublasError {
-    pub fn into_raw(self) -> cublas_sys::cublasStatus_t {
-        use cust_raw::cublas_sys::cublasStatus_t::*;
+    pub fn into_raw(self) -> cublas::cublasStatus_t {
+        use cust_raw::cublas::cublasStatus_t::*;
         use CublasError::*;
 
         match self {

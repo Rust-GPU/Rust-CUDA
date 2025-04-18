@@ -80,7 +80,7 @@ use crate::context::{Context, ContextFlags};
 use crate::device::Device;
 use crate::error::{CudaResult, ToResult};
 use bitflags::bitflags;
-use cust_raw::driver_sys::{cuDriverGetVersion, cuInit};
+use cust_raw::driver::{cuDriverGetVersion, cuInit};
 
 bitflags! {
     /// Bit flags for initializing the CUDA driver. Currently, no flags are defined,

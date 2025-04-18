@@ -13,12 +13,12 @@ use std::panic;
 use std::ptr::null;
 use std::ptr::null_mut;
 
-use cust_raw::driver_sys;
-use cust_raw::driver_sys::cuMemcpy2D;
-use cust_raw::driver_sys::cuMemcpyAtoH;
-use cust_raw::driver_sys::cuMemcpyHtoA;
-use cust_raw::driver_sys::CUDA_MEMCPY2D;
-use cust_raw::driver_sys::{CUarray, CUarray_format, CUarray_format_enum};
+use cust_raw::driver;
+use cust_raw::driver::cuMemcpy2D;
+use cust_raw::driver::cuMemcpyAtoH;
+use cust_raw::driver::cuMemcpyHtoA;
+use cust_raw::driver::CUDA_MEMCPY2D;
+use cust_raw::driver::{CUarray, CUarray_format, CUarray_format_enum};
 
 use crate::context::CurrentContext;
 use crate::device::DeviceAttribute;
@@ -164,19 +164,19 @@ bitflags::bitflags! {
     pub struct ArrayObjectFlags: c_uint {
         /// Enables creation of layered CUDA arrays. When this flag is set, depth specifies the
         /// number of layers, not the depth of a 3D array.
-        const LAYERED = driver_sys::CUDA_ARRAY3D_LAYERED;
+        const LAYERED = driver::CUDA_ARRAY3D_LAYERED;
 
         /// Enables surface references to be bound to the CUDA array.
-        const SURFACE_LDST = driver_sys::CUDA_ARRAY3D_SURFACE_LDST;
+        const SURFACE_LDST = driver::CUDA_ARRAY3D_SURFACE_LDST;
 
         /// Enables creation of cubemaps. If this flag is set, Width must be equal to Height, and
         /// Depth must be six. If the `LAYERED` flag is also set, then Depth must be a multiple of
         /// six.
-        const CUBEMAP = driver_sys::CUDA_ARRAY3D_CUBEMAP;
+        const CUBEMAP = driver::CUDA_ARRAY3D_CUBEMAP;
 
         /// Indicates that the CUDA array will be used for texture gather. Texture gather can only
         /// be performed on 2D CUDA arrays.
-        const TEXTURE_GATHER = driver_sys::CUDA_ARRAY3D_TEXTURE_GATHER;
+        const TEXTURE_GATHER = driver::CUDA_ARRAY3D_TEXTURE_GATHER;
     }
 }
 
@@ -190,12 +190,12 @@ impl ArrayObjectFlags {
 /// Describes a CUDA Array
 #[derive(Clone, Copy, Debug)]
 pub struct ArrayDescriptor {
-    desc: driver_sys::CUDA_ARRAY3D_DESCRIPTOR,
+    desc: driver::CUDA_ARRAY3D_DESCRIPTOR,
 }
 
 impl ArrayDescriptor {
     /// Constructs an ArrayDescriptor from a CUDA Driver API Array Descriptor.
-    pub fn from_raw(desc: driver_sys::CUDA_ARRAY3D_DESCRIPTOR) -> Self {
+    pub fn from_raw(desc: driver::CUDA_ARRAY3D_DESCRIPTOR) -> Self {
         Self { desc }
     }
 
@@ -207,7 +207,7 @@ impl ArrayDescriptor {
         flags: ArrayObjectFlags,
     ) -> Self {
         Self {
-            desc: driver_sys::CUDA_ARRAY3D_DESCRIPTOR {
+            desc: driver::CUDA_ARRAY3D_DESCRIPTOR {
                 Width: dims[0],
                 Height: dims[1],
                 Depth: dims[2],
@@ -221,7 +221,7 @@ impl ArrayDescriptor {
     /// Creates a new ArrayDescriptor from a set of dimensions and format.
     pub fn from_dims_format(dims: [usize; 3], format: ArrayFormat) -> Self {
         Self {
-            desc: driver_sys::CUDA_ARRAY3D_DESCRIPTOR {
+            desc: driver::CUDA_ARRAY3D_DESCRIPTOR {
                 Width: dims[0],
                 Height: dims[1],
                 Depth: dims[2],
@@ -479,8 +479,7 @@ impl ArrayObject {
         }
 
         let mut handle = MaybeUninit::uninit();
-        unsafe { driver_sys::cuArray3DCreate(handle.as_mut_ptr(), &descriptor.desc) }
-            .to_result()?;
+        unsafe { driver::cuArray3DCreate(handle.as_mut_ptr(), &descriptor.desc) }.to_result()?;
         Ok(Self {
             handle: unsafe { handle.assume_init() },
         })
@@ -731,7 +730,7 @@ impl ArrayObject {
     pub fn descriptor(&self) -> CudaResult<ArrayDescriptor> {
         // Use "zeroed" incase CUDA_ARRAY3D_DESCRIPTOR has uninitialized padding
         let mut raw_descriptor = MaybeUninit::zeroed();
-        unsafe { driver_sys::cuArray3DGetDescriptor(raw_descriptor.as_mut_ptr(), self.handle) }
+        unsafe { driver::cuArray3DGetDescriptor(raw_descriptor.as_mut_ptr(), self.handle) }
             .to_result()?;
 
         Ok(ArrayDescriptor::from_raw(unsafe {
@@ -742,7 +741,7 @@ impl ArrayObject {
     /// Try to destroy an `ArrayObject`. Can fail - if it does, returns the CUDA error and the
     /// un-destroyed array object
     pub fn drop(array: ArrayObject) -> DropResult<ArrayObject> {
-        match unsafe { driver_sys::cuArrayDestroy(array.handle) }.to_result() {
+        match unsafe { driver::cuArrayDestroy(array.handle) }.to_result() {
             Ok(()) => Ok(()),
             Err(e) => Err((e, array)),
         }
@@ -774,14 +773,14 @@ impl ArrayObject {
                     dstArray: self.handle,
                     dstDevice: 0,
                     dstHost: null_mut(),
-                    dstMemoryType: driver_sys::CUmemorytype_enum::CU_MEMORYTYPE_ARRAY,
+                    dstMemoryType: driver::CUmemorytype_enum::CU_MEMORYTYPE_ARRAY,
                     dstPitch: 0,
                     dstXInBytes: 0,
                     dstY: 0,
                     srcArray: null_mut(),
                     srcDevice: 0,
                     srcHost: val.as_ptr() as *const c_void,
-                    srcMemoryType: driver_sys::CUmemorytype_enum::CU_MEMORYTYPE_HOST,
+                    srcMemoryType: driver::CUmemorytype_enum::CU_MEMORYTYPE_HOST,
                     srcPitch: 0,
                     srcXInBytes: 0,
                     srcY: 0,
@@ -818,14 +817,14 @@ impl ArrayObject {
                     dstArray: null_mut(),
                     dstDevice: 0,
                     dstHost: val.as_mut_ptr() as *mut c_void,
-                    dstMemoryType: driver_sys::CUmemorytype_enum::CU_MEMORYTYPE_HOST,
+                    dstMemoryType: driver::CUmemorytype_enum::CU_MEMORYTYPE_HOST,
                     dstPitch: 0,
                     dstXInBytes: 0,
                     dstY: 0,
                     srcArray: self.handle,
                     srcDevice: 0,
                     srcHost: null(),
-                    srcMemoryType: driver_sys::CUmemorytype_enum::CU_MEMORYTYPE_ARRAY,
+                    srcMemoryType: driver::CUmemorytype_enum::CU_MEMORYTYPE_ARRAY,
                     srcPitch: 0,
                     srcXInBytes: 0,
                     srcY: 0,
@@ -868,7 +867,7 @@ impl std::fmt::Debug for ArrayObject {
 impl Drop for ArrayObject {
     fn drop(&mut self) {
         unsafe {
-            let _ = driver_sys::cuArrayDestroy(self.handle);
+            let _ = driver::cuArrayDestroy(self.handle);
         };
     }
 }

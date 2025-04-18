@@ -97,7 +97,7 @@ pub use cust_core::_hidden::DeviceCopy;
 
 use std::ffi::c_void;
 
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 /// A trait describing a generic buffer that can be accessed from the GPU. This could be either a [`UnifiedBuffer`]
 /// or a regular [`DeviceBuffer`].
@@ -149,14 +149,14 @@ impl<T: DeviceCopy> GpuBox<T> for UnifiedBox<T> {
 /// a size, used to be generic over DeviceBox, DeviceBuffer, DeviceVariable etc.
 pub trait DeviceMemory {
     /// Get the raw cuda device pointer
-    fn as_raw_ptr(&self) -> driver_sys::CUdeviceptr;
+    fn as_raw_ptr(&self) -> driver::CUdeviceptr;
 
     /// Get the size of the memory region in bytes
     fn size_in_bytes(&self) -> usize;
 }
 
 impl<T: DeviceCopy> DeviceMemory for DeviceBox<T> {
-    fn as_raw_ptr(&self) -> driver_sys::CUdeviceptr {
+    fn as_raw_ptr(&self) -> driver::CUdeviceptr {
         self.as_device_ptr().as_raw()
     }
 
@@ -166,7 +166,7 @@ impl<T: DeviceCopy> DeviceMemory for DeviceBox<T> {
 }
 
 impl<T: DeviceCopy> DeviceMemory for DeviceVariable<T> {
-    fn as_raw_ptr(&self) -> driver_sys::CUdeviceptr {
+    fn as_raw_ptr(&self) -> driver::CUdeviceptr {
         self.as_device_ptr().as_raw()
     }
 
@@ -176,7 +176,7 @@ impl<T: DeviceCopy> DeviceMemory for DeviceVariable<T> {
 }
 
 impl<T: DeviceCopy> DeviceMemory for DeviceBuffer<T> {
-    fn as_raw_ptr(&self) -> driver_sys::CUdeviceptr {
+    fn as_raw_ptr(&self) -> driver::CUdeviceptr {
         self.as_device_ptr().as_raw()
     }
 
@@ -186,7 +186,7 @@ impl<T: DeviceCopy> DeviceMemory for DeviceBuffer<T> {
 }
 
 impl<T: DeviceCopy> DeviceMemory for DeviceSlice<T> {
-    fn as_raw_ptr(&self) -> driver_sys::CUdeviceptr {
+    fn as_raw_ptr(&self) -> driver::CUdeviceptr {
         self.as_device_ptr().as_raw()
     }
 
@@ -208,11 +208,11 @@ mod private {
 /// Simple wrapper over cuMemcpyHtoD
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn memcpy_htod(
-    d_ptr: driver_sys::CUdeviceptr,
+    d_ptr: driver::CUdeviceptr,
     src_ptr: *const c_void,
     size: usize,
 ) -> CudaResult<()> {
-    driver_sys::cuMemcpyHtoD(d_ptr, src_ptr, size).to_result()?;
+    driver::cuMemcpyHtoD(d_ptr, src_ptr, size).to_result()?;
     Ok(())
 }
 
@@ -220,10 +220,10 @@ pub unsafe fn memcpy_htod(
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn memcpy_dtoh(
     d_ptr: *mut c_void,
-    src_ptr: driver_sys::CUdeviceptr,
+    src_ptr: driver::CUdeviceptr,
     size: usize,
 ) -> CudaResult<()> {
-    driver_sys::cuMemcpyDtoH(d_ptr, src_ptr, size).to_result()?;
+    driver::cuMemcpyDtoH(d_ptr, src_ptr, size).to_result()?;
     Ok(())
 }
 
@@ -284,32 +284,32 @@ pub unsafe fn memcpy_2d_htod<T: DeviceCopy>(
     width: usize,
     height: usize,
 ) -> CudaResult<()> {
-    use cust_raw::driver_sys::CUmemorytype;
+    use cust_raw::driver::CUmemorytype;
 
     let width_in_bytes = width
         .checked_mul(std::mem::size_of::<T>())
         .ok_or(CudaError::InvalidMemoryAllocation)?;
 
-    let pcopy = driver_sys::CUDA_MEMCPY2D_st {
+    let pcopy = driver::CUDA_MEMCPY2D_st {
         srcXInBytes: 0,
         srcY: 0,
         srcMemoryType: CUmemorytype::CU_MEMORYTYPE_HOST,
         srcHost: src as *const c_void,
-        srcDevice: 0,                                             // Ignored
-        srcArray: std::ptr::null_mut::<driver_sys::CUarray_st>(), // Ignored
+        srcDevice: 0,                                         // Ignored
+        srcArray: std::ptr::null_mut::<driver::CUarray_st>(), // Ignored
         srcPitch: spitch,
         dstXInBytes: 0,
         dstY: 0,
         dstMemoryType: CUmemorytype::CU_MEMORYTYPE_DEVICE,
         dstHost: std::ptr::null_mut::<c_void>(), // Ignored
         dstDevice: dst.as_raw(),
-        dstArray: std::ptr::null_mut::<driver_sys::CUarray_st>(), // Ignored
+        dstArray: std::ptr::null_mut::<driver::CUarray_st>(), // Ignored
         dstPitch: dpitch,
         WidthInBytes: width_in_bytes,
         Height: height,
     };
 
-    driver_sys::cuMemcpy2D(&pcopy).to_result()?;
+    driver::cuMemcpy2D(&pcopy).to_result()?;
     Ok(())
 }
 
@@ -370,32 +370,32 @@ pub unsafe fn memcpy_2d_dtoh<T: DeviceCopy>(
     width: usize,
     height: usize,
 ) -> CudaResult<()> {
-    use cust_raw::driver_sys::CUmemorytype;
+    use cust_raw::driver::CUmemorytype;
 
     let width_in_bytes = width
         .checked_mul(std::mem::size_of::<T>())
         .ok_or(CudaError::InvalidMemoryAllocation)?;
 
-    let pcopy = driver_sys::CUDA_MEMCPY2D_st {
+    let pcopy = driver::CUDA_MEMCPY2D_st {
         srcXInBytes: 0,
         srcY: 0,
         srcMemoryType: CUmemorytype::CU_MEMORYTYPE_DEVICE,
         srcHost: std::ptr::null_mut::<c_void>(), // Ignored
         srcDevice: src.as_raw(),
-        srcArray: std::ptr::null_mut::<driver_sys::CUarray_st>(), // Ignored
+        srcArray: std::ptr::null_mut::<driver::CUarray_st>(), // Ignored
         srcPitch: spitch,
         dstXInBytes: 0,
         dstY: 0,
         dstMemoryType: CUmemorytype::CU_MEMORYTYPE_HOST,
         dstHost: dst as *mut c_void,
-        dstDevice: 0,                                             // Ignored
-        dstArray: std::ptr::null_mut::<driver_sys::CUarray_st>(), // Ignored
+        dstDevice: 0,                                         // Ignored
+        dstArray: std::ptr::null_mut::<driver::CUarray_st>(), // Ignored
         dstPitch: dpitch,
         WidthInBytes: width_in_bytes,
         Height: height,
     };
 
-    driver_sys::cuMemcpy2D(&pcopy).to_result()?;
+    driver::cuMemcpy2D(&pcopy).to_result()?;
     Ok(())
 }
 
@@ -409,7 +409,7 @@ pub fn mem_get_info() -> CudaResult<(usize, usize)> {
     let mut mem_free = 0;
     let mut mem_total = 0;
     unsafe {
-        driver_sys::cuMemGetInfo(&mut mem_free, &mut mem_total).to_result()?;
+        driver::cuMemGetInfo(&mut mem_free, &mut mem_total).to_result()?;
     }
     Ok((mem_free, mem_total))
 }

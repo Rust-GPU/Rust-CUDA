@@ -3,11 +3,14 @@ name = "cust_raw"
 version = "0.11.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "Low level bindings to the CUDA Driver API"
+description = "Low level bindings to the CUDA Toolkit SDK"
 repository = "https://github.com/Rust-GPU/Rust-CUDA"
 readme = "../../README.md"
 links = "cuda"
 build = "build/main.rs"
+
+[dependencies]
+libc = { version = "0.2", optional = true }
 
 [build-dependencies]
 bindgen = "0.71.1"
@@ -19,9 +22,8 @@ features = [
     "driver",
     "runtime",
     "cublas",
-    "cublaslt",
-    "cublasxt",
-    "cudnn",
+    "cublasLt",
+    "cublasXt",
     "nvptx-compiler",
     "nvvm",
 ]
@@ -29,10 +31,15 @@ features = [
 [features]
 default = ["driver"]
 driver = []
-runtime = []
-cublas = []
-cublaslt = []
-cublasxt = []
-cudnn = []
+runtime = ["driver_types", "vector_types", "texture_types", "surface_types"]
+cuComplex = ["vector_types"]
+driver_types = []
+library_types = []
+surface_types = []
+texture_types = []
+vector_types = []
+cublas = ["runtime", "cuComplex", "library_types"]
+cublasLt = ["cublas", "libc"]
+cublasXt = ["cublas"]
 nvptx-compiler = []
 nvvm = []

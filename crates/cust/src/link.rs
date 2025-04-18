@@ -3,7 +3,7 @@
 use std::mem::MaybeUninit;
 use std::ptr::null_mut;
 
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 use crate::error::{CudaResult, ToResult};
 
@@ -12,7 +12,7 @@ static UNNAMED: &str = "\0";
 /// A linker used to link together PTX files into a single module.
 #[derive(Debug)]
 pub struct Linker {
-    raw: driver_sys::CUlinkState,
+    raw: driver::CUlinkState,
 }
 
 unsafe impl Send for Linker {}
@@ -27,7 +27,7 @@ impl Linker {
 
         unsafe {
             let mut raw = MaybeUninit::uninit();
-            driver_sys::cuLinkCreate(0, null_mut(), null_mut(), raw.as_mut_ptr()).to_result()?;
+            driver::cuLinkCreate(0, null_mut(), null_mut(), raw.as_mut_ptr()).to_result()?;
             Ok(Self {
                 raw: raw.assume_init(),
             })
@@ -48,9 +48,9 @@ impl Linker {
         let ptx = ptx.as_ref();
 
         unsafe {
-            driver_sys::cuLinkAddData(
+            driver::cuLinkAddData(
                 self.raw,
-                driver_sys::CUjitInputType::CU_JIT_INPUT_PTX,
+                driver::CUjitInputType::CU_JIT_INPUT_PTX,
                 // cuda_sys wants *mut but from the API docs we know we retain ownership so
                 // this cast is sound.
                 ptx.as_ptr() as *mut _,
@@ -73,9 +73,9 @@ impl Linker {
         let cubin = cubin.as_ref();
 
         unsafe {
-            driver_sys::cuLinkAddData(
+            driver::cuLinkAddData(
                 self.raw,
-                driver_sys::CUjitInputType::CU_JIT_INPUT_CUBIN,
+                driver::CUjitInputType::CU_JIT_INPUT_CUBIN,
                 // cuda_sys wants *mut but from the API docs we know we retain ownership so
                 // this cast is sound.
                 cubin.as_ptr() as *mut _,
@@ -98,9 +98,9 @@ impl Linker {
         let fatbin = fatbin.as_ref();
 
         unsafe {
-            driver_sys::cuLinkAddData(
+            driver::cuLinkAddData(
                 self.raw,
-                driver_sys::CUjitInputType::CU_JIT_INPUT_FATBINARY,
+                driver::CUjitInputType::CU_JIT_INPUT_FATBINARY,
                 // cuda_sys wants *mut but from the API docs we know we retain ownership so
                 // this cast is sound.
                 fatbin.as_ptr() as *mut _,
@@ -121,8 +121,7 @@ impl Linker {
         let mut size = MaybeUninit::uninit();
 
         unsafe {
-            driver_sys::cuLinkComplete(self.raw, cubin.as_mut_ptr(), size.as_mut_ptr())
-                .to_result()?;
+            driver::cuLinkComplete(self.raw, cubin.as_mut_ptr(), size.as_mut_ptr()).to_result()?;
             // docs say that CULinkState owns the data, so clone it out before we destroy ourselves.
             let cubin = cubin.assume_init() as *const u8;
             let size = size.assume_init();
@@ -138,7 +137,7 @@ impl Linker {
 impl Drop for Linker {
     fn drop(&mut self) {
         unsafe {
-            let _ = driver_sys::cuLinkDestroy(self.raw);
+            let _ = driver::cuLinkDestroy(self.raw);
         };
     }
 }

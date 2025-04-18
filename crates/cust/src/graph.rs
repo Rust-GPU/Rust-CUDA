@@ -8,7 +8,7 @@ use std::{
     ptr,
 };
 
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 use crate::{
     error::{CudaResult, ToResult},
@@ -57,7 +57,7 @@ pub struct KernelInvocation {
     pub block_dim: BlockSize,
     pub grid_dim: GridSize,
     pub shared_mem_bytes: u32,
-    func: driver_sys::CUfunction,
+    func: driver::CUfunction,
     params: Box<*mut c_void>,
     params_len: Option<usize>,
 }
@@ -68,7 +68,7 @@ impl KernelInvocation {
         block_dim: BlockSize,
         grid_dim: GridSize,
         shared_mem_bytes: u32,
-        func: driver_sys::CUfunction,
+        func: driver::CUfunction,
         params: Box<*mut c_void>,
         params_len: usize,
     ) -> Self {
@@ -82,8 +82,8 @@ impl KernelInvocation {
         }
     }
 
-    pub fn to_raw(self) -> driver_sys::CUDA_KERNEL_NODE_PARAMS {
-        driver_sys::CUDA_KERNEL_NODE_PARAMS {
+    pub fn to_raw(self) -> driver::CUDA_KERNEL_NODE_PARAMS {
+        driver::CUDA_KERNEL_NODE_PARAMS {
             func: self.func,
             gridDimX: self.grid_dim.x,
             gridDimY: self.grid_dim.y,
@@ -106,7 +106,7 @@ impl KernelInvocation {
     /// The function pointer must be a valid CUfunction pointer and
     /// params' "ownership" must be able to be transferred to the invocation
     /// (it will be turned into a Box).
-    pub unsafe fn from_raw(raw: driver_sys::CUDA_KERNEL_NODE_PARAMS) -> Self {
+    pub unsafe fn from_raw(raw: driver::CUDA_KERNEL_NODE_PARAMS) -> Self {
         Self {
             func: raw.func,
             grid_dim: GridSize::xyz(raw.gridDimX, raw.gridDimY, raw.gridDimZ),
@@ -123,7 +123,7 @@ impl KernelInvocation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct GraphNode {
-    raw: driver_sys::CUgraphNode,
+    raw: driver::CUgraphNode,
 }
 
 unsafe impl Send for GraphNode {}
@@ -132,12 +132,12 @@ unsafe impl Sync for GraphNode {}
 impl GraphNode {
     /// Creates a new node from a raw handle. This is safe because node checks
     /// happen on the graph when functions are called.
-    pub fn from_raw(raw: driver_sys::CUgraphNode) -> Self {
+    pub fn from_raw(raw: driver::CUgraphNode) -> Self {
         Self { raw }
     }
 
     /// Converts this node into a raw handle.
-    pub fn to_raw(self) -> driver_sys::CUgraphNode {
+    pub fn to_raw(self) -> driver::CUgraphNode {
         self.raw
     }
 }
@@ -179,8 +179,8 @@ pub enum GraphNodeType {
 
 impl GraphNodeType {
     /// Converts a raw type to a [`GraphNodeType`].
-    pub fn from_raw(raw: driver_sys::CUgraphNodeType) -> Self {
-        use driver_sys::CUgraphNodeType::*;
+    pub fn from_raw(raw: driver::CUgraphNodeType) -> Self {
+        use driver::CUgraphNodeType::*;
         match raw {
             CU_GRAPH_NODE_TYPE_KERNEL => GraphNodeType::KernelInvocation,
             CU_GRAPH_NODE_TYPE_MEMCPY => GraphNodeType::Memcpy,
@@ -201,8 +201,8 @@ impl GraphNodeType {
     }
 
     /// Converts this type to its raw counterpart.
-    pub fn to_raw(self) -> driver_sys::CUgraphNodeType {
-        use driver_sys::CUgraphNodeType::*;
+    pub fn to_raw(self) -> driver::CUgraphNodeType {
+        use driver::CUgraphNodeType::*;
         match self {
             Self::KernelInvocation => CU_GRAPH_NODE_TYPE_KERNEL,
             Self::Memcpy => CU_GRAPH_NODE_TYPE_MEMCPY,
@@ -250,7 +250,7 @@ impl GraphNodeType {
 /// send graphs between threads.
 #[derive(Debug)]
 pub struct Graph {
-    raw: driver_sys::CUgraph,
+    raw: driver::CUgraph,
     // a cache of nodes, this cache is None when the node cache is out of date,
     // it will get refreshed when get_nodes is called.
     node_cache: Option<Vec<GraphNode>>,
@@ -303,7 +303,7 @@ impl Graph {
     pub fn num_nodes(&mut self) -> CudaResult<usize> {
         unsafe {
             let mut len = MaybeUninit::uninit();
-            driver_sys::cuGraphGetNodes(self.raw, ptr::null_mut(), len.as_mut_ptr()).to_result()?;
+            driver::cuGraphGetNodes(self.raw, ptr::null_mut(), len.as_mut_ptr()).to_result()?;
             Ok(len.assume_init())
         }
     }
@@ -314,9 +314,9 @@ impl Graph {
             unsafe {
                 let mut len = self.num_nodes()?;
                 let mut vec = Vec::with_capacity(len);
-                driver_sys::cuGraphGetNodes(
+                driver::cuGraphGetNodes(
                     self.raw,
-                    vec.as_mut_ptr() as *mut driver_sys::CUgraphNode,
+                    vec.as_mut_ptr() as *mut driver::CUgraphNode,
                     &mut len as *mut usize,
                 )
                 .to_result()?;
@@ -332,7 +332,7 @@ impl Graph {
         let mut raw = MaybeUninit::uninit();
 
         unsafe {
-            driver_sys::cuGraphCreate(raw.as_mut_ptr(), flags.bits()).to_result()?;
+            driver::cuGraphCreate(raw.as_mut_ptr(), flags.bits()).to_result()?;
 
             Ok(Self {
                 raw: raw.assume_init(),
@@ -370,10 +370,10 @@ impl Graph {
         }
 
         unsafe {
-            driver_sys::cuGraphDebugDotPrint(
+            driver::cuGraphDebugDotPrint(
                 self.raw,
                 c"./out.dot".as_ptr(),
-                driver_sys::CUgraphDebugDot_flags::CU_GRAPH_DEBUG_DOT_FLAGS_VERBOSE as u32,
+                driver::CUgraphDebugDot_flags::CU_GRAPH_DEBUG_DOT_FLAGS_VERBOSE as u32,
             )
             .to_result()
         }
@@ -395,7 +395,7 @@ impl Graph {
             let deps_ptr = deps.as_ptr().cast();
             let mut node = MaybeUninit::<GraphNode>::uninit();
             let params = invocation.to_raw();
-            driver_sys::cuGraphAddKernelNode(
+            driver::cuGraphAddKernelNode(
                 node.as_mut_ptr().cast(),
                 self.raw,
                 deps_ptr,
@@ -411,7 +411,7 @@ impl Graph {
     pub fn num_edges(&mut self) -> CudaResult<usize> {
         unsafe {
             let mut size = MaybeUninit::uninit();
-            driver_sys::cuGraphGetEdges(
+            driver::cuGraphGetEdges(
                 self.raw,
                 ptr::null_mut(),
                 ptr::null_mut(),
@@ -435,7 +435,7 @@ impl Graph {
             let mut from = vec![ptr::null_mut(); num_edges].into_boxed_slice();
             let mut to = vec![ptr::null_mut(); num_edges].into_boxed_slice();
 
-            driver_sys::cuGraphGetEdges(
+            driver::cuGraphGetEdges(
                 self.raw,
                 from.as_mut_ptr(),
                 to.as_mut_ptr(),
@@ -456,7 +456,7 @@ impl Graph {
         self.check_deps_are_valid("node_type", &[node])?;
         unsafe {
             let mut ty = MaybeUninit::uninit();
-            driver_sys::cuGraphNodeGetType(node.to_raw(), ty.as_mut_ptr()).to_result()?;
+            driver::cuGraphNodeGetType(node.to_raw(), ty.as_mut_ptr()).to_result()?;
             let raw = ty.assume_init();
             Ok(GraphNodeType::from_raw(raw))
         }
@@ -476,7 +476,7 @@ impl Graph {
         );
         unsafe {
             let mut params = MaybeUninit::uninit();
-            driver_sys::cuGraphKernelNodeGetParams(node.to_raw(), params.as_mut_ptr());
+            driver::cuGraphKernelNodeGetParams(node.to_raw(), params.as_mut_ptr());
             Ok(KernelInvocation::from_raw(params.assume_init()))
         }
     }
@@ -489,7 +489,7 @@ impl Graph {
     /// - This handle is exclusive, nothing else can use it in any way, including trying to drop it.
     /// - It must be a valid handle. This invariant must be upheld, the library is allowed to rely on
     /// the fact that the handle is valid in terms of safety, therefore failure to uphold this invariant is UB.
-    pub unsafe fn from_raw(raw: driver_sys::CUgraph) -> Self {
+    pub unsafe fn from_raw(raw: driver::CUgraph) -> Self {
         Self {
             raw,
             node_cache: None,
@@ -498,7 +498,7 @@ impl Graph {
 
     /// Consumes this [`Graph`], turning it into a raw handle. The handle will not be dropped,
     /// it is up to the caller to ensure the graph is destroyed.
-    pub fn into_raw(self) -> driver_sys::CUgraph {
+    pub fn into_raw(self) -> driver::CUgraph {
         let me = ManuallyDrop::new(self);
         me.raw
     }
@@ -507,7 +507,7 @@ impl Graph {
 impl Drop for Graph {
     fn drop(&mut self) {
         unsafe {
-            driver_sys::cuGraphDestroy(self.raw);
+            driver::cuGraphDestroy(self.raw);
         }
     }
 }

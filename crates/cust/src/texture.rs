@@ -5,8 +5,8 @@ use std::os::raw::c_ulonglong;
 use std::os::raw::{c_float, c_uint};
 use std::ptr;
 
-use cust_raw::driver_sys;
-use cust_raw::driver_sys::{
+use cust_raw::driver;
+use cust_raw::driver::{
     cuTexObjectCreate, cuTexObjectDestroy, cuTexObjectGetResourceDesc,
     CUDA_RESOURCE_DESC_st__bindgen_ty_1, CUDA_RESOURCE_DESC_st__bindgen_ty_1__bindgen_ty_1,
     CUresourcetype, CUtexObject, CUDA_RESOURCE_DESC, CUDA_RESOURCE_VIEW_DESC, CUDA_TEXTURE_DESC,
@@ -46,11 +46,11 @@ bitflags::bitflags! {
     pub struct TextureDescriptorFlags: c_uint {
         /// Suppresses the default behavior of having the texture promote data to floating point data in the range
         /// of [0, 1]. This flag does nothing if the texture is a texture of `u32`s.
-        const READ_AS_INTEGER = driver_sys::CU_TRSF_READ_AS_INTEGER;
+        const READ_AS_INTEGER = driver::CU_TRSF_READ_AS_INTEGER;
         /// Suppresses the default behavior of having the texture coordinates range from [0, Dim], where Dim is the
         /// width or height of the CUDA array. Instead, the texture coordinates [0, 1] reference the entire array.
         /// This flag must be set if a mipmapped array is being used.
-        const NORMALIZED_COORDINATES = driver_sys::CU_TRSF_NORMALIZED_COORDINATES;
+        const NORMALIZED_COORDINATES = driver::CU_TRSF_NORMALIZED_COORDINATES;
         /// Disables any trilinear filtering optimizations. Trilinear optimizations improve texture filtering performance
         /// by allowing bilinear filtering on textures in scenarios where it can closely approximate the expected results.
         const DISABLE_TRILINEAR_OPTIMIZATION = 0x20; // cuda-sys doesnt have this for some reason?
@@ -111,17 +111,17 @@ impl TextureDescriptor {
         } = self;
         CUDA_TEXTURE_DESC {
             addressMode: unsafe {
-                transmute::<[TextureAdressingMode; 3], [driver_sys::CUaddress_mode_enum; 3]>(
+                transmute::<[TextureAdressingMode; 3], [driver::CUaddress_mode_enum; 3]>(
                     adress_modes,
                 )
             },
             filterMode: unsafe {
-                transmute::<TextureFilterMode, driver_sys::CUfilter_mode_enum>(filter_mode)
+                transmute::<TextureFilterMode, driver::CUfilter_mode_enum>(filter_mode)
             },
             flags: flags.bits(),
             maxAnisotropy: max_anisotropy,
             mipmapFilterMode: unsafe {
-                transmute::<TextureFilterMode, driver_sys::CUfilter_mode_enum>(mipmap_filter_mode)
+                transmute::<TextureFilterMode, driver::CUfilter_mode_enum>(mipmap_filter_mode)
             },
             mipmapLevelBias: mipmap_level_bias,
             minMipmapLevelClamp: min_mipmap_level_clamp,
@@ -301,7 +301,7 @@ impl ResourceViewDescriptor {
 
         CUDA_RESOURCE_VIEW_DESC {
             format: unsafe {
-                transmute::<ResourceViewFormat, driver_sys::CUresourceViewFormat_enum>(format)
+                transmute::<ResourceViewFormat, driver::CUresourceViewFormat_enum>(format)
             },
             width,
             height,
@@ -382,7 +382,7 @@ impl ResourceDescriptor {
     // TODO: evaluate if its possible to cause UB by making a raw descriptor with an invalid array handle.
     pub(crate) fn from_raw(raw: CUDA_RESOURCE_DESC) -> Self {
         match raw.resType {
-            driver_sys::CUresourcetype_enum::CU_RESOURCE_TYPE_ARRAY => Self {
+            driver::CUresourcetype_enum::CU_RESOURCE_TYPE_ARRAY => Self {
                 flags: ResourceDescriptorFlags::from_bits(raw.flags)
                     .expect("invalid resource descriptor flags"),
                 ty: ResourceType::Array {

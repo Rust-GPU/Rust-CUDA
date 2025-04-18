@@ -57,7 +57,7 @@ fn create_optix_bindings(sdk: &optix_sdk::OptiXSdk, cuda_include_paths: &[path::
     let bindings = bindgen::Builder::default()
         .header("build/wrapper.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        .raw_line("use cust_raw::driver_sys::*;")
+        .raw_line("use cust_raw::driver::*;")
         .clang_args(
             sdk.optix_include_paths()
                 .iter()

@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::slice;
 
-use cust_raw::driver_sys;
+use cust_raw::driver;
 
 use super::DeviceCopy;
 use crate::device::Device;
@@ -640,8 +640,8 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            driver_sys::cuMemPrefetchAsync(
-                slice.as_ptr() as driver_sys::CUdeviceptr,
+            driver::cuMemPrefetchAsync(
+                slice.as_ptr() as driver::CUdeviceptr,
                 mem_size,
                 -1, // CU_DEVICE_CPU #define
                 stream.as_inner(),
@@ -677,8 +677,8 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            driver_sys::cuMemPrefetchAsync(
-                slice.as_ptr() as driver_sys::CUdeviceptr,
+            driver::cuMemPrefetchAsync(
+                slice.as_ptr() as driver::CUdeviceptr,
                 mem_size,
                 device.as_raw(),
                 stream.as_inner(),
@@ -703,19 +703,14 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         let advice = if read_mostly {
-            driver_sys::CUmem_advise::CU_MEM_ADVISE_SET_READ_MOSTLY
+            driver::CUmem_advise::CU_MEM_ADVISE_SET_READ_MOSTLY
         } else {
-            driver_sys::CUmem_advise::CU_MEM_ADVISE_UNSET_READ_MOSTLY
+            driver::CUmem_advise::CU_MEM_ADVISE_UNSET_READ_MOSTLY
         };
 
         unsafe {
-            driver_sys::cuMemAdvise(
-                slice.as_ptr() as driver_sys::CUdeviceptr,
-                mem_size,
-                advice,
-                0,
-            )
-            .to_result()?;
+            driver::cuMemAdvise(slice.as_ptr() as driver::CUdeviceptr, mem_size, advice, 0)
+                .to_result()?;
         }
         Ok(())
     }
@@ -744,10 +739,10 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            driver_sys::cuMemAdvise(
-                slice.as_ptr() as driver_sys::CUdeviceptr,
+            driver::cuMemAdvise(
+                slice.as_ptr() as driver::CUdeviceptr,
                 mem_size,
-                driver_sys::CUmem_advise::CU_MEM_ADVISE_SET_PREFERRED_LOCATION,
+                driver::CUmem_advise::CU_MEM_ADVISE_SET_PREFERRED_LOCATION,
                 preferred_location.map(|d| d.as_raw()).unwrap_or(-1),
             )
             .to_result()?;
@@ -761,10 +756,10 @@ pub trait MemoryAdvise<T: DeviceCopy>: private::Sealed {
         let mem_size = std::mem::size_of_val(slice);
 
         unsafe {
-            driver_sys::cuMemAdvise(
-                slice.as_ptr() as driver_sys::CUdeviceptr,
+            driver::cuMemAdvise(
+                slice.as_ptr() as driver::CUdeviceptr,
                 mem_size,
-                driver_sys::CUmem_advise::CU_MEM_ADVISE_UNSET_PREFERRED_LOCATION,
+                driver::CUmem_advise::CU_MEM_ADVISE_UNSET_PREFERRED_LOCATION,
                 0,
             )
             .to_result()?;
