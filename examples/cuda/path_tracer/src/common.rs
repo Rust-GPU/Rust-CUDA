@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3};
+use glam::{DVec2, USizeVec2, Vec2, Vec3};
 use glium::glutin::event::{
     ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
@@ -20,8 +20,8 @@ impl Camera {
         let viewport_height = 2.0 * h;
         let viewport_width = self.aspect_ratio * viewport_height;
 
-        let w = (self.origin - self.lookat).normalized();
-        let u = self.vup.cross(w).normalized();
+        let w = (self.origin - self.lookat).normalize();
+        let u = self.vup.cross(w).normalize();
         let v = w.cross(u);
 
         viewport.origin = self.origin;
@@ -34,7 +34,7 @@ impl Camera {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CameraController {
     pub sensitivity: f32,
-    last_mouse_pos: Vec2<f32>,
+    last_mouse_pos: Vec2,
     yaw: f32,
     pitch: f32,
     mousewheel_pressed: bool,
@@ -46,7 +46,7 @@ impl CameraController {
     pub fn new(dimensions: USizeVec2) -> Self {
         CameraController {
             sensitivity: 0.1,
-            last_mouse_pos: dimensions.numcast().unwrap() / 2.0,
+            last_mouse_pos: dimensions.as_vec2() / 2.0,
             yaw: -90.0,
             pitch: 0.0,
             mousewheel_pressed: false,
@@ -59,7 +59,7 @@ impl CameraController {
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CursorMoved { position, .. } => {
-                    let mouse_pos = Vec2::new(position.x, position.y).numcast().unwrap();
+                    let mouse_pos = DVec2::new(position.x, position.y).as_vec2();
                     let delta = mouse_pos - self.last_mouse_pos;
                     self.last_mouse_pos = mouse_pos;
 
@@ -74,8 +74,8 @@ impl CameraController {
 
                     if self.shift_pressed {
                         let change = Vec2::new(-delta.x, delta.y) * self.sensitivity * 0.05;
-                        camera.lookat += change;
-                        camera.origin += change;
+                        camera.lookat += change.extend(0.0);
+                        camera.origin += change.extend(0.0);
                         return true;
                     }
 

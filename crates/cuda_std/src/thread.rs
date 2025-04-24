@@ -154,7 +154,7 @@ pub fn grid_dim_z() -> u32 {
 #[inline(always)]
 pub fn thread_idx() -> UVec3 {
     unsafe {
-        Vec3::new(
+        UVec3::new(
             __nvvm_thread_idx_x(),
             __nvvm_thread_idx_y(),
             __nvvm_thread_idx_z(),
@@ -167,7 +167,7 @@ pub fn thread_idx() -> UVec3 {
 #[inline(always)]
 pub fn block_idx() -> UVec3 {
     unsafe {
-        Vec3::new(
+        UVec3::new(
             __nvvm_block_idx_x(),
             __nvvm_block_idx_y(),
             __nvvm_block_idx_z(),
@@ -181,7 +181,7 @@ pub fn block_idx() -> UVec3 {
 #[inline(always)]
 pub fn block_dim() -> UVec3 {
     unsafe {
-        Vec3::new(
+        UVec3::new(
             __nvvm_block_dim_x(),
             __nvvm_block_dim_y(),
             __nvvm_block_dim_z(),
@@ -195,7 +195,7 @@ pub fn block_dim() -> UVec3 {
 #[inline(always)]
 pub fn grid_dim() -> UVec3 {
     unsafe {
-        Vec3::new(
+        UVec3::new(
             __nvvm_grid_dim_x(),
             __nvvm_grid_dim_y(),
             __nvvm_grid_dim_z(),
@@ -206,7 +206,7 @@ pub fn grid_dim() -> UVec3 {
 /// Gets the overall thread index, accounting for 1d/2d/3d block/grid dimensions. This
 /// value is most commonly used for indexing into data and this index is guaranteed to
 /// be unique for every single thread executing this kernel no matter the launch configuration.
-/// 
+///
 /// For very simple kernels it may be faster to use a more simple index calculation, however,
 /// it will be unsound if the kernel launches in a 2d/3d configuration.
 #[gpu_only]
@@ -218,10 +218,10 @@ pub fn index() -> u32 {
     let block_dim = block_dim();
     let thread_idx = thread_idx();
 
-    let block_id = block_idx.x + block_idx.y * grid_dim.x 
+    let block_id = block_idx.x + block_idx.y * grid_dim.x
                        + grid_dim.x * grid_dim.y * block_idx.z;
 
-    block_id * block_dim.product()
+    block_id * block_dim.element_product()
     + (thread_idx.z * (block_dim.x * block_dim.y))
     + (thread_idx.y * block_dim.x) + thread_idx.x
 }

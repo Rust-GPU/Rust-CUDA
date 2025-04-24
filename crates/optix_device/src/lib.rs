@@ -14,7 +14,8 @@ pub mod trace;
 pub mod transform;
 pub mod util;
 
-use cuda_std::{glam, *};
+pub use cuda_std::glam;
+use cuda_std::*;
 use glam::UVec3;
 pub use misc::*;
 

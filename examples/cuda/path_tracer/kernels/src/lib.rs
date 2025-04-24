@@ -11,13 +11,12 @@ pub mod render_kernels;
 pub mod scene;
 pub mod sphere;
 
-pub use cuda_std::glam;
+pub use cuda_std::glam::{USizeVec2, Vec2, Vec3};
 use cust_core::DeviceCopy;
 use enum_dispatch::enum_dispatch;
 use hittable::{HitRecord, Hittable};
 use sphere::Sphere;
 
-use glam::{USizeVec2, Vec2, Vec3};
 pub type Point = Vec3;
 
 #[derive(Default, Clone, Copy, DeviceCopy)]

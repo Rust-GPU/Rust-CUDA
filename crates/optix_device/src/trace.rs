@@ -1,6 +1,6 @@
 use crate::sys::*;
+use cuda_std::glam::Vec3;
 use cust_core::DeviceCopy;
-use glam::Vec3;
 use paste::paste;
 use seq_macro::seq;
 

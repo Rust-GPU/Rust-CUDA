@@ -1,3 +1,4 @@
+use glam::USizeVec2;
 use glium::{
     glutin::{
         dpi::PhysicalSize,
@@ -16,7 +17,6 @@ use imgui::Condition;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use path_tracer_kernels::scene::Scene;
 use std::time::Instant;
-use vek::Vec2;
 
 use crate::{common::Camera, renderer::Renderer, HEIGHT, WIDTH};
 
@@ -59,7 +59,11 @@ pub fn run(camera: &Camera, scene: &Scene) -> ! {
         .with_inner_size(PhysicalSize::new(WIDTH as f64, HEIGHT as f64));
     let cb = ContextBuilder::new().with_vsync(true);
     let display = Display::new(wb, cb, &event_loop).unwrap();
-    let renderer = Renderer::new(Vec2::new(WIDTH as usize, HEIGHT as usize), camera, scene);
+    let renderer = Renderer::new(
+        USizeVec2::new(WIDTH as usize, HEIGHT as usize),
+        camera,
+        scene,
+    );
     let mut viewer = ViewerRenderer::new(display, renderer);
 
     let mut last_frame = Instant::now();
@@ -72,7 +76,7 @@ pub fn run(camera: &Camera, scene: &Scene) -> ! {
 struct ViewerRenderer {
     vertex_buffer: VertexBuffer<Vertex>,
     image_program: Program,
-    image_size: Vec2<usize>,
+    image_size: USizeVec2,
     renderer: Renderer,
     imgui_ctx: imgui::Context,
     texture: SrgbTexture2d,
@@ -87,7 +91,7 @@ impl ViewerRenderer {
         let image_program = Program::from_source(&display, IMAGE_VERT, IMAGE_FRAG, None).unwrap();
 
         let size = display.gl_window().window().inner_size();
-        let image_size = Vec2::new(size.width as usize, size.height as usize);
+        let image_size = USizeVec2::new(size.width as usize, size.height as usize);
         let texture =
             SrgbTexture2d::empty(&display, image_size.x as u32, image_size.y as u32).unwrap();
 
@@ -152,7 +156,7 @@ impl ViewerRenderer {
                     *control_flow = ControlFlow::Exit;
                 }
                 WindowEvent::Resized(new) => {
-                    let image_size = Vec2::new(new.width as usize, new.height as usize);
+                    let image_size = USizeVec2::new(new.width as usize, new.height as usize);
                     self.image_size = image_size;
                     self.texture = SrgbTexture2d::empty(
                         &self.display,

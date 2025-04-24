@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use glam::{Clamp, Vec2, Vec3};
+use glam::{U8Vec3, USizeVec2, UVec2, Vec2, Vec3};
 use gpu_rand::{DefaultRand, GpuRand};
 use imgui::Ui;
 use path_tracer_kernels::{
@@ -14,7 +14,7 @@ use crate::{common::Camera, cuda::SEED};
 pub struct CpuRenderer {
     // this is basically the cuda buffers but not gpu buffers.
     accumulated_buffer: Vec<Vec3>,
-    out_buffer: Vec<Vec3<u8>>,
+    out_buffer: Vec<U8Vec3>,
 
     viewport: Viewport,
     objects: Vec<Object>,
@@ -24,10 +24,10 @@ pub struct CpuRenderer {
 
 impl CpuRenderer {
     pub fn new(dimensions: USizeVec2, camera: &Camera, scene: &Scene) -> Self {
-        let accumulated_buffer = vec![Vec3::zero(); dimensions.product()];
-        let out_buffer = vec![Vec3::zero(); dimensions.product()];
+        let accumulated_buffer = vec![Vec3::ZERO; dimensions.element_product()];
+        let out_buffer = vec![U8Vec3::ZERO; dimensions.element_product()];
 
-        let rand_states = DefaultRand::initialize_states(SEED, dimensions.product());
+        let rand_states = DefaultRand::initialize_states(SEED, dimensions.element_product());
 
         let mut viewport = Viewport::default();
         camera.as_viewport(&mut viewport);
@@ -63,14 +63,15 @@ impl CpuRenderer {
     }
 
     pub fn update_camera(&mut self, new_camera: &Camera) {
-        self.accumulated_buffer.fill(Vec3::zero());
+        self.accumulated_buffer.fill(Vec3::ZERO);
         new_camera.as_viewport(&mut self.viewport);
     }
 
     pub fn resize(&mut self, dimensions: USizeVec2) {
         self.accumulated_buffer
-            .resize(dimensions.product(), Vec3::zero());
-        self.out_buffer.resize(dimensions.product(), Vec3::zero());
+            .resize(dimensions.element_product(), Vec3::ZERO);
+        self.out_buffer
+            .resize(dimensions.element_product(), U8Vec3::ZERO);
         self.viewport.bounds = dimensions;
     }
 
@@ -84,7 +85,7 @@ impl CpuRenderer {
         self.objects[idx] = new;
     }
 
-    pub fn final_image(&mut self, cur_sample: usize) -> (&[Vec3<u8>], Duration) {
+    pub fn final_image(&mut self, cur_sample: usize) -> (&[U8Vec3], Duration) {
         let start = std::time::Instant::now();
 
         let Self {
@@ -98,12 +99,11 @@ impl CpuRenderer {
             .zip(accumulated_buffer.par_iter())
             .for_each(|(px, acc)| {
                 let scaled = acc / cur_sample as f32;
-                let gamma_corrected = scaled.sqrt();
+                let gamma_corrected = scaled.map(f32::sqrt);
 
                 *px = (gamma_corrected * 255.0)
-                    .clamped(Vec3::zero(), Vec3::broadcast(255.0))
-                    .numcast()
-                    .unwrap();
+                    .clamp(Vec3::ZERO, Vec3::splat(255.0))
+                    .as_u8vec3();
             });
 
         (&self.out_buffer, start.elapsed())
@@ -131,7 +131,7 @@ impl CpuRenderer {
             .for_each(|(idx, (px, rng))| {
                 let x = idx % viewport.bounds.x;
                 let y = idx / viewport.bounds.x;
-                let idx = Vec2::new(x as u32, y as u32);
+                let idx = UVec2::new(x as u32, y as u32);
 
                 let offset = Vec2::from(rng.normal_f32_2());
 

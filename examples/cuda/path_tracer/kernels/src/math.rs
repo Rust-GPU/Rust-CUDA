@@ -1,8 +1,8 @@
 //! Generic math utilities.
 
-use crate::Vec3;
 #[cfg(target_os = "cuda")]
 use cuda_std::GpuFloat;
+use glam::Vec3;
 use gpu_rand::{DefaultRand, GpuRand};
 
 /// Converts a float in the range of [0.0, 1.0] to a range of [-1.0, 1.0].
@@ -24,7 +24,7 @@ pub fn random_snorm_vec(state: &mut DefaultRand) -> Vec3 {
 pub fn random_in_unit_sphere(state: &mut DefaultRand) -> Vec3 {
     loop {
         let p = random_snorm_vec(state);
-        if p.magnitude_squared() >= 1.0 {
+        if p.length_squared() >= 1.0 {
             continue;
         }
         return p;
@@ -36,7 +36,7 @@ pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
 }
 
 pub fn refract(v: Vec3, n: Vec3, ni_over_nt: f32) -> Option<Vec3> {
-    let uv = v.normalized();
+    let uv = v.normalize();
     let dt = uv.dot(n);
     let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
     if discriminant > 0.0 {

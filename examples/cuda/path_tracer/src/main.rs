@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let camera = Camera {
         origin: Vec3::new(0.0, 0.5, 2.0),
         lookat: Vec3::new(0.0, 0.0, -0.5),
-        vup: Vec3::unit_y(),
+        vup: Vec3::Y,
         fov: 70.0,
         aspect_ratio: (WIDTH as f32) / (HEIGHT as f32),
     };

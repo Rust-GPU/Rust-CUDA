@@ -14,13 +14,12 @@ use cust::{
     memory::DeviceBox,
     prelude::*,
 };
+use glam::{U8Vec3, USizeVec2};
 use optix::{
     context::DeviceContext,
     denoiser::{Denoiser, DenoiserModelKind, Image, ImageFormat},
 };
 use path_tracer_kernels::scene::Scene;
-use vek::{Vec2, Vec3};
-
 /// Seed for the random states
 pub const SEED: u64 = 932174513921034;
 
@@ -39,12 +38,12 @@ pub struct CudaRenderer {
     _context: Context,
 
     buffers: CudaRendererBuffers,
-    cpu_image: Vec<Vec3<u8>>,
+    cpu_image: Vec<U8Vec3>,
     optix_renderer: OptixRenderer,
 }
 
 impl CudaRenderer {
-    pub fn new(dimensions: Vec2<usize>, camera: &Camera, scene: &Scene) -> Result<Self> {
+    pub fn new(dimensions: USizeVec2, camera: &Camera, scene: &Scene) -> Result<Self> {
         let context = cust::quick_init()?;
         optix::init().unwrap();
 
@@ -60,7 +59,7 @@ impl CudaRenderer {
             .unwrap();
 
         let buffers = CudaRendererBuffers::new(dimensions, camera, scene)?;
-        let cpu_image = vec![Vec3::zero(); dimensions.product()];
+        let cpu_image = vec![U8Vec3::ZERO; dimensions.element_product()];
 
         let optix_renderer = OptixRenderer::new(&mut optix_context, &stream, scene)?;
 
@@ -93,9 +92,10 @@ impl CudaRenderer {
     }
 
     /// Resize the image-specific data for a new size
-    pub fn resize(&mut self, new_size: Vec2<usize>) -> CudaResult<()> {
+    pub fn resize(&mut self, new_size: USizeVec2) -> CudaResult<()> {
         self.buffers.resize(new_size)?;
-        self.cpu_image.resize(new_size.product(), Vec3::zero());
+        self.cpu_image
+            .resize(new_size.element_product(), U8Vec3::ZERO);
 
         self.denoiser
             .setup_state(&self.stream, new_size.x as u32, new_size.y as u32, false)
@@ -105,7 +105,7 @@ impl CudaRenderer {
 
     /// calculate an optimal launch configuration for an image kernel
     fn launch_dimensions(&self) -> (GridSize, BlockSize) {
-        let threads = Vec2::broadcast(THREAD_BLOCK_AXIS_LENGTH);
+        let threads = USizeVec2::splat(THREAD_BLOCK_AXIS_LENGTH);
         let blocks = (self.buffers.viewport.bounds / threads) + 1;
         (blocks.into(), threads.into())
     }
@@ -118,7 +118,7 @@ impl CudaRenderer {
         &mut self,
         cur_sample: usize,
         denoise: bool,
-    ) -> CudaResult<(&[Vec3<u8>], Duration, Duration)> {
+    ) -> CudaResult<(&[U8Vec3], Duration, Duration)> {
         let module = &self.module;
         let stream = &self.stream;
 

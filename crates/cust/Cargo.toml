@@ -17,7 +17,7 @@ cust_core = { path = "../cust_core", version = "0.1.0"}
 cust_raw = { path = "../cust_raw", default-features = false, features = ["driver"] }
 bitflags = "2.8"
 cust_derive = { path = "../cust_derive", version = "0.2" }
-glam = { version = "0.29.2", features=["cuda"], optional = true }
+glam = { version = "0.30", features=["cuda"], optional = true }
 mint = { version = "^0.5", optional = true }
 num-complex = { version = "0.4.6", optional = true }
 vek = { version = "0.17.1", optional = true, default-features = false }

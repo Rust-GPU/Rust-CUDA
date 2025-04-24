@@ -1,5 +1,5 @@
 use crate::{intersect::get_attribute, payload::*};
-use glam::Vec3;
+use cuda_std::glam::Vec3;
 
 pub fn pack_pointer<T>(ptr: *mut T) -> (u32, u32) {
     let x = ptr as u32;

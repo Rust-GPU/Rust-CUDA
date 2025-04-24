@@ -1,8 +1,8 @@
+use glam::USizeVec2;
 use glium::glutin::{event::Event, event_loop::ControlFlow};
 use imgui::Ui;
 use path_tracer_kernels::scene::Scene;
 use sysinfo::System;
-use vek::Vec2;
 
 use crate::{
     common::{Camera, CameraController},
@@ -23,7 +23,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(dimensions: Vec2<usize>, camera: &Camera, scene: &Scene) -> Self {
+    pub fn new(dimensions: USizeVec2, camera: &Camera, scene: &Scene) -> Self {
         Self {
             cuda: CudaRenderer::new(dimensions, camera, scene)
                 .expect("Failed to make CUDA renderer"),
@@ -38,7 +38,7 @@ impl Renderer {
         }
     }
 
-    pub fn resize(&mut self, new: Vec2<usize>) {
+    pub fn resize(&mut self, new: USizeVec2) {
         self.accumulated_samples = 0;
         self.cpu.resize(new);
         self.cuda

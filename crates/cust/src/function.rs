@@ -88,6 +88,31 @@ impl From<vek::Vec3<usize>> for GridSize {
     }
 }
 
+#[cfg(feature = "glam")]
+impl From<glam::UVec2> for GridSize {
+    fn from(vec: glam::UVec2) -> Self {
+        GridSize::xy(vec.x, vec.y)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::UVec3> for GridSize {
+    fn from(vec: glam::UVec3) -> Self {
+        GridSize::xyz(vec.x, vec.y, vec.z)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::USizeVec2> for GridSize {
+    fn from(vec: glam::USizeVec2) -> Self {
+        GridSize::xy(vec.x as u32, vec.y as u32)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::USizeVec3> for GridSize {
+    fn from(vec: glam::USizeVec3) -> Self {
+        GridSize::xyz(vec.x as u32, vec.y as u32, vec.z as u32)
+    }
+}
+
 /// Dimensions of a thread block, or the number of threads in a block.
 ///
 /// Each component of a `BlockSize` must be at least 1. The maximum size depends on your device's
@@ -164,6 +189,31 @@ impl From<vek::Vec2<usize>> for BlockSize {
 #[cfg(feature = "vek")]
 impl From<vek::Vec3<usize>> for BlockSize {
     fn from(vec: vek::Vec3<usize>) -> Self {
+        BlockSize::xyz(vec.x as u32, vec.y as u32, vec.z as u32)
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<glam::UVec2> for BlockSize {
+    fn from(vec: glam::UVec2) -> Self {
+        BlockSize::xy(vec.x, vec.y)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::UVec3> for BlockSize {
+    fn from(vec: glam::UVec3) -> Self {
+        BlockSize::xyz(vec.x, vec.y, vec.z)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::USizeVec2> for BlockSize {
+    fn from(vec: glam::USizeVec2) -> Self {
+        BlockSize::xy(vec.x as u32, vec.y as u32)
+    }
+}
+#[cfg(feature = "glam")]
+impl From<glam::USizeVec3> for BlockSize {
+    fn from(vec: glam::USizeVec3) -> Self {
         BlockSize::xyz(vec.x as u32, vec.y as u32, vec.z as u32)
     }
 }

@@ -1,5 +1,3 @@
-#![no_std]
-
 pub use _hidden::*;
 pub use cust_derive::DeviceCopyCore as DeviceCopy;
 
@@ -143,6 +141,7 @@ pub mod _hidden {
     {
     }
 
+    #[allow(unused_macros)]
     macro_rules! impl_device_copy_generic {
     ($($($strukt:ident)::+),* $(,)?) => {
         $(
@@ -151,6 +150,7 @@ pub mod _hidden {
     }
 }
 
+    #[allow(unused_macros)]
     macro_rules! impl_device_copy {
     ($($strukt:ty),* $(,)?) => {
         $(
@@ -172,7 +172,22 @@ pub mod _hidden {
 
     #[cfg(feature = "glam")]
     impl_device_copy! {
-        glam::Vec2, glam::Vec3, glam::Vec4, glam::IVec2, glam::IVec3, glam::IVec4,
+        glam::BVec2, glam::BVec3, glam::BVec3A, glam::BVec4, glam::BVec4A,
+        glam::U8Vec2, glam::U8Vec3, glam::U8Vec4,
+        glam::I8Vec2, glam::I8Vec3, glam::I8Vec4,
+        glam::U16Vec2, glam::U16Vec3, glam::U16Vec4,
+        glam::I16Vec2, glam::I16Vec3, glam::I16Vec4,
+        glam::UVec2, glam::UVec3, glam::UVec4,
+        glam::IVec2, glam::IVec3, glam::IVec4,
+        glam::U64Vec2, glam::U64Vec3, glam::U64Vec4,
+        glam::I64Vec2, glam::I64Vec3, glam::I64Vec4,
+        glam::USizeVec2, glam::USizeVec3, glam::USizeVec4,
+        glam::Vec2, glam::Vec3, glam::Vec3A, glam::Vec4,
+        glam::DVec2, glam::DVec3, glam::DVec4,
+        glam::Mat2, glam::Mat3, glam::Mat3A, glam::Mat4,
+        glam::DMat2, glam::DMat3, glam::DMat4,
+        glam::Quat, glam::DQuat,
+        glam::Affine2, glam::Affine3A,
     }
 
     #[cfg(feature = "mint")]

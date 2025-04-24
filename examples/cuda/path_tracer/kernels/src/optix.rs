@@ -13,7 +13,7 @@ use cust_core::DeviceCopy;
 use gpu_rand::{DefaultRand, GpuRand};
 use optix_device::{
     closesthit, get_launch_index,
-    glam::Vec3Swizzles,
+    glam::{UVec2, Vec3Swizzles},
     intersection, payload, raygen, sbt_data,
     trace::{RayFlags, TraversableHandle},
     util::{get_vec3_attributes, pack_pointer, unpack_pointer},
@@ -31,8 +31,8 @@ extern "C" {
 
 #[derive(Clone, Copy)]
 pub struct LaunchParams<'a> {
-    pub image_buf: *mut Vec3<f32>,
-    pub size: Vec2<u32>,
+    pub image_buf: *mut Vec3,
+    pub size: UVec2,
     pub scene: Scene<'a>,
     pub viewport: Viewport,
     pub rand_states: *mut DefaultRand,
@@ -69,8 +69,8 @@ pub unsafe fn __intersection__sphere() {
     if let Some(hit) = sphere.hit(ray, tmin, tmax) {
         // you could also recompute these values in the closesthit pretty easily. But optix provides us
         // 7 32-bit attribute regs which are perfect for passing these values.
-        let n = hit.normal.map(|x| x.to_bits());
-        let p = hit.point.map(|x| x.to_bits());
+        let n = hit.normal.to_array().map(|x| x.to_bits());
+        let p = hit.point.to_array().map(|x| x.to_bits());
         let mat = hit.material_handle as u32;
         intersection::report_intersection(hit.t, 0, [n[0], n[1], n[2], p[0], p[1], p[2], mat]);
     }
@@ -111,10 +111,10 @@ pub unsafe fn __raygen__render() {
 
     let rng = PARAMS.rand_states.add(idx as usize);
     let offset = (*rng).normal_f32_2();
-    let mut cur_ray = generate_ray(Vec2::from(i.to_array()), &PARAMS.viewport, offset.into());
+    let mut cur_ray = generate_ray(i, &PARAMS.viewport, offset.into());
 
-    let mut attenuation = Vec3::one();
-    let mut color = Vec3::zero();
+    let mut attenuation = Vec3::ONE;
+    let mut color = Vec3::ZERO;
 
     for _ in 0..MAX_BOUNCES {
         let mut prd = PerRayData {
@@ -128,8 +128,8 @@ pub unsafe fn __raygen__render() {
 
         raygen::trace(
             PARAMS.handle,
-            (cur_ray.origin.into_array()).into(),
-            (cur_ray.dir.into_array()).into(),
+            cur_ray.origin,
+            cur_ray.dir,
             0.001,
             1e20,
             0.0,
