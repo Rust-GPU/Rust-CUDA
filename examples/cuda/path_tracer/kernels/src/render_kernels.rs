@@ -48,10 +48,9 @@ pub unsafe fn postprocess(fb: *const Vec3, out: *mut U8Vec3, view: Viewport) {
     let original = &*fb.add(idx);
     let out = &mut *out.add(idx);
     // gamma=2.0
-    let gamma_corrected = original.sqrt();
+    let gamma_corrected = original.map(f32::sqrt);
 
     *out = (gamma_corrected * 255.0)
-        .clamp(Vec3::zero(), Vec3::broadcast(255.0))
-        .numcast()
-        .unwrap();
+        .clamp(Vec3::ZERO, Vec3::splat(255.0))
+        .as_u8vec3();
 }

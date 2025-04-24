@@ -1,4 +1,5 @@
 use crate::{hittable::HitRecord, math::*, Ray, Vec3};
+use approx::{AbsDiffEq, RelativeEq};
 use cust_core::DeviceCopy;
 use enum_dispatch::enum_dispatch;
 use gpu_rand::{DefaultRand, GpuRand};
@@ -25,8 +26,14 @@ pub struct DiffuseMaterial {
 impl Material for DiffuseMaterial {
     fn scatter(&self, _: Ray, hit: HitRecord, rng: &mut DefaultRand) -> (Vec3, Option<Ray>) {
         let mut scatter_dir = hit.normal + random_in_unit_sphere(rng);
-
-        if scatter_dir.is_approx_zero() {
+        let epsilon = f32::default_epsilon();
+        let max_rel = f32::default_max_relative();
+        let four_epsilon = epsilon + epsilon + epsilon + epsilon;
+        let four_max_rel = max_rel + max_rel + max_rel + max_rel;
+        if scatter_dir
+            .length_squared()
+            .relative_eq(&0., four_epsilon, four_max_rel)
+        {
             scatter_dir = hit.normal;
         }
 
@@ -47,7 +54,7 @@ pub struct MetallicMaterial {
 
 impl Material for MetallicMaterial {
     fn scatter(&self, incoming: Ray, hit: HitRecord, rng: &mut DefaultRand) -> (Vec3, Option<Ray>) {
-        let reflected = reflect(incoming.dir.normalized(), hit.normal);
+        let reflected = reflect(incoming.dir.normalize(), hit.normal);
         let scattered = Ray {
             origin: hit.point,
             dir: reflected + self.roughness * random_in_unit_sphere(rng),
@@ -76,11 +83,11 @@ impl Material for DielectricMaterial {
         if incoming.dir.dot(hit.normal) > 0.0 {
             outward_norm = -hit.normal;
             ni_over_nt = self.ior;
-            cos = self.ior * incoming.dir.dot(hit.normal) / incoming.dir.magnitude();
+            cos = self.ior * incoming.dir.dot(hit.normal) / incoming.dir.length();
         } else {
             outward_norm = hit.normal;
             ni_over_nt = 1.0 / self.ior;
-            cos = -incoming.dir.dot(hit.normal) / incoming.dir.magnitude();
+            cos = -incoming.dir.dot(hit.normal) / incoming.dir.length();
         }
 
         if let Some(refracted) = refract(incoming.dir, outward_norm, ni_over_nt) {
@@ -99,7 +106,7 @@ impl Material for DielectricMaterial {
             self.color,
             Some(Ray {
                 origin: hit.point,
-                dir: reflect(incoming.dir.normalized(), hit.normal),
+                dir: reflect(incoming.dir.normalize(), hit.normal),
             }),
         )
     }

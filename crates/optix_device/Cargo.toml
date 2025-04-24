@@ -13,6 +13,3 @@ cuda_std = { version = "0.2", path = "../cuda_std" }
 paste = "1.0.15"
 seq-macro = "0.3.5"
 cust_core = { version = "0.1", path = "../cust_core" }
-
-[target.'cfg(not(target_os = "cuda"))'.dependencies]
-glam = { version = "0.29", features = ["cuda"], default-features = false }

@@ -179,7 +179,7 @@ impl OptixRenderer {
     }
 
     pub fn render(&mut self, stream: &Stream, buffers: &mut CudaRendererBuffers) -> Result<()> {
-        let dims = buffers.viewport.bounds.numcast().unwrap();
+        let dims = buffers.viewport.bounds.as_uvec2();
 
         let launch_params = LaunchParams {
             image_buf: buffers.accumulated_buffer.as_device_ptr().as_mut_ptr(),

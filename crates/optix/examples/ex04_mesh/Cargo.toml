@@ -12,7 +12,7 @@ anyhow = "1.0.44"
 glfw = "0.42.0"
 gl = "0.14.0"
 num-traits = "0.2.14"
-glam = { version = "0.29.2", features=["cuda"] }
+glam = { version = "0.30", features=["cuda"] }
 
 [build-dependencies]
 cuda_builder = { version = "0.3", path = "../../../cuda_builder" }

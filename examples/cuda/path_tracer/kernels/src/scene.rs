@@ -45,7 +45,7 @@ impl Scene<'_> {
 
     pub fn ray_color(&self, ray: Ray, rng: &mut DefaultRand) -> Vec3 {
         let mut cur_ray = ray;
-        let mut attenuation = Vec3::one();
+        let mut attenuation = Vec3::ONE;
 
         for _ in 0..MAX_BOUNCES {
             if let Some(hit) = self.hit(cur_ray, 0.001, f32::INFINITY) {
@@ -55,12 +55,12 @@ impl Scene<'_> {
                     attenuation *= hit_attenuation;
                     cur_ray = scattered;
                 } else {
-                    return Vec3::zero();
+                    return Vec3::ZERO;
                 }
             } else {
                 return attenuation * render::color(cur_ray);
             }
         }
-        Vec3::zero()
+        Vec3::ZERO
     }
 }

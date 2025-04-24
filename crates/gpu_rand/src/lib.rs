@@ -12,7 +12,6 @@
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![allow(clippy::unreadable_literal)]
-#![cfg_attr(target_os = "cuda", no_std)]
 #![feature(doc_cfg)]
 
 pub mod xoroshiro;
