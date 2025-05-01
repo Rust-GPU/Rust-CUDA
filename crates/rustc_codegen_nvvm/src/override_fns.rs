@@ -2,11 +2,16 @@
 //! codegen-builtin methods. Currently the only use for this is overriding libm functions
 //! with libdevice intrinsics (which are much faster and smaller).
 
-use crate::{builder::Builder, context::CodegenCx, llvm};
+use crate::abi::FnAbiLlvmExt;
+use crate::builder::Builder;
+use crate::context::CodegenCx;
+use crate::llvm;
 use rustc_codegen_ssa::mono_item::MonoItemExt;
-use rustc_codegen_ssa::traits::BuilderMethods;
+use rustc_codegen_ssa::traits::{BaseTypeCodegenMethods, BuilderMethods};
 use rustc_hir::def_id::LOCAL_CRATE;
-use rustc_middle::{mir::mono::MonoItem, ty::Instance};
+use rustc_middle::mir::mono::MonoItem;
+use rustc_middle::ty::layout::FnAbiOf;
+use rustc_middle::ty::{self, Instance};
 
 /// Either override or define a function.
 pub(crate) fn define_or_override_fn<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) {
@@ -27,12 +32,24 @@ fn should_override<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) -> bool
     if !is_libm {
         return false;
     }
+
     let sym = cx.tcx.item_name(func.def_id());
     let name = sym.as_str();
-    let intrinsics = cx.intrinsics_map.borrow();
-    let is_known_intrinsic = intrinsics.contains_key(format!("__nv_{}", name).as_str());
 
-    !is_unsupported_libdevice_fn(name) && is_known_intrinsic
+    if is_unsupported_libdevice_fn(name) {
+        return false;
+    }
+
+    let libdevice_name = format!("__nv_{}", name);
+    let ld_fn = if let Some((args, ret)) = cx.intrinsics_map.borrow().get(libdevice_name.as_str()) {
+        cx.type_func(args, ret)
+    } else {
+        return false;
+    };
+
+    // Check the function signatures match.
+    let lm_fn = cx.fn_abi_of_instance(func, ty::List::empty()).llvm_type(cx);
+    lm_fn == ld_fn
 }
 
 fn is_unsupported_libdevice_fn(name: &str) -> bool {
