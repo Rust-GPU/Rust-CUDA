@@ -1,3 +1,4 @@
+use std::env;
 use std::error;
 use std::fs;
 use std::path;
@@ -64,7 +65,18 @@ impl CudnnSdk {
             "C:/Program Files/NVIDIA/CUDNN/v9.x/include",
             "C:/Program Files/NVIDIA/CUDNN/v8.x/include",
         ];
-        CUDNN_DEFAULT_PATHS
+
+        let mut cudnn_paths: Vec<String> =
+            CUDNN_DEFAULT_PATHS.iter().map(|s| s.to_string()).collect();
+        if let Some(override_path) = env::var_os("CUDNN_INCLUDE_DIR") {
+            cudnn_paths.push(
+                override_path
+                    .into_string()
+                    .expect("CUDNN_INCLUDE_DIR to be a Unicode string"),
+            );
+        }
+
+        cudnn_paths
             .iter()
             .find(|s| Self::is_cudnn_include_path(s))
             .map(path::PathBuf::from)
