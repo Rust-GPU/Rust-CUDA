@@ -2,6 +2,7 @@ use std::env;
 use std::error;
 use std::fs;
 use std::path;
+use std::path::Path;
 
 /// Represents the cuDNN SDK installation.
 #[derive(Debug, Clone)]
@@ -58,6 +59,8 @@ impl CudnnSdk {
     }
 
     fn find_cudnn_include_dir() -> Result<path::PathBuf, Box<dyn error::Error>> {
+        let cudnn_include_dir = env::var_os("CUDNN_INCLUDE_DIR");
+
         #[cfg(not(target_os = "windows"))]
         const CUDNN_DEFAULT_PATHS: &[&str] = &["/usr/include", "/usr/local/include"];
         #[cfg(target_os = "windows")]
@@ -66,20 +69,15 @@ impl CudnnSdk {
             "C:/Program Files/NVIDIA/CUDNN/v8.x/include",
         ];
 
-        let mut cudnn_paths: Vec<String> =
-            CUDNN_DEFAULT_PATHS.iter().map(|s| s.to_string()).collect();
-        if let Some(override_path) = env::var_os("CUDNN_INCLUDE_DIR") {
-            cudnn_paths.push(
-                override_path
-                    .into_string()
-                    .expect("CUDNN_INCLUDE_DIR to be a Unicode string"),
-            );
+        let mut cudnn_paths: Vec<&Path> = CUDNN_DEFAULT_PATHS.iter().map(Path::new).collect();
+        if let Some(override_path) = &cudnn_include_dir {
+            cudnn_paths.push(Path::new(override_path));
         }
 
         cudnn_paths
             .iter()
-            .find(|s| Self::is_cudnn_include_path(s))
-            .map(path::PathBuf::from)
+            .find(|p| Self::is_cudnn_include_path(p))
+            .map(|p| p.to_path_buf())
             .ok_or("Cannot find cuDNN include directory.".into())
     }
 
