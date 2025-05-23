@@ -8,7 +8,9 @@ fn main() {
     println!("cargo::rerun-if-changed=kernels");
 
     let out_path = path::PathBuf::from(env::var("OUT_DIR").unwrap());
-    CudaBuilder::new("kernels")
+    let manifest_dir = path::PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+
+    CudaBuilder::new(manifest_dir.join("kernels"))
         .copy_to(out_path.join("kernels.ptx"))
         .build()
         .unwrap();

@@ -35,6 +35,10 @@ fn main() {
     let outdir = path::PathBuf::from(
         env::var("OUT_DIR").expect("OUT_DIR environment variable should be set by cargo."),
     );
+    let manifest_dir = path::PathBuf::from(
+        env::var("CARGO_MANIFEST_DIR")
+            .expect("CARGO_MANIFEST_DIR environment variable should be set by cargo."),
+    );
 
     let sdk = cuda_sdk::CudaSdk::new().expect("Cannot create CUDA SDK instance.");
     // Emit metadata for the build script.
@@ -63,11 +67,11 @@ fn main() {
         println!("cargo::rerun-if-env-changed={}", e);
     }
 
-    create_cuda_driver_bindings(&sdk, outdir.as_path());
-    create_cuda_runtime_bindings(&sdk, outdir.as_path());
-    create_cublas_bindings(&sdk, outdir.as_path());
-    create_nptx_compiler_bindings(&sdk, outdir.as_path());
-    create_nvvm_bindings(&sdk, outdir.as_path());
+    create_cuda_driver_bindings(&sdk, &outdir, &manifest_dir);
+    create_cuda_runtime_bindings(&sdk, &outdir, &manifest_dir);
+    create_cublas_bindings(&sdk, &outdir, &manifest_dir);
+    create_nptx_compiler_bindings(&sdk, &outdir, &manifest_dir);
+    create_nvvm_bindings(&sdk, &outdir, &manifest_dir);
 
     if cfg!(any(
         feature = "driver",
@@ -101,14 +105,19 @@ fn main() {
     }
 }
 
-fn create_cuda_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+fn create_cuda_driver_bindings(
+    sdk: &cuda_sdk::CudaSdk,
+    outdir: &path::Path,
+    manifest_dir: &path::Path,
+) {
     if !cfg!(feature = "driver") {
         return;
     }
     let bindgen_path = path::PathBuf::from(format!("{}/driver_sys.rs", outdir.display()));
-    let header = "build/driver_wrapper.h";
+    let header = manifest_dir.join("build/driver_wrapper.h");
+    println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
-        .header(header)
+        .header(header.to_str().expect("header should be valid UTF-8"))
         .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
             "cu",
             outdir,
@@ -145,14 +154,19 @@ fn create_cuda_driver_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .expect("Cannot write CUDA driver bindgen output to file.");
 }
 
-fn create_cuda_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+fn create_cuda_runtime_bindings(
+    sdk: &cuda_sdk::CudaSdk,
+    outdir: &path::Path,
+    manifest_dir: &path::Path,
+) {
     if !cfg!(feature = "runtime") {
         return;
     }
     let bindgen_path = path::PathBuf::from(format!("{}/runtime_sys.rs", outdir.display()));
-    let header = "build/runtime_wrapper.h";
+    let header = manifest_dir.join("build/runtime_wrapper.h");
+    println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
-        .header(header)
+        .header(header.to_str().expect("header should be valid UTF-8"))
         .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
             "cuda",
             outdir,
@@ -187,7 +201,7 @@ fn create_cuda_runtime_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .expect("Cannot write CUDA runtime bindgen output to file.");
 }
 
-fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path, manifest_dir: &path::Path) {
     #[rustfmt::skip]
     let params = &[
         (cfg!(feature = "cublas"), "cublas", "^cublas.*", "^CUBLAS.*"),
@@ -199,9 +213,10 @@ fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
             continue;
         }
         let bindgen_path = path::PathBuf::from(format!("{}/{pkg}_sys.rs", outdir.display()));
-        let header = format!("build/{pkg}_wrapper.h");
+        let header = manifest_dir.join(format!("build/{pkg}_wrapper.h"));
+        println!("cargo::rerun-if-changed={}", header.display());
         let bindings = bindgen::Builder::default()
-            .header(&header)
+            .header(header.to_str().expect("header should be valid UTF-8"))
             .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
                 pkg,
                 outdir,
@@ -235,13 +250,19 @@ fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
     }
 }
 
-fn create_nptx_compiler_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+fn create_nptx_compiler_bindings(
+    sdk: &cuda_sdk::CudaSdk,
+    outdir: &path::Path,
+    manifest_dir: &path::Path,
+) {
     if !cfg!(feature = "nvptx-compiler") {
         return;
     }
     let bindgen_path = path::PathBuf::from(format!("{}/nvptx_compiler_sys.rs", outdir.display()));
+    let header = manifest_dir.join("build/nvptx_compiler_wrapper.h");
+    println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
-        .header("build/nvptx_compiler_wrapper.h")
+        .header(header.to_str().expect("header should be valid UTF-8"))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .clang_args(
             sdk.cuda_include_paths()
@@ -268,13 +289,15 @@ fn create_nptx_compiler_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
         .expect("Cannot write nvptx-compiler bindgen output to file.");
 }
 
-fn create_nvvm_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path) {
+fn create_nvvm_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path, manifest_dir: &path::Path) {
     if !cfg!(feature = "nvvm") {
         return;
     }
     let bindgen_path = path::PathBuf::from(format!("{}/nvvm_sys.rs", outdir.display()));
+    let header = manifest_dir.join("build/nvvm_wrapper.h");
+    println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
-        .header("build/nvvm_wrapper.h")
+        .header(header.to_str().expect("header should be valid UTF-8"))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .clang_args(
             sdk.nvvm_include_paths()
