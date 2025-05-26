@@ -137,7 +137,10 @@ pub struct CudaBuilder {
     /// errors (CUDA error code: `700`).
     ///
     /// The default is `false`, which places all statics in global memory. This avoids
-    /// such errors but may reduce performance and use more general memory.
+    /// such errors but may reduce performance and use more general memory. When set to
+    /// `false`, you can still annotate `static` variables with
+    /// `#[cuda_std::address_space(constant)]` to place them in constant memory
+    /// manually. This option only affects automatic placement.
     ///
     /// Future versions may support smarter placement and user-controlled
     /// packing/spilling strategies.
@@ -304,7 +307,9 @@ impl CudaBuilder {
     /// errors (CUDA error code: `700`).
     ///
     /// If `false`, all statics are placed in global memory. This avoids such errors but
-    /// may reduce performance and use more general memory.
+    /// may reduce performance and use more general memory. You can still annotate
+    /// `static` variables with `#[cuda_std::address_space(constant)]` to place them in
+    /// constant memory manually as this option only affects automatic placement.
     ///
     /// Future versions may support smarter placement and user-controlled
     /// packing/spilling strategies.
