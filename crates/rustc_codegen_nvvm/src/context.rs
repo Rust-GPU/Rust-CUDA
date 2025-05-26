@@ -271,17 +271,30 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         }
 
         if !is_mutable && self.type_is_freeze(ty) {
-            let layout = self.layout_of(ty);
-            if layout.size.bytes() > CONSTANT_MEMORY_SIZE_LIMIT_BYTES {
-                self.tcx.sess.dcx().warn(format!(
-                    "static `{}` exceeds the constant-memory limit; placing in global memory (performance may be reduced)",
-                    instance
-                ));
-                // Global memory
+            if !self.codegen_args.use_constant_memory_space {
+                // We aren't using constant memory, so put the instance in global memory.
                 AddressSpace(1)
             } else {
-                // Constant memory
-                AddressSpace(4)
+                // We are using constant memory, see if the instance will fit.
+                //
+                // FIXME(@LegNeato) ideally we keep track of what we have put into
+                // constant memory and when it is filled up spill instead of only
+                // spilling when a static is big. We'll probably want some packing
+                // strategy controlled by the user...for example, if you have one large
+                // static and many small ones, you might want the small ones to all be
+                // in constant memory or just the big one depending on your workload.
+                let layout = self.layout_of(ty);
+                if layout.size.bytes() > CONSTANT_MEMORY_SIZE_LIMIT_BYTES {
+                    self.tcx.sess.dcx().warn(format!(
+                    "static `{}` exceeds the constant memory limit; placing in global memory (performance may be reduced)",
+                    instance
+                ));
+                    // Place instance in global memory if it is too big for constant memory.
+                    AddressSpace(1)
+                } else {
+                    // Place instance in constant memory if it fits.
+                    AddressSpace(4)
+                }
             }
         } else {
             AddressSpace::DATA
@@ -534,6 +547,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 pub struct CodegenArgs {
     pub nvvm_options: Vec<NvvmOption>,
     pub override_libm: bool,
+    pub use_constant_memory_space: bool,
     pub final_module_path: Option<PathBuf>,
 }
 
@@ -552,6 +566,8 @@ impl CodegenArgs {
                 cg_args.nvvm_options.push(flag);
             } else if arg == "--override-libm" {
                 cg_args.override_libm = true;
+            } else if arg == "--use-constant-memory-space" {
+                cg_args.use_constant_memory_space = true;
             } else if arg == "--final-module-path" {
                 cg_args.final_module_path = Some(PathBuf::from(
                     args.get(idx + 1).expect("No path for --final-module-path"),
