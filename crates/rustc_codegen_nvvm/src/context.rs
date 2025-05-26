@@ -277,7 +277,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                     "static `{}` exceeds the constant-memory limit; placing in global memory (performance may be reduced)",
                     instance
                 ));
-                AddressSpace::DATA
+                AddressSpace(1)
             } else {
                 AddressSpace(4)
             }
