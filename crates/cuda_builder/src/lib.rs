@@ -130,6 +130,21 @@ pub struct CudaBuilder {
     ///
     /// `true` by default.
     pub override_libm: bool,
+    /// If `true`, the codegen will attempt to place `static` variables in CUDA's
+    /// constant memory, which is fast but limited in size (~64KB total across all
+    /// statics). The codegen avoids placing any single item too large, but it does not
+    /// track cumulative size. Exceeding the limit may cause `IllegalAddress` runtime
+    /// errors (CUDA error code: `700`).
+    ///
+    /// The default is `false`, which places all statics in global memory. This avoids
+    /// such errors but may reduce performance and use more general memory. When set to
+    /// `false`, you can still annotate `static` variables with
+    /// `#[cuda_std::address_space(constant)]` to place them in constant memory
+    /// manually. This option only affects automatic placement.
+    ///
+    /// Future versions may support smarter placement and user-controlled
+    /// packing/spilling strategies.
+    pub use_constant_memory_space: bool,
     /// Whether to generate any debug info and what level of info to generate.
     pub debug: DebugInfo,
     /// Additional arguments passed to cargo during `cargo build`.
@@ -155,6 +170,7 @@ impl CudaBuilder {
             emit: None,
             optix: false,
             override_libm: true,
+            use_constant_memory_space: false,
             debug: DebugInfo::None,
             build_args: vec![],
             final_module_path: None,
@@ -281,6 +297,24 @@ impl CudaBuilder {
     /// determinism in things like `rapier`, then it may be helpful to disable such a feature.
     pub fn override_libm(mut self, override_libm: bool) -> Self {
         self.override_libm = override_libm;
+        self
+    }
+
+    /// If `true`, the codegen will attempt to place `static` variables in CUDA's
+    /// constant memory, which is fast but limited in size (~64KB total across all
+    /// statics). The codegen avoids placing any single item too large, but it does not
+    /// track cumulative size. Exceeding the limit may cause `IllegalAddress` runtime
+    /// errors (CUDA error code: `700`).
+    ///
+    /// If `false`, all statics are placed in global memory. This avoids such errors but
+    /// may reduce performance and use more general memory. You can still annotate
+    /// `static` variables with `#[cuda_std::address_space(constant)]` to place them in
+    /// constant memory manually as this option only affects automatic placement.
+    ///
+    /// Future versions may support smarter placement and user-controlled
+    /// packing/spilling strategies.
+    pub fn use_constant_memory_space(mut self, use_constant_memory_space: bool) -> Self {
+        self.use_constant_memory_space = use_constant_memory_space;
         self
     }
 

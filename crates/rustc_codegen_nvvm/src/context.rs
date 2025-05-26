@@ -22,7 +22,7 @@ use rustc_errors::DiagMessage;
 use rustc_hash::FxHashMap;
 use rustc_middle::dep_graph::DepContext;
 use rustc_middle::ty::layout::{
-    FnAbiError, FnAbiOf, FnAbiRequest, HasTyCtxt, HasTypingEnv, LayoutError,
+    FnAbiError, FnAbiOf, FnAbiRequest, HasTyCtxt, HasTypingEnv, LayoutError, LayoutOf,
 };
 use rustc_middle::ty::layout::{FnAbiOfHelpers, LayoutOfHelpers};
 use rustc_middle::ty::{Ty, TypeVisitableExt};
@@ -39,6 +39,10 @@ use rustc_target::callconv::FnAbi;
 
 use rustc_target::spec::{HasTargetSpec, Target};
 use tracing::{debug, trace};
+
+/// "There is a total of 64 KB constant memory on a device."
+/// <https://docs.nvidia.com/cuda/archive/12.8.1/pdf/CUDA_C_Best_Practices_Guide.pdf>
+const CONSTANT_MEMORY_SIZE_LIMIT_BYTES: u64 = 64 * 1024;
 
 pub(crate) struct CodegenCx<'ll, 'tcx> {
     pub tcx: TyCtxt<'tcx>,
@@ -267,7 +271,31 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         }
 
         if !is_mutable && self.type_is_freeze(ty) {
-            AddressSpace(4)
+            if !self.codegen_args.use_constant_memory_space {
+                // We aren't using constant memory, so put the instance in global memory.
+                AddressSpace(1)
+            } else {
+                // We are using constant memory, see if the instance will fit.
+                //
+                // FIXME(@LegNeato) ideally we keep track of what we have put into
+                // constant memory and when it is filled up spill instead of only
+                // spilling when a static is big. We'll probably want some packing
+                // strategy controlled by the user...for example, if you have one large
+                // static and many small ones, you might want the small ones to all be
+                // in constant memory or just the big one depending on your workload.
+                let layout = self.layout_of(ty);
+                if layout.size.bytes() > CONSTANT_MEMORY_SIZE_LIMIT_BYTES {
+                    self.tcx.sess.dcx().warn(format!(
+                    "static `{}` exceeds the constant memory limit; placing in global memory (performance may be reduced)",
+                    instance
+                ));
+                    // Place instance in global memory if it is too big for constant memory.
+                    AddressSpace(1)
+                } else {
+                    // Place instance in constant memory if it fits.
+                    AddressSpace(4)
+                }
+            }
         } else {
             AddressSpace::DATA
         }
@@ -519,6 +547,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 pub struct CodegenArgs {
     pub nvvm_options: Vec<NvvmOption>,
     pub override_libm: bool,
+    pub use_constant_memory_space: bool,
     pub final_module_path: Option<PathBuf>,
 }
 
@@ -537,6 +566,8 @@ impl CodegenArgs {
                 cg_args.nvvm_options.push(flag);
             } else if arg == "--override-libm" {
                 cg_args.override_libm = true;
+            } else if arg == "--use-constant-memory-space" {
+                cg_args.use_constant_memory_space = true;
             } else if arg == "--final-module-path" {
                 cg_args.final_module_path = Some(PathBuf::from(
                     args.get(idx + 1).expect("No path for --final-module-path"),

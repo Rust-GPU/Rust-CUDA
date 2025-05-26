@@ -1154,18 +1154,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
 impl<'ll> StaticBuilderMethods for Builder<'_, 'll, '_> {
     fn get_static(&mut self, def_id: DefId) -> &'ll Value {
-        unsafe {
-            let mut g = self.cx.get_static(def_id);
-            let llty = self.val_ty(g);
-            let addrspace = AddressSpace(llvm::LLVMGetPointerAddressSpace(llty));
-            if addrspace != AddressSpace::DATA {
-                trace!("Remapping global address space of global {:?}", g);
-                let llty = llvm::LLVMGetElementType(llty);
-                let ty = self.type_ptr_to_ext(llty, AddressSpace::DATA);
-                g = llvm::LLVMBuildAddrSpaceCast(self.llbuilder, g, ty, unnamed());
-            }
-            g
-        }
+        self.cx.get_static(def_id)
     }
 }
 
