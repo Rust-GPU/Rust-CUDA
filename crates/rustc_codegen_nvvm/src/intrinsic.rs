@@ -295,22 +295,41 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 }
             }
             sym::volatile_load | sym::unaligned_volatile_load => {
-                let tp_ty = fn_args.type_at(0);
-                let mut ptr = args[0].immediate();
-                if let PassMode::Cast { cast: ty, .. } = &fn_abi.ret.mode {
-                    ptr = self.pointercast(ptr, self.type_ptr_to(ty.llvm_type(self)));
-                }
-                let load = self.volatile_load(self.type_i1(), ptr);
+                // The `*const T` or `*mut T` operand.
+                let ptr_operand = &args[0];
+                let src_ptr_llval = ptr_operand.immediate();
+
+                //  Determine the type T (the pointee type) and its LLVM representation.
+                // `ptr_operand.layout.ty` is the Rust type `*const T` (or `*mut T`). We
+                // need the layout of `T`.
+                let pointee_rust_ty =
+                    ptr_operand
+                        .layout
+                        .ty
+                        .builtin_deref(true)
+                        .unwrap_or_else(|| {
+                            span_bug!(span, "volatile_load input pointer is not a pointer type")
+                        });
+                let layout_of_pointee = self.layout_of(pointee_rust_ty);
+                let llvm_ty_of_pointee = layout_of_pointee.llvm_type(self);
+
+                // Call volatile_load with the correct LLVM type of T. The
+                // `volatile_load` does a pointercast so we do not need to do it here.
+                let loaded_llval = self.volatile_load(llvm_ty_of_pointee, src_ptr_llval);
+
+                // Set alignment for the LLVM load instruction based on the alignment of
+                // `T`.
                 let align = if name == sym::unaligned_volatile_load {
                     1
                 } else {
-                    self.align_of(tp_ty).bytes() as u32
+                    layout_of_pointee.align.abi.bytes() as u32
                 };
                 unsafe {
-                    llvm::LLVMSetAlignment(load, align);
+                    llvm::LLVMSetAlignment(loaded_llval, align);
                 }
+
                 if !result.layout.is_zst() {
-                    self.store_to_place(load, result.val);
+                    self.store_to_place(loaded_llval, result.val);
                 }
                 return Ok(());
             }
