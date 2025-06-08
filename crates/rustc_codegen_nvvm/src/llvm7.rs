@@ -712,7 +712,8 @@ unsafe extern "C" {
         T: &'a Type,
         AddressSpace: c_uint,
     ) -> &'a Value;
-    pub(crate) fn LLVMAddGlobalDCEPass(PM: &mut PassManager);
+    // TODO: removed
+    //pub(crate) fn LLVMAddGlobalDCEPass(PM: &mut PassManager);
     pub(crate) fn LLVMGetNamedMetadataOperands(M: &Module, name: *const c_char, Dest: *mut &Value);
     pub(crate) fn LLVMGetNamedMetadataNumOperands(M: &Module, name: *const c_char) -> c_uint;
     pub(crate) fn LLVMGetMDNodeOperands(V: &Value, Dest: *mut &Value);

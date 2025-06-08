@@ -311,11 +311,57 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
     }
 }
 
-unsafe fn dce_pass(module: &Module) {
+// TODO: remove llvmv7 code
+/*unsafe fn dce_pass(module: &Module) {
     unsafe {
         let pass_manager = llvm7::LLVMCreatePassManager();
         llvm7::LLVMAddGlobalDCEPass(pass_manager);
         llvm7::LLVMRunPassManager(pass_manager, module);
         llvm7::LLVMDisposePassManager(pass_manager);
+    }
+}*/
+
+// TODO: remove llvmv19 code
+// TODO: this null_tm transmute thing is really bad
+/*
+an alternative?
+
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Analysis/LoopAnalysisManager.h"
+#include "llvm/Analysis/CGSCCPassManager.h"
+#include "llvm/Transforms/IPO/GlobalDCE.h"
+#include "llvm/IR/PassManager.h"
+
+extern "C" int LLVMRustRunGlobalDCEOnly(LLVMModuleRef M) {
+    auto *Module = unwrap(M);
+    
+    llvm::LoopAnalysisManager LAM;
+    llvm::FunctionAnalysisManager FAM;
+    llvm::CGSCCAnalysisManager CGAM;
+    llvm::ModuleAnalysisManager MAM;
+    
+    llvm::PassBuilder PB;
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+    
+    llvm::ModulePassManager MPM;
+    MPM.addPass(llvm::GlobalDCEPass());
+    
+    MPM.run(*Module, MAM);
+    return 0;
+}
+*/
+unsafe fn dce_pass(module: &Module) {
+    unsafe {
+        let options = llvm7::LLVMCreatePassBuilderOptions();
+        let passes = c"globaldce".as_ptr();
+        // Run the pass pipeline (target machine can be null for IR-only passes)
+        let null_tm: &llvm7::TargetMachine = std::mem::transmute(0usize);
+        llvm7::LLVMRunPasses(module, passes, null_tm, options);        
+        llvm7::LLVMDisposePassBuilderOptions(options);
     }
 }

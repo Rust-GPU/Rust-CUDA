@@ -2536,3 +2536,15 @@ extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateLexicalBlock(
     return wrap(Builder->createLexicalBlock(unwrapDI<DIScope>(Scope),
                                             unwrapDI<DIFile>(File), Line, Col));
 }
+
+// TODO: non-standard
+extern "C" LLVMMetadataRef
+LLVMRustDIBuilderCreateNameSpace(LLVMRustDIBuilderRef Builder,
+                                 LLVMMetadataRef Scope, const char *Name, size_t NameLen)
+{
+    return wrap(Builder->createNameSpace(
+        unwrapDI<DIScope>(Scope),               // Changed from DIDescriptor to DIScope
+        StringRef(Name, NameLen),
+        false                                   // ExportSymbols (always present in v19)
+    ));
+}
