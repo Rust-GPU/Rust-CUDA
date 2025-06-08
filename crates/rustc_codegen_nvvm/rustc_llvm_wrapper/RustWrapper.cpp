@@ -2294,3 +2294,63 @@ extern "C" void LLVMRustRemoveFunctionAttributes(LLVMValueRef Fn,
   AttributeList PALNew = PAL.removeAttributeAtIndex(Ctx, Index, Attr.getKindAsEnum());
   F->setAttributes(PALNew);
 }
+
+// TODO: non-standard
+extern "C" void LLVMRustAppendModuleInlineAsm(LLVMModuleRef M, const char *Asm, size_t AsmLen)
+{
+  unwrap(M)->appendModuleInlineAsm(StringRef(Asm, AsmLen));
+}
+
+// TODO: non-standard
+enum class LLVMRustLinkage
+{
+  ExternalLinkage = 0,
+  AvailableExternallyLinkage = 1,
+  LinkOnceAnyLinkage = 2,
+  LinkOnceODRLinkage = 3,
+  WeakAnyLinkage = 4,
+  WeakODRLinkage = 5,
+  AppendingLinkage = 6,
+  InternalLinkage = 7,
+  PrivateLinkage = 8,
+  ExternalWeakLinkage = 9,
+  CommonLinkage = 10,
+};
+
+// TODO: non-standard
+static LLVMLinkage fromRust(LLVMRustLinkage Linkage)
+{
+  switch (Linkage)
+  {
+  case LLVMRustLinkage::ExternalLinkage:
+    return LLVMExternalLinkage;
+  case LLVMRustLinkage::AvailableExternallyLinkage:
+    return LLVMAvailableExternallyLinkage;
+  case LLVMRustLinkage::LinkOnceAnyLinkage:
+    return LLVMLinkOnceAnyLinkage;
+  case LLVMRustLinkage::LinkOnceODRLinkage:
+    return LLVMLinkOnceODRLinkage;
+  case LLVMRustLinkage::WeakAnyLinkage:
+    return LLVMWeakAnyLinkage;
+  case LLVMRustLinkage::WeakODRLinkage:
+    return LLVMWeakODRLinkage;
+  case LLVMRustLinkage::AppendingLinkage:
+    return LLVMAppendingLinkage;
+  case LLVMRustLinkage::InternalLinkage:
+    return LLVMInternalLinkage;
+  case LLVMRustLinkage::PrivateLinkage:
+    return LLVMPrivateLinkage;
+  case LLVMRustLinkage::ExternalWeakLinkage:
+    return LLVMExternalWeakLinkage;
+  case LLVMRustLinkage::CommonLinkage:
+    return LLVMCommonLinkage;
+  }
+  report_fatal_error("Invalid LLVMRustLinkage value!");
+}
+
+// TODO: non-standard
+extern "C" void LLVMRustSetLinkage(LLVMValueRef V,
+                                   LLVMRustLinkage RustLinkage)
+{
+  LLVMSetLinkage(V, fromRust(RustLinkage));
+}
