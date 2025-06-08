@@ -12,8 +12,8 @@ use super::{DefinitionLocation, SmallVec, UNKNOWN_LINE_NUMBER, unknown_file_meta
 use crate::common::AsCCharPtr;
 use crate::context::CodegenCx;
 use crate::debug_info::util::{DIB, create_DIArray, debug_context};
-use crate::llvm;
-use crate::llvm::debuginfo::{DIFlags, DIScope, DIType};
+use crate::llvm7;
+use crate::llvm7::debuginfo::{DIFlags, DIScope, DIType};
 
 mod private {
     use rustc_macros::HashStable;
@@ -219,7 +219,7 @@ pub(super) fn stub<'ll, 'tcx>(
                 _ => None,
             };
             unsafe {
-                llvm::LLVMRustDIBuilderCreateStructType(
+                llvm7::LLVMRustDIBuilderCreateStructType(
                     DIB(cx),
                     containing_scope,
                     name.as_c_char_ptr(),
@@ -239,7 +239,7 @@ pub(super) fn stub<'ll, 'tcx>(
             }
         }
         Stub::Union => unsafe {
-            llvm::LLVMRustDIBuilderCreateUnionType(
+            llvm7::LLVMRustDIBuilderCreateUnionType(
                 DIB(cx),
                 containing_scope,
                 name.as_c_char_ptr(),
@@ -295,7 +295,7 @@ pub(super) fn build_type_with_children<'ll, 'tcx>(
         unsafe {
             let members_array = create_DIArray(DIB(cx), &members[..]);
             let generics_array = create_DIArray(DIB(cx), &generics[..]);
-            llvm::LLVMRustDICompositeTypeReplaceArrays(
+            llvm7::LLVMRustDICompositeTypeReplaceArrays(
                 DIB(cx),
                 stub_info.metadata,
                 Some(members_array),

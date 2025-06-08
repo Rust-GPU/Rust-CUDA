@@ -28,20 +28,21 @@ use tracing::{debug, trace};
 use crate::abi::FnAbiLlvmExt;
 use crate::context::CodegenCx;
 use crate::int_replace::{get_transformed_type, transmute_llval};
-use crate::llvm::{self, BasicBlock, Type, Value};
+use crate::llvm7;
+use crate::llvm7::{BasicBlock, Type, Value};
 use crate::ty::LayoutLlvmExt;
 
 // All Builders must have an llfn associated with them
 #[must_use]
 pub(crate) struct Builder<'a, 'll, 'tcx> {
-    pub llbuilder: &'ll mut llvm::Builder<'ll>,
+    pub llbuilder: &'ll mut llvm7::Builder<'ll>,
     pub cx: &'a CodegenCx<'ll, 'tcx>,
 }
 
 impl Drop for Builder<'_, '_, '_> {
     fn drop(&mut self) {
         unsafe {
-            llvm::LLVMDisposeBuilder(&mut *(self.llbuilder as *mut _));
+            llvm7::LLVMDisposeBuilder(&mut *(self.llbuilder as *mut _));
         }
     }
 }
@@ -129,7 +130,7 @@ macro_rules! math_builder_methods {
         $(fn $name(&mut self, $($arg: &'ll Value),*) -> &'ll Value {
             unsafe {
                 trace!("binary expr: {:?} with args {:?}", stringify!($name), [$($arg),*]);
-                llvm::$llvm_capi(self.llbuilder, $($arg,)* UNNAMED)
+                llvm7::$llvm_capi(self.llbuilder, $($arg,)* UNNAMED)
             }
         })+
     }
@@ -139,8 +140,8 @@ macro_rules! set_math_builder_methods {
     ($($name:ident($($arg:ident),*) => ($llvm_capi:ident, $llvm_set_math:ident)),+ $(,)?) => {
         $(fn $name(&mut self, $($arg: &'ll Value),*) -> &'ll Value {
             unsafe {
-                let instr = llvm::$llvm_capi(self.llbuilder, $($arg,)* UNNAMED);
-                llvm::$llvm_set_math(instr);
+                let instr = llvm7::$llvm_capi(self.llbuilder, $($arg,)* UNNAMED);
+                llvm7::$llvm_set_math(instr);
                 instr
             }
         })+
@@ -162,7 +163,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn build(cx: &'a CodegenCx<'ll, 'tcx>, llbb: &'ll BasicBlock) -> Self {
         let bx = Builder::with_cx(cx);
         unsafe {
-            llvm::LLVMPositionBuilderAtEnd(bx.llbuilder, llbb);
+            llvm7::LLVMPositionBuilderAtEnd(bx.llbuilder, llbb);
         }
         bx
     }
@@ -172,7 +173,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     }
 
     fn llbb(&self) -> &'ll BasicBlock {
-        unsafe { llvm::LLVMGetInsertBlock(self.llbuilder) }
+        unsafe { llvm7::LLVMGetInsertBlock(self.llbuilder) }
     }
 
     fn set_span(&mut self, _span: Span) {}
@@ -180,7 +181,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn append_block(cx: &'a CodegenCx<'ll, 'tcx>, llfn: &'ll Value, name: &str) -> &'ll BasicBlock {
         unsafe {
             let name = SmallCStr::new(name);
-            llvm::LLVMAppendBasicBlockInContext(cx.llcx, llfn, name.as_ptr())
+            llvm7::LLVMAppendBasicBlockInContext(cx.llcx, llfn, name.as_ptr())
         }
     }
 
@@ -195,7 +196,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn ret_void(&mut self) {
         trace!("Ret void");
         unsafe {
-            llvm::LLVMBuildRetVoid(self.llbuilder);
+            llvm7::LLVMBuildRetVoid(self.llbuilder);
         }
     }
 
@@ -207,14 +208,14 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             if changed {
                 v = transmute_llval(self.llbuilder, self.cx, v, new_ty);
             }
-            llvm::LLVMBuildRet(self.llbuilder, v);
+            llvm7::LLVMBuildRet(self.llbuilder, v);
         }
     }
 
     fn br(&mut self, dest: &'ll BasicBlock) {
         trace!("Br");
         unsafe {
-            llvm::LLVMBuildBr(self.llbuilder, dest);
+            llvm7::LLVMBuildBr(self.llbuilder, dest);
         }
     }
 
@@ -226,7 +227,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     ) {
         trace!("Cond br `{:?}`", cond);
         unsafe {
-            llvm::LLVMBuildCondBr(self.llbuilder, cond, then_llbb, else_llbb);
+            llvm7::LLVMBuildCondBr(self.llbuilder, cond, then_llbb, else_llbb);
         }
     }
 
@@ -238,10 +239,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     ) {
         trace!("Switch `{:?}`", v);
         let switch =
-            unsafe { llvm::LLVMBuildSwitch(self.llbuilder, v, else_llbb, cases.len() as c_uint) };
+            unsafe { llvm7::LLVMBuildSwitch(self.llbuilder, v, else_llbb, cases.len() as c_uint) };
         for (on_val, dest) in cases {
             let on_val = self.const_uint_big(self.val_ty(v), on_val);
-            unsafe { llvm::LLVMAddCase(switch, on_val, dest) }
+            unsafe { llvm7::LLVMAddCase(switch, on_val, dest) }
         }
     }
 
@@ -260,14 +261,14 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         trace!("invoke");
         let call = self.call(llty, fn_attrs, fn_abi, llfn, args, funclet, instance);
         // exceptions arent a thing, go directly to the `then` block
-        unsafe { llvm::LLVMBuildBr(self.llbuilder, then) };
+        unsafe { llvm7::LLVMBuildBr(self.llbuilder, then) };
         call
     }
 
     fn unreachable(&mut self) {
         trace!("Unreachable");
         unsafe {
-            llvm::LLVMBuildUnreachable(self.llbuilder);
+            llvm7::LLVMBuildUnreachable(self.llbuilder);
         }
     }
 
@@ -407,13 +408,13 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn alloca(&mut self, size: Size, align: Align) -> &'ll Value {
         trace!("Alloca `{:?}`", size);
         let mut bx = Builder::with_cx(self.cx);
-        bx.position_at_start(unsafe { llvm::LLVMGetFirstBasicBlock(self.llfn()) });
+        bx.position_at_start(unsafe { llvm7::LLVMGetFirstBasicBlock(self.llfn()) });
         let ty = self.cx().type_array(self.cx().type_i8(), size.bytes());
         unsafe {
-            let alloca = llvm::LLVMBuildAlloca(bx.llbuilder, ty, UNNAMED);
-            llvm::LLVMSetAlignment(alloca, align.bytes() as c_uint);
+            let alloca = llvm7::LLVMBuildAlloca(bx.llbuilder, ty, UNNAMED);
+            llvm7::LLVMSetAlignment(alloca, align.bytes() as c_uint);
             // Cast to default addrspace if necessary
-            llvm::LLVMBuildPointerCast(bx.llbuilder, alloca, self.cx().type_ptr(), UNNAMED)
+            llvm7::LLVMBuildPointerCast(bx.llbuilder, alloca, self.cx().type_ptr(), UNNAMED)
         }
     }
 
@@ -421,10 +422,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         trace!("Dynamic Alloca `{:?}`", size);
         unsafe {
             let alloca =
-                llvm::LLVMBuildArrayAlloca(self.llbuilder, self.cx().type_i8(), size, UNNAMED);
-            llvm::LLVMSetAlignment(alloca, align.bytes() as c_uint);
+                llvm7::LLVMBuildArrayAlloca(self.llbuilder, self.cx().type_i8(), size, UNNAMED);
+            llvm7::LLVMSetAlignment(alloca, align.bytes() as c_uint);
             // Cast to default addrspace if necessary
-            llvm::LLVMBuildPointerCast(self.llbuilder, alloca, self.cx().type_ptr(), UNNAMED)
+            llvm7::LLVMBuildPointerCast(self.llbuilder, alloca, self.cx().type_ptr(), UNNAMED)
         }
     }
 
@@ -432,8 +433,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         trace!("Load {ty:?} {:?}", ptr);
         let ptr = self.pointercast(ptr, self.cx.type_ptr_to(ty));
         unsafe {
-            let load = llvm::LLVMBuildLoad(self.llbuilder, ptr, UNNAMED);
-            llvm::LLVMSetAlignment(load, align.bytes() as c_uint);
+            let load = llvm7::LLVMBuildLoad(self.llbuilder, ptr, UNNAMED);
+            llvm7::LLVMSetAlignment(load, align.bytes() as c_uint);
             load
         }
     }
@@ -442,8 +443,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         trace!("Volatile load `{:?}`", ptr);
         let ptr = self.pointercast(ptr, self.cx.type_ptr_to(ty));
         unsafe {
-            let load = llvm::LLVMBuildLoad(self.llbuilder, ptr, UNNAMED);
-            llvm::LLVMSetVolatile(load, llvm::True);
+            let load = llvm7::LLVMBuildLoad(self.llbuilder, ptr, UNNAMED);
+            llvm7::LLVMSetVolatile(load, llvm7::True);
             load
         }
     }
@@ -473,7 +474,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
         let (ty, f) = self.get_intrinsic("llvm.trap");
         self.call(ty, None, None, f, &[], None, None);
-        unsafe { llvm::LLVMBuildLoad(self.llbuilder, ptr, unnamed()) }
+        unsafe { llvm7::LLVMBuildLoad(self.llbuilder, ptr, unnamed()) }
     }
 
     fn load_operand(&mut self, place: PlaceRef<'tcx, &'ll Value>) -> OperandRef<'tcx, &'ll Value> {
@@ -538,9 +539,9 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             let mut const_llval = None;
             let llty = place.layout.llvm_type(self);
             unsafe {
-                if let Some(global) = llvm::LLVMIsAGlobalVariable(place.val.llval) {
-                    if llvm::LLVMIsGlobalConstant(global) == llvm::True {
-                        if let Some(init) = llvm::LLVMGetInitializer(global) {
+                if let Some(global) = llvm7::LLVMIsAGlobalVariable(place.val.llval) {
+                    if llvm7::LLVMIsGlobalConstant(global) == llvm7::True {
+                        if let Some(init) = llvm7::LLVMGetInitializer(global) {
                             if self.val_ty(init) == llty {
                                 const_llval = Some(init);
                             }
@@ -637,20 +638,20 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 self.cx.const_uint_big(llty, range.end.wrapping_add(1)),
             ];
 
-            llvm::LLVMSetMetadata(
+            llvm7::LLVMSetMetadata(
                 load,
-                llvm::MetadataType::MD_range as c_uint,
-                llvm::LLVMMDNodeInContext(self.cx.llcx, v.as_ptr(), v.len() as c_uint),
+                llvm7::MetadataType::MD_range as c_uint,
+                llvm7::LLVMMDNodeInContext(self.cx.llcx, v.as_ptr(), v.len() as c_uint),
             );
         }
     }
 
     fn nonnull_metadata(&mut self, load: &'ll Value) {
         unsafe {
-            llvm::LLVMSetMetadata(
+            llvm7::LLVMSetMetadata(
                 load,
-                llvm::MetadataType::MD_nonnull as c_uint,
-                llvm::LLVMMDNodeInContext(self.cx.llcx, ptr::null(), 0),
+                llvm7::MetadataType::MD_nonnull as c_uint,
+                llvm7::LLVMMDNodeInContext(self.cx.llcx, ptr::null(), 0),
             );
         }
     }
@@ -676,15 +677,15 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         assert_eq!(self.cx.type_kind(self.cx.val_ty(ptr)), TypeKind::Pointer);
         let ptr = self.check_store(val, ptr);
         unsafe {
-            let store = llvm::LLVMBuildStore(self.llbuilder, val, ptr);
+            let store = llvm7::LLVMBuildStore(self.llbuilder, val, ptr);
             let align = if flags.contains(MemFlags::UNALIGNED) {
                 1
             } else {
                 align.bytes() as c_uint
             };
-            llvm::LLVMSetAlignment(store, align);
+            llvm7::LLVMSetAlignment(store, align);
             if flags.contains(MemFlags::VOLATILE) {
-                llvm::LLVMSetVolatile(store, llvm::True);
+                llvm7::LLVMSetVolatile(store, llvm7::True);
             }
             if flags.contains(MemFlags::NONTEMPORAL) {
                 // According to LLVM [1] building a nontemporal store must
@@ -692,8 +693,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 //
                 // [1]: http://llvm.org/docs/LangRef.html#store-instruction
                 let one = self.cx.const_i32(1);
-                let node = llvm::LLVMMDNodeInContext(self.cx.llcx, &one, 1);
-                llvm::LLVMSetMetadata(store, llvm::MetadataType::MD_nontemporal as c_uint, node);
+                let node = llvm7::LLVMMDNodeInContext(self.cx.llcx, &one, 1);
+                llvm7::LLVMSetMetadata(store, llvm7::MetadataType::MD_nontemporal as c_uint, node);
             }
 
             store
@@ -718,7 +719,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         // self.call(vprintf, &[formatlist, valist], None);
         self.abort();
         unsafe {
-            llvm::LLVMBuildLoad(self.llbuilder, ptr, UNNAMED);
+            llvm7::LLVMBuildLoad(self.llbuilder, ptr, UNNAMED);
         }
     }
 
@@ -726,7 +727,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         trace!("gep: {ty:?} {:?} with indices {:?}", ptr, indices);
         let ptr = self.pointercast(ptr, self.cx().type_ptr_to(ty));
         unsafe {
-            llvm::LLVMBuildGEP2(
+            llvm7::LLVMBuildGEP2(
                 self.llbuilder,
                 ty,
                 ptr,
@@ -746,7 +747,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         trace!("gep inbounds: {ty:?} {:?} with indices {:?}", ptr, indices);
         let ptr = self.pointercast(ptr, self.cx().type_ptr_to(ty));
         unsafe {
-            llvm::LLVMBuildInBoundsGEP2(
+            llvm7::LLVMBuildInBoundsGEP2(
                 self.llbuilder,
                 ty,
                 ptr,
@@ -760,12 +761,12 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     /* Casts */
     fn trunc(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("trunc {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildTrunc(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildTrunc(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn sext(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("sext {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildSExt(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildSExt(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn fptoui_sat(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
@@ -790,84 +791,84 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn fptoui(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("fptoui {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildFPToUI(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildFPToUI(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn fptosi(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("fptosi {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildFPToSI(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildFPToSI(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn uitofp(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("uitofp {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildUIToFP(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildUIToFP(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn sitofp(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("sitofp {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildSIToFP(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildSIToFP(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn fptrunc(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("fptrunc {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildFPTrunc(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildFPTrunc(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn fpext(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("fpext {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildFPExt(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildFPExt(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn ptrtoint(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("ptrtoint {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildPtrToInt(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildPtrToInt(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn inttoptr(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("inttoptr {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildIntToPtr(self.llbuilder, val, dest_ty, UNNAMED) }
+        unsafe { llvm7::LLVMBuildIntToPtr(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
     fn bitcast(&mut self, mut val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("Bitcast `{:?}` to ty `{:?}`", val, dest_ty);
         unsafe {
             let ty = self.val_ty(val);
-            let kind = llvm::LLVMRustGetTypeKind(ty);
-            if kind == llvm::TypeKind::Pointer {
+            let kind = llvm7::LLVMRustGetTypeKind(ty);
+            if kind == llvm7::TypeKind::Pointer {
                 let element = self.element_type(ty);
-                let addrspace = llvm::LLVMGetPointerAddressSpace(ty);
+                let addrspace = llvm7::LLVMGetPointerAddressSpace(ty);
                 let new_ty = self.type_ptr_to_ext(element, AddressSpace::DATA);
                 if addrspace != 0 {
                     trace!("injecting addrspace cast for `{:?}` to `{:?}`", ty, new_ty);
-                    val = llvm::LLVMBuildAddrSpaceCast(self.llbuilder, val, new_ty, UNNAMED);
+                    val = llvm7::LLVMBuildAddrSpaceCast(self.llbuilder, val, new_ty, UNNAMED);
                 }
             }
-            llvm::LLVMBuildBitCast(self.llbuilder, val, dest_ty, UNNAMED)
+            llvm7::LLVMBuildBitCast(self.llbuilder, val, dest_ty, UNNAMED)
         }
     }
 
     fn intcast(&mut self, val: &'ll Value, dest_ty: &'ll Type, is_signed: bool) -> &'ll Value {
         trace!("Intcast `{:?}` to ty `{:?}`", val, dest_ty);
-        unsafe { llvm::LLVMRustBuildIntCast(self.llbuilder, val, dest_ty, is_signed) }
+        unsafe { llvm7::LLVMRustBuildIntCast(self.llbuilder, val, dest_ty, is_signed) }
     }
 
     fn pointercast(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("Pointercast `{:?}` to ty `{:?}`", val, dest_ty);
-        unsafe { llvm::LLVMBuildPointerCast(self.llbuilder, val, dest_ty, unnamed()) }
+        unsafe { llvm7::LLVMBuildPointerCast(self.llbuilder, val, dest_ty, unnamed()) }
     }
 
     /* Comparisons */
     fn icmp(&mut self, op: IntPredicate, lhs: &'ll Value, rhs: &'ll Value) -> &'ll Value {
         trace!("Icmp lhs: `{:?}`, rhs: `{:?}`", lhs, rhs);
         unsafe {
-            let op = llvm::IntPredicate::from_generic(op);
-            llvm::LLVMBuildICmp(self.llbuilder, op as c_uint, lhs, rhs, unnamed())
+            let op = llvm7::IntPredicate::from_generic(op);
+            llvm7::LLVMBuildICmp(self.llbuilder, op as c_uint, lhs, rhs, unnamed())
         }
     }
 
     fn fcmp(&mut self, op: RealPredicate, lhs: &'ll Value, rhs: &'ll Value) -> &'ll Value {
         trace!("Fcmp lhs: `{:?}`, rhs: `{:?}`", lhs, rhs);
-        unsafe { llvm::LLVMBuildFCmp(self.llbuilder, op as c_uint, lhs, rhs, unnamed()) }
+        unsafe { llvm7::LLVMBuildFCmp(self.llbuilder, op as c_uint, lhs, rhs, unnamed()) }
     }
 
     /* Miscellaneous instructions */
@@ -887,7 +888,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         let size = self.intcast(size, self.type_isize(), false);
         let is_volatile = flags.contains(MemFlags::VOLATILE);
         unsafe {
-            llvm::LLVMRustBuildMemCpy(
+            llvm7::LLVMRustBuildMemCpy(
                 self.llbuilder,
                 dst,
                 dst_align.bytes() as c_uint,
@@ -915,7 +916,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         let size = self.intcast(size, self.type_isize(), false);
         let is_volatile = flags.contains(MemFlags::VOLATILE);
         unsafe {
-            llvm::LLVMRustBuildMemMove(
+            llvm7::LLVMRustBuildMemMove(
                 self.llbuilder,
                 dst,
                 dst_align.bytes() as c_uint,
@@ -937,7 +938,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     ) {
         let is_volatile = flags.contains(MemFlags::VOLATILE);
         unsafe {
-            llvm::LLVMRustBuildMemSet(
+            llvm7::LLVMRustBuildMemSet(
                 self.llbuilder,
                 ptr,
                 align.bytes() as c_uint,
@@ -955,20 +956,20 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         else_val: &'ll Value,
     ) -> &'ll Value {
         unsafe {
-            if self.val_ty(cond) == llvm::LLVMVectorType(self.type_i1(), 2) {
+            if self.val_ty(cond) == llvm7::LLVMVectorType(self.type_i1(), 2) {
                 cond = self.const_bool(false);
             }
-            llvm::LLVMBuildSelect(self.llbuilder, cond, then_val, else_val, unnamed())
+            llvm7::LLVMBuildSelect(self.llbuilder, cond, then_val, else_val, unnamed())
         }
     }
 
     fn va_arg(&mut self, list: &'ll Value, ty: &'ll Type) -> &'ll Value {
-        unsafe { llvm::LLVMBuildVAArg(self.llbuilder, list, ty, unnamed()) }
+        unsafe { llvm7::LLVMBuildVAArg(self.llbuilder, list, ty, unnamed()) }
     }
 
     fn extract_element(&mut self, vec: &'ll Value, idx: &'ll Value) -> &'ll Value {
         trace!("extract element {:?}, {:?}", vec, idx);
-        unsafe { llvm::LLVMBuildExtractElement(self.llbuilder, vec, idx, unnamed()) }
+        unsafe { llvm7::LLVMBuildExtractElement(self.llbuilder, vec, idx, unnamed()) }
     }
 
     fn vector_splat(&mut self, _num_elts: usize, _elt: &'ll Value) -> &'ll Value {
@@ -978,7 +979,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn extract_value(&mut self, agg_val: &'ll Value, idx: u64) -> &'ll Value {
         trace!("extract value {:?}, {:?}", agg_val, idx);
         assert_eq!(idx as c_uint as u64, idx);
-        unsafe { llvm::LLVMBuildExtractValue(self.llbuilder, agg_val, idx as c_uint, unnamed()) }
+        unsafe { llvm7::LLVMBuildExtractValue(self.llbuilder, agg_val, idx as c_uint, unnamed()) }
     }
 
     fn insert_value(&mut self, agg_val: &'ll Value, mut elt: &'ll Value, idx: u64) -> &'ll Value {
@@ -990,9 +991,9 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             let agg_ty = self.cx.val_ty(agg_val);
             let idx_ty = match self.cx.type_kind(agg_ty) {
                 TypeKind::Struct => unsafe {
-                    llvm::LLVMStructGetTypeAtIndex(agg_ty, idx as c_uint)
+                    llvm7::LLVMStructGetTypeAtIndex(agg_ty, idx as c_uint)
                 },
-                TypeKind::Array => unsafe { llvm::LLVMGetElementType(agg_ty) },
+                TypeKind::Array => unsafe { llvm7::LLVMGetElementType(agg_ty) },
                 _ => bug!(
                     "insert_value: expected struct or array type, found {:?}",
                     self.cx.type_kind(agg_ty)
@@ -1004,7 +1005,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             }
         }
 
-        unsafe { llvm::LLVMBuildInsertValue(self.llbuilder, agg_val, elt, idx as c_uint, UNNAMED) }
+        unsafe { llvm7::LLVMBuildInsertValue(self.llbuilder, agg_val, elt, idx as c_uint, UNNAMED) }
     }
 
     fn cleanup_landing_pad(&mut self, _pers_fn: &'ll Value) -> (&'ll Value, &'ll Value) {
@@ -1071,10 +1072,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn set_invariant_load(&mut self, load: &'ll Value) {
         unsafe {
-            llvm::LLVMSetMetadata(
+            llvm7::LLVMSetMetadata(
                 load,
-                llvm::MetadataType::MD_invariant_load as c_uint,
-                llvm::LLVMMDNodeInContext(self.cx.llcx, ptr::null(), 0),
+                llvm7::MetadataType::MD_invariant_load as c_uint,
+                llvm7::LLVMMDNodeInContext(self.cx.llcx, ptr::null(), 0),
             );
         }
     }
@@ -1102,7 +1103,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         let args = self.check_call("call", llty, llfn, args);
 
         let mut call = unsafe {
-            llvm::LLVMRustBuildCall(
+            llvm7::LLVMRustBuildCall(
                 self.llbuilder,
                 llfn,
                 args.as_ptr(),
@@ -1130,17 +1131,17 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn zext(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         trace!("Zext {:?} to {:?}", val, dest_ty);
-        unsafe { llvm::LLVMBuildZExt(self.llbuilder, val, dest_ty, unnamed()) }
+        unsafe { llvm7::LLVMBuildZExt(self.llbuilder, val, dest_ty, unnamed()) }
     }
 
     fn apply_attrs_to_cleanup_callsite(&mut self, llret: &'ll Value) {
         // Cleanup is always the cold path.
-        llvm::Attribute::Cold.apply_callsite(llvm::AttributePlace::Function, llret);
+        llvm7::Attribute::Cold.apply_callsite(llvm7::AttributePlace::Function, llret);
 
         // In LLVM versions with deferred inlining (currently, system LLVM < 14),
         // inlining drop glue can lead to exponential size blowup.
         // See rust_lang/rust #41696 and #92110.
-        llvm::Attribute::NoInline.apply_callsite(llvm::AttributePlace::Function, llret);
+        llvm7::Attribute::NoInline.apply_callsite(llvm7::AttributePlace::Function, llret);
     }
 
     fn assume_nonnull(&mut self, val: Self::Value) {
@@ -1165,22 +1166,22 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
         let first = self.const_u64(0);
         let second = self.const_u64(0);
         let vals = [first, second];
-        unsafe { llvm::LLVMConstVector(vals.as_ptr(), 2) }
+        unsafe { llvm7::LLVMConstVector(vals.as_ptr(), 2) }
     }
 
     fn with_cx(cx: &'a CodegenCx<'ll, 'tcx>) -> Self {
         // Create a fresh builder from the crate context.
-        let llbuilder = unsafe { llvm::LLVMCreateBuilderInContext(cx.llcx) };
+        let llbuilder = unsafe { llvm7::LLVMCreateBuilderInContext(cx.llcx) };
         Builder { llbuilder, cx }
     }
 
     pub fn llfn(&self) -> &'ll Value {
-        unsafe { llvm::LLVMGetBasicBlockParent(self.llbb()) }
+        unsafe { llvm7::LLVMGetBasicBlockParent(self.llbb()) }
     }
 
     fn position_at_start(&mut self, llbb: &'ll BasicBlock) {
         unsafe {
-            llvm::LLVMRustPositionBuilderAtStart(self.llbuilder, llbb);
+            llvm7::LLVMRustPositionBuilderAtStart(self.llbuilder, llbb);
         }
     }
 
@@ -1250,7 +1251,7 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
     }
 
     pub fn va_arg(&mut self, list: &'ll Value, ty: &'ll Type) -> &'ll Value {
-        unsafe { llvm::LLVMBuildVAArg(self.llbuilder, list, ty, unnamed()) }
+        unsafe { llvm7::LLVMBuildVAArg(self.llbuilder, list, ty, unnamed()) }
     }
 
     pub(crate) fn call_intrinsic(&mut self, intrinsic: &str, args: &[&'ll Value]) -> &'ll Value {
@@ -1278,16 +1279,16 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
         bbs: &[&'ll BasicBlock],
     ) -> &'ll Value {
         assert_eq!(vals.len(), bbs.len());
-        let phi = unsafe { llvm::LLVMBuildPhi(self.llbuilder, ty, unnamed()) };
+        let phi = unsafe { llvm7::LLVMBuildPhi(self.llbuilder, ty, unnamed()) };
         unsafe {
-            llvm::LLVMAddIncoming(phi, vals.as_ptr(), bbs.as_ptr(), vals.len() as c_uint);
+            llvm7::LLVMAddIncoming(phi, vals.as_ptr(), bbs.as_ptr(), vals.len() as c_uint);
             phi
         }
     }
 
     fn add_incoming_to_phi(&mut self, phi: &'ll Value, val: &'ll Value, bb: &'ll BasicBlock) {
         unsafe {
-            llvm::LLVMAddIncoming(phi, &val, &bb, 1);
+            llvm7::LLVMAddIncoming(phi, &val, &bb, 1);
         }
     }
 }

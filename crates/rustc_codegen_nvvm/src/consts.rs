@@ -1,7 +1,8 @@
 use std::ops::Range;
 
 use crate::debug_info;
-use crate::llvm::{self, True, Type, Value};
+use crate::llvm7;
+use crate::llvm7::{True, Type, Value};
 use libc::{c_char, c_uint};
 use rustc_abi::{AddressSpace, Align, HasDataLayout, Primitive, Scalar, Size, WrappingRange};
 use rustc_codegen_ssa::traits::*;
@@ -24,16 +25,16 @@ use tracing::trace;
 
 use crate::{context::CodegenCx, ty::LayoutLlvmExt};
 
-pub(crate) fn bytes_in_context<'ll>(llcx: &'ll llvm::Context, bytes: &[u8]) -> &'ll Value {
+pub(crate) fn bytes_in_context<'ll>(llcx: &'ll llvm7::Context, bytes: &[u8]) -> &'ll Value {
     unsafe {
         let ptr = bytes.as_ptr() as *const c_char;
-        llvm::LLVMConstStringInContext(llcx, ptr, bytes.len() as c_uint, True)
+        llvm7::LLVMConstStringInContext(llcx, ptr, bytes.len() as c_uint, True)
     }
 }
 
 impl<'ll> CodegenCx<'ll, '_> {
     pub fn const_array(&self, ty: &'ll Type, elts: &[&'ll Value]) -> &'ll Value {
-        unsafe { llvm::LLVMConstArray(ty, elts.as_ptr(), elts.len() as c_uint) }
+        unsafe { llvm7::LLVMConstArray(ty, elts.as_ptr(), elts.len() as c_uint) }
     }
 
     pub fn const_bytes(&self, bytes: &[u8]) -> &'ll Value {
@@ -153,17 +154,17 @@ pub(crate) fn codegen_static_initializer<'ll, 'tcx>(
     Ok((const_alloc_to_llvm(cx, alloc, /*static*/ true), alloc))
 }
 
-pub(crate) fn linkage_to_llvm(linkage: Linkage) -> llvm::Linkage {
+pub(crate) fn linkage_to_llvm(linkage: Linkage) -> llvm7::Linkage {
     match linkage {
-        Linkage::External => llvm::Linkage::ExternalLinkage,
-        Linkage::AvailableExternally => llvm::Linkage::AvailableExternallyLinkage,
-        Linkage::LinkOnceAny => llvm::Linkage::LinkOnceAnyLinkage,
-        Linkage::LinkOnceODR => llvm::Linkage::LinkOnceODRLinkage,
-        Linkage::WeakAny => llvm::Linkage::WeakAnyLinkage,
-        Linkage::WeakODR => llvm::Linkage::WeakODRLinkage,
-        Linkage::Internal => llvm::Linkage::InternalLinkage,
-        Linkage::ExternalWeak => llvm::Linkage::ExternalWeakLinkage,
-        Linkage::Common => llvm::Linkage::CommonLinkage,
+        Linkage::External => llvm7::Linkage::ExternalLinkage,
+        Linkage::AvailableExternally => llvm7::Linkage::AvailableExternallyLinkage,
+        Linkage::LinkOnceAny => llvm7::Linkage::LinkOnceAnyLinkage,
+        Linkage::LinkOnceODR => llvm7::Linkage::LinkOnceODRLinkage,
+        Linkage::WeakAny => llvm7::Linkage::WeakAnyLinkage,
+        Linkage::WeakODR => llvm7::Linkage::WeakODRLinkage,
+        Linkage::Internal => llvm7::Linkage::InternalLinkage,
+        Linkage::ExternalWeak => llvm7::Linkage::ExternalWeakLinkage,
+        Linkage::Common => llvm7::Linkage::CommonLinkage,
     }
 }
 
@@ -205,7 +206,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
         unsafe {
             // Declare a symbol `foo` with the desired linkage.
             let g1 = cx.declare_global(sym, llty2, addrspace);
-            llvm::LLVMRustSetLinkage(g1, linkage_to_llvm(linkage));
+            llvm7::LLVMRustSetLinkage(g1, linkage_to_llvm(linkage));
 
             // Declare an internal global `extern_with_linkage_foo` which
             // is initialized with the address of `foo`.  If `foo` is
@@ -223,8 +224,8 @@ fn check_and_apply_linkage<'ll, 'tcx>(
                         format!("symbol `{}` is already defined", &sym),
                     )
                 });
-            llvm::LLVMRustSetLinkage(g2, llvm::Linkage::InternalLinkage);
-            llvm::LLVMSetInitializer(g2, g1);
+            llvm7::LLVMRustSetLinkage(g2, llvm7::Linkage::InternalLinkage);
+            llvm7::LLVMSetInitializer(g2, g1);
             g2
         }
     } else {
@@ -235,12 +236,12 @@ fn check_and_apply_linkage<'ll, 'tcx>(
 impl<'ll> CodegenCx<'ll, '_> {
     pub(crate) fn const_bitcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
         trace!("Const bitcast: `{:?}` to `{:?}`", val, ty);
-        unsafe { llvm::LLVMConstBitCast(val, ty) }
+        unsafe { llvm7::LLVMConstBitCast(val, ty) }
     }
 
     pub(crate) fn const_ptrcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
         trace!("Const ptrcast: `{:?}` to `{:?}`", val, ty);
-        unsafe { llvm::LLVMConstPointerCast(val, ty) }
+        unsafe { llvm7::LLVMConstPointerCast(val, ty) }
     }
 
     pub(crate) fn static_addr_of_mut(
@@ -255,10 +256,10 @@ impl<'ll> CodegenCx<'ll, '_> {
             let gv = self
                 .define_global(&name[..], self.val_ty(cv), AddressSpace::DATA)
                 .unwrap_or_else(|| bug!("symbol `{}` is already defined", name));
-            llvm::LLVMRustSetLinkage(gv, llvm::Linkage::PrivateLinkage);
-            llvm::LLVMSetInitializer(gv, cv);
-            llvm::LLVMSetAlignment(gv, align.bytes() as c_uint);
-            llvm::SetUnnamedAddress(gv, llvm::UnnamedAddr::Global);
+            llvm7::LLVMRustSetLinkage(gv, llvm7::Linkage::PrivateLinkage);
+            llvm7::LLVMSetInitializer(gv, cv);
+            llvm7::LLVMSetAlignment(gv, align.bytes() as c_uint);
+            llvm7::SetUnnamedAddress(gv, llvm7::UnnamedAddr::Global);
             gv
         }
     }
@@ -297,7 +298,7 @@ impl<'ll> CodegenCx<'ll, '_> {
 
             if !self.tcx.is_reachable_non_generic(def_id) {
                 unsafe {
-                    llvm::LLVMRustSetVisibility(g, llvm::Visibility::Hidden);
+                    llvm7::LLVMRustSetVisibility(g, llvm7::Visibility::Hidden);
                 }
             }
 
@@ -322,15 +323,15 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
                 // Upgrade the alignment in cases where the same constant is used with different
                 // alignment requirements
                 let llalign = align.bytes() as u32;
-                if llalign > llvm::LLVMGetAlignment(gv) {
-                    llvm::LLVMSetAlignment(gv, llalign);
+                if llalign > llvm7::LLVMGetAlignment(gv) {
+                    llvm7::LLVMSetAlignment(gv, llalign);
                 }
             }
             return gv;
         }
         let gv = self.static_addr_of_mut(cv, align, kind);
         unsafe {
-            llvm::LLVMSetGlobalConstant(gv, True);
+            llvm7::LLVMSetGlobalConstant(gv, True);
         }
         self.const_globals.borrow_mut().insert(cv, gv);
         gv
@@ -339,7 +340,7 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
     fn codegen_static(&self, def_id: DefId) {
         unsafe {
             assert!(
-                llvm::LLVMGetInitializer(
+                llvm7::LLVMGetInitializer(
                     self.instances
                         .borrow()
                         .get(&Instance::mono(self.tcx, def_id))
@@ -360,7 +361,7 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
             let mut val_llty = self.val_ty(v);
             let v = if val_llty == self.type_i1() {
                 val_llty = self.type_i8();
-                llvm::LLVMConstZExt(v, val_llty)
+                llvm7::LLVMConstZExt(v, val_llty)
             } else {
                 v
             };
@@ -377,15 +378,15 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
                 );
                 // If we created the global with the wrong type,
                 // correct the type.
-                let name = llvm::get_value_name(g).to_vec();
+                let name = llvm7::get_value_name(g).to_vec();
 
-                llvm::set_value_name(g, b"");
+                llvm7::set_value_name(g, b"");
 
-                let linkage = llvm::LLVMRustGetLinkage(g);
-                let visibility = llvm::LLVMRustGetVisibility(g);
+                let linkage = llvm7::LLVMRustGetLinkage(g);
+                let visibility = llvm7::LLVMRustGetVisibility(g);
 
                 let addrspace = self.static_addrspace(instance);
-                let new_g = llvm::LLVMRustGetOrInsertGlobal(
+                let new_g = llvm7::LLVMRustGetOrInsertGlobal(
                     self.llmod,
                     name.as_ptr().cast(),
                     name.len(),
@@ -393,8 +394,8 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
                     addrspace.0,
                 );
 
-                llvm::LLVMRustSetLinkage(new_g, linkage);
-                llvm::LLVMRustSetVisibility(new_g, visibility);
+                llvm7::LLVMRustSetLinkage(new_g, linkage);
+                llvm7::LLVMRustSetVisibility(new_g, visibility);
 
                 // To avoid breaking any invariants, we leave around the old
                 // global for the moment; we'll replace all references to it
@@ -403,8 +404,8 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
                 new_g
             };
             trace!("Codegen static `{:?}`", g);
-            llvm::LLVMSetAlignment(g, self.align_of(ty).bytes() as c_uint);
-            llvm::LLVMSetInitializer(g, v);
+            llvm7::LLVMSetAlignment(g, self.align_of(ty).bytes() as c_uint);
+            llvm7::LLVMSetInitializer(g, v);
 
             debug_info::build_global_var_di_node(self, def_id, g);
 
@@ -413,7 +414,7 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
             if self.type_is_freeze(ty) {
                 // TODO(RDambrosio016): is this the same as putting this in
                 // the __constant__ addrspace for nvvm? should we set this addrspace explicitly?
-                // llvm::LLVMSetGlobalConstant(g, llvm::True);
+                // llvm7::LLVMSetGlobalConstant(g, llvm7::True);
             }
 
             debug_info::build_global_var_di_node(self, def_id, g);
@@ -431,14 +432,14 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
 
     /// Add a global value to a list to be stored in the `llvm.used` variable, an array of i8*.
     fn add_used_global(&self, global: &'ll Value) {
-        let cast = unsafe { llvm::LLVMConstPointerCast(global, self.type_i8p()) };
+        let cast = unsafe { llvm7::LLVMConstPointerCast(global, self.type_i8p()) };
         self.used_statics.borrow_mut().push(cast);
     }
 
     /// Add a global value to a list to be stored in the `llvm.compiler.used` variable,
     /// an array of i8*.
     fn add_compiler_used_global(&self, global: &'ll Value) {
-        let cast = unsafe { llvm::LLVMConstPointerCast(global, self.type_i8p()) };
+        let cast = unsafe { llvm7::LLVMConstPointerCast(global, self.type_i8p()) };
         self.compiler_used_statics.borrow_mut().push(cast);
     }
 }

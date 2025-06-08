@@ -10,7 +10,7 @@ use rustc_middle::bug;
 use rustc_session::Session;
 use rustc_target::spec::MergeFunctions;
 
-use crate::llvm;
+use crate::llvm7;
 
 static POISONED: AtomicBool = AtomicBool::new(false);
 static INIT: Once = Once::new();
@@ -19,7 +19,7 @@ pub(crate) fn init(sess: &Session) {
     unsafe {
         // Before we touch LLVM, make sure that multithreading is enabled.
         INIT.call_once(|| {
-            if llvm::LLVMStartMultithreaded() != 1 {
+            if llvm7::LLVMStartMultithreaded() != 1 {
                 // use an extra bool to make sure that all future usage of LLVM
                 // cannot proceed despite the Once not running more than once.
                 POISONED.store(true, Ordering::SeqCst);
@@ -112,7 +112,7 @@ unsafe fn configure_llvm(sess: &Session) {
         // }
     }
 
-    unsafe { llvm::LLVMInitializePasses() };
+    unsafe { llvm7::LLVMInitializePasses() };
 
     for plugin in &sess.opts.unstable_opts.llvm_plugins {
         let path = Path::new(plugin);
@@ -125,11 +125,11 @@ unsafe fn configure_llvm(sess: &Session) {
     }
 
     unsafe {
-        llvm::LLVMInitializeNVPTXTarget();
-        llvm::LLVMInitializeNVPTXTargetInfo();
-        llvm::LLVMInitializeNVPTXTargetMC();
-        llvm::LLVMInitializeNVPTXAsmPrinter();
+        llvm7::LLVMInitializeNVPTXTarget();
+        llvm7::LLVMInitializeNVPTXTargetInfo();
+        llvm7::LLVMInitializeNVPTXTargetMC();
+        llvm7::LLVMInitializeNVPTXAsmPrinter();
 
-        llvm::LLVMRustSetLLVMOptions(llvm_args.len() as c_int, llvm_args.as_ptr());
+        llvm7::LLVMRustSetLLVMOptions(llvm_args.len() as c_int, llvm_args.as_ptr());
     }
 }

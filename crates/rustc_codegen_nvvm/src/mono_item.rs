@@ -3,7 +3,7 @@ use crate::attributes;
 use crate::attributes::NvvmAttributes;
 use crate::consts::linkage_to_llvm;
 use crate::context::CodegenCx;
-use crate::llvm;
+use crate::llvm7;
 use crate::ty::LayoutLlvmExt;
 use rustc_codegen_ssa::traits::*;
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
@@ -13,11 +13,11 @@ use rustc_middle::ty::layout::{FnAbiOf, HasTypingEnv, LayoutOf};
 use rustc_middle::ty::{self, Instance};
 use tracing::trace;
 
-pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm::Visibility {
+pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm7::Visibility {
     match linkage {
-        Visibility::Default => llvm::Visibility::Default,
-        Visibility::Hidden => llvm::Visibility::Hidden,
-        Visibility::Protected => llvm::Visibility::Protected,
+        Visibility::Default => llvm7::Visibility::Default,
+        Visibility::Hidden => llvm7::Visibility::Hidden,
+        Visibility::Protected => llvm7::Visibility::Protected,
     }
 }
 
@@ -45,8 +45,8 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
             });
 
         unsafe {
-            llvm::LLVMRustSetLinkage(g, linkage_to_llvm(linkage));
-            llvm::LLVMRustSetVisibility(g, visibility_to_llvm(visibility));
+            llvm7::LLVMRustSetLinkage(g, linkage_to_llvm(linkage));
+            llvm7::LLVMRustSetVisibility(g, visibility_to_llvm(visibility));
         }
 
         self.instances.borrow_mut().insert(instance, g);
@@ -71,7 +71,7 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
 
         let lldecl = self.declare_fn(symbol_name, fn_abi.llvm_type(self), Some(fn_abi));
 
-        unsafe { llvm::LLVMRustSetLinkage(lldecl, linkage_to_llvm(linkage)) };
+        unsafe { llvm7::LLVMRustSetLinkage(lldecl, linkage_to_llvm(linkage)) };
 
         // If we're compiling the compiler-builtins crate, e.g., the equivalent of
         // compiler-rt, then we want to implicitly compile everything with hidden
@@ -79,11 +79,11 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
         // don't want the symbols to get exported.
         if linkage != Linkage::Internal && self.tcx.is_compiler_builtins(LOCAL_CRATE) {
             unsafe {
-                llvm::LLVMRustSetVisibility(lldecl, llvm::Visibility::Hidden);
+                llvm7::LLVMRustSetVisibility(lldecl, llvm7::Visibility::Hidden);
             }
         } else {
             unsafe {
-                llvm::LLVMRustSetVisibility(lldecl, visibility_to_llvm(visibility));
+                llvm7::LLVMRustSetVisibility(lldecl, visibility_to_llvm(visibility));
             }
         }
 
@@ -98,11 +98,11 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
             // to nvvm.annotations per the nvvm ir docs.
             if nvvm_attrs.kernel {
                 trace!("Marking function `{:?}` as a kernel", symbol_name);
-                let kernel = llvm::LLVMMDStringInContext(self.llcx, "kernel".as_ptr().cast(), 6);
+                let kernel = llvm7::LLVMMDStringInContext(self.llcx, "kernel".as_ptr().cast(), 6);
                 let mdvals = &[lldecl, kernel, self.const_i32(1)];
                 let node =
-                    llvm::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
-                llvm::LLVMAddNamedMetadataOperand(
+                    llvm7::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
+                llvm7::LLVMAddNamedMetadataOperand(
                     self.llmod,
                     c"nvvm.annotations".as_ptr().cast(),
                     node,
@@ -112,8 +112,8 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
                 trace!("Marking function `{:?}` as used", symbol_name);
                 let mdvals = &[lldecl];
                 let node =
-                    llvm::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
-                llvm::LLVMAddNamedMetadataOperand(
+                    llvm7::LLVMMDNodeInContext(self.llcx, mdvals.as_ptr(), mdvals.len() as u32);
+                llvm7::LLVMAddNamedMetadataOperand(
                     self.llmod,
                     c"cg_nvvm_used".as_ptr().cast(),
                     node,

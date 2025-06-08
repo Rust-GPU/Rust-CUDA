@@ -29,28 +29,28 @@ use crate::context::CodegenCx;
 use crate::debug_info::metadata::type_map::build_type_with_children;
 use crate::debug_info::util::*;
 use crate::debug_info::*;
-use crate::llvm::{DebugEmissionKind, Value};
-use crate::{abi, llvm};
+use crate::llvm7::{DIDescriptor, DIFile, DIFlags, DILexicalBlock, DIScope, DIType, DebugEmissionKind, Value};
+use crate::abi;
 
 // most of this code is taken from rustc_codegen_llvm, but adapted
 // to use llvm 7 stuff. As well as removing some useless stuff to account for
 // osx/wasm/msvc
 
-impl PartialEq for llvm::Metadata {
+impl PartialEq for llvm7::Metadata {
     fn eq(&self, other: &Self) -> bool {
         ptr::eq(self, other)
     }
 }
 
-impl Eq for llvm::Metadata {}
+impl Eq for llvm7::Metadata {}
 
-impl Hash for llvm::Metadata {
+impl Hash for llvm7::Metadata {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         (self as *const Self).hash(hasher);
     }
 }
 
-impl fmt::Debug for llvm::Metadata {
+impl fmt::Debug for llvm7::Metadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (self as *const Self).fmt(f)
     }
@@ -114,7 +114,7 @@ fn build_fixed_size_array_di_node<'ll, 'tcx>(
         .expect("expected monomorphic const in codegen") as c_longlong;
 
     let subrange = unsafe {
-        Some(llvm::LLVMRustDIBuilderGetOrCreateSubrange(
+        Some(llvm7::LLVMRustDIBuilderGetOrCreateSubrange(
             DIB(cx),
             0,
             upper_bound,
@@ -123,7 +123,7 @@ fn build_fixed_size_array_di_node<'ll, 'tcx>(
 
     let subscripts = create_DIArray(DIB(cx), &[subrange]);
     let di_node = unsafe {
-        llvm::LLVMRustDIBuilderCreateArrayType(
+        llvm7::LLVMRustDIBuilderCreateArrayType(
             DIB(cx),
             size.bits(),
             align.bits() as u32,
@@ -173,7 +173,7 @@ fn build_pointer_or_reference_di_node<'ll, 'tcx>(
             );
 
             let di_node = unsafe {
-                llvm::LLVMRustDIBuilderCreatePointerType(
+                llvm7::LLVMRustDIBuilderCreatePointerType(
                     DIB(cx),
                     pointee_type_di_node,
                     data_layout.pointer_size.bits(),
@@ -232,7 +232,7 @@ fn build_pointer_or_reference_di_node<'ll, 'tcx>(
                     // The data pointer type is a regular, thin pointer, regardless of whether this
                     // is a slice or a trait object.
                     let data_ptr_type_di_node = unsafe {
-                        llvm::LLVMRustDIBuilderCreatePointerType(
+                        llvm7::LLVMRustDIBuilderCreatePointerType(
                             DIB(cx),
                             pointee_type_di_node,
                             addr_field.size.bits(),
@@ -324,7 +324,7 @@ fn build_subroutine_type_di_node<'ll, 'tcx>(
         .remove(&unique_type_id);
 
     let fn_di_node = unsafe {
-        llvm::LLVMRustDIBuilderCreateSubroutineType(
+        llvm7::LLVMRustDIBuilderCreateSubroutineType(
             DIB(cx),
             create_DIArray(DIB(cx), &signature_di_nodes[..]),
         )
@@ -341,7 +341,7 @@ fn build_subroutine_type_di_node<'ll, 'tcx>(
         _ => unreachable!(),
     };
     let di_node = unsafe {
-        llvm::LLVMRustDIBuilderCreatePointerType(
+        llvm7::LLVMRustDIBuilderCreatePointerType(
             DIB(cx),
             fn_di_node,
             size,
@@ -523,7 +523,7 @@ fn recursion_marker_type_di_node<'ll>(cx: &CodegenCx<'ll, '_>) -> &'ll DIType {
                 // FIXME: it might make sense to use an actual pointer type here
                 //        so that debuggers can show the address.
                 let name = "<recur_type>";
-                llvm::LLVMRustDIBuilderCreateBasicType(
+                llvm7::LLVMRustDIBuilderCreateBasicType(
                     DIB(cx),
                     name.as_c_char_ptr(),
                     name.len(),
@@ -637,11 +637,11 @@ pub(crate) fn file_metadata<'ll>(cx: &CodegenCx<'ll, '_>, source_file: &SourceFi
         };
 
         let hash_kind = match source_file.src_hash.kind {
-            rustc_span::SourceFileHashAlgorithm::Md5 => llvm::ChecksumKind::MD5,
-            rustc_span::SourceFileHashAlgorithm::Sha1 => llvm::ChecksumKind::SHA1,
+            rustc_span::SourceFileHashAlgorithm::Md5 => llvm7::ChecksumKind::MD5,
+            rustc_span::SourceFileHashAlgorithm::Sha1 => llvm7::ChecksumKind::SHA1,
             // NVVM: Llvm 7 does not support either of these checksums
             rustc_span::SourceFileHashAlgorithm::Sha256
-            | rustc_span::SourceFileHashAlgorithm::Blake3 => llvm::ChecksumKind::None,
+            | rustc_span::SourceFileHashAlgorithm::Blake3 => llvm7::ChecksumKind::None,
         };
         let hash_value = hex_encode(source_file.src_hash.hash_bytes());
 
@@ -654,7 +654,7 @@ pub(crate) fn file_metadata<'ll>(cx: &CodegenCx<'ll, '_>, source_file: &SourceFi
             .and(source_file.src.as_ref());
 
         unsafe {
-            llvm::LLVMRustDIBuilderCreateFile(
+            llvm7::LLVMRustDIBuilderCreateFile(
                 DIB(cx),
                 file_name.as_c_char_ptr(),
                 file_name.len(),
@@ -680,13 +680,13 @@ pub(crate) fn unknown_file_metadata<'ll>(cx: &CodegenCx<'ll, '_>) -> &'ll DIFile
             let directory = "";
             let hash_value = "";
 
-            llvm::LLVMRustDIBuilderCreateFile(
+            llvm7::LLVMRustDIBuilderCreateFile(
                 DIB(cx),
                 file_name.as_c_char_ptr(),
                 file_name.len(),
                 directory.as_c_char_ptr(),
                 directory.len(),
-                llvm::ChecksumKind::None,
+                llvm7::ChecksumKind::None,
                 hash_value.as_c_char_ptr(),
                 hash_value.len(),
                 ptr::null(),
@@ -715,7 +715,7 @@ fn build_basic_type_di_node<'ll, 'tcx>(
     };
 
     let ty_di_node = unsafe {
-        llvm::LLVMRustDIBuilderCreateBasicType(
+        llvm7::LLVMRustDIBuilderCreateBasicType(
             DIB(cx),
             name.as_c_char_ptr(),
             name.len(),
@@ -831,20 +831,20 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
     let kind = DebugEmissionKind::from_generic(tcx.sess.opts.debuginfo);
 
     unsafe {
-        let compile_unit_file = llvm::LLVMRustDIBuilderCreateFile(
+        let compile_unit_file = llvm7::LLVMRustDIBuilderCreateFile(
             debug_context.builder,
             name_in_debuginfo.as_c_char_ptr(),
             name_in_debuginfo.len(),
             work_dir.as_c_char_ptr(),
             work_dir.len(),
-            llvm::ChecksumKind::None,
+            llvm7::ChecksumKind::None,
             ptr::null(),
             0,
             ptr::null(),
             0,
         );
 
-        let unit_metadata = llvm::LLVMRustDIBuilderCreateCompileUnit(
+        let unit_metadata = llvm7::LLVMRustDIBuilderCreateCompileUnit(
             debug_context.builder,
             dwarf_const::DW_LANG_Rust,
             compile_unit_file,
@@ -886,7 +886,7 @@ fn build_field_di_node<'ll>(
         (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
     };
     unsafe {
-        llvm::LLVMRustDIBuilderCreateMemberType(
+        llvm7::LLVMRustDIBuilderCreateMemberType(
             DIB(cx),
             owner,
             name.as_c_char_ptr(),
@@ -1210,7 +1210,7 @@ fn build_generic_type_param_di_nodes<'ll, 'tcx>(
                         let actual_type_di_node = type_di_node(cx, actual_type);
                         let name = name.as_str();
                         unsafe {
-                            llvm::LLVMRustDIBuilderCreateTemplateTypeParameter(
+                            llvm7::LLVMRustDIBuilderCreateTemplateTypeParameter(
                                 DIB(cx),
                                 None,
                                 name.as_c_char_ptr(),
@@ -1282,7 +1282,7 @@ pub fn build_global_var_di_node<'ll>(cx: &CodegenCx<'ll, '_>, def_id: DefId, glo
     let global_align = cx.align_of(variable_type);
 
     unsafe {
-        llvm::LLVMRustDIBuilderCreateStaticVariable(
+        llvm7::LLVMRustDIBuilderCreateStaticVariable(
             DIB(cx),
             Some(var_scope),
             var_name.as_c_char_ptr(),
@@ -1426,7 +1426,7 @@ pub(crate) fn create_vtable_di_node<'ll, 'tcx>(
     // When full debuginfo is enabled, we want to try and prevent vtables from being
     // merged. Otherwise debuggers will have a hard time mapping from dyn pointer
     // to concrete type.
-    llvm::SetUnnamedAddress(vtable, llvm::UnnamedAddr::No);
+    llvm7::SetUnnamedAddress(vtable, llvm7::UnnamedAddr::No);
 
     let vtable_name =
         compute_debuginfo_vtable_name(cx.tcx, ty, poly_trait_ref, VTableNameKind::GlobalVariable);
@@ -1434,7 +1434,7 @@ pub(crate) fn create_vtable_di_node<'ll, 'tcx>(
     let linkage_name = "";
 
     unsafe {
-        llvm::LLVMRustDIBuilderCreateStaticVariable(
+        llvm7::LLVMRustDIBuilderCreateStaticVariable(
             DIB(cx),
             NO_SCOPE_METADATA,
             vtable_name.as_c_char_ptr(),
@@ -1459,7 +1459,7 @@ pub(crate) fn extend_scope_to_file<'ll>(
     file: &SourceFile,
 ) -> &'ll DILexicalBlock {
     let file_metadata = file_metadata(cx, file);
-    unsafe { llvm::LLVMRustDIBuilderCreateLexicalBlockFile(DIB(cx), scope_metadata, file_metadata) }
+    unsafe { llvm7::LLVMRustDIBuilderCreateLexicalBlockFile(DIB(cx), scope_metadata, file_metadata) }
 }
 
 fn tuple_field_name(field_index: usize) -> Cow<'static, str> {

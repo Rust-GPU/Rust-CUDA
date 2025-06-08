@@ -225,7 +225,7 @@ pub(crate) enum DLLStorageClass {
 }
 
 /// Matches LLVMRustAttribute in LLVMWrapper.h
-/// Semantically a subset of the C++ enum llvm::Attribute::AttrKind,
+/// Semantically a subset of the C++ enum llvm7::Attribute::AttrKind,
 /// though it is not ABI compatible (since it's a C++ enum)
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
@@ -1184,7 +1184,7 @@ unsafe extern "C" {
 
     pub(crate) fn LLVMRustAppendModuleInlineAsm(M: &Module, Asm: *const c_char, AsmLen: size_t);
 
-    /// See llvm::LLVMTypeKind::getTypeID.
+    /// See llvm7::LLVMTypeKind::getTypeID.
     pub(crate) fn LLVMRustGetTypeKind(Ty: &Type) -> TypeKind;
 
     pub(crate) fn LLVMPrintTypeToString(Val: &Type) -> *mut c_char;

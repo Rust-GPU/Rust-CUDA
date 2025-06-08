@@ -19,7 +19,7 @@ use tracing::trace;
 use crate::abi::LlvmType;
 use crate::builder::Builder;
 use crate::context::CodegenCx;
-use crate::llvm::{self, Metadata, Type, Value};
+use crate::llvm7::{self, Metadata, Type, Value};
 use crate::ty::LayoutLlvmExt;
 
 // libnvvm does not support some advanced intrinsics for i128 so we just abort on them for now. In the future
@@ -325,7 +325,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     layout_of_pointee.align.abi.bytes() as u32
                 };
                 unsafe {
-                    llvm::LLVMSetAlignment(loaded_llval, align);
+                    llvm7::LLVMSetAlignment(loaded_llval, align);
                 }
 
                 if !result.layout.is_zst() {
@@ -554,7 +554,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     self.type_void(),
                     true,
                     false,
-                    llvm::AsmDialect::Att,
+                    llvm7::AsmDialect::Att,
                     &[span],
                 )
                 .unwrap_or_else(|| bug!("failed to generate inline asm call for `black_box`"));

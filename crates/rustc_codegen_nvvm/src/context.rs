@@ -7,7 +7,8 @@ use std::str::FromStr;
 use crate::abi::FnAbiLlvmExt;
 use crate::attributes::{self, NvvmAttributes, Symbols};
 use crate::debug_info::{self, CodegenUnitDebugContext};
-use crate::llvm::{self, BasicBlock, Type, Value};
+use crate::llvm7;
+use crate::llvm7::{BasicBlock, Type, Value};
 use crate::{LlvmMod, target};
 use nvvm::NvvmOption;
 use rustc_abi::AddressSpace;
@@ -47,8 +48,8 @@ const CONSTANT_MEMORY_SIZE_LIMIT_BYTES: u64 = 64 * 1024;
 pub(crate) struct CodegenCx<'ll, 'tcx> {
     pub tcx: TyCtxt<'tcx>,
 
-    pub llmod: &'ll llvm::Module,
-    pub llcx: &'ll llvm::Context,
+    pub llmod: &'ll llvm7::Module,
+    pub llcx: &'ll llvm7::Context,
     pub codegen_unit: &'tcx CodegenUnit<'tcx>,
 
     /// Map of MIR functions to LLVM function values
@@ -121,10 +122,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         // the eh_personality function doesnt make sense on the GPU, but we still need to give
         // rustc something, so we just give it an empty function
         let eh_personality = unsafe {
-            let void = llvm::LLVMVoidTypeInContext(llcx);
-            let llfnty = llvm::LLVMFunctionType(void, null(), 0, llvm::False);
+            let void = llvm7::LLVMVoidTypeInContext(llcx);
+            let llfnty = llvm7::LLVMFunctionType(void, null(), 0, llvm7::False);
             let name = "__rust_eh_personality";
-            llvm::LLVMRustGetOrInsertFunction(llmod, name.as_ptr().cast(), name.len(), llfnty)
+            llvm7::LLVMRustGetOrInsertFunction(llmod, name.as_ptr().cast(), name.len(), llfnty)
         };
 
         let dbg_cx = if tcx.sess.opts.debuginfo != DebugInfo::None {
@@ -197,10 +198,10 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 name.to_str().unwrap(),
                 values
             );
-            let g = llvm::LLVMAddGlobal(self.llmod, self.val_ty(array), name.as_ptr());
-            llvm::LLVMSetInitializer(g, array);
-            llvm::LLVMRustSetLinkage(g, llvm::Linkage::AppendingLinkage);
-            llvm::LLVMSetSection(g, section.as_ptr());
+            let g = llvm7::LLVMAddGlobal(self.llmod, self.val_ty(array), name.as_ptr());
+            llvm7::LLVMSetInitializer(g, array);
+            llvm7::LLVMRustSetLinkage(g, llvm7::Linkage::AppendingLinkage);
+            llvm7::LLVMSetSection(g, section.as_ptr());
         }
     }
 }
@@ -312,7 +313,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         let name = sanitize_global_ident(name);
         trace!("Declaring global `{}`", name);
         unsafe {
-            llvm::LLVMRustGetOrInsertGlobal(
+            llvm7::LLVMRustGetOrInsertGlobal(
                 self.llmod,
                 name.as_ptr().cast(),
                 name.len(),
@@ -332,14 +333,14 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         fn_abi: Option<&FnAbi<'tcx, Ty<'tcx>>>,
     ) -> &'ll Value {
         let llfn = unsafe {
-            llvm::LLVMRustGetOrInsertFunction(self.llmod, name.as_ptr().cast(), name.len(), ty)
+            llvm7::LLVMRustGetOrInsertFunction(self.llmod, name.as_ptr().cast(), name.len(), ty)
         };
 
         trace!("Declaring function `{}` with ty `{:?}`", name, ty);
 
         // TODO(RDambrosio016): we should probably still generate accurate calling conv for functions
         // just to make it easier to debug IR and/or make it more compatible with compiling using llvm
-        llvm::SetUnnamedAddress(llfn, llvm::UnnamedAddr::Global);
+        llvm7::SetUnnamedAddress(llfn, llvm7::UnnamedAddr::Global);
         if let Some(abi) = fn_abi {
             abi.apply_attrs_llfn(self, llfn);
         }
@@ -371,7 +372,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     // /// Use this function when you intend to define a global without a name.
     // pub fn define_private_global(&self, ty: &'ll Type) -> &'ll Value {
     //     println!("Declaring private global with ty `{:?}`", ty);
-    //     unsafe { llvm::LLVMRustInsertPrivateGlobal(self.llmod, ty) }
+    //     unsafe { llvm7::LLVMRustInsertPrivateGlobal(self.llmod, ty) }
     // }
 
     /// Gets declared value by name.
@@ -380,7 +381,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         let name = sanitize_global_ident(name);
         trace!("Retrieving value with name `{}`...", name);
         let res =
-            unsafe { llvm::LLVMRustGetNamedValue(self.llmod, name.as_ptr().cast(), name.len()) };
+            unsafe { llvm7::LLVMRustGetNamedValue(self.llmod, name.as_ptr().cast(), name.len()) };
         trace!("...Retrieved value: `{:?}`", res);
         res
     }
@@ -389,7 +390,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     /// name.
     pub fn get_defined_value(&self, name: &str) -> Option<&'ll Value> {
         self.get_declared_value(name).and_then(|val| {
-            let declaration = unsafe { llvm::LLVMIsDeclaration(val) != 0 };
+            let declaration = unsafe { llvm7::LLVMIsDeclaration(val) != 0 };
             if !declaration { Some(val) } else { None }
         })
     }
@@ -416,7 +417,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             self.type_variadic_func(&[], ret)
         };
         let f = self.declare_fn(name, fn_ty, None);
-        llvm::SetUnnamedAddress(f, llvm::UnnamedAddr::No);
+        llvm7::SetUnnamedAddress(f, llvm7::UnnamedAddr::No);
         self.intrinsics
             .borrow_mut()
             .insert(name.to_owned(), (fn_ty, f));
@@ -475,7 +476,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
             let def_id = instance.def_id();
 
             unsafe {
-                llvm::LLVMRustSetLinkage(llfn, llvm::Linkage::ExternalLinkage);
+                llvm7::LLVMRustSetLinkage(llfn, llvm7::Linkage::ExternalLinkage);
 
                 let is_generic = instance.args.non_erasable_generics().next().is_some();
 
@@ -492,7 +493,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                             if tcx.is_unreachable_local_definition(instance_def_id)
                                 || !tcx.local_crate_exports_generics()
                             {
-                                llvm::LLVMRustSetVisibility(llfn, llvm::Visibility::Hidden);
+                                llvm7::LLVMRustSetVisibility(llfn, llvm7::Visibility::Hidden);
                             }
                         } else {
                             // This is a monomorphization of a generic function
@@ -506,14 +507,14 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                                 // (because it is a C library or an executable), it
                                 // will have been declared `hidden`.
                                 if !tcx.local_crate_exports_generics() {
-                                    llvm::LLVMRustSetVisibility(llfn, llvm::Visibility::Hidden);
+                                    llvm7::LLVMRustSetVisibility(llfn, llvm7::Visibility::Hidden);
                                 }
                             }
                         }
                     } else {
                         // When not sharing generics, all instances are in the same
                         // crate and have hidden visibility
-                        llvm::LLVMRustSetVisibility(llfn, llvm::Visibility::Hidden);
+                        llvm7::LLVMRustSetVisibility(llfn, llvm7::Visibility::Hidden);
                     }
                 } else {
                     // This is a non-generic function
@@ -524,12 +525,12 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                             // This is function that is defined in the local crate.
                             // If it is not reachable, it is hidden.
                             if !tcx.is_reachable_non_generic(def_id) {
-                                llvm::LLVMRustSetVisibility(llfn, llvm::Visibility::Hidden);
+                                llvm7::LLVMRustSetVisibility(llfn, llvm7::Visibility::Hidden);
                             }
                         } else {
                             // This is a function from an upstream crate that has
                             // been instantiated here. These are always hidden.
-                            llvm::LLVMRustSetVisibility(llfn, llvm::Visibility::Hidden);
+                            llvm7::LLVMRustSetVisibility(llfn, llvm7::Visibility::Hidden);
                         }
                     }
                 }
@@ -589,11 +590,11 @@ impl<'ll> BackendTypes for CodegenCx<'ll, '_> {
     // doesnt exist on the gpu
     type Funclet = ();
 
-    type DIScope = &'ll llvm::DIScope;
-    type DILocation = &'ll llvm::DILocation;
-    type DIVariable = &'ll llvm::DIVariable;
+    type DIScope = &'ll llvm7::DIScope;
+    type DILocation = &'ll llvm7::DILocation;
+    type DIVariable = &'ll llvm7::DIVariable;
 
-    type Metadata = &'ll llvm::Metadata;
+    type Metadata = &'ll llvm7::Metadata;
 }
 
 impl HasDataLayout for CodegenCx<'_, '_> {
