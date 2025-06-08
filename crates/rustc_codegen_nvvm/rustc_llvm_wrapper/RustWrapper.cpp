@@ -2022,3 +2022,81 @@ extern "C" LLVMValueRef LLVMConstStringInContext2(LLVMContextRef C,
                                            !DontNullTerminate));
 }
 #endif
+
+// TODO: not standard
+extern "C" void LLVMRustAddDereferenceableOrNullAttr(LLVMValueRef Fn,
+                                                     unsigned Index,
+                                                     uint64_t Bytes) {
+  Function *A = unwrap<Function>(Fn);
+  LLVMContext &Ctx = A->getContext();
+  
+  // In LLVM 19, AttrBuilder requires LLVMContext
+  AttrBuilder B(Ctx);
+  B.addDereferenceableOrNullAttr(Bytes);
+  
+  // In LLVM 19, use addFnAttr or addParamAttr instead of addAttributes
+  if (Index == AttributeList::FunctionIndex) {
+    A->addFnAttrs(B);
+  } else {
+    // For parameter attributes, use addParamAttrs
+    A->addParamAttrs(Index - 1, B); // Index is 1-based for parameters
+  }
+}
+
+// TODO: not standard
+extern "C" void LLVMRustAddDereferenceableAttr(LLVMValueRef Fn, unsigned Index,
+                                               uint64_t Bytes) {
+  Function *A = unwrap<Function>(Fn);
+  LLVMContext &Ctx = A->getContext();
+  
+  // In LLVM 19, AttrBuilder requires LLVMContext
+  AttrBuilder B(Ctx);
+  B.addDereferenceableAttr(Bytes);
+  
+  // In LLVM 19, use addFnAttrs or addParamAttrs instead of addAttributes
+  if (Index == AttributeList::FunctionIndex) {
+    A->addFnAttrs(B);
+  } else {
+    // For parameter attributes, use addParamAttrs
+    A->addParamAttrs(Index - 1, B); // Index is 1-based for parameters
+  }
+}
+
+// TODO: not standard
+extern "C" void LLVMRustAddAlignmentAttr(LLVMValueRef Fn,
+                                         unsigned Index,
+                                         uint32_t Bytes) {
+  Function *A = unwrap<Function>(Fn);
+  LLVMContext &Ctx = A->getContext();
+  
+  // In LLVM 19, AttrBuilder requires LLVMContext
+  AttrBuilder B(Ctx);
+  B.addAlignmentAttr(Bytes);
+  
+  // In LLVM 19, use addFnAttrs or addParamAttrs instead of addAttributes
+  if (Index == AttributeList::FunctionIndex) {
+    A->addFnAttrs(B);
+  } else {
+    // For parameter attributes, use addParamAttrs
+    A->addParamAttrs(Index - 1, B); // Index is 1-based for parameters
+  }
+}
+
+// TODO: non standard
+extern "C" void LLVMRustAddFunctionAttribute(LLVMValueRef Fn, unsigned Index,
+                                             LLVMRustAttribute RustAttr) {
+  Function *A = unwrap<Function>(Fn);
+  LLVMContext &Ctx = A->getContext();
+  
+  Attribute Attr = Attribute::get(Ctx, fromRust(RustAttr));
+  AttrBuilder B(Ctx);
+  B.addAttribute(Attr);
+  
+  // In LLVM 19, use addFnAttrs or addParamAttrs instead of addAttributes
+  if (Index == AttributeList::FunctionIndex) {
+    A->addFnAttrs(B);
+  } else {
+    // For parameter attributes, use addParamAttrs
+    A->addParamAttrs(Index - 1, B); // Index is 1-based for parameters
+  }
+}
