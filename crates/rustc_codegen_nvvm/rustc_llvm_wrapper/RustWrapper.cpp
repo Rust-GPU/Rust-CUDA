@@ -2279,3 +2279,18 @@ extern "C" LLVMTypeRef LLVMRustArrayType(LLVMTypeRef ElementTy,
 {
   return wrap(ArrayType::get(unwrap(ElementTy), ElementCount));
 }
+
+// TODO: non-standard
+extern "C" void LLVMRustRemoveFunctionAttributes(LLVMValueRef Fn,
+                                                 unsigned Index,
+                                                 LLVMRustAttribute RustAttr) {
+  Function *F = unwrap<Function>(Fn);
+  LLVMContext &Ctx = F->getContext();
+  
+  Attribute Attr = Attribute::get(Ctx, fromRust(RustAttr));
+  
+  // In LLVM 19, use removeAttributeAtIndex with the attribute kind enum
+  AttributeList PAL = F->getAttributes();
+  AttributeList PALNew = PAL.removeAttributeAtIndex(Ctx, Index, Attr.getKindAsEnum());
+  F->setAttributes(PALNew);
+}
