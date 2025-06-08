@@ -690,7 +690,8 @@ unsafe extern "C" {
     pub(crate) fn LLVMInitializeNVPTXTarget();
     pub(crate) fn LLVMInitializeNVPTXTargetMC();
     pub(crate) fn LLVMInitializeNVPTXAsmPrinter();
-    pub(crate) fn LLVMInitializePasses();
+    // TODO: removed?
+    //pub(crate) fn LLVMInitializePasses();
     pub(crate) fn LLVMRustSetLLVMOptions(Argc: c_int, Argv: *const *const c_char);
 }
 

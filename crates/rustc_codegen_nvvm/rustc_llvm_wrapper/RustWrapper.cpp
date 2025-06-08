@@ -2520,3 +2520,19 @@ extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMTypeRef FnTy,
     
     return wrap(Builder->CreateCall(FunctionType, Function, ArgsRef, Bundles, Name));
 }
+
+// TODO: non-standard
+extern "C" LLVMValueRef LLVMRustMetadataAsValue(LLVMContextRef C, LLVMMetadataRef MD)
+{
+  return wrap(MetadataAsValue::get(*unwrap(C), unwrap(MD)));
+}
+
+// TODO: non-standard
+typedef DIBuilder *LLVMRustDIBuilderRef;
+extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateLexicalBlock(
+    LLVMRustDIBuilderRef Builder, LLVMMetadataRef Scope,
+    LLVMMetadataRef File, unsigned Line, unsigned Col)
+{
+    return wrap(Builder->createLexicalBlock(unwrapDI<DIScope>(Scope),
+                                            unwrapDI<DIFile>(File), Line, Col));
+}
