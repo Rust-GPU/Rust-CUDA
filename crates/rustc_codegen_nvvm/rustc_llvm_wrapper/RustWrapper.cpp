@@ -2083,6 +2083,95 @@ extern "C" void LLVMRustAddAlignmentAttr(LLVMValueRef Fn,
 }
 
 // TODO: non standard
+enum LLVMRustAttribute
+{
+  AlwaysInline = 0,
+  ByVal = 1,
+  Cold = 2,
+  InlineHint = 3,
+  MinSize = 4,
+  Naked = 5,
+  NoAlias = 6,
+  NoCapture = 7,
+  NoInline = 8,
+  NonNull = 9,
+  NoRedZone = 10,
+  NoReturn = 11,
+  NoUnwind = 12,
+  OptimizeForSize = 13,
+  OptimizeNone = 14,
+  ReadOnly = 15,
+  SExt = 16,
+  StructRet = 17,
+  UWTable = 18,
+  ZExt = 19,
+  InReg = 20,
+  SanitizeThread = 21,
+  SanitizeAddress = 22,
+  SanitizeMemory = 23,
+  ReadNone = 24
+};
+
+// TODO: non-standard
+static Attribute::AttrKind fromRust(LLVMRustAttribute Kind)
+{
+  switch (Kind)
+  {
+  case AlwaysInline:
+    return Attribute::AlwaysInline;
+  case ByVal:
+    return Attribute::ByVal;
+  case Cold:
+    return Attribute::Cold;
+  case InlineHint:
+    return Attribute::InlineHint;
+  case MinSize:
+    return Attribute::MinSize;
+  case Naked:
+    return Attribute::Naked;
+  case NoAlias:
+    return Attribute::NoAlias;
+  case NoCapture:
+    return Attribute::NoCapture;
+  case NoInline:
+    return Attribute::NoInline;
+  case NonNull:
+    return Attribute::NonNull;
+  case NoRedZone:
+    return Attribute::NoRedZone;
+  case NoReturn:
+    return Attribute::NoReturn;
+  case NoUnwind:
+    return Attribute::NoUnwind;
+  case OptimizeForSize:
+    return Attribute::OptimizeForSize;
+  case OptimizeNone:
+    return Attribute::OptimizeNone;
+  case ReadOnly:
+    return Attribute::ReadOnly;
+  case SExt:
+    return Attribute::SExt;
+  case StructRet:
+    return Attribute::StructRet;
+  case UWTable:
+    return Attribute::UWTable;
+  case ZExt:
+    return Attribute::ZExt;
+  case InReg:
+    return Attribute::InReg;
+  case SanitizeThread:
+    return Attribute::SanitizeThread;
+  case SanitizeAddress:
+    return Attribute::SanitizeAddress;
+  case SanitizeMemory:
+    return Attribute::SanitizeMemory;
+  case ReadNone:
+    return Attribute::ReadNone;
+  }
+  report_fatal_error("bad AttributeKind");
+}
+
+// TODO: non standard
 extern "C" void LLVMRustAddFunctionAttribute(LLVMValueRef Fn, unsigned Index,
                                              LLVMRustAttribute RustAttr) {
   Function *A = unwrap<Function>(Fn);
@@ -2099,4 +2188,46 @@ extern "C" void LLVMRustAddFunctionAttribute(LLVMValueRef Fn, unsigned Index,
     // For parameter attributes, use addParamAttrs
     A->addParamAttrs(Index - 1, B); // Index is 1-based for parameters
   }
+}
+
+// TODO: non-standard
+extern "C" void LLVMRustAddDereferenceableOrNullCallSiteAttr(LLVMValueRef Instr,
+                                                             unsigned Index,
+                                                             uint64_t Bytes) {
+  CallBase *Call = cast<CallBase>(unwrap<Instruction>(Instr));
+  LLVMContext &Ctx = Call->getContext();
+  
+  // In LLVM 19, AttrBuilder requires LLVMContext
+  AttrBuilder B(Ctx);
+  B.addDereferenceableOrNullAttr(Bytes);
+  
+  // In LLVM 19, CallSite is deprecated, use CallBase and addParamAttrs/addFnAttrs
+  AttributeList Attrs = Call->getAttributes();
+  if (Index == AttributeList::FunctionIndex) {
+    Attrs = Attrs.addFnAttributes(Ctx, B);
+  } else {
+    Attrs = Attrs.addParamAttributes(Ctx, Index - 1, B); // Index is 1-based for parameters
+  }
+  Call->setAttributes(Attrs);
+}
+
+// TODO: non-standard
+extern "C" void LLVMRustAddDereferenceableCallSiteAttr(LLVMValueRef Instr,
+                                                       unsigned Index,
+                                                       uint64_t Bytes) {
+  CallBase *Call = cast<CallBase>(unwrap<Instruction>(Instr));
+  LLVMContext &Ctx = Call->getContext();
+  
+  // In LLVM 19, AttrBuilder requires LLVMContext
+  AttrBuilder B(Ctx);
+  B.addDereferenceableAttr(Bytes);
+  
+  // In LLVM 19, CallSite is deprecated, use CallBase and addParamAttrs/addFnAttrs
+  AttributeList Attrs = Call->getAttributes();
+  if (Index == AttributeList::FunctionIndex) {
+    Attrs = Attrs.addFnAttributes(Ctx, B);
+  } else {
+    Attrs = Attrs.addParamAttributes(Ctx, Index - 1, B); // Index is 1-based for parameters
+  }
+  Call->setAttributes(Attrs);
 }
