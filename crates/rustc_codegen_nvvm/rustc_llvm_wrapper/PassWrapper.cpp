@@ -14,6 +14,7 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/IR/DebugInfo.h" // TODO: non-standard
 #include "llvm/LTO/LTO.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -1701,4 +1702,77 @@ extern "C" void LLVMRustComputeLTOCacheKey(RustStringRef KeyOut,
 
   auto OS = RawRustStringOstream(KeyOut);
   OS << Key.str();
+}
+
+// TODO: non-standard
+extern "C" void
+LLVMRustThinLTOGetDICompileUnit(LLVMModuleRef Mod,
+                                DICompileUnit **A,
+                                DICompileUnit **B)
+{
+  Module *M = unwrap(Mod);
+  DICompileUnit **Cur = A;
+  DICompileUnit **Next = B;
+  for (DICompileUnit *CU : M->debug_compile_units())
+  {
+    *Cur = CU;
+    Cur = Next;
+    Next = nullptr;
+    if (Cur == nullptr)
+      break;
+  }
+}
+
+// TODO: non-standard
+extern "C" void
+LLVMRustThinLTOPatchDICompileUnit(LLVMModuleRef Mod, DICompileUnit *Unit)
+{
+  Module *M = unwrap(Mod);
+  // If the original source module didn't have a `DICompileUnit` then try to
+  // merge all the existing compile units. If there aren't actually any though
+  // then there's not much for us to do so return.
+  if (Unit == nullptr)
+  {
+    for (DICompileUnit *CU : M->debug_compile_units())
+    {
+      Unit = CU;
+      break;
+    }
+    if (Unit == nullptr)
+      return;
+  }
+  // Use LLVM's built-in `DebugInfoFinder` to find a bunch of debuginfo and
+  // process it recursively. Note that we specifically iterate over instructions
+  // to ensure we feed everything into it.
+  DebugInfoFinder Finder;
+  Finder.processModule(*M);
+  for (Function &F : M->functions())
+  {
+    for (auto &FI : F)
+    {
+      for (Instruction &BI : FI)
+      {
+        if (auto Loc = BI.getDebugLoc())
+          Finder.processLocation(*M, Loc);
+        // Updated for LLVM v19: DbgVariableIntrinsic is the base class
+        if (auto DVI = dyn_cast<DbgVariableIntrinsic>(&BI))
+          if (auto Var = DVI->getVariable())
+            Finder.processVariable(*M, Var);
+      }
+    }
+  }
+  // After we've found all our debuginfo, rewrite all subprograms to point to
+  // the same `DICompileUnit`.
+  for (auto *F : Finder.subprograms())
+  {
+    F->replaceUnit(Unit);
+  }
+  // Erase any other references to other `DICompileUnit` instances, the verifier
+  // will later ensure that we don't actually have any other stale references to
+  // worry about.
+  auto *MD = M->getNamedMetadata("llvm.dbg.cu");
+  if (MD) {
+    MD->clearOperands();
+    MD->addOperand(Unit);
+  }
 }
