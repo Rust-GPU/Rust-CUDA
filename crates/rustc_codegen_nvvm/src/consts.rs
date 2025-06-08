@@ -359,9 +359,12 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
             let g = self.get_static(def_id);
 
             let mut val_llty = self.val_ty(v);
-            let v = if val_llty == self.type_i1() {
+            let v: &Value = if val_llty == self.type_i1() {
                 val_llty = self.type_i8();
-                llvm7::LLVMConstZExt(v, val_llty)
+                // TODO: not sure about this
+                let const_int = v as *const llvm7::Value as *const llvm7::ConstantInt;
+                let const_val =  llvm7::LLVMConstIntGetZExtValue(&*const_int);
+                llvm7::LLVMConstInt(val_llty, const_val, 0)
             } else {
                 v
             };
