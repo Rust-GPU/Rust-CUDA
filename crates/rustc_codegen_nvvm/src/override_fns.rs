@@ -5,7 +5,7 @@
 use crate::abi::FnAbiLlvmExt;
 use crate::builder::Builder;
 use crate::context::CodegenCx;
-use crate::llvm7;
+use crate::llvm;
 use rustc_codegen_ssa::mono_item::MonoItemExt;
 use rustc_codegen_ssa::traits::{BaseTypeCodegenMethods, BuilderMethods};
 use rustc_hir::def_id::LOCAL_CRATE;
@@ -74,7 +74,7 @@ fn override_libm_function<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) 
     let start = Builder::append_block(cx, llfn, "start");
     let mut bx = Builder::build(cx, start);
 
-    let params = llvm7::get_params(llfn);
+    let params = llvm::get_params(llfn);
     let llcall = bx.call(
         intrinsic_llfn_ty,
         None,

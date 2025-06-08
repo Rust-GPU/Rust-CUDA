@@ -5,8 +5,8 @@ use rustc_middle::ty::{self, Instance};
 
 use crate::common::AsCCharPtr;
 use crate::context::CodegenCx;
-use crate::llvm7;
-use crate::llvm7::debuginfo::DIScope;
+use crate::llvm;
+use crate::llvm::debuginfo::DIScope;
 use rustc_hir::def_id::DefId;
 
 use super::util::{DIB, debug_context};
@@ -42,7 +42,7 @@ pub(crate) fn item_namespace<'ll>(cx: &CodegenCx<'ll, '_>, def_id: DefId) -> &'l
     };
 
     let scope = unsafe {
-        llvm7::LLVMRustDIBuilderCreateNameSpace(
+        llvm::LLVMRustDIBuilderCreateNameSpace(
             DIB(cx),
             parent_scope,
             namespace_name_string.as_c_char_ptr(),

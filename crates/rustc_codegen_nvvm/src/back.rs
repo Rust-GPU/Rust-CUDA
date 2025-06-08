@@ -23,7 +23,7 @@ use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
 
 use crate::common::AsCCharPtr;
-use crate::llvm7;
+use crate::llvm;
 use crate::override_fns::define_or_override_fn;
 use crate::builder::Builder;
 use crate::context::CodegenCx;
@@ -32,7 +32,7 @@ use crate::LlvmMod;
 use crate::NvvmCodegenBackend;
 
 pub fn llvm_err(handle: DiagCtxtHandle, msg: &str) -> FatalError {
-    match llvm7::last_error() {
+    match llvm::last_error() {
         Some(err) => handle.fatal(format!("{}: {}", msg, err)),
         None => handle.fatal(msg.to_string()),
     }
@@ -40,41 +40,41 @@ pub fn llvm_err(handle: DiagCtxtHandle, msg: &str) -> FatalError {
 
 pub fn to_llvm_opt_settings(
     cfg: config::OptLevel,
-) -> (llvm7::CodeGenOptLevel, llvm7::CodeGenOptSize) {
+) -> (llvm::CodeGenOptLevel, llvm::CodeGenOptSize) {
     use self::config::OptLevel::*;
     match cfg {
-        No => (llvm7::CodeGenOptLevel::None, llvm7::CodeGenOptSizeNone),
-        Less => (llvm7::CodeGenOptLevel::Less, llvm7::CodeGenOptSizeNone),
-        More => (llvm7::CodeGenOptLevel::Default, llvm7::CodeGenOptSizeNone),
-        Aggressive => (llvm7::CodeGenOptLevel::Aggressive, llvm7::CodeGenOptSizeNone),
-        Size => (llvm7::CodeGenOptLevel::Default, llvm7::CodeGenOptSizeDefault),
+        No => (llvm::CodeGenOptLevel::None, llvm::CodeGenOptSizeNone),
+        Less => (llvm::CodeGenOptLevel::Less, llvm::CodeGenOptSizeNone),
+        More => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeNone),
+        Aggressive => (llvm::CodeGenOptLevel::Aggressive, llvm::CodeGenOptSizeNone),
+        Size => (llvm::CodeGenOptLevel::Default, llvm::CodeGenOptSizeDefault),
         SizeMin => (
-            llvm7::CodeGenOptLevel::Default,
-            llvm7::CodeGenOptSizeAggressive,
+            llvm::CodeGenOptLevel::Default,
+            llvm::CodeGenOptSizeAggressive,
         ),
     }
 }
 
-fn to_llvm_relocation_model(relocation_model: RelocModel) -> llvm7::RelocMode {
+fn to_llvm_relocation_model(relocation_model: RelocModel) -> llvm::RelocMode {
     match relocation_model {
-        RelocModel::Static => llvm7::RelocMode::Static,
-        RelocModel::Pic => llvm7::RelocMode::PIC,
-        RelocModel::DynamicNoPic => llvm7::RelocMode::DynamicNoPic,
-        RelocModel::Ropi => llvm7::RelocMode::ROPI,
-        RelocModel::Rwpi => llvm7::RelocMode::RWPI,
-        RelocModel::RopiRwpi => llvm7::RelocMode::ROPI_RWPI,
+        RelocModel::Static => llvm::RelocMode::Static,
+        RelocModel::Pic => llvm::RelocMode::PIC,
+        RelocModel::DynamicNoPic => llvm::RelocMode::DynamicNoPic,
+        RelocModel::Ropi => llvm::RelocMode::ROPI,
+        RelocModel::Rwpi => llvm::RelocMode::RWPI,
+        RelocModel::RopiRwpi => llvm::RelocMode::ROPI_RWPI,
         RelocModel::Pie => panic!(),
     }
 }
 
-pub(crate) fn to_llvm_code_model(code_model: Option<CodeModel>) -> llvm7::CodeModel {
+pub(crate) fn to_llvm_code_model(code_model: Option<CodeModel>) -> llvm::CodeModel {
     match code_model {
-        Some(CodeModel::Tiny) => llvm7::CodeModel::Small,
-        Some(CodeModel::Small) => llvm7::CodeModel::Small,
-        Some(CodeModel::Kernel) => llvm7::CodeModel::Kernel,
-        Some(CodeModel::Medium) => llvm7::CodeModel::Medium,
-        Some(CodeModel::Large) => llvm7::CodeModel::Large,
-        None => llvm7::CodeModel::None,
+        Some(CodeModel::Tiny) => llvm::CodeModel::Small,
+        Some(CodeModel::Small) => llvm::CodeModel::Small,
+        Some(CodeModel::Kernel) => llvm::CodeModel::Kernel,
+        Some(CodeModel::Medium) => llvm::CodeModel::Medium,
+        Some(CodeModel::Large) => llvm::CodeModel::Large,
+        None => llvm::CodeModel::None,
     }
 }
 
@@ -107,7 +107,7 @@ pub fn target_machine_factory(
 
     Arc::new(move |_config: TargetMachineFactoryConfig| {
         let tm = unsafe {
-            llvm7::LLVMRustCreateTargetMachine(
+            llvm::LLVMRustCreateTargetMachine(
                 triple.as_c_char_ptr(),
                 triple.len(),
                 std::ptr::null(),
@@ -199,7 +199,7 @@ pub(crate) unsafe fn codegen(
         let out = out.to_str().unwrap();
 
         let result = unsafe {
-            llvm7::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback)
+            llvm::LLVMRustPrintModule(llmod, out.as_c_char_ptr(), out.len(), demangle_callback)
         };
 
         result.into_result().map_err(|()| {
@@ -291,9 +291,9 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
             // Run replace-all-uses-with for statics that need it
             for &(old_g, new_g) in cx.statics_to_rauw.borrow().iter() {
                 unsafe {
-                    let bitcast = llvm7::LLVMConstPointerCast(new_g, cx.val_ty(old_g));
-                    llvm7::LLVMReplaceAllUsesWith(old_g, bitcast);
-                    llvm7::LLVMDeleteGlobal(old_g);
+                    let bitcast = llvm::LLVMConstPointerCast(new_g, cx.val_ty(old_g));
+                    llvm::LLVMReplaceAllUsesWith(old_g, bitcast);
+                    llvm::LLVMDeleteGlobal(old_g);
                 }
             }
 
@@ -345,7 +345,7 @@ pub(crate) unsafe fn optimize(
             .output_filenames
             .temp_path_ext("no-opt.bc", module_name);
         let out = path_to_c_string(&out);
-        unsafe { llvm7::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
+        unsafe { llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
     }
 
     let tm_factory_config = TargetMachineFactoryConfig {
@@ -359,12 +359,12 @@ pub(crate) unsafe fn optimize(
     if config.opt_level.is_some() {
         unsafe {
             // Create pass builder options
-            let pass_options = llvm7::LLVMCreatePassBuilderOptions();
+            let pass_options = llvm::LLVMCreatePassBuilderOptions();
             
             // Configure pass builder options based on config
             let opt_level = config
                 .opt_level
-                .map_or(llvm7::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
+                .map_or(llvm::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
             
             // Set various options on the pass builder
             // TODO: support these flags
@@ -383,19 +383,19 @@ pub(crate) unsafe fn optimize(
             if !config.no_prepopulate_passes {
                 // Use default optimization pipeline based on level
                 match opt_level {
-                    llvm7::CodeGenOptLevel::None => {
+                    llvm::CodeGenOptLevel::None => {
                         pass_pipeline.push_str("default<O0>");
                     },
-                    llvm7::CodeGenOptLevel::Less => {
+                    llvm::CodeGenOptLevel::Less => {
                         pass_pipeline.push_str("default<O1>");
                     },
-                    llvm7::CodeGenOptLevel::Default => {
+                    llvm::CodeGenOptLevel::Default => {
                         pass_pipeline.push_str("default<O2>");
                     },
-                    llvm7::CodeGenOptLevel::Aggressive => {
+                    llvm::CodeGenOptLevel::Aggressive => {
                         pass_pipeline.push_str("default<O3>");
                     },
-                    llvm7::CodeGenOptLevel::Other => todo!(),
+                    llvm::CodeGenOptLevel::Other => todo!(),
                 }
             }
             
@@ -412,7 +412,7 @@ pub(crate) unsafe fn optimize(
                 .expect("Pass pipeline string contains null byte");
             
             // Run the passes using the new pass manager
-            let result = llvm7::LLVMRunPasses(
+            let result = llvm::LLVMRunPasses(
                 llmod,                          // Module
                 c_pass_pipeline.as_ptr(),       // Pass pipeline string
                 tm,                             // TargetMachine
@@ -424,7 +424,7 @@ pub(crate) unsafe fn optimize(
             }
             
             // Clean up
-            llvm7::LLVMDisposePassBuilderOptions(pass_options);
+            llvm::LLVMDisposePassBuilderOptions(pass_options);
         }
     }
 
@@ -433,20 +433,20 @@ pub(crate) unsafe fn optimize(
 
 // TODO: remove this dead code?
 unsafe fn with_llvm_pmb(
-    llmod: &llvm7::Module,
+    llmod: &llvm::Module,
     config: &ModuleConfig,
-    opt_level: llvm7::CodeGenOptLevel,
-    f: &mut impl FnMut(&llvm7::PassManagerBuilder),
+    opt_level: llvm::CodeGenOptLevel,
+    f: &mut impl FnMut(&llvm::PassManagerBuilder),
 ) {
     unsafe {
         use std::ptr;
 
-        let builder = llvm7::LLVMPassManagerBuilderCreate();
+        let builder = llvm::LLVMPassManagerBuilderCreate();
         let opt_size = config
             .opt_size
-            .map_or(llvm7::CodeGenOptSizeNone, |x| to_llvm_opt_settings(x).1);
+            .map_or(llvm::CodeGenOptSizeNone, |x| to_llvm_opt_settings(x).1);
 
-        llvm7::LLVMRustConfigurePassManagerBuilder(
+        llvm::LLVMRustConfigurePassManagerBuilder(
             builder,
             opt_level,
             config.merge_functions,
@@ -457,43 +457,43 @@ unsafe fn with_llvm_pmb(
             ptr::null(),
         );
 
-        llvm7::LLVMPassManagerBuilderSetSizeLevel(builder, opt_size as u32);
+        llvm::LLVMPassManagerBuilderSetSizeLevel(builder, opt_size as u32);
 
-        if opt_size != llvm7::CodeGenOptSizeNone {
-            llvm7::LLVMPassManagerBuilderSetDisableUnrollLoops(builder, 1);
+        if opt_size != llvm::CodeGenOptSizeNone {
+            llvm::LLVMPassManagerBuilderSetDisableUnrollLoops(builder, 1);
         }
 
-        llvm7::LLVMRustAddBuilderLibraryInfo(builder, llmod, config.no_builtins);
+        llvm::LLVMRustAddBuilderLibraryInfo(builder, llmod, config.no_builtins);
 
         // Here we match what clang does (kinda). For O0 we only inline
         // always-inline functions (but don't add lifetime intrinsics), at O1 we
         // inline with lifetime intrinsics, and O2+ we add an inliner with a
         // thresholds copied from clang.
         match (opt_level, opt_size) {
-            (llvm7::CodeGenOptLevel::Aggressive, ..) => {
-                llvm7::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 275);
+            (llvm::CodeGenOptLevel::Aggressive, ..) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 275);
             }
-            (_, llvm7::CodeGenOptSizeDefault) => {
-                llvm7::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 75);
+            (_, llvm::CodeGenOptSizeDefault) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 75);
             }
-            (_, llvm7::CodeGenOptSizeAggressive) => {
-                llvm7::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 25);
+            (_, llvm::CodeGenOptSizeAggressive) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 25);
             }
-            (llvm7::CodeGenOptLevel::None, ..) => {
-                llvm7::LLVMRustAddAlwaysInlinePass(builder, false);
+            (llvm::CodeGenOptLevel::None, ..) => {
+                llvm::LLVMRustAddAlwaysInlinePass(builder, false);
             }
-            (llvm7::CodeGenOptLevel::Less, ..) => {
-                llvm7::LLVMRustAddAlwaysInlinePass(builder, true);
+            (llvm::CodeGenOptLevel::Less, ..) => {
+                llvm::LLVMRustAddAlwaysInlinePass(builder, true);
             }
-            (llvm7::CodeGenOptLevel::Default, ..) => {
-                llvm7::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 225);
+            (llvm::CodeGenOptLevel::Default, ..) => {
+                llvm::LLVMPassManagerBuilderUseInlinerWithThreshold(builder, 225);
             }
-            (llvm7::CodeGenOptLevel::Other, ..) => {
+            (llvm::CodeGenOptLevel::Other, ..) => {
                 bug!("CodeGenOptLevel::Other selected")
             }
         }
 
         f(builder);
-        llvm7::LLVMPassManagerBuilderDispose(builder);
+        llvm::LLVMPassManagerBuilderDispose(builder);
     }
 }

@@ -1,5 +1,5 @@
-use crate::llvm7;
-use crate::llvm7::{Value, AttributePlace::Function};
+use crate::llvm;
+use crate::llvm::{Value, AttributePlace::Function};
 use rustc_ast::{LitKind, MetaItemInner, MetaItemLit};
 use rustc_attr_parsing::{InlineAttr, OptimizeAttr};
 use rustc_hir::Attribute;
@@ -13,9 +13,9 @@ use crate::context::CodegenCx;
 fn inline(val: &'_ Value, inline: InlineAttr) {
     use InlineAttr::*;
     match inline {
-        Hint => llvm7::Attribute::InlineHint.apply_llfn(Function, val),
-        Always => llvm7::Attribute::AlwaysInline.apply_llfn(Function, val),
-        Never => llvm7::Attribute::NoInline.apply_llfn(Function, val),
+        Hint => llvm::Attribute::InlineHint.apply_llfn(Function, val),
+        Always => llvm::Attribute::AlwaysInline.apply_llfn(Function, val),
+        Never => llvm::Attribute::NoInline.apply_llfn(Function, val),
         None => {}
         Force { .. } => bug!("Force inline should have been inlined away by now"), // TODO: Verify this
     }
@@ -24,19 +24,19 @@ fn inline(val: &'_ Value, inline: InlineAttr) {
 pub(crate) fn default_optimisation_attrs(sess: &Session, llfn: &'_ Value) {
     match sess.opts.optimize {
         OptLevel::Size => {
-            llvm7::Attribute::MinSize.unapply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeForSize.apply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
+            llvm::Attribute::MinSize.unapply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeForSize.apply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
         }
         OptLevel::SizeMin => {
-            llvm7::Attribute::MinSize.apply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeForSize.apply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
+            llvm::Attribute::MinSize.apply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeForSize.apply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
         }
         OptLevel::No => {
-            llvm7::Attribute::MinSize.unapply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeForSize.unapply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
+            llvm::Attribute::MinSize.unapply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeForSize.unapply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
         }
         _ => {}
     }
@@ -56,19 +56,19 @@ pub(crate) fn from_fn_attrs<'ll, 'tcx>(
             default_optimisation_attrs(cx.tcx.sess, llfn);
         }
         OptimizeAttr::Speed => {
-            llvm7::Attribute::MinSize.unapply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeForSize.unapply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
+            llvm::Attribute::MinSize.unapply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeForSize.unapply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
         }
         OptimizeAttr::Size => {
-            llvm7::Attribute::MinSize.apply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeForSize.apply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
+            llvm::Attribute::MinSize.apply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeForSize.apply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeNone.unapply_llfn(Function, llfn);
         }
         OptimizeAttr::DoNotOptimize => {
-            llvm7::Attribute::MinSize.unapply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeForSize.unapply_llfn(Function, llfn);
-            llvm7::Attribute::OptimizeNone.apply_llfn(Function, llfn);
+            llvm::Attribute::MinSize.unapply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeForSize.unapply_llfn(Function, llfn);
+            llvm::Attribute::OptimizeNone.apply_llfn(Function, llfn);
         }
     }
 
@@ -82,19 +82,19 @@ pub(crate) fn from_fn_attrs<'ll, 'tcx>(
     inline(llfn, inline_attr);
 
     if codegen_fn_attrs.flags.contains(CodegenFnAttrFlags::COLD) {
-        llvm7::Attribute::Cold.apply_llfn(Function, llfn);
+        llvm::Attribute::Cold.apply_llfn(Function, llfn);
     }
     if codegen_fn_attrs
         .flags
         .contains(CodegenFnAttrFlags::FFI_PURE)
     {
-        llvm7::Attribute::ReadOnly.apply_llfn(Function, llfn);
+        llvm::Attribute::ReadOnly.apply_llfn(Function, llfn);
     }
     if codegen_fn_attrs
         .flags
         .contains(CodegenFnAttrFlags::FFI_CONST)
     {
-        llvm7::Attribute::ReadNone.apply_llfn(Function, llfn);
+        llvm::Attribute::ReadNone.apply_llfn(Function, llfn);
     }
 }
 

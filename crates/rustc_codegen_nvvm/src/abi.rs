@@ -20,8 +20,8 @@ use tracing::trace;
 use crate::builder::Builder;
 use crate::context::CodegenCx;
 use crate::int_replace::{get_transformed_type, transmute_llval};
-use crate::llvm7;
-use crate::llvm7::{AttributePlace, Type, Value};
+use crate::llvm;
+use crate::llvm::{AttributePlace, Type, Value};
 use crate::ty::LayoutLlvmExt;
 
 pub(crate) fn readjust_fn_abi<'tcx>(
@@ -83,13 +83,13 @@ macro_rules! for_each_kind {
 trait ArgAttributeExt {
     fn for_each_kind<F>(&self, f: F)
     where
-        F: FnMut(llvm7::Attribute);
+        F: FnMut(llvm::Attribute);
 }
 
 impl ArgAttributeExt for ArgAttribute {
     fn for_each_kind<F>(&self, mut f: F)
     where
-        F: FnMut(llvm7::Attribute),
+        F: FnMut(llvm::Attribute),
     {
         for_each_kind!(self, f, NoAlias, NoCapture, NonNull, ReadOnly, InReg)
     }
@@ -112,24 +112,24 @@ impl ArgAttributesExt for ArgAttributes {
             let deref = self.pointee_size.bytes();
             if deref != 0 {
                 if regular.contains(ArgAttribute::NonNull) {
-                    llvm7::LLVMRustAddDereferenceableAttr(llfn, idx.as_uint(), deref);
+                    llvm::LLVMRustAddDereferenceableAttr(llfn, idx.as_uint(), deref);
                 } else {
-                    llvm7::LLVMRustAddDereferenceableOrNullAttr(llfn, idx.as_uint(), deref);
+                    llvm::LLVMRustAddDereferenceableOrNullAttr(llfn, idx.as_uint(), deref);
                 }
                 regular -= ArgAttribute::NonNull;
             }
             if let Some(align) = self.pointee_align {
-                llvm7::LLVMRustAddAlignmentAttr(llfn, idx.as_uint(), align.bytes() as u32);
+                llvm::LLVMRustAddAlignmentAttr(llfn, idx.as_uint(), align.bytes() as u32);
             }
             regular.for_each_kind(|attr| attr.apply_llfn(idx, llfn));
             // TODO(RDambrosio016): Apply mutable noalias once we upgrade to LLVM 13
             match self.arg_ext {
                 ArgExtension::None => {}
                 ArgExtension::Zext => {
-                    llvm7::Attribute::ZExt.apply_llfn(idx, llfn);
+                    llvm::Attribute::ZExt.apply_llfn(idx, llfn);
                 }
                 ArgExtension::Sext => {
-                    llvm7::Attribute::SExt.apply_llfn(idx, llfn);
+                    llvm::Attribute::SExt.apply_llfn(idx, llfn);
                 }
             }
         }
@@ -146,9 +146,9 @@ impl ArgAttributesExt for ArgAttributes {
             let deref = self.pointee_size.bytes();
             if deref != 0 {
                 if regular.contains(ArgAttribute::NonNull) {
-                    llvm7::LLVMRustAddDereferenceableCallSiteAttr(callsite, idx.as_uint(), deref);
+                    llvm::LLVMRustAddDereferenceableCallSiteAttr(callsite, idx.as_uint(), deref);
                 } else {
-                    llvm7::LLVMRustAddDereferenceableOrNullCallSiteAttr(
+                    llvm::LLVMRustAddDereferenceableOrNullCallSiteAttr(
                         callsite,
                         idx.as_uint(),
                         deref,
@@ -157,7 +157,7 @@ impl ArgAttributesExt for ArgAttributes {
                 regular -= ArgAttribute::NonNull;
             }
             if let Some(align) = self.pointee_align {
-                llvm7::LLVMRustAddAlignmentCallSiteAttr(
+                llvm::LLVMRustAddAlignmentCallSiteAttr(
                     callsite,
                     idx.as_uint(),
                     align.bytes() as u32,
@@ -167,10 +167,10 @@ impl ArgAttributesExt for ArgAttributes {
             match self.arg_ext {
                 ArgExtension::None => {}
                 ArgExtension::Zext => {
-                    llvm7::Attribute::ZExt.apply_callsite(idx, callsite);
+                    llvm::Attribute::ZExt.apply_callsite(idx, callsite);
                 }
                 ArgExtension::Sext => {
-                    llvm7::Attribute::SExt.apply_callsite(idx, callsite);
+                    llvm::Attribute::SExt.apply_callsite(idx, callsite);
                 }
             }
         }
@@ -377,7 +377,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 
     fn ptr_to_llvm_type(&self, cx: &CodegenCx<'ll, 'tcx>) -> &'ll Type {
         unsafe {
-            llvm7::LLVMPointerType(
+            llvm::LLVMPointerType(
                 self.llvm_type(cx),
                 cx.data_layout().instruction_address_space.0 as c_uint,
             )
@@ -386,24 +386,24 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 
     fn apply_attrs_llfn(&self, cx: &CodegenCx<'ll, 'tcx>, llfn: &'ll Value) {
         if self.ret.layout.is_uninhabited() {
-            llvm7::Attribute::NoReturn.apply_llfn(llvm7::AttributePlace::Function, llfn);
+            llvm::Attribute::NoReturn.apply_llfn(llvm::AttributePlace::Function, llfn);
         }
 
         // TODO(RDambrosio016): should this always/never be applied? unwinding
         // on the gpu doesnt exist.
         if !self.can_unwind {
-            llvm7::Attribute::NoUnwind.apply_llfn(llvm7::AttributePlace::Function, llfn);
+            llvm::Attribute::NoUnwind.apply_llfn(llvm::AttributePlace::Function, llfn);
         }
 
         let mut i = 0;
         let mut apply = |attrs: &ArgAttributes| {
-            attrs.apply_attrs_to_llfn(llvm7::AttributePlace::Argument(i), cx, llfn);
+            attrs.apply_attrs_to_llfn(llvm::AttributePlace::Argument(i), cx, llfn);
             i += 1;
             i - 1
         };
         match &self.ret.mode {
             PassMode::Direct(attrs) => {
-                attrs.apply_attrs_to_llfn(llvm7::AttributePlace::ReturnValue, cx, llfn);
+                attrs.apply_attrs_to_llfn(llvm::AttributePlace::ReturnValue, cx, llfn);
             }
             PassMode::Indirect {
                 attrs,
@@ -412,7 +412,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             } => {
                 assert!(!on_stack);
                 let i = apply(attrs);
-                llvm7::Attribute::StructRet.apply_llfn(llvm7::AttributePlace::Argument(i), llfn);
+                llvm::Attribute::StructRet.apply_llfn(llvm::AttributePlace::Argument(i), llfn);
             }
             _ => {}
         }
@@ -472,13 +472,13 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 
         let mut i = 0;
         let mut apply = |cx: &CodegenCx<'_, '_>, attrs: &ArgAttributes| {
-            attrs.apply_attrs_to_callsite(llvm7::AttributePlace::Argument(i), cx, callsite);
+            attrs.apply_attrs_to_callsite(llvm::AttributePlace::Argument(i), cx, callsite);
             i += 1;
             i - 1
         };
         match self.ret.mode {
             PassMode::Direct(attrs) => {
-                attrs.apply_attrs_to_callsite(llvm7::AttributePlace::ReturnValue, bx.cx, callsite);
+                attrs.apply_attrs_to_callsite(llvm::AttributePlace::ReturnValue, bx.cx, callsite);
             }
             PassMode::Indirect {
                 attrs,
@@ -544,10 +544,10 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
 
 impl<'tcx> AbiBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
     fn get_param(&mut self, index: usize) -> Self::Value {
-        let val = llvm7::get_param(self.llfn(), index as c_uint);
+        let val = llvm::get_param(self.llfn(), index as c_uint);
         // trace!("Get param `{:?}`", val);
         let val = unsafe {
-            let llfnty = llvm7::LLVMRustGetFunctionType(self.llfn());
+            let llfnty = llvm::LLVMRustGetFunctionType(self.llfn());
             trace!("llfnty: {:?}", llfnty);
             // destructure so rustc doesnt complain in the call to transmute_llval
             let Self { cx, llbuilder } = self;
@@ -665,7 +665,7 @@ impl<'ll, 'tcx> ArgAbiExt<'ll, 'tcx> for ArgAbi<'tcx, Ty<'tcx>> {
         dst: PlaceRef<'tcx, &'ll Value>,
     ) {
         let mut next = || {
-            let val = llvm7::get_param(bx.llfn(), *idx as c_uint);
+            let val = llvm::get_param(bx.llfn(), *idx as c_uint);
             *idx += 1;
             val
         };

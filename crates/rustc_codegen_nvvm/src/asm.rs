@@ -1,8 +1,8 @@
 use std::os::raw::{c_char, c_uint};
 
 use crate::common::AsCCharPtr;
-use crate::llvm7;
-use crate::llvm7::Value;
+use crate::llvm;
+use crate::llvm::Value;
 use crate::ty::LayoutLlvmExt;
 use rustc_ast::{InlineAsmOptions, InlineAsmTemplatePiece};
 use rustc_codegen_ssa::{
@@ -178,7 +178,7 @@ impl<'tcx> AsmBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
             [ty] => ty,
             tys => self.type_struct(tys, false),
         };
-        let dialect = llvm7::AsmDialect::Att;
+        let dialect = llvm::AsmDialect::Att;
         let result = inline_asm_call(
             self,
             &template_str,
@@ -194,9 +194,9 @@ impl<'tcx> AsmBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
 
         if options.contains(InlineAsmOptions::PURE) {
             if options.contains(InlineAsmOptions::NOMEM) {
-                llvm7::Attribute::ReadNone.apply_callsite(llvm7::AttributePlace::Function, result);
+                llvm::Attribute::ReadNone.apply_callsite(llvm::AttributePlace::Function, result);
             } else if options.contains(InlineAsmOptions::READONLY) {
-                llvm7::Attribute::ReadOnly.apply_callsite(llvm7::AttributePlace::Function, result);
+                llvm::Attribute::ReadOnly.apply_callsite(llvm::AttributePlace::Function, result);
             }
         }
 
@@ -254,7 +254,7 @@ impl<'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
         }
 
         unsafe {
-            llvm7::LLVMRustAppendModuleInlineAsm(
+            llvm::LLVMRustAppendModuleInlineAsm(
                 self.llmod,
                 template_str.as_c_char_ptr(),
                 template_str.len(),
@@ -288,23 +288,23 @@ pub(crate) fn inline_asm_call<'ll>(
     asm: &str,
     cons: &str,
     inputs: &[&'ll Value],
-    output: &'ll llvm7::Type,
+    output: &'ll llvm::Type,
     volatile: bool,
     alignstack: bool,
-    dia: llvm7::AsmDialect,
+    dia: llvm::AsmDialect,
     line_spans: &[Span],
 ) -> Option<&'ll Value> {
-    let volatile = if volatile { llvm7::True } else { llvm7::False };
-    let alignstack = if alignstack { llvm7::True } else { llvm7::False };
+    let volatile = if volatile { llvm::True } else { llvm::False };
+    let alignstack = if alignstack { llvm::True } else { llvm::False };
 
     let argtys = inputs.iter().map(|v| bx.cx.val_ty(*v)).collect::<Vec<_>>();
 
     let fty = bx.cx.type_func(&argtys[..], output);
     unsafe {
         // Ask LLVM to verify that the constraints are well-formed.
-        let constraints_ok = llvm7::LLVMRustInlineAsmVerify(fty, cons.as_ptr().cast(), cons.len());
+        let constraints_ok = llvm::LLVMRustInlineAsmVerify(fty, cons.as_ptr().cast(), cons.len());
         if constraints_ok {
-            let v = llvm7::LLVMRustInlineAsm(
+            let v = llvm::LLVMRustInlineAsm(
                 fty,
                 asm.as_ptr().cast(),
                 asm.len(),
@@ -319,7 +319,7 @@ pub(crate) fn inline_asm_call<'ll>(
             // Store mark in a metadata node so we can map LLVM errors
             // back to source locations.  See #17552.
             let key = "srcloc";
-            let kind = llvm7::LLVMGetMDKindIDInContext(
+            let kind = llvm::LLVMGetMDKindIDInContext(
                 bx.llcx,
                 key.as_ptr() as *const c_char,
                 key.len() as c_uint,
@@ -331,8 +331,8 @@ pub(crate) fn inline_asm_call<'ll>(
                     .iter()
                     .map(|span| bx.const_i32(span.lo().to_u32() as i32)),
             );
-            let md = llvm7::LLVMMDNodeInContext(bx.llcx, srcloc.as_ptr(), srcloc.len() as u32);
-            llvm7::LLVMSetMetadata(call, kind, md);
+            let md = llvm::LLVMMDNodeInContext(bx.llcx, srcloc.as_ptr(), srcloc.len() as u32);
+            llvm::LLVMSetMetadata(call, kind, md);
 
             Some(call)
         } else {

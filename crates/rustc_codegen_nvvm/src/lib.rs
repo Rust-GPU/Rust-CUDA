@@ -47,8 +47,7 @@ mod init;
 mod int_replace;
 mod intrinsic;
 mod link;
-mod llvm7;
-mod llvm19;
+mod llvm;
 mod lto;
 mod mono_item;
 mod nvvm;
@@ -204,7 +203,7 @@ impl CodegenBackend for NvvmCodegenBackend {
 impl WriteBackendMethods for NvvmCodegenBackend {
     type Module = LlvmMod;
     type ModuleBuffer = lto::ModuleBuffer;
-    type TargetMachine = &'static mut llvm7::TargetMachine;
+    type TargetMachine = &'static mut llvm::TargetMachine;
     type TargetMachineError = String;
     type ThinData = ();
     type ThinBuffer = ThinBuffer;
@@ -354,26 +353,26 @@ impl ExtraBackendMethods for NvvmCodegenBackend {
 /// the LLVM bitcode we then add to the NVVM program and feed to libnvvm.
 /// LLVM's codegen is never actually called.
 pub(crate) unsafe fn create_module<'ll>(
-    llcx: &'ll llvm7::Context,
+    llcx: &'ll llvm::Context,
     mod_name: &str,
-) -> &'ll llvm7::Module {
+) -> &'ll llvm::Module {
     debug!("Creating llvm module with name `{}`", mod_name);
     let mod_name = CString::new(mod_name).expect("nul in module name");
-    let llmod = unsafe { llvm7::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), llcx) };
+    let llmod = unsafe { llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), llcx) };
 
     let data_layout = CString::new(target::DATA_LAYOUT).unwrap();
-    unsafe { llvm7::LLVMSetDataLayout(llmod, data_layout.as_ptr()) };
+    unsafe { llvm::LLVMSetDataLayout(llmod, data_layout.as_ptr()) };
 
     let target = CString::new(target::TARGET_TRIPLE).unwrap();
-    unsafe { llvm7::LLVMSetTarget(llmod, target.as_ptr()) };
+    unsafe { llvm::LLVMSetTarget(llmod, target.as_ptr()) };
 
     llmod
 }
 
 /// Wrapper over raw llvm structures
 pub struct LlvmMod {
-    llcx: &'static mut llvm7::Context,
-    llmod: *const llvm7::Module,
+    llcx: &'static mut llvm::Context,
+    llmod: *const llvm::Module,
 }
 
 unsafe impl Send for LlvmMod {}
@@ -383,7 +382,7 @@ impl LlvmMod {
     pub fn new(name: &str) -> Self {
         unsafe {
             // TODO(RDambrosio016): does shouldDiscardNames affect NVVM at all?
-            let llcx = llvm7::LLVMRustContextCreate(false);
+            let llcx = llvm::LLVMRustContextCreate(false);
             let llmod = create_module(llcx, name) as *const _;
             LlvmMod { llcx, llmod }
         }
@@ -393,7 +392,7 @@ impl LlvmMod {
 impl Drop for LlvmMod {
     fn drop(&mut self) {
         unsafe {
-            llvm7::LLVMContextDispose(&mut *(self.llcx as *mut _));
+            llvm::LLVMContextDispose(&mut *(self.llcx as *mut _));
         }
     }
 }

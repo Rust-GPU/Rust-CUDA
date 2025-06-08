@@ -4,8 +4,8 @@ use crate::back::demangle_callback;
 use crate::builder::unnamed;
 use crate::common::AsCCharPtr;
 use crate::context::CodegenArgs;
-use crate::llvm7;
-use crate::llvm7::{Context, Linkage, Module, Value, Visibility, False, True};
+use crate::llvm;
+use crate::llvm::{Context, Linkage, Module, Value, Visibility, False, True};
 use crate::lto::ThinBuffer;
 use nvvm::*;
 use rustc_codegen_ssa::traits::ThinBufferMethods;
@@ -54,7 +54,7 @@ pub fn codegen_bitcode_modules(
     args: &CodegenArgs,
     sess: &Session,
     modules: Vec<Vec<u8>>,
-    llcx: &llvm7::Context,
+    llcx: &llvm::Context,
 ) -> Result<Vec<u8>, CodegenErr> {
     debug!("Codegenning bitcode to PTX");
 
@@ -82,20 +82,20 @@ pub fn codegen_bitcode_modules(
 
         // needed for debug info or else nvvm complains about ir version mismatch for some
         // reason. It works if you don't use debug info though...
-        let ty_i32 = llvm7::LLVMInt32TypeInContext(llcx);
-        let major = llvm7::LLVMConstInt(ty_i32, major as u64, False);
-        let minor = llvm7::LLVMConstInt(ty_i32, minor as u64, False);
-        let dbg_major = llvm7::LLVMConstInt(ty_i32, dbg_major as u64, False);
-        let dbg_minor = llvm7::LLVMConstInt(ty_i32, dbg_minor as u64, False);
+        let ty_i32 = llvm::LLVMInt32TypeInContext(llcx);
+        let major = llvm::LLVMConstInt(ty_i32, major as u64, False);
+        let minor = llvm::LLVMConstInt(ty_i32, minor as u64, False);
+        let dbg_major = llvm::LLVMConstInt(ty_i32, dbg_major as u64, False);
+        let dbg_minor = llvm::LLVMConstInt(ty_i32, dbg_minor as u64, False);
         let vals = [major, minor, dbg_major, dbg_minor];
-        let node = llvm7::LLVMMDNodeInContext(llcx, vals.as_ptr(), vals.len() as u32);
+        let node = llvm::LLVMMDNodeInContext(llcx, vals.as_ptr(), vals.len() as u32);
 
-        llvm7::LLVMAddNamedMetadataOperand(module, c"nvvmir.version".as_ptr().cast(), node);
+        llvm::LLVMAddNamedMetadataOperand(module, c"nvvmir.version".as_ptr().cast(), node);
 
         if let Some(path) = &args.final_module_path {
             let out = path.to_str().unwrap();
             let result =
-                llvm7::LLVMRustPrintModule(module, out.as_c_char_ptr(), out.len(), demangle_callback);
+                llvm::LLVMRustPrintModule(module, out.as_c_char_ptr(), out.len(), demangle_callback);
             result
                 .into_result()
                 .expect("Failed to write final llvm module output");
@@ -138,12 +138,12 @@ pub fn codegen_bitcode_modules(
     Ok(res)
 }
 
-unsafe fn cleanup_dicompileunit(module: &llvm7::Module) {
+unsafe fn cleanup_dicompileunit(module: &llvm::Module) {
     unsafe {
         let mut cu1 = ptr::null_mut();
         let mut cu2 = ptr::null_mut();
-        llvm7::LLVMRustThinLTOGetDICompileUnit(module, &mut cu1, &mut cu2);
-        llvm7::LLVMRustThinLTOPatchDICompileUnit(module, cu1);
+        llvm::LLVMRustThinLTOGetDICompileUnit(module, &mut cu1, &mut cu2);
+        llvm::LLVMRustThinLTOPatchDICompileUnit(module, cu1);
     }
 }
 
@@ -162,7 +162,7 @@ fn merge_llvm_modules(modules: Vec<Vec<u8>>, llcx: &Context) -> &Module {
     let module = unsafe { crate::create_module(llcx, "merged_modules") };
     for merged_module in modules {
         unsafe {
-            let tmp = llvm7::LLVMRustParseBitcodeForLTO(
+            let tmp = llvm::LLVMRustParseBitcodeForLTO(
                 llcx,
                 merged_module.as_ptr(),
                 merged_module.len(),
@@ -170,7 +170,7 @@ fn merge_llvm_modules(modules: Vec<Vec<u8>>, llcx: &Context) -> &Module {
                 0,
             )
             .expect("Failed to parse module bitcode");
-            llvm7::LLVMLinkModules2(module, tmp);
+            llvm::LLVMLinkModules2(module, tmp);
         }
     }
     module
@@ -190,7 +190,7 @@ impl<'a, 'll> FunctionIter<'a, 'll> {
     pub fn new(module: &'a &'ll Module) -> Self {
         FunctionIter {
             module: PhantomData,
-            next: unsafe { llvm7::LLVMGetFirstFunction(module) },
+            next: unsafe { llvm::LLVMGetFirstFunction(module) },
         }
     }
 }
@@ -202,7 +202,7 @@ impl<'ll> Iterator for FunctionIter<'_, 'll> {
         let next = self.next;
 
         self.next = match next {
-            Some(next) => unsafe { llvm7::LLVMGetNextFunction(next) },
+            Some(next) => unsafe { llvm::LLVMGetNextFunction(next) },
             None => None,
         };
 
@@ -214,7 +214,7 @@ impl<'a, 'll> GlobalIter<'a, 'll> {
     pub fn new(module: &'a &'ll Module) -> Self {
         GlobalIter {
             module: PhantomData,
-            next: unsafe { llvm7::LLVMGetFirstGlobal(module) },
+            next: unsafe { llvm::LLVMGetFirstGlobal(module) },
         }
     }
 }
@@ -226,7 +226,7 @@ impl<'ll> Iterator for GlobalIter<'_, 'll> {
         let next = self.next;
 
         self.next = match next {
-            Some(next) => unsafe { llvm7::LLVMGetNextGlobal(next) },
+            Some(next) => unsafe { llvm::LLVMGetNextGlobal(next) },
             None => None,
         };
 
@@ -238,21 +238,21 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
     unsafe {
         // collect the values of all the declared kernels
         let num_operands =
-            llvm7::LLVMGetNamedMetadataNumOperands(module, c"nvvm.annotations".as_ptr().cast()) as usize;
+            llvm::LLVMGetNamedMetadataNumOperands(module, c"nvvm.annotations".as_ptr().cast()) as usize;
         let mut operands = Vec::with_capacity(num_operands);
-        llvm7::LLVMGetNamedMetadataOperands(
+        llvm::LLVMGetNamedMetadataOperands(
             module,
             c"nvvm.annotations".as_ptr().cast(),
             operands.as_mut_ptr(),
         );
         operands.set_len(num_operands);
         let mut kernels = Vec::with_capacity(num_operands);
-        let kernel_str = llvm7::LLVMMDStringInContext(cx, "kernel".as_ptr().cast(), 6);
+        let kernel_str = llvm::LLVMMDStringInContext(cx, "kernel".as_ptr().cast(), 6);
 
         for mdnode in operands {
-            let num_operands = llvm7::LLVMGetMDNodeNumOperands(mdnode) as usize;
+            let num_operands = llvm::LLVMGetMDNodeNumOperands(mdnode) as usize;
             let mut operands = Vec::with_capacity(num_operands);
-            llvm7::LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+            llvm::LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
             operands.set_len(num_operands);
 
             if operands.get(1) == Some(&kernel_str) {
@@ -262,9 +262,9 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
 
         // see what functions are marked as externally visible by the user.
         let num_operands =
-            llvm7::LLVMGetNamedMetadataNumOperands(module, c"cg_nvvm_used".as_ptr().cast()) as usize;
+            llvm::LLVMGetNamedMetadataNumOperands(module, c"cg_nvvm_used".as_ptr().cast()) as usize;
         let mut operands = Vec::with_capacity(num_operands);
-        llvm7::LLVMGetNamedMetadataOperands(
+        llvm::LLVMGetNamedMetadataOperands(
             module,
             c"cg_nvvm_used".as_ptr().cast(),
             operands.as_mut_ptr(),
@@ -273,9 +273,9 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
         let mut used_funcs = Vec::with_capacity(num_operands);
 
         for mdnode in operands {
-            let num_operands = llvm7::LLVMGetMDNodeNumOperands(mdnode) as usize;
+            let num_operands = llvm::LLVMGetMDNodeNumOperands(mdnode) as usize;
             let mut operands = Vec::with_capacity(num_operands);
-            llvm7::LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
+            llvm::LLVMGetMDNodeOperands(mdnode, operands.as_mut_ptr());
             operands.set_len(num_operands);
 
             used_funcs.push(operands[0]);
@@ -284,28 +284,28 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
         let iter = FunctionIter::new(&module);
         for func in iter {
             let is_kernel = kernels.contains(&func);
-            let is_decl = llvm7::LLVMIsDeclaration(func) == True;
+            let is_decl = llvm::LLVMIsDeclaration(func) == True;
             let is_used = used_funcs.contains(&func);
 
             if !is_decl && !is_kernel {
-                llvm7::LLVMRustSetLinkage(func, Linkage::InternalLinkage);
-                llvm7::LLVMRustSetVisibility(func, Visibility::Default);
+                llvm::LLVMRustSetLinkage(func, Linkage::InternalLinkage);
+                llvm::LLVMRustSetVisibility(func, Visibility::Default);
             }
 
             // explicitly set it to external just in case the codegen set them to internal for some reason
             if is_used {
-                llvm7::LLVMRustSetLinkage(func, Linkage::ExternalLinkage);
-                llvm7::LLVMRustSetVisibility(func, Visibility::Default);
+                llvm::LLVMRustSetLinkage(func, Linkage::ExternalLinkage);
+                llvm::LLVMRustSetVisibility(func, Visibility::Default);
             }
         }
 
         let iter = GlobalIter::new(&module);
         for func in iter {
-            let is_decl = llvm7::LLVMIsDeclaration(func) == True;
+            let is_decl = llvm::LLVMIsDeclaration(func) == True;
 
             if !is_decl {
-                llvm7::LLVMRustSetLinkage(func, Linkage::InternalLinkage);
-                llvm7::LLVMRustSetVisibility(func, Visibility::Default);
+                llvm::LLVMRustSetLinkage(func, Linkage::InternalLinkage);
+                llvm::LLVMRustSetVisibility(func, Visibility::Default);
             }
         }
     }
@@ -357,11 +357,11 @@ extern "C" int LLVMRustRunGlobalDCEOnly(LLVMModuleRef M) {
 */
 unsafe fn dce_pass(module: &Module) {
     unsafe {
-        let options = llvm7::LLVMCreatePassBuilderOptions();
+        let options = llvm::LLVMCreatePassBuilderOptions();
         let passes = c"globaldce".as_ptr();
         // Run the pass pipeline (target machine can be null for IR-only passes)
-        let null_tm: &llvm7::TargetMachine = std::mem::transmute(0usize);
-        llvm7::LLVMRunPasses(module, passes, null_tm, options);        
-        llvm7::LLVMDisposePassBuilderOptions(options);
+        let null_tm: &llvm::TargetMachine = std::mem::transmute(0usize);
+        llvm::LLVMRunPasses(module, passes, null_tm, options);        
+        llvm::LLVMDisposePassBuilderOptions(options);
     }
 }

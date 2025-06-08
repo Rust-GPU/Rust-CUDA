@@ -1,7 +1,7 @@
 use crate::abi::{FnAbiLlvmExt, LlvmType};
 use crate::context::CodegenCx;
-use crate::llvm7;
-use crate::llvm7::{Bool, False, True, Type, Value};
+use crate::llvm;
+use crate::llvm::{Bool, False, True, Type, Value};
 use libc::c_uint;
 use rustc_abi::Primitive::{Float, Int, Pointer};
 use rustc_abi::{
@@ -33,7 +33,7 @@ impl Eq for Type {}
 impl Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
-            let ptr = llvm7::LLVMPrintTypeToString(self);
+            let ptr = llvm::LLVMPrintTypeToString(self);
             let cstring = CString::from_raw(ptr);
             let string = cstring.to_string_lossy();
             f.write_str(&string)
@@ -49,8 +49,8 @@ impl Hash for Type {
 
 impl Type {
     // Creates an integer type with the given number of bits, e.g., i24
-    pub fn ix_llcx(llcx: &llvm7::Context, num_bits: u64) -> &Type {
-        unsafe { llvm7::LLVMIntTypeInContext(llcx, num_bits as c_uint) }
+    pub fn ix_llcx(llcx: &llvm::Context, num_bits: u64) -> &Type {
+        unsafe { llvm::LLVMIntTypeInContext(llcx, num_bits as c_uint) }
     }
 }
 
@@ -63,12 +63,12 @@ impl<'ll> CodegenCx<'ll, '_> {
 
     pub(crate) fn type_named_struct(&self, name: &str) -> &'ll Type {
         let name = SmallCStr::new(name);
-        unsafe { llvm7::LLVMStructCreateNamed(self.llcx, name.as_ptr()) }
+        unsafe { llvm::LLVMStructCreateNamed(self.llcx, name.as_ptr()) }
     }
 
     pub(crate) fn type_struct(&self, els: &[&'ll Type], packed: bool) -> &'ll Type {
         unsafe {
-            llvm7::LLVMStructTypeInContext(
+            llvm::LLVMStructTypeInContext(
                 self.llcx,
                 els.as_ptr(),
                 els.len() as c_uint,
@@ -78,19 +78,19 @@ impl<'ll> CodegenCx<'ll, '_> {
     }
 
     pub(crate) fn set_struct_body(&self, ty: &'ll Type, els: &[&'ll Type], packed: bool) {
-        unsafe { llvm7::LLVMStructSetBody(ty, els.as_ptr(), els.len() as c_uint, packed as Bool) }
+        unsafe { llvm::LLVMStructSetBody(ty, els.as_ptr(), els.len() as c_uint, packed as Bool) }
     }
 
     pub(crate) fn type_void(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMVoidTypeInContext(self.llcx) }
+        unsafe { llvm::LLVMVoidTypeInContext(self.llcx) }
     }
 
     pub(crate) fn type_metadata(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMRustMetadataTypeInContext(self.llcx) }
+        unsafe { llvm::LLVMRustMetadataTypeInContext(self.llcx) }
     }
 
     pub(crate) fn type_i1(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMInt1TypeInContext(self.llcx) }
+        unsafe { llvm::LLVMInt1TypeInContext(self.llcx) }
     }
 
     pub(crate) fn type_i8p(&self) -> &'ll Type {
@@ -103,11 +103,11 @@ impl<'ll> CodegenCx<'ll, '_> {
 
     ///x Creates an integer type with the given number of bits, e.g., i24
     pub(crate) fn type_ix(&self, num_bits: u64) -> &'ll Type {
-        unsafe { llvm7::LLVMIntTypeInContext(self.llcx, num_bits as c_uint) }
+        unsafe { llvm::LLVMIntTypeInContext(self.llcx, num_bits as c_uint) }
     }
 
     pub(crate) fn type_vector(&self, ty: &'ll Type, len: u64) -> &'ll Type {
-        unsafe { llvm7::LLVMVectorType(ty, len as c_uint) }
+        unsafe { llvm::LLVMVectorType(ty, len as c_uint) }
     }
 
     pub(crate) fn type_ptr_to(&self, ty: &'ll Type) -> &'ll Type {
@@ -117,18 +117,18 @@ impl<'ll> CodegenCx<'ll, '_> {
             "don't call ptr_to on function types, use ptr_to_llvm_type on FnAbi instead or explicitly specify an address space if it makes sense"
         );
 
-        unsafe { llvm7::LLVMPointerType(ty, AddressSpace::DATA.0) }
+        unsafe { llvm::LLVMPointerType(ty, AddressSpace::DATA.0) }
     }
 
     pub(crate) fn type_ptr_to_ext(&self, ty: &'ll Type, address_space: AddressSpace) -> &'ll Type {
-        unsafe { llvm7::LLVMPointerType(ty, address_space.0) }
+        unsafe { llvm::LLVMPointerType(ty, address_space.0) }
     }
 
     pub(crate) fn func_params_types(&self, ty: &'ll Type) -> Vec<&'ll Type> {
         unsafe {
-            let n_args = llvm7::LLVMCountParamTypes(ty) as usize;
+            let n_args = llvm::LLVMCountParamTypes(ty) as usize;
             let mut args = Vec::with_capacity(n_args);
-            llvm7::LLVMGetParamTypes(ty, args.as_mut_ptr());
+            llvm::LLVMGetParamTypes(ty, args.as_mut_ptr());
             args.set_len(n_args);
             args
         }
@@ -150,33 +150,33 @@ impl<'ll> CodegenCx<'ll, '_> {
     }
 
     pub(crate) fn type_variadic_func(&self, args: &[&'ll Type], ret: &'ll Type) -> &'ll Type {
-        unsafe { llvm7::LLVMFunctionType(ret, args.as_ptr(), args.len() as c_uint, True) }
+        unsafe { llvm::LLVMFunctionType(ret, args.as_ptr(), args.len() as c_uint, True) }
     }
 
     pub(crate) fn type_array(&self, ty: &'ll Type, len: u64) -> &'ll Type {
-        unsafe { llvm7::LLVMRustArrayType(ty, len) }
+        unsafe { llvm::LLVMRustArrayType(ty, len) }
     }
 }
 
 impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn type_i8(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMInt8TypeInContext(self.llcx) }
+        unsafe { llvm::LLVMInt8TypeInContext(self.llcx) }
     }
 
     fn type_i16(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMInt16TypeInContext(self.llcx) }
+        unsafe { llvm::LLVMInt16TypeInContext(self.llcx) }
     }
 
     fn type_i32(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMInt32TypeInContext(self.llcx) }
+        unsafe { llvm::LLVMInt32TypeInContext(self.llcx) }
     }
 
     fn type_i64(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMInt64TypeInContext(self.llcx) }
+        unsafe { llvm::LLVMInt64TypeInContext(self.llcx) }
     }
 
     fn type_i128(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMIntTypeInContext(self.llcx, 128) }
+        unsafe { llvm::LLVMIntTypeInContext(self.llcx, 128) }
     }
 
     fn type_isize(&self) -> &'ll Type {
@@ -184,31 +184,31 @@ impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn type_f16(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMHalfTypeInContext(self.llcx) }
+        unsafe { llvm::LLVMHalfTypeInContext(self.llcx) }
     }
 
     fn type_f32(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMFloatTypeInContext(self.llcx) }
+        unsafe { llvm::LLVMFloatTypeInContext(self.llcx) }
     }
 
     fn type_f64(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMDoubleTypeInContext(self.llcx) }
+        unsafe { llvm::LLVMDoubleTypeInContext(self.llcx) }
     }
 
     fn type_f128(&self) -> &'ll Type {
-        unsafe { llvm7::LLVMFP128TypeInContext(self.llcx) }
+        unsafe { llvm::LLVMFP128TypeInContext(self.llcx) }
     }
 
     fn type_array(&self, ty: Self::Type, len: u64) -> Self::Type {
-        unsafe { llvm7::LLVMRustArrayType(ty, len) }
+        unsafe { llvm::LLVMRustArrayType(ty, len) }
     }
 
     fn type_func(&self, args: &[&'ll Type], ret: &'ll Type) -> &'ll Type {
-        unsafe { llvm7::LLVMFunctionType(ret, args.as_ptr(), args.len() as c_uint, False) }
+        unsafe { llvm::LLVMFunctionType(ret, args.as_ptr(), args.len() as c_uint, False) }
     }
 
     fn type_kind(&self, ty: &'ll Type) -> TypeKind {
-        unsafe { llvm7::LLVMRustGetTypeKind(ty).to_generic() }
+        unsafe { llvm::LLVMRustGetTypeKind(ty).to_generic() }
     }
 
     fn type_ptr(&self) -> Self::Type {
@@ -220,12 +220,12 @@ impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn element_type(&self, ty: &'ll Type) -> &'ll Type {
-        let out = unsafe { llvm7::LLVMGetElementType(ty) };
+        let out = unsafe { llvm::LLVMGetElementType(ty) };
         out
     }
 
     fn vector_length(&self, ty: &'ll Type) -> usize {
-        unsafe { llvm7::LLVMGetVectorSize(ty) as usize }
+        unsafe { llvm::LLVMGetVectorSize(ty) as usize }
     }
 
     fn float_width(&self, ty: &'ll Type) -> usize {
@@ -239,11 +239,11 @@ impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn int_width(&self, ty: &'ll Type) -> u64 {
-        unsafe { llvm7::LLVMGetIntTypeWidth(ty) as u64 }
+        unsafe { llvm::LLVMGetIntTypeWidth(ty) as u64 }
     }
 
     fn val_ty(&self, v: &'ll Value) -> &'ll Type {
-        unsafe { llvm7::LLVMTypeOf(v) }
+        unsafe { llvm::LLVMTypeOf(v) }
     }
 }
 

@@ -26,8 +26,8 @@ use crate::debug_info::metadata::{
     file_metadata, type_di_node, unknown_file_metadata, visibility_di_flags,
 };
 use crate::debug_info::util::{DIB, create_DIArray, get_namespace_for_item};
-use crate::llvm7::debuginfo::{DIFile, DIFlags, DIType};
-use crate::llvm7;
+use crate::llvm::debuginfo::{DIFile, DIFlags, DIType};
+use crate::llvm;
 
 /// Build the debuginfo node for an enum type. The listing below shows how such a
 /// type looks like at the LLVM IR/DWARF level. It is a `DW_TAG_structure_type`
@@ -299,7 +299,7 @@ fn build_enum_variant_part_di_node<'ll, 'tcx>(
         variant_part_unique_type_id,
         |cx, variant_part_unique_type_id_str| unsafe {
             let variant_part_name = "";
-            llvm7::LLVMRustDIBuilderCreateVariantPart(
+            llvm::LLVMRustDIBuilderCreateVariantPart(
                 DIB(cx),
                 enum_type_di_node,
                 variant_part_name.as_c_char_ptr(),
@@ -382,7 +382,7 @@ fn build_discr_member_di_node<'ll, 'tcx>(
             let (size, align) = cx.size_and_align_of(tag_base_type);
 
             unsafe {
-                Some(llvm7::LLVMRustDIBuilderCreateMemberType(
+                Some(llvm::LLVMRustDIBuilderCreateMemberType(
                     DIB(cx),
                     containing_scope,
                     tag_name.as_c_char_ptr(),
@@ -463,7 +463,7 @@ fn build_enum_variant_member_di_node<'ll, 'tcx>(
     });
 
     unsafe {
-        llvm7::LLVMRustDIBuilderCreateVariantMemberType(
+        llvm::LLVMRustDIBuilderCreateVariantMemberType(
             DIB(cx),
             variant_part_di_node,
             variant_member_info.variant_name.as_c_char_ptr(),
@@ -557,7 +557,7 @@ fn build_enumeration_type_di_node<'ll, 'tcx>(
     let enumerator_di_nodes: SmallVec<Option<&'ll DIType>> = enumerators
         .map(|(name, value)| unsafe {
             // FIXME: pass all 128 bits with newer LLVM API.
-            Some(llvm7::LLVMRustDIBuilderCreateEnumerator(
+            Some(llvm::LLVMRustDIBuilderCreateEnumerator(
                 DIB(cx),
                 name.as_c_char_ptr(),
                 name.len(),
@@ -575,7 +575,7 @@ fn build_enumeration_type_di_node<'ll, 'tcx>(
     };
 
     unsafe {
-        llvm7::LLVMRustDIBuilderCreateEnumerationType(
+        llvm::LLVMRustDIBuilderCreateEnumerationType(
             DIB(cx),
             containing_scope,
             type_name.as_c_char_ptr(),

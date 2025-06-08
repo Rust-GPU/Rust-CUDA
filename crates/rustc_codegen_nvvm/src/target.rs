@@ -1,5 +1,5 @@
-use crate::llvm7;
-use crate::llvm7::Type;
+use crate::llvm;
+use crate::llvm::Type;
 use rustc_target::spec::{
     LinkerFlavor, MergeFunctions, PanicStrategy, Target, TargetMetadata, TargetOptions,
 };
@@ -9,8 +9,8 @@ pub const TARGET_TRIPLE: &str = "nvptx64-nvidia-cuda";
 pub const POINTER_WIDTH: u32 = 64;
 
 /// The pointer width of the current target
-pub(crate) unsafe fn usize_ty(llcx: &'_ llvm7::Context) -> &'_ Type {
-    unsafe { llvm7::LLVMInt64TypeInContext(llcx) }
+pub(crate) unsafe fn usize_ty(llcx: &'_ llvm::Context) -> &'_ Type {
+    unsafe { llvm::LLVMInt64TypeInContext(llcx) }
 }
 
 pub fn target() -> Target {

@@ -4,8 +4,8 @@ use rustc_middle::ty::{self, Ty};
 use tracing::trace;
 
 use crate::context::CodegenCx;
-use crate::llvm7;
-use crate::llvm7::debuginfo::{DIArray, DIBuilder, DIDescriptor, DIScope};
+use crate::llvm;
+use crate::llvm::debuginfo::{DIArray, DIBuilder, DIDescriptor, DIScope};
 
 use super::CodegenUnitDebugContext;
 use super::namespace::item_namespace;
@@ -27,7 +27,7 @@ pub(crate) fn create_DIArray<'ll>(
     builder: &DIBuilder<'ll>,
     arr: &[Option<&'ll DIDescriptor>],
 ) -> &'ll DIArray {
-    unsafe { llvm7::LLVMRustDIBuilderGetOrCreateArray(builder, arr.as_ptr(), arr.len() as u32) }
+    unsafe { llvm::LLVMRustDIBuilderGetOrCreateArray(builder, arr.as_ptr(), arr.len() as u32) }
 }
 
 #[inline]

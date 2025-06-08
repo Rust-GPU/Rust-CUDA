@@ -29,8 +29,8 @@ use crate::builder::Builder;
 use crate::common::AsCCharPtr;
 use crate::context::CodegenCx;
 use crate::debug_info::util::{create_DIArray, is_node_local_to_unit};
-use crate::llvm7;
-use crate::llvm7::{Context, Module, DIArray, DIBuilder, DIFile, DIFlags, DILocation, DIScope, DIType, DIVariable, Value};
+use crate::llvm;
+use crate::llvm::{Context, Module, DIArray, DIBuilder, DIFile, DIFlags, DILocation, DIScope, DIType, DIVariable, Value};
 
 use self::namespace::*;
 use self::util::DIB;
@@ -64,16 +64,16 @@ pub struct CodegenUnitDebugContext<'ll, 'tcx> {
 impl Drop for CodegenUnitDebugContext<'_, '_> {
     fn drop(&mut self) {
         unsafe {
-            llvm7::LLVMRustDIBuilderDispose(&mut *(self.builder as *mut _));
+            llvm::LLVMRustDIBuilderDispose(&mut *(self.builder as *mut _));
         }
     }
 }
 
 impl<'a> CodegenUnitDebugContext<'a, '_> {
-    pub(crate) fn new(llmod: &'a llvm7::Module) -> Self {
-        let builder = unsafe { llvm7::LLVMRustDIBuilderCreate(llmod) };
+    pub(crate) fn new(llmod: &'a llvm::Module) -> Self {
+        let builder = unsafe { llvm::LLVMRustDIBuilderCreate(llmod) };
         // DIBuilder inherits context from the module, so we'd better use the same one
-        let llcontext = unsafe { llvm7::LLVMGetModuleContext(llmod) };
+        let llcontext = unsafe { llvm::LLVMGetModuleContext(llmod) };
         CodegenUnitDebugContext {
             llcontext,
             llmod,
@@ -87,13 +87,13 @@ impl<'a> CodegenUnitDebugContext<'a, '_> {
 
     pub(crate) fn finalize(&self) {
         unsafe {
-            llvm7::LLVMRustDIBuilderFinalize(self.builder);
+            llvm::LLVMRustDIBuilderFinalize(self.builder);
 
             // Prevent bitcode readers from deleting the debug info.
-            llvm7::LLVMRustAddModuleFlag(
+            llvm::LLVMRustAddModuleFlag(
                 self.llmod,
                 c"Debug Info Version".as_ptr(),
-                llvm7::LLVMRustDebugMetadataVersion(),
+                llvm::LLVMRustDebugMetadataVersion(),
             );
         }
     }
@@ -141,7 +141,7 @@ impl<'ll> DebugInfoBuilderMethods for Builder<'_, 'll, '_> {
         }
 
         unsafe {
-            llvm7::LLVMRustDIBuilderInsertDeclareAtEnd(
+            llvm::LLVMRustDIBuilderInsertDeclareAtEnd(
                 DIB(self.cx()),
                 variable_alloca,
                 dbg_var,
@@ -155,8 +155,8 @@ impl<'ll> DebugInfoBuilderMethods for Builder<'_, 'll, '_> {
 
     fn set_dbg_loc(&mut self, dbg_loc: &'ll DILocation) {
         unsafe {
-            let dbg_loc_as_llval = llvm7::LLVMRustMetadataAsValue(self.cx().llcx, dbg_loc);
-            llvm7::LLVMSetCurrentDebugLocation(self.llbuilder, Some(dbg_loc_as_llval));
+            let dbg_loc_as_llval = llvm::LLVMRustMetadataAsValue(self.cx().llcx, dbg_loc);
+            llvm::LLVMSetCurrentDebugLocation(self.llbuilder, Some(dbg_loc_as_llval));
         }
     }
 
@@ -172,7 +172,7 @@ impl<'ll> DebugInfoBuilderMethods for Builder<'_, 'll, '_> {
         // Only function parameters and instructions are local to a function,
         // don't change the name of anything else (e.g. globals).
         let param_or_inst = unsafe {
-            llvm7::LLVMIsAArgument(value).is_some() || llvm7::LLVMIsAInstruction(value).is_some()
+            llvm::LLVMIsAArgument(value).is_some() || llvm::LLVMIsAInstruction(value).is_some()
         };
         if !param_or_inst {
             return;
@@ -181,14 +181,14 @@ impl<'ll> DebugInfoBuilderMethods for Builder<'_, 'll, '_> {
         // Avoid replacing the name if it already exists.
         // While we could combine the names somehow, it'd
         // get noisy quick, and the usefulness is dubious.
-        if llvm7::get_value_name(value).is_empty() {
-            llvm7::set_value_name(value, name.as_bytes());
+        if llvm::get_value_name(value).is_empty() {
+            llvm::set_value_name(value, name.as_bytes());
         }
     }
 
     fn clear_dbg_loc(&mut self) {
         unsafe {
-            llvm7::LLVMSetCurrentDebugLocation(self.llbuilder, None);
+            llvm::LLVMSetCurrentDebugLocation(self.llbuilder, None);
         }
     }
 
@@ -273,7 +273,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         let function_type_metadata = unsafe {
             let fn_signature = get_function_signature(self, fn_abi);
-            llvm7::LLVMRustDIBuilderCreateSubroutineType(DIB(self), fn_signature)
+            llvm::LLVMRustDIBuilderCreateSubroutineType(DIB(self), fn_signature)
         };
 
         let mut name = String::new();
@@ -307,7 +307,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         }
 
         unsafe {
-            return llvm7::LLVMRustDIBuilderCreateFunction(
+            return llvm::LLVMRustDIBuilderCreateFunction(
                 DIB(self),
                 containing_scope.0,
                 name.as_ptr(),
@@ -372,7 +372,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                             let actual_type_metadata = type_di_node(cx, actual_type);
                             let name = name.as_str();
                             Some(unsafe {
-                                Some(llvm7::LLVMRustDIBuilderCreateTemplateTypeParameter(
+                                Some(llvm::LLVMRustDIBuilderCreateTemplateTypeParameter(
                                     DIB(cx),
                                     None,
                                     name.as_c_char_ptr(),
@@ -458,7 +458,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     ) -> Self::DILocation {
         let DebugLoc { line, col, .. } = self.lookup_debug_loc(span.lo());
 
-        unsafe { llvm7::LLVMRustDIBuilderCreateDebugLocation(line, col, scope, inlined_at) }
+        unsafe { llvm::LLVMRustDIBuilderCreateDebugLocation(line, col, scope, inlined_at) }
     }
 
     fn create_vtable_debuginfo(
@@ -503,7 +503,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
         let name = CString::new(variable_name.as_str()).unwrap();
         unsafe {
-            llvm7::LLVMRustDIBuilderCreateVariable(
+            llvm::LLVMRustDIBuilderCreateVariable(
                 DIB(self),
                 dwarf_tag,
                 scope_metadata,

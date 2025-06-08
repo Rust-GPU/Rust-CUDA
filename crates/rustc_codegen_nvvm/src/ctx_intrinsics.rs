@@ -1,5 +1,5 @@
 use crate::context::CodegenCx;
-use crate::llvm7::{Value, Type};
+use crate::llvm::{Value, Type};
 use rustc_codegen_ssa::traits::BaseTypeCodegenMethods;
 use rustc_session::config::DebugInfo;
 

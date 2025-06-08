@@ -13,18 +13,18 @@ use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_middle::dep_graph::WorkProduct;
 use tracing::{debug, trace};
 
-use crate::{llvm7, NvvmCodegenBackend};
+use crate::{llvm, NvvmCodegenBackend};
 use crate::common::AsCCharPtr;
 use crate::LlvmMod;
 
-pub struct ModuleBuffer(&'static mut llvm7::ModuleBuffer);
+pub struct ModuleBuffer(&'static mut llvm::ModuleBuffer);
 
 unsafe impl Send for ModuleBuffer {}
 unsafe impl Sync for ModuleBuffer {}
 
 impl ModuleBuffer {
-    pub(crate) fn new(m: &llvm7::Module) -> ModuleBuffer {
-        ModuleBuffer(unsafe { llvm7::LLVMRustModuleBufferCreate(m) })
+    pub(crate) fn new(m: &llvm::Module) -> ModuleBuffer {
+        ModuleBuffer(unsafe { llvm::LLVMRustModuleBufferCreate(m) })
     }
 }
 
@@ -32,8 +32,8 @@ impl ModuleBufferMethods for ModuleBuffer {
     fn data(&self) -> &[u8] {
         unsafe {
             trace!("Retrieving data in module buffer");
-            let ptr = llvm7::LLVMRustModuleBufferPtr(self.0);
-            let len = llvm7::LLVMRustModuleBufferLen(self.0);
+            let ptr = llvm::LLVMRustModuleBufferPtr(self.0);
+            let len = llvm::LLVMRustModuleBufferLen(self.0);
             std::slice::from_raw_parts(ptr, len)
         }
     }
@@ -42,20 +42,20 @@ impl ModuleBufferMethods for ModuleBuffer {
 impl Drop for ModuleBuffer {
     fn drop(&mut self) {
         unsafe {
-            llvm7::LLVMRustModuleBufferFree(&mut *(self.0 as *mut _));
+            llvm::LLVMRustModuleBufferFree(&mut *(self.0 as *mut _));
         }
     }
 }
 
-pub struct ThinBuffer(&'static mut llvm7::ThinLTOBuffer);
+pub struct ThinBuffer(&'static mut llvm::ThinLTOBuffer);
 
 unsafe impl Send for ThinBuffer {}
 unsafe impl Sync for ThinBuffer {}
 
 impl ThinBuffer {
-    pub(crate) fn new(m: &llvm7::Module) -> ThinBuffer {
+    pub(crate) fn new(m: &llvm::Module) -> ThinBuffer {
         unsafe {
-            let buffer = llvm7::LLVMRustThinLTOBufferCreate(m);
+            let buffer = llvm::LLVMRustThinLTOBufferCreate(m);
 
             ThinBuffer(buffer)
         }
@@ -66,9 +66,9 @@ impl ThinBufferMethods for ThinBuffer {
     fn data(&self) -> &[u8] {
         unsafe {
             trace!("Retrieving data in thin buffer");
-            let ptr = llvm7::LLVMRustThinLTOBufferPtr(self.0) as *const _;
+            let ptr = llvm::LLVMRustThinLTOBufferPtr(self.0) as *const _;
 
-            let len = llvm7::LLVMRustThinLTOBufferLen(self.0);
+            let len = llvm::LLVMRustThinLTOBufferLen(self.0);
 
             std::slice::from_raw_parts(ptr, len)
         }
@@ -82,12 +82,12 @@ impl ThinBufferMethods for ThinBuffer {
 impl Drop for ThinBuffer {
     fn drop(&mut self) {
         unsafe {
-            llvm7::LLVMRustThinLTOBufferFree(&mut *(self.0 as *mut _));
+            llvm::LLVMRustThinLTOBufferFree(&mut *(self.0 as *mut _));
         }
     }
 }
 
-pub struct ThinData(&'static mut llvm7::ThinLTOData);
+pub struct ThinData(&'static mut llvm::ThinLTOData);
 
 unsafe impl Send for ThinData {}
 unsafe impl Sync for ThinData {}
@@ -95,7 +95,7 @@ unsafe impl Sync for ThinData {}
 impl Drop for ThinData {
     fn drop(&mut self) {
         unsafe {
-            llvm7::LLVMRustFreeThinLTOData(&mut *(self.0 as *mut _));
+            llvm::LLVMRustFreeThinLTOData(&mut *(self.0 as *mut _));
         }
     }
 }
@@ -160,7 +160,7 @@ pub(crate) unsafe fn optimize_thin(
 
     let module_name = &thin_module.shared.module_names[thin_module.idx];
 
-    let llcx = unsafe { llvm7::LLVMRustContextCreate(cgcx.fewer_names) };
+    let llcx = unsafe { llvm::LLVMRustContextCreate(cgcx.fewer_names) };
     let llmod =
         parse_module(llcx, module_name.to_str().unwrap(), thin_module.data(), dcx)? as *const _;
 
@@ -170,13 +170,13 @@ pub(crate) unsafe fn optimize_thin(
 }
 
 pub(crate) fn parse_module<'a>(
-    cx: &'a llvm7::Context,
+    cx: &'a llvm::Context,
     name: &str,
     data: &[u8],
     dcx: DiagCtxtHandle<'_>,
-) -> Result<&'a llvm7::Module, FatalError> {
+) -> Result<&'a llvm::Module, FatalError> {
     unsafe {
-        llvm7::LLVMRustParseBitcodeForLTO(
+        llvm::LLVMRustParseBitcodeForLTO(
             cx,
             data.as_ptr(),
             data.len(),

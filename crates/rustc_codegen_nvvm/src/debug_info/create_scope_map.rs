@@ -8,8 +8,8 @@ use rustc_middle::ty::layout::HasTypingEnv;
 use rustc_span::BytePos;
 
 use crate::context::CodegenCx;
-use crate::llvm7;
-use crate::llvm7::debuginfo::{DILocation, DIScope};
+use crate::llvm;
+use crate::llvm::debuginfo::{DILocation, DIScope};
 use rustc_middle::mir::{Body, SourceScope};
 use rustc_middle::ty::{self, Instance};
 use rustc_session::config::DebugInfo;
@@ -128,7 +128,7 @@ fn make_mir_scope<'ll, 'tcx>(
             cx.dbg_scope_fn(callee, callee_fn_abi, None)
         }
         None => unsafe {
-            llvm7::LLVMRustDIBuilderCreateLexicalBlock(
+            llvm::LLVMRustDIBuilderCreateLexicalBlock(
                 DIB(cx),
                 parent_scope.dbg_scope,
                 file_metadata,
@@ -163,7 +163,7 @@ fn make_mir_scope<'ll, 'tcx>(
         match discriminators.entry(callsite_span.lo()) {
             Entry::Occupied(mut o) => {
                 *o.get_mut() += 1;
-                unsafe { llvm7::LLVMRustDILocationCloneWithBaseDiscriminator(loc, *o.get()) }
+                unsafe { llvm::LLVMRustDILocationCloneWithBaseDiscriminator(loc, *o.get()) }
                     .expect("Failed to encode discriminator in DILocation")
             }
             Entry::Vacant(v) => {
