@@ -2354,3 +2354,33 @@ extern "C" void LLVMRustSetLinkage(LLVMValueRef V,
 {
   LLVMSetLinkage(V, fromRust(RustLinkage));
 }
+
+// TODO: non-standard
+enum class LLVMRustVisibility
+{
+  Default = 0,
+  Hidden = 1,
+  Protected = 2,
+};
+
+// TODO: non-standard
+static LLVMVisibility fromRust(LLVMRustVisibility Vis)
+{
+  switch (Vis)
+  {
+  case LLVMRustVisibility::Default:
+    return LLVMDefaultVisibility;
+  case LLVMRustVisibility::Hidden:
+    return LLVMHiddenVisibility;
+  case LLVMRustVisibility::Protected:
+    return LLVMProtectedVisibility;
+  }
+  report_fatal_error("Invalid LLVMRustVisibility value!");
+}
+
+// TODO: non-standard
+extern "C" void LLVMRustSetVisibility(LLVMValueRef V,
+                                      LLVMRustVisibility RustVisibility)
+{
+  LLVMSetVisibility(V, fromRust(RustVisibility));
+}

@@ -1309,7 +1309,8 @@ unsafe extern "C" {
         ConstantIndices: *const &'a Value,
         NumIndices: c_uint,
     ) -> &'a Value;
-    pub(crate) fn LLVMConstZExt<'a>(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
+    // TODO: remove me
+    //pub(crate) fn LLVMConstZExt<'a>(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
     pub(crate) fn LLVMConstPtrToInt<'a>(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
     pub(crate) fn LLVMConstIntToPtr<'a>(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
     pub(crate) fn LLVMConstBitCast<'a>(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
