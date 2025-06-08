@@ -12,9 +12,9 @@ use rustc_codegen_ssa::{
 use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_middle::dep_graph::WorkProduct;
 use tracing::{debug, trace};
-
-use crate::{llvm, NvvmCodegenBackend};
+use crate::llvm;
 use crate::common::AsCCharPtr;
+use crate::NvvmCodegenBackend;
 use crate::LlvmMod;
 
 pub struct ModuleBuffer(&'static mut llvm::ModuleBuffer);
