@@ -76,7 +76,7 @@ pub(crate) fn readjust_fn_abi<'tcx>(
 
 macro_rules! for_each_kind {
     ($flags: ident, $f: ident, $($kind: ident),+) => ({
-        $(if $flags.contains(ArgAttribute::$kind) { $f(llvm7::Attribute::$kind) })+
+        $(if $flags.contains(ArgAttribute::$kind) { $f(llvm::Attribute::$kind) })+
     })
 }
 

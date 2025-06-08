@@ -336,7 +336,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
             let mut signature = Vec::with_capacity(fn_abi.args.len() + 1);
 
-            // Return type -- llvm7::DIBuilder wants this at index 0
+            // Return type -- llvm::DIBuilder wants this at index 0
             signature.push(if fn_abi.ret.is_ignore() {
                 None
             } else {

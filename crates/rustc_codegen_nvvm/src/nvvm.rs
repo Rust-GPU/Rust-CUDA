@@ -314,10 +314,10 @@ unsafe fn internalize_pass(module: &Module, cx: &Context) {
 // TODO: remove llvmv7 code
 /*unsafe fn dce_pass(module: &Module) {
     unsafe {
-        let pass_manager = llvm7::LLVMCreatePassManager();
-        llvm7::LLVMAddGlobalDCEPass(pass_manager);
-        llvm7::LLVMRunPassManager(pass_manager, module);
-        llvm7::LLVMDisposePassManager(pass_manager);
+        let pass_manager = llvm::LLVMCreatePassManager();
+        llvm::LLVMAddGlobalDCEPass(pass_manager);
+        llvm::LLVMRunPassManager(pass_manager, module);
+        llvm::LLVMDisposePassManager(pass_manager);
     }
 }*/
 

@@ -369,12 +369,12 @@ pub(crate) unsafe fn optimize(
             // Set various options on the pass builder
             // TODO: support these flags
             /*if config.verify_each {
-                llvm7::LLVMPassBuilderOptionsSetVerifyEach(pass_options, 1);
+                llvm::LLVMPassBuilderOptionsSetVerifyEach(pass_options, 1);
             }
             
             // Enable debug logging if needed
             if config.debug_pass_manager {
-                llvm7::LLVMPassBuilderOptionsSetDebugLogging(pass_options, 1);
+                llvm::LLVMPassBuilderOptionsSetDebugLogging(pass_options, 1);
             }*/
             
             // Build the pass pipeline string based on optimization level and config

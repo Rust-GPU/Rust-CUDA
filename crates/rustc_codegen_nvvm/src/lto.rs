@@ -114,7 +114,7 @@ pub(crate) fn run_thin(
     for (name, buf) in modules {
         let cname = CString::new(name.clone()).unwrap();
         // thin_modules.push(
-        //     llvm7::ThinLTOModule {
+        //     llvm::ThinLTOModule {
         //         identifier: cname.as_ptr(),
         //         data: buf.data().as_ptr(),
         //         len: buf.data().len()

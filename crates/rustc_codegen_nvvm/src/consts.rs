@@ -417,7 +417,7 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
             if self.type_is_freeze(ty) {
                 // TODO(RDambrosio016): is this the same as putting this in
                 // the __constant__ addrspace for nvvm? should we set this addrspace explicitly?
-                // llvm7::LLVMSetGlobalConstant(g, llvm7::True);
+                // llvm::LLVMSetGlobalConstant(g, llvm::True);
             }
 
             debug_info::build_global_var_di_node(self, def_id, g);

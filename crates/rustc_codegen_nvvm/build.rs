@@ -10,6 +10,7 @@ use curl::easy::Easy;
 use tar::Archive;
 use xz::read::XzDecoder;
 
+// TODO: update this to support v19
 static PREBUILT_LLVM_URL: &str =
     "https://github.com/rust-gpu/rustc_codegen_nvvm-llvm/releases/download/LLVM-7.1.0/";
 

@@ -372,7 +372,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     // /// Use this function when you intend to define a global without a name.
     // pub fn define_private_global(&self, ty: &'ll Type) -> &'ll Value {
     //     println!("Declaring private global with ty `{:?}`", ty);
-    //     unsafe { llvm7::LLVMRustInsertPrivateGlobal(self.llmod, ty) }
+    //     unsafe { llvm::LLVMRustInsertPrivateGlobal(self.llmod, ty) }
     // }
 
     /// Gets declared value by name.
