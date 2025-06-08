@@ -2231,3 +2231,51 @@ extern "C" void LLVMRustAddDereferenceableCallSiteAttr(LLVMValueRef Instr,
   }
   Call->setAttributes(Attrs);
 }
+
+// TODO: non-standard
+extern "C" void LLVMRustAddAlignmentCallSiteAttr(LLVMValueRef Instr,
+                                                 unsigned Index,
+                                                 uint32_t Bytes) {
+  CallBase *Call = cast<CallBase>(unwrap<Instruction>(Instr));
+  LLVMContext &Ctx = Call->getContext();
+  
+  // In LLVM 19, AttrBuilder requires LLVMContext
+  AttrBuilder B(Ctx);
+  B.addAlignmentAttr(Bytes);
+  
+  // In LLVM 19, CallSite is deprecated, use CallBase and addParamAttrs/addFnAttrs
+  AttributeList Attrs = Call->getAttributes();
+  if (Index == AttributeList::FunctionIndex) {
+    Attrs = Attrs.addFnAttributes(Ctx, B);
+  } else {
+    Attrs = Attrs.addParamAttributes(Ctx, Index - 1, B); // Index is 1-based for parameters
+  }
+  Call->setAttributes(Attrs);
+}
+
+// TODO: non-standard
+extern "C" void LLVMRustAddCallSiteAttribute(LLVMValueRef Instr, unsigned Index,
+                                             LLVMRustAttribute RustAttr) {
+  CallBase *Call = cast<CallBase>(unwrap<Instruction>(Instr));
+  LLVMContext &Ctx = Call->getContext();
+  
+  Attribute Attr = Attribute::get(Ctx, fromRust(RustAttr));
+  AttrBuilder B(Ctx);
+  B.addAttribute(Attr);
+  
+  // In LLVM 19, CallSite is deprecated, use CallBase and addParamAttrs/addFnAttrs
+  AttributeList Attrs = Call->getAttributes();
+  if (Index == AttributeList::FunctionIndex) {
+    Attrs = Attrs.addFnAttributes(Ctx, B);
+  } else {
+    Attrs = Attrs.addParamAttributes(Ctx, Index - 1, B); // Index is 1-based for parameters
+  }
+  Call->setAttributes(Attrs);
+}
+
+// TODO: non-standard
+extern "C" LLVMTypeRef LLVMRustArrayType(LLVMTypeRef ElementTy,
+                                         uint64_t ElementCount)
+{
+  return wrap(ArrayType::get(unwrap(ElementTy), ElementCount));
+}
