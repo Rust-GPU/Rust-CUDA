@@ -452,11 +452,29 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn atomic_load(
         &mut self,
         _ty: &'ll Type,
-        _ptr: &'ll Value,
+        ptr: &'ll Value,
         _order: AtomicOrdering,
         _size: Size,
     ) -> &'ll Value {
-        todo!()
+        // core seems to think that nvptx has atomic loads, which is not true for NVVM IR,
+        // therefore our only option is to print that this is not supported then trap.
+        // i have heard of cursed things such as emulating this with __threadfence and volatile loads
+        // but that needs to be experimented with in terms of safety and behavior.
+        // NVVM has explicit intrinsics for adding and subtracting floats which we expose elsewhere
+
+        // TODO(RDambrosio016): is there a way we can just generate a panic with a message instead
+        // of doing this ourselves? since all panics will be aborts, it should be equivalent
+        // let message = "Atomic Loads are not supported in CUDA.\0";
+
+        // let vprintf = self.get_intrinsic("vprintf");
+        // let formatlist = self.const_str(Symbol::intern(message)).0;
+        // let valist = self.const_null(self.type_void());
+
+        // self.call(vprintf, &[formatlist, valist], None);
+
+        let (ty, f) = self.get_intrinsic("llvm.trap");
+        self.call(ty, None, None, f, &[], None, None);
+        unsafe { llvm::LLVMBuildLoad2(self.llbuilder, ty, ptr, unnamed()) }
     }
 
     fn load_operand(&mut self, place: PlaceRef<'tcx, &'ll Value>) -> OperandRef<'tcx, &'ll Value> {
@@ -686,11 +704,22 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn atomic_store(
         &mut self,
         _val: &'ll Value,
-        _ptr: &'ll Value,
+        ptr: &'ll Value,
         _order: rustc_codegen_ssa::common::AtomicOrdering,
         _size: Size,
     ) {
-        todo!()
+        // see comment in atomic_load
+
+        // let message = "Atomic Stores are not supported in CUDA.\0";
+
+        // let vprintf = self.get_intrinsic("vprintf");
+        // let formatlist = self.const_str(Symbol::intern(message)).0;
+        // let valist = self.const_null(self.type_void());
+
+        // self.call(vprintf, &[formatlist, valist], None);
+        let (ty, f) = self.get_intrinsic("llvm.trap");
+        self.call(ty, None, None, f, &[], None, None);
+        unsafe { llvm::LLVMBuildLoad2(self.llbuilder, ty, ptr, unnamed()); }
     }
 
     fn gep(&mut self, ty: &'ll Type, ptr: &'ll Value, indices: &[&'ll Value]) -> &'ll Value {
