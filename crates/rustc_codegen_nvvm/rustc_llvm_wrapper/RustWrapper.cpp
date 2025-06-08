@@ -9,7 +9,7 @@
 // except according to those terms.
 
 #include "rustllvm.h"
-#include "llvm/IR/CallSite.h"
+//#include "llvm/IR/CallSite.h" // TODO: deprecated
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DiagnosticInfo.h"
