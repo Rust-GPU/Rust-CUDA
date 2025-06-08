@@ -2472,3 +2472,14 @@ LLVMRustDIBuilderCreateLexicalBlockFile(LLVMDIBuilderRef Builder,
 extern "C" void LLVMRustDIBuilderFinalize(LLVMDIBuilderRef Builder) {
   unwrap(Builder)->finalize();
 }
+
+// TODO: non-standard
+extern "C" void LLVMRustAddModuleFlag(LLVMModuleRef M, const char *Name,
+                                      uint32_t Value) {
+  unwrap(M)->addModuleFlag(Module::ModFlagBehavior::Warning, Name, Value);
+}
+
+// TODO: non-standard
+extern "C" LLVMTypeRef LLVMRustMetadataTypeInContext(LLVMContextRef C) {
+  return wrap(Type::getMetadataTy(*unwrap(C)));
+}

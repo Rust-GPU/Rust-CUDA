@@ -493,6 +493,11 @@ unsafe extern "C" {
     pub(crate) type MemoryBuffer;
 }
 
+// TODO: remove this llvm v19 type
+unsafe extern "C" {
+    pub type PassBuilderOptions;
+}
+
 /// LLVMRustChecksumKind
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -1097,11 +1102,12 @@ unsafe extern "C" {
         Singlethread: bool,
     ) -> Option<&'static mut TargetMachine>;
 
-    pub(crate) fn LLVMRustAddAnalysisPasses<'a>(
+    // TODO: remove me
+    /*pub(crate) fn LLVMRustAddAnalysisPasses<'a>(
         T: &'a TargetMachine,
         PM: &'a PassManager,
         M: &'a Module,
-    );
+    );*/
     pub(crate) fn LLVMRustPassKind(Pass: &Pass) -> PassKind;
     pub(crate) fn LLVMRustFindAndCreatePass(
         Pass: *const c_char,
@@ -1948,4 +1954,22 @@ unsafe extern "C" {
     pub(crate) fn LLVMRustAddDereferenceableOrNullAttr(Fn: &Value, index: c_uint, bytes: u64);
 
     pub(crate) fn LLVMRustPositionBuilderAtStart<'a>(B: &Builder<'a>, BB: &'a BasicBlock);
+
+    // TODO: LLVM v19 pass functions shouldn't be here
+    pub(crate) fn LLVMCreatePassBuilderOptions() -> &'static mut PassBuilderOptions;
+    pub(crate) fn LLVMDisposePassBuilderOptions(Options: &'static mut PassBuilderOptions);
+    pub(crate) fn LLVMPassBuilderOptionsSetVerifyEach(
+        Options: &PassBuilderOptions,
+        VerifyEach: Bool,
+    );
+    pub(crate) fn LLVMPassBuilderOptionsSetDebugLogging(
+        Options: &PassBuilderOptions,
+        DebugLogging: Bool,
+    );
+    pub(crate) fn LLVMRunPasses(
+        M: &Module,
+        Passes: *const c_char,
+        TM: &TargetMachine,
+        Options: &PassBuilderOptions,
+    ) -> Bool;
 }

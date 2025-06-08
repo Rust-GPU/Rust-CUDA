@@ -355,63 +355,83 @@ pub(crate) unsafe fn optimize(
 
     let tm = (cgcx.tm_factory)(tm_factory_config).expect("failed to create target machine");
 
+    // LLVM 19: Complete rewrite using new pass manager
     if config.opt_level.is_some() {
         unsafe {
-            let fpm = llvm7::LLVMCreateFunctionPassManagerForModule(llmod);
-            let mpm = llvm7::LLVMCreatePassManager();
-
-            let addpass = |pass_name: &str| {
-                let pass =
-                    llvm7::LLVMRustFindAndCreatePass(pass_name.as_c_char_ptr(), pass_name.len());
-                if pass.is_none() {
-                    return false;
-                }
-                let pass = pass.unwrap();
-                let pass_manager = match llvm7::LLVMRustPassKind(pass) {
-                    llvm7::PassKind::Function => &fpm,
-                    llvm7::PassKind::Module => &mpm,
-                    llvm7::PassKind::Other => {
-                        diag_handler.err("Encountered LLVM pass kind we can't handle");
-                        return true;
-                    }
-                };
-                llvm7::LLVMRustAddPass(pass_manager, pass);
-                true
-            };
-
+            // Create pass builder options
+            let pass_options = llvm7::LLVMCreatePassBuilderOptions();
+            
+            // Configure pass builder options based on config
+            let opt_level = config
+                .opt_level
+                .map_or(llvm7::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
+            
+            // Set various options on the pass builder
+            // TODO: support these flags
+            /*if config.verify_each {
+                llvm7::LLVMPassBuilderOptionsSetVerifyEach(pass_options, 1);
+            }
+            
+            // Enable debug logging if needed
+            if config.debug_pass_manager {
+                llvm7::LLVMPassBuilderOptionsSetDebugLogging(pass_options, 1);
+            }*/
+            
+            // Build the pass pipeline string based on optimization level and config
+            let mut pass_pipeline = String::new();
+            
             if !config.no_prepopulate_passes {
-                llvm7::LLVMRustAddAnalysisPasses(tm, fpm, llmod);
-                llvm7::LLVMRustAddAnalysisPasses(tm, mpm, llmod);
-                let opt_level = config
-                    .opt_level
-                    .map_or(llvm7::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
-                with_llvm_pmb(llmod, config, opt_level, &mut |b| {
-                    llvm7::LLVMPassManagerBuilderPopulateFunctionPassManager(b, fpm);
-                    llvm7::LLVMPassManagerBuilderPopulateModulePassManager(b, mpm);
-                })
-            }
-
-            for pass in &config.passes {
-                if !addpass(pass) {
-                    diag_handler.warn(format!("unknown pass `{}`, ignoring", pass));
+                // Use default optimization pipeline based on level
+                match opt_level {
+                    llvm7::CodeGenOptLevel::None => {
+                        pass_pipeline.push_str("default<O0>");
+                    },
+                    llvm7::CodeGenOptLevel::Less => {
+                        pass_pipeline.push_str("default<O1>");
+                    },
+                    llvm7::CodeGenOptLevel::Default => {
+                        pass_pipeline.push_str("default<O2>");
+                    },
+                    llvm7::CodeGenOptLevel::Aggressive => {
+                        pass_pipeline.push_str("default<O3>");
+                    },
+                    llvm7::CodeGenOptLevel::Other => todo!(),
                 }
             }
-
-            diag_handler.abort_if_errors();
-
-            // Finally, run the actual optimization passes
-            llvm7::LLVMRustRunFunctionPassManager(fpm, llmod);
-            llvm7::LLVMRunPassManager(mpm, llmod);
-
-            // Deallocate managers that we're now done with
-            llvm7::LLVMDisposePassManager(fpm);
-            llvm7::LLVMDisposePassManager(mpm);
+            
+            // Add custom passes from config
+            for pass in &config.passes {
+                if !pass_pipeline.is_empty() {
+                    pass_pipeline.push(',');
+                }
+                pass_pipeline.push_str(pass);
+            }
+            
+            // Convert pass pipeline string to C string
+            let c_pass_pipeline = std::ffi::CString::new(pass_pipeline)
+                .expect("Pass pipeline string contains null byte");
+            
+            // Run the passes using the new pass manager
+            let result = llvm7::LLVMRunPasses(
+                llmod,                          // Module
+                c_pass_pipeline.as_ptr(),       // Pass pipeline string
+                tm,                             // TargetMachine
+                pass_options                    // PassBuilderOptions
+            );
+            
+            if result != 0 {
+                diag_handler.err("Failed to run optimization passes");
+            }
+            
+            // Clean up
+            llvm7::LLVMDisposePassBuilderOptions(pass_options);
         }
     }
 
     Ok(())
 }
 
+// TODO: remove this dead code?
 unsafe fn with_llvm_pmb(
     llmod: &llvm7::Module,
     config: &ModuleConfig,
