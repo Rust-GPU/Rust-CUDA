@@ -2492,3 +2492,31 @@ extern "C" LLVMTypeRef LLVMRustGetFunctionType(LLVMValueRef V)
   }
   return nullptr; // or handle error appropriately
 }
+
+// TODO: non-standard
+extern "C" LLVMValueRef LLVMRustBuildIntCast(LLVMBuilderRef B, LLVMValueRef Val,
+                                             LLVMTypeRef DestTy, bool isSigned)
+{
+    auto *Builder = unwrap(B);
+    auto *Value = unwrap(Val);
+    auto *Type = unwrap(DestTy);
+    
+    return wrap(Builder->CreateIntCast(Value, Type, isSigned, ""));
+}
+
+// TODO: non-standard
+extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMTypeRef FnTy,
+                                          LLVMValueRef Fn, LLVMValueRef *Args, 
+                                          unsigned NumArgs, OperandBundleDef *Bundle,
+                                          const char *Name)
+{
+    auto *Builder = unwrap(B);
+    auto *FunctionType = unwrap<llvm::FunctionType>(FnTy);
+    auto *Function = unwrap(Fn);
+    
+    unsigned Len = Bundle ? 1 : 0;
+    ArrayRef<OperandBundleDef> Bundles = ArrayRef<OperandBundleDef>(Bundle, Len);
+    ArrayRef<Value*> ArgsRef = ArrayRef<Value*>(unwrap(Args), NumArgs);
+    
+    return wrap(Builder->CreateCall(FunctionType, Function, ArgsRef, Bundles, Name));
+}

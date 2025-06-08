@@ -614,14 +614,16 @@ pub(crate) unsafe fn LLVMRustGetOrInsertFunction<'a>(
     }
 }
 
+// TODO: llvm v19 function in llvm v7 file
 pub(crate) unsafe fn LLVMRustBuildCall<'a>(
     B: &Builder<'a>,
+    FnTy: &'a Type,           // New: function type parameter
     Fn: &'a Value,
     Args: *const &'a Value,
     NumArgs: c_uint,
     Bundle: Option<&OperandBundleDef<'a>>,
 ) -> &'a Value {
-    unsafe { __LLVMRustBuildCall(B, Fn, Args, NumArgs, Bundle, unnamed()) }
+    unsafe { __LLVMRustBuildCall(B, FnTy, Fn, Args, NumArgs, Bundle, unnamed()) }
 }
 
 /// LLVMRustCodeGenOptLevel
@@ -662,9 +664,11 @@ pub enum CodeModel {
 }
 
 unsafe extern "C" {
+    // TODO: this is llvm19 format in llvmv7 file
     #[link_name = "LLVMRustBuildCall"]
     pub(crate) fn __LLVMRustBuildCall<'a>(
         B: &Builder<'a>,
+        FnTy: &'a Type,           // New: explicit function type parameter
         Fn: &'a Value,
         Args: *const &'a Value,
         NumArgs: c_uint,

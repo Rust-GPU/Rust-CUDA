@@ -82,6 +82,7 @@ pub(crate) unsafe fn codegen(
                 .enumerate()
                 .map(|(i, _)| unsafe { llvm7::LLVMGetParam(llfn, i as c_uint) })
                 .collect::<Vec<_>>();
+            // TODO: pass FnTy
             let ret = unsafe {
                 llvm7::LLVMRustBuildCall(
                     llbuilder,
@@ -134,6 +135,7 @@ pub(crate) unsafe fn codegen(
         .enumerate()
         .map(|(i, _)| unsafe { llvm7::LLVMGetParam(llfn, i as c_uint) })
         .collect::<Vec<_>>();
+    // TODO: pass FnTy
     let ret = unsafe {
         llvm7::LLVMRustBuildCall(llbuilder, callee, args.as_ptr(), args.len() as c_uint, None)
     };
