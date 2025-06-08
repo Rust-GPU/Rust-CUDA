@@ -2483,3 +2483,12 @@ extern "C" void LLVMRustAddModuleFlag(LLVMModuleRef M, const char *Name,
 extern "C" LLVMTypeRef LLVMRustMetadataTypeInContext(LLVMContextRef C) {
   return wrap(Type::getMetadataTy(*unwrap(C)));
 }
+
+// TODO: non-standard
+extern "C" LLVMTypeRef LLVMRustGetFunctionType(LLVMValueRef V)
+{
+  if (auto *F = dyn_cast<llvm::Function>(unwrap<llvm::Value>(V))) {
+    return wrap(F->getFunctionType());
+  }
+  return nullptr; // or handle error appropriately
+}

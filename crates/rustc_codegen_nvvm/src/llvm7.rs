@@ -1621,8 +1621,16 @@ unsafe extern "C" {
         Val: &'a Value,
         Name: *const c_char,
     ) -> &'a Value;
-    pub(crate) fn LLVMBuildLoad<'a>(
+    // TODO: remove me
+    /*pub(crate) fn LLVMBuildLoad<'a>(
         B: &Builder<'a>,
+        PointerVal: &'a Value,
+        Name: *const c_char,
+    ) -> &'a Value;*/
+    // TODO: do not put llvm v19 code here
+    pub(crate) fn LLVMBuildLoad2<'a>(
+        B: &Builder<'a>,
+        Ty: &'a Type,        // New: explicit type parameter
         PointerVal: &'a Value,
         Name: *const c_char,
     ) -> &'a Value;
