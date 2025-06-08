@@ -359,9 +359,7 @@ unsafe fn dce_pass(module: &Module) {
     unsafe {
         let options = llvm::LLVMCreatePassBuilderOptions();
         let passes = c"globaldce".as_ptr();
-        // Run the pass pipeline (target machine can be null for IR-only passes)
-        let null_tm: &llvm::TargetMachine = std::mem::transmute(0usize);
-        llvm::LLVMRunPasses(module, passes, null_tm, options);        
+        llvm::LLVMRunPasses(module, passes, std::ptr::null(), options);        
         llvm::LLVMDisposePassBuilderOptions(options);
     }
 }

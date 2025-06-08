@@ -1983,7 +1983,7 @@ unsafe extern "C" {
     pub(crate) fn LLVMRunPasses(
         M: &Module,
         Passes: *const c_char,
-        TM: &TargetMachine,
+        TM: *const TargetMachine,
         Options: &PassBuilderOptions,
     ) -> Bool;
 }
