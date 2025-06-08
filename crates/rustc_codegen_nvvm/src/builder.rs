@@ -686,7 +686,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn atomic_store(
         &mut self,
         _val: &'ll Value,
-        ptr: &'ll Value,
+        _ptr: &'ll Value,
         _order: rustc_codegen_ssa::common::AtomicOrdering,
         _size: Size,
     ) {
@@ -1076,6 +1076,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         let mut call = unsafe {
             llvm7::LLVMRustBuildCall(
                 self.llbuilder,
+                llty, // TODO: added llty here
                 llfn,
                 args.as_ptr(),
                 args.len() as c_uint,

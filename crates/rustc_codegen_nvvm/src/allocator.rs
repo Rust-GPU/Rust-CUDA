@@ -86,6 +86,7 @@ pub(crate) unsafe fn codegen(
             let ret = unsafe {
                 llvm7::LLVMRustBuildCall(
                     llbuilder,
+                    ty, // TODO: added ty here
                     callee,
                     args.as_ptr(),
                     args.len() as c_uint,
@@ -137,7 +138,14 @@ pub(crate) unsafe fn codegen(
         .collect::<Vec<_>>();
     // TODO: pass FnTy
     let ret = unsafe {
-        llvm7::LLVMRustBuildCall(llbuilder, callee, args.as_ptr(), args.len() as c_uint, None)
+        llvm7::LLVMRustBuildCall(
+            llbuilder, 
+            ty, // TODO: added ty here
+            callee, 
+            args.as_ptr(), 
+            args.len() as c_uint,
+            None
+        )
     };
     unsafe { llvm7::LLVMSetTailCall(ret, True) };
     unsafe { llvm7::LLVMBuildRetVoid(llbuilder) };
