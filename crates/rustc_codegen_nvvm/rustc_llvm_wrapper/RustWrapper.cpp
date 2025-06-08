@@ -2318,7 +2318,7 @@ enum class LLVMRustLinkage
 };
 
 // TODO: non-standard
-static LLVMLinkage fromRust(LLVMRustLinkage Linkage)
+static LLVMLinkage linkageFromRust(LLVMRustLinkage Linkage)
 {
   switch (Linkage)
   {
@@ -2349,7 +2349,7 @@ static LLVMLinkage fromRust(LLVMRustLinkage Linkage)
 }
 
 // TODO: non-standard
-static LLVMRustLinkage toRust(LLVMLinkage Linkage) {
+static LLVMRustLinkage linkageToRust(LLVMLinkage Linkage) {
   switch (Linkage) {
   case LLVMExternalLinkage:
     return LLVMRustLinkage::ExternalLinkage;
@@ -2382,12 +2382,12 @@ static LLVMRustLinkage toRust(LLVMLinkage Linkage) {
 extern "C" void LLVMRustSetLinkage(LLVMValueRef V,
                                    LLVMRustLinkage RustLinkage)
 {
-  LLVMSetLinkage(V, fromRust(RustLinkage));
+  LLVMSetLinkage(V, linkageFromRust(RustLinkage));
 }
 
 // TODO: non-standard
 extern "C" LLVMRustLinkage LLVMRustGetLinkage(LLVMValueRef V) {
-  return toRust(LLVMGetLinkage(V));
+  return linkageToRust(LLVMGetLinkage(V));
 }
 
 // TODO: non-standard
@@ -2399,7 +2399,21 @@ enum class LLVMRustVisibility
 };
 
 // TODO: non-standard
-static LLVMVisibility fromRust(LLVMRustVisibility Vis)
+static LLVMRustVisibility visibilityToRust(LLVMVisibility Vis) {
+  switch (Vis) {
+  case LLVMDefaultVisibility:
+    return LLVMRustVisibility::Default;
+  case LLVMHiddenVisibility:
+    return LLVMRustVisibility::Hidden;
+  case LLVMProtectedVisibility:
+    return LLVMRustVisibility::Protected;
+  }
+  report_fatal_error("Invalid LLVMRustVisibility value!");
+}
+
+
+// TODO: non-standard
+static LLVMVisibility visibilityFromRust(LLVMRustVisibility Vis)
 {
   switch (Vis)
   {
@@ -2417,5 +2431,44 @@ static LLVMVisibility fromRust(LLVMRustVisibility Vis)
 extern "C" void LLVMRustSetVisibility(LLVMValueRef V,
                                       LLVMRustVisibility RustVisibility)
 {
-  LLVMSetVisibility(V, fromRust(RustVisibility));
+  LLVMSetVisibility(V, visibilityFromRust(RustVisibility));
+}
+
+// TODO: non-standard
+extern "C" LLVMRustVisibility LLVMRustGetVisibility(LLVMValueRef V) {
+  return visibilityToRust(LLVMGetVisibility(V));
+}
+
+// TODO: non-standard
+extern "C" LLVMValueRef
+LLVMRustDIBuilderCreateDebugLocation(LLVMContextRef ContextRef, unsigned Line,
+                                     unsigned Column, LLVMMetadataRef Scope,
+                                     LLVMMetadataRef InlinedAt) {
+  LLVMContext &Context = *unwrap(ContextRef);
+  
+  // Convert metadata references to DIScope and DILocation
+  DIScope *ScopePtr = unwrapDI<DIScope>(Scope);
+  DILocation *InlinedAtPtr = InlinedAt ? 
+    unwrapDI<DILocation>(InlinedAt) : 
+    nullptr;
+  
+  // Create DILocation directly instead of using DebugLoc::get
+  DILocation *debug_loc = DILocation::get(Context, Line, Column, 
+                                          ScopePtr, InlinedAtPtr);
+  
+  return wrap(MetadataAsValue::get(Context, debug_loc));
+}
+
+// TODO: non-standard
+extern "C" LLVMMetadataRef
+LLVMRustDIBuilderCreateLexicalBlockFile(LLVMDIBuilderRef Builder,
+                                        LLVMMetadataRef Scope,
+                                        LLVMMetadataRef File) {
+  return wrap(unwrap(Builder)->createLexicalBlockFile(unwrapDI<DILocalScope>(Scope),
+                                                      unwrapDI<DIFile>(File)));
+}
+
+// TODO: non-standard
+extern "C" void LLVMRustDIBuilderFinalize(LLVMDIBuilderRef Builder) {
+  unwrap(Builder)->finalize();
 }
