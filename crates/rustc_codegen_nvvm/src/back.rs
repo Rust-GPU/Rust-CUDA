@@ -432,7 +432,7 @@ pub(crate) unsafe fn optimize(
 }
 
 // TODO: remove this dead code?
-unsafe fn with_llvm_pmb(
+/*unsafe fn with_llvm_pmb(
     llmod: &llvm::Module,
     config: &ModuleConfig,
     opt_level: llvm::CodeGenOptLevel,
@@ -496,4 +496,4 @@ unsafe fn with_llvm_pmb(
         f(builder);
         llvm::LLVMPassManagerBuilderDispose(builder);
     }
-}
+}*/
