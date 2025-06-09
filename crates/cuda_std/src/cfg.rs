@@ -20,7 +20,7 @@ pub enum ComputeCapability {
     Compute87,
     Compute89,
     Compute90,
-    Compute1000
+    Compute100
 }
 
 impl ComputeCapability {
