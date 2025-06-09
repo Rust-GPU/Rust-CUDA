@@ -1406,7 +1406,7 @@ enum class LLVMRustDiagnosticKind {
   SrcMgr,
 };
 
-static LLVMRustDiagnosticKind toRust(DiagnosticKind Kind) {
+static LLVMRustDiagnosticKind diagnosticKindToRust(DiagnosticKind Kind) {
   switch (Kind) {
   case DK_InlineAsm:
     return LLVMRustDiagnosticKind::InlineAsm;
@@ -1446,7 +1446,7 @@ static LLVMRustDiagnosticKind toRust(DiagnosticKind Kind) {
 
 extern "C" LLVMRustDiagnosticKind
 LLVMRustGetDiagInfoKind(LLVMDiagnosticInfoRef DI) {
-  return toRust((DiagnosticKind)unwrap(DI)->getKind());
+  return diagnosticKindToRust((DiagnosticKind)unwrap(DI)->getKind());
 }
 
 // This is kept distinct from LLVMGetTypeKind, because when
