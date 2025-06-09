@@ -2113,7 +2113,7 @@ enum LLVMRustAttribute
 };
 
 // TODO: non-standard
-static Attribute::AttrKind fromRust(LLVMRustAttribute Kind)
+static Attribute::AttrKind attrKindFromRust(LLVMRustAttribute Kind)
 {
   switch (Kind)
   {
@@ -2177,7 +2177,7 @@ extern "C" void LLVMRustAddFunctionAttribute(LLVMValueRef Fn, unsigned Index,
   Function *A = unwrap<Function>(Fn);
   LLVMContext &Ctx = A->getContext();
   
-  Attribute Attr = Attribute::get(Ctx, fromRust(RustAttr));
+  Attribute Attr = Attribute::get(Ctx, attrKindFromRust(RustAttr));
   AttrBuilder B(Ctx);
   B.addAttribute(Attr);
   
@@ -2259,7 +2259,7 @@ extern "C" void LLVMRustAddCallSiteAttribute(LLVMValueRef Instr, unsigned Index,
   CallBase *Call = cast<CallBase>(unwrap<Instruction>(Instr));
   LLVMContext &Ctx = Call->getContext();
   
-  Attribute Attr = Attribute::get(Ctx, fromRust(RustAttr));
+  Attribute Attr = Attribute::get(Ctx, attrKindFromRust(RustAttr));
   AttrBuilder B(Ctx);
   B.addAttribute(Attr);
   
@@ -2287,7 +2287,7 @@ extern "C" void LLVMRustRemoveFunctionAttributes(LLVMValueRef Fn,
   Function *F = unwrap<Function>(Fn);
   LLVMContext &Ctx = F->getContext();
   
-  Attribute Attr = Attribute::get(Ctx, fromRust(RustAttr));
+  Attribute Attr = Attribute::get(Ctx, attrKindFromRust(RustAttr));
   
   // In LLVM 19, use removeAttributeAtIndex with the attribute kind enum
   AttributeList PAL = F->getAttributes();

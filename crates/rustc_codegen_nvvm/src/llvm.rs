@@ -661,6 +661,15 @@ pub enum RelocMode {
     ROPI_RWPI,
 }
 
+/// LLVMRustFloatABI
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub enum FloatABIType {
+    Default,
+    Soft,
+    Hard
+}
+
 /// LLVMRustCodeModel
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -1101,23 +1110,31 @@ unsafe extern "C" {
         PGOUsePath: *const c_char,
     );
 
-    pub(crate) fn LLVMRustCreateTargetMachine<'a>(
-        Triple: *const c_char,
-        TripleLen: size_t,
+    pub(crate) fn LLVMRustCreateTargetMachine(
+        TripleStr: *const c_char,
         CPU: *const c_char,
-        CPULen: size_t,
-        Features: *const c_char,
-        FeaturesLen: size_t,
-        Model: CodeModel,
-        Reloc: RelocMode,
-        Level: CodeGenOptLevel,
-        UseSoftFP: bool,
-        PositionIndependentExecutable: bool,
+        Feature: *const c_char,
+        ABIStr: *const c_char,
+        RustCM: CodeModel,
+        RustReloc: RelocMode,
+        RustOptLevel: CodeGenOptLevel,
+        RustFloatABIType: FloatABIType,
         FunctionSections: bool,
         DataSections: bool,
+        UniqueSectionNames: bool,
         TrapUnreachable: bool,
         Singlethread: bool,
-    ) -> Option<&'static mut TargetMachine>;
+        VerboseAsm: bool,
+        EmitStackSizeSection: bool,
+        RelaxELFRelocations: bool,
+        UseInitArray: bool,
+        SplitDwarfFile: *const c_char,
+        OutputObjFile: *const c_char,
+        DebugInfoCompression: *const c_char,
+        UseEmulatedTls: bool,
+        ArgsCstrBuff: *const c_char,
+        ArgsCstrBuffLen: usize,
+    ) -> Option<&'static mut TargetMachine>; // TODO: not sure about this
 
     // TODO: remove me
     /*pub(crate) fn LLVMRustAddAnalysisPasses<'a>(

@@ -25,6 +25,7 @@
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/Signals.h" // TODO: non-standard
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Target/TargetMachine.h"
@@ -265,8 +266,18 @@ static CodeGenOptLevelEnum fromRust(LLVMRustCodeGenOptLevel Level) {
     return CodeGenOptLevelEnum::Default;
   case LLVMRustCodeGenOptLevel::Aggressive:
     return CodeGenOptLevelEnum::Aggressive;
-  default:
-    report_fatal_error("Bad CodeGenOptLevel.");
+  default: {
+    std::string error;
+    auto stream = llvm::raw_string_ostream(error);
+    stream << "Rust passed unsupported CodeGenOptLevel with value: " 
+           << static_cast<int>(Level) << "\n";
+    
+    // Print stack trace
+    llvm::sys::PrintStackTrace(llvm::errs());
+    
+    stream.flush();
+    report_fatal_error(error.c_str());
+  }
   }
 }
 

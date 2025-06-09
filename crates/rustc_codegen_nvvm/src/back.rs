@@ -22,7 +22,7 @@ use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
 
 use crate::common::AsCCharPtr;
-use crate::llvm;
+use crate::llvm::self;
 use crate::override_fns::define_or_override_fn;
 use crate::builder::Builder;
 use crate::context::CodegenCx;
@@ -107,21 +107,29 @@ pub fn target_machine_factory(
     Arc::new(move |_config: TargetMachineFactoryConfig| {
         let tm = unsafe {
             llvm::LLVMRustCreateTargetMachine(
-                triple.as_c_char_ptr(),
-                triple.len(),
-                std::ptr::null(),
-                0,
-                features.as_c_char_ptr(),
-                features.len(),
-                code_model,
-                reloc_model,
-                opt_level,
-                false,
-                use_softfp,
-                ffunction_sections,
+                triple.as_c_char_ptr(), //TripleStr
+                std::ptr::null(), // CPU
+                features.as_c_char_ptr(), // feature
+                std::ptr::null(), // ABIStr
+                code_model, // RustCM
+                reloc_model, // reloc
+                opt_level, // opt
+                if use_softfp { llvm::FloatABIType::Soft } else { llvm::FloatABIType::Default }, // FloatABIType
+                ffunction_sections, // function sections
                 fdata_sections,
+                false, // unique section names
                 trap_unreachable,
-                false,
+                false, // single thread
+                false, // VerboseAsm: bool,
+                false, // EmitStackSizeSection: bool,
+                false, // RelaxELFRelocations: bool,
+                false, // UseInitArray: bool,
+                std::ptr::null(), // SplitDwarfFile: *const c_char,
+                std::ptr::null(), // OutputObjFile: *const c_char,
+                std::ptr::null(), // DebugInfoCompression: *const c_char,
+                false, // UseEmulatedTls: bool,
+                std::ptr::null(), // ArgsCstrBuff: *const c_char,
+                0, // ArgsCstrBuffLen: usize,
             )
         };
         tm.ok_or_else(|| format!("Could not create LLVM TargetMachine for triple: {}", triple))
