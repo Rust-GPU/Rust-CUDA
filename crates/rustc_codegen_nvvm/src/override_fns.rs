@@ -33,7 +33,11 @@ fn should_override<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) -> bool
     }
 
     // there is no better way to do this without putting some sort of diagnostic/lang item in libm
-    let is_libm = cx.tcx.crate_name(LOCAL_CRATE).as_str() == "libm";
+    let func_crate_name = cx.tcx.crate_name(func.def_id().krate);
+    let func_crate_name = func_crate_name.as_str();
+    let local_crate_name = cx.tcx.crate_name(LOCAL_CRATE);
+    let local_crate_name = local_crate_name.as_str();
+    let is_libm = func_crate_name == "libm" || local_crate_name == "libm";
     if !is_libm {
         return false;
     }

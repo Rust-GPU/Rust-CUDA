@@ -23,7 +23,7 @@ use rustc_session::config::OptLevel;
 use rustc_span::Span;
 use rustc_target::callconv::FnAbi;
 use rustc_target::spec::{HasTargetSpec, Target};
-use tracing::{debug, trace};
+use tracing::{debug, info, trace};
 
 use crate::abi::FnAbiLlvmExt;
 use crate::context::CodegenCx;
@@ -1097,23 +1097,12 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         _funclet: Option<&Self::Funclet>,
         _instance: Option<Instance<'tcx>>,
     ) -> &'ll Value {
-        trace!("Calling fn {:?} with args {:?}", llfn, args);
+        info!("builder::call Calling fn {:?} with args {:?}", llfn, args);
         self.cx.last_call_llfn.set(None);
         let args = self.check_call("call", llty, llfn, args);
-
-        let llfn_ty = self.cx.val_ty(llfn);
-        let llfn_type = if self.cx.type_kind(llfn_ty) == TypeKind::Pointer {
-            // If it's a function pointer, get the pointed-to type
-            self.cx.element_type(llfn_ty)
-        } else {
-            // If it's already a function type
-            llfn_ty
-        };
-
         let mut call = unsafe {
             llvm::LLVMRustBuildCall(
                 self.llbuilder,
-                llfn_type, // TODO: added FnTy here
                 llfn,
                 args.as_ptr(),
                 args.len() as c_uint,
@@ -1127,8 +1116,6 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         // bitcast return type if the type was remapped
         let map = self.cx.remapped_integer_args.borrow();
         let mut fn_ty = self.val_ty(llfn);
-        let fn_ty_ptr = fn_ty as *const _ as *mut llvm::Type;
-        assert!(!fn_ty_ptr.is_null());
         while self.cx.type_kind(fn_ty) == TypeKind::Pointer {
             fn_ty = self.cx.element_type(fn_ty);
         }

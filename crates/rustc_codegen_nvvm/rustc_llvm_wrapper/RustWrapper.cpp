@@ -2505,20 +2505,18 @@ extern "C" LLVMValueRef LLVMRustBuildIntCast(LLVMBuilderRef B, LLVMValueRef Val,
 }
 
 // TODO: non-standard
-extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMTypeRef FnTy,
-                                          LLVMValueRef Fn, LLVMValueRef *Args, 
-                                          unsigned NumArgs, OperandBundleDef *Bundle,
+
+extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,
+                                          LLVMValueRef *Args, unsigned NumArgs,
+                                          OperandBundleDef *Bundle,
                                           const char *Name)
 {
-    auto *Builder = unwrap(B);
-    auto *FunctionType = unwrap<llvm::FunctionType>(FnTy);
-    auto *Function = unwrap(Fn);
-    
-    unsigned Len = Bundle ? 1 : 0;
-    ArrayRef<OperandBundleDef> Bundles = ArrayRef<OperandBundleDef>(Bundle, Len);
-    ArrayRef<Value*> ArgsRef = ArrayRef<Value*>(unwrap(Args), NumArgs);
-    
-    return wrap(Builder->CreateCall(FunctionType, Function, ArgsRef, Bundles, Name));
+  unsigned Len = Bundle ? 1 : 0;
+  ArrayRef<OperandBundleDef> Bundles = ArrayRef<OperandBundleDef>(Bundle, Len);
+  Value *FnVal = unwrap(Fn);
+  FunctionType *FnType = cast<Function>(FnVal)->getFunctionType();
+  return wrap(unwrap(B)->CreateCall(
+      FnType, FnVal, ArrayRef<Value *>(unwrap(Args), NumArgs), Bundles, Name));
 }
 
 // TODO: non-standard

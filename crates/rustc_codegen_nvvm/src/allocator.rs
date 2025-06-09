@@ -82,17 +82,9 @@ pub(crate) unsafe fn codegen(
                 .enumerate()
                 .map(|(i, _)| unsafe { llvm::LLVMGetParam(llfn, i as c_uint) })
                 .collect::<Vec<_>>();
-            // TODO: pass FnTy
-            let callee_val_ty = unsafe { llvm::LLVMTypeOf(callee) };
-            let callee_fn_ty = if unsafe { llvm::LLVMRustGetTypeKind(callee_val_ty) } == llvm::TypeKind::Pointer {
-                unsafe { llvm::LLVMGetElementType(callee_val_ty) }
-            } else {
-                callee_val_ty
-            };
             let ret = unsafe {
                 llvm::LLVMRustBuildCall(
                     llbuilder,
-                    callee_fn_ty, // TODO: added FnTy here
                     callee,
                     args.as_ptr(),
                     args.len() as c_uint,
@@ -142,17 +134,9 @@ pub(crate) unsafe fn codegen(
         .enumerate()
         .map(|(i, _)| unsafe { llvm::LLVMGetParam(llfn, i as c_uint) })
         .collect::<Vec<_>>();
-    // TODO: pass FnTy
-    let callee_val_ty = unsafe { llvm::LLVMTypeOf(callee) };
-    let callee_fn_ty = if unsafe { llvm::LLVMRustGetTypeKind(callee_val_ty) } == llvm::TypeKind::Pointer {
-        unsafe { llvm::LLVMGetElementType(callee_val_ty) }
-    } else {
-        callee_val_ty
-    };
     let ret = unsafe {
         llvm::LLVMRustBuildCall(
             llbuilder, 
-            callee_fn_ty, // TODO: added ty here
             callee, 
             args.as_ptr(), 
             args.len() as c_uint,
