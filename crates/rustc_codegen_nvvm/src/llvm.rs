@@ -610,7 +610,8 @@ pub(crate) unsafe fn LLVMRustGetOrInsertFunction<'a>(
     unsafe {
         let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
         let cstring = CString::new(str).expect("str with nul");
-        __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), FunctionTy)
+        // TODO: added NameLen
+        __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), NameLen, FunctionTy)
     }
 }
 
@@ -681,6 +682,7 @@ unsafe extern "C" {
     fn __LLVMRustGetOrInsertFunction<'a>(
         M: &'a Module,
         Name: *const c_char,
+        NameLen: size_t, // TODO: llvm19 added this
         FunctionTy: &'a Type,
     ) -> &'a Value;
 
