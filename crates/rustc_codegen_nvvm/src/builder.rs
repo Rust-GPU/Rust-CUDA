@@ -1101,11 +1101,19 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         self.cx.last_call_llfn.set(None);
         let args = self.check_call("call", llty, llfn, args);
 
-        // TODO: pass FnTy
+        let llfn_ty = self.cx.val_ty(llfn);
+        let llfn_type = if self.cx.type_kind(llfn_ty) == TypeKind::Pointer {
+            // If it's a function pointer, get the pointed-to type
+            self.cx.element_type(llfn_ty)
+        } else {
+            // If it's already a function type
+            llfn_ty
+        };
+
         let mut call = unsafe {
             llvm::LLVMRustBuildCall(
                 self.llbuilder,
-                llty, // TODO: added llty here
+                llfn_type, // TODO: added FnTy here
                 llfn,
                 args.as_ptr(),
                 args.len() as c_uint,
