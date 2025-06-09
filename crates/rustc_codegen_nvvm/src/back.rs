@@ -22,7 +22,7 @@ use rustc_span::Symbol;
 use rustc_target::spec::{CodeModel, RelocModel};
 
 use crate::common::AsCCharPtr;
-use crate::llvm::self;
+use crate::llvm;
 use crate::override_fns::define_or_override_fn;
 use crate::builder::Builder;
 use crate::context::CodegenCx;
