@@ -394,7 +394,6 @@ pub(crate) unsafe fn optimize(
                     llvm::CodeGenOptLevel::Aggressive => {
                         pass_pipeline.push_str("default<O3>");
                     },
-                    llvm::CodeGenOptLevel::Other => todo!(),
                 }
             }
             

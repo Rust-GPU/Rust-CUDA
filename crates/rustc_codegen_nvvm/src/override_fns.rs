@@ -27,6 +27,11 @@ fn should_override<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) -> bool
         return false;
     }
 
+    if cx.tcx.def_kind(func.def_id()) == rustc_hir::def::DefKind::Closure {
+        // We don't override closures
+        return false;
+    }
+
     // there is no better way to do this without putting some sort of diagnostic/lang item in libm
     let is_libm = cx.tcx.crate_name(LOCAL_CRATE).as_str() == "libm";
     if !is_libm {

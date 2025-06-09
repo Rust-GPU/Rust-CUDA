@@ -208,7 +208,14 @@ impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn type_kind(&self, ty: &'ll Type) -> TypeKind {
-        unsafe { llvm::LLVMRustGetTypeKind(ty).to_generic() }
+        unsafe { 
+            let ptr = ty as *const Type;
+            if ptr.is_null() {
+                panic!("Null LLVM Type pointer");
+            }
+            let result = llvm::LLVMRustGetTypeKind(ty);
+            result.to_generic()
+        }
     }
 
     fn type_ptr(&self) -> Self::Type {
@@ -230,11 +237,12 @@ impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
     fn float_width(&self, ty: &'ll Type) -> usize {
         match self.type_kind(ty) {
+            TypeKind::Half | TypeKind::BFloat => 16,
             TypeKind::Float => 32,
             TypeKind::Double => 64,
             TypeKind::X86_FP80 => 80,
             TypeKind::FP128 | TypeKind::PPC_FP128 => 128,
-            _ => bug!("llvm_float_width called on a non-float type"),
+            ty => bug!("llvm_float_width called on a non-float type: {:?}", ty),
         }
     }
 

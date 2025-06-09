@@ -641,7 +641,6 @@ pub(crate) unsafe fn LLVMRustBuildCall<'a>(
 #[derive(Copy, Clone, PartialEq)]
 #[repr(C)]
 pub enum CodeGenOptLevel {
-    Other,
     None,
     Less,
     Default,

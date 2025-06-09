@@ -1119,6 +1119,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         // bitcast return type if the type was remapped
         let map = self.cx.remapped_integer_args.borrow();
         let mut fn_ty = self.val_ty(llfn);
+        let fn_ty_ptr = fn_ty as *const _ as *mut llvm::Type;
+        assert!(!fn_ty_ptr.is_null());
         while self.cx.type_kind(fn_ty) == TypeKind::Pointer {
             fn_ty = self.cx.element_type(fn_ty);
         }
