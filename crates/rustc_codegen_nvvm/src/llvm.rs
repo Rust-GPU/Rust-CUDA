@@ -292,6 +292,9 @@ pub(crate) enum TypeKind {
     Half = 1,
     Float = 2,
     Double = 3,
+    X86_FP80 = 4,
+    FP128 = 5,
+    PPC_FP128 = 6,
     Label = 7,
     Integer = 8,
     Function = 9,
@@ -303,26 +306,33 @@ pub(crate) enum TypeKind {
     Token = 16,
     ScalableVector = 17,
     BFloat = 18,
+    X86_AMX = 19,
+    TargetExt = 20,
 }
 
 impl TypeKind {
     pub fn to_generic(self) -> rustc_codegen_ssa::common::TypeKind {
-        match self {
+       match self {
             TypeKind::Void => rustc_codegen_ssa::common::TypeKind::Void,
             TypeKind::Half => rustc_codegen_ssa::common::TypeKind::Half,
             TypeKind::Float => rustc_codegen_ssa::common::TypeKind::Float,
             TypeKind::Double => rustc_codegen_ssa::common::TypeKind::Double,
+            TypeKind::X86_FP80 => rustc_codegen_ssa::common::TypeKind::X86_FP80,
+            TypeKind::FP128 => rustc_codegen_ssa::common::TypeKind::FP128,
+            TypeKind::PPC_FP128 => rustc_codegen_ssa::common::TypeKind::PPC_FP128,
             TypeKind::Label => rustc_codegen_ssa::common::TypeKind::Label,
+            TypeKind::Metadata => rustc_codegen_ssa::common::TypeKind::Metadata,
             TypeKind::Integer => rustc_codegen_ssa::common::TypeKind::Integer,
             TypeKind::Function => rustc_codegen_ssa::common::TypeKind::Function,
             TypeKind::Struct => rustc_codegen_ssa::common::TypeKind::Struct,
             TypeKind::Array => rustc_codegen_ssa::common::TypeKind::Array,
             TypeKind::Pointer => rustc_codegen_ssa::common::TypeKind::Pointer,
             TypeKind::Vector => rustc_codegen_ssa::common::TypeKind::Vector,
-            TypeKind::Metadata => rustc_codegen_ssa::common::TypeKind::Metadata,
             TypeKind::Token => rustc_codegen_ssa::common::TypeKind::Token,
             TypeKind::ScalableVector => rustc_codegen_ssa::common::TypeKind::ScalableVector,
             TypeKind::BFloat => rustc_codegen_ssa::common::TypeKind::BFloat,
+            TypeKind::X86_AMX => rustc_codegen_ssa::common::TypeKind::X86_AMX,
+            TypeKind::TargetExt => unimplemented!()
         }
     }
 }
