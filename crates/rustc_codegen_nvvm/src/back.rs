@@ -14,7 +14,6 @@ use rustc_codegen_ssa::{
     traits::{BaseTypeCodegenMethods, ThinBufferMethods},
 };
 use rustc_errors::{DiagCtxtHandle, FatalError};
-use rustc_fs_util::path_to_c_string;
 use rustc_middle::mir::mono::{MonoItem, MonoItemData};
 use rustc_middle::{
     bug,
@@ -189,6 +188,7 @@ pub(crate) unsafe fn codegen(
     module: ModuleCodegen<LlvmMod>,
     config: &ModuleConfig,
 ) -> Result<CompiledModule, FatalError> {
+    eprintln!("DEBUG: codegen");
     // For NVVM, all the codegen we need to do is turn the llvm modules
     // into llvm bitcode and write them to a tempdir. nvvm expects llvm
     // bitcode as the modules to be added to the program. Then as the last step
@@ -213,6 +213,7 @@ pub(crate) unsafe fn codegen(
     // nvvm ir *is* llvm ir so emit_ir fits the expectation of llvm ir which is why we
     // implement this. this is copy and pasted straight from rustc_codegen_llvm
     // because im too lazy to make it seem like i rewrote this when its the same logic
+    eprintln!("DEBUG: emit_ir = {}", config.emit_ir);
     if config.emit_ir {
         let _timer = cgcx
             .prof
@@ -236,6 +237,7 @@ pub(crate) unsafe fn codegen(
         .prof
         .generic_activity_with_arg("NVVM_module_codegen_make_bitcode", &module.name[..]);
 
+    eprintln!("DEBUG: making new ThinBuffer");
     let thin = ThinBuffer::new(llmod);
 
     let data = thin.data();
@@ -364,10 +366,7 @@ pub(crate) unsafe fn optimize(
     let llmod = unsafe { &*module.module_llvm.llmod };
     eprintln!("DEBUG: Got module pointer: {:p}", llmod);
 
-    let module_name = module.name.clone();
-    let module_name = Some(&module_name[..]);
-
-    eprintln!("DEBUG: Config - emit_no_opt_bc: {}", config.emit_no_opt_bc);
+    /*eprintln!("DEBUG: Config - emit_no_opt_bc: {}", config.emit_no_opt_bc);
     if config.emit_no_opt_bc {
         eprintln!("DEBUG: Writing no-opt bitcode file");
         let out = cgcx
@@ -379,7 +378,7 @@ pub(crate) unsafe fn optimize(
             let result = llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr());
             eprintln!("DEBUG: LLVMWriteBitcodeToFile returned: {}", result);
         }
-    }
+    }*/
 
     eprintln!("DEBUG: Creating target machine factory config");
     let tm_factory_config = TargetMachineFactoryConfig {

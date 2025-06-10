@@ -56,14 +56,16 @@ pub fn codegen_bitcode_modules(
     modules: Vec<Vec<u8>>,
     llcx: &llvm::Context,
 ) -> Result<Vec<u8>, CodegenErr> {
+    eprintln!("DEBUG: codegen_bitcode_modules");
+
     debug!("Codegenning bitcode to PTX");
 
     // make sure the nvvm version is high enough so users don't get confusing compilation errors.
     let (major, minor) = nvvm::ir_version();
 
-    if major <= 1 && minor < 6 {
+    if major <= 4 {
         sess.dcx()
-            .fatal("rustc_codegen_nvvm requires at least libnvvm 1.6 (CUDA 11.2)");
+            .fatal("rustc_codegen_nvvm requires at least libnvvm 4.0 (CUDA 12.9)");
     }
 
     // first, create the nvvm program we will add modules to.

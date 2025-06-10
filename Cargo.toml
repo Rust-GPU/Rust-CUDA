@@ -23,4 +23,8 @@ exclude = [
 ]
 
 [profile.dev.package.rustc_codegen_nvvm]
-opt-level = 3
+opt-level = 0 # TODO: used to be 3
+
+[profile.dev]
+opt-level = 0
+lto = false
