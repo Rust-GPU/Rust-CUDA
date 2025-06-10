@@ -25,7 +25,6 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::ptr::{self};
 
-use crate::builder::unnamed;
 pub use debuginfo::*;
 
 impl PartialEq for Value {

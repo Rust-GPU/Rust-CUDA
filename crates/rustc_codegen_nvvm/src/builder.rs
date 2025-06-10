@@ -452,7 +452,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn atomic_load(
         &mut self,
         _ty: &'ll Type,
-        ptr: &'ll Value,
+        _ptr: &'ll Value,
         _order: AtomicOrdering,
         _size: Size,
     ) -> &'ll Value {
@@ -474,7 +474,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
         let (ty, f) = self.get_intrinsic("llvm.trap");
         self.call(ty, None, None, f, &[], None, None);
-        unsafe { llvm::LLVMBuildLoad2(self.llbuilder, ty, ptr, unnamed()) }
+        //unsafe { llvm::LLVMBuildLoad2(self.llbuilder, ty, ptr, unnamed()) }
+        unsafe { llvm::LLVMGetUndef(ty) }
     }
 
     fn load_operand(&mut self, place: PlaceRef<'tcx, &'ll Value>) -> OperandRef<'tcx, &'ll Value> {
@@ -704,7 +705,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn atomic_store(
         &mut self,
         _val: &'ll Value,
-        ptr: &'ll Value,
+        _ptr: &'ll Value,
         _order: rustc_codegen_ssa::common::AtomicOrdering,
         _size: Size,
     ) {
@@ -719,7 +720,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         // self.call(vprintf, &[formatlist, valist], None);
         let (ty, f) = self.get_intrinsic("llvm.trap");
         self.call(ty, None, None, f, &[], None, None);
-        unsafe { llvm::LLVMBuildLoad2(self.llbuilder, ty, ptr, unnamed()); }
+        //unsafe { llvm::LLVMBuildLoad2(self.llbuilder, ty, ptr, unnamed()); }
     }
 
     fn gep(&mut self, ty: &'ll Type, ptr: &'ll Value, indices: &[&'ll Value]) -> &'ll Value {
