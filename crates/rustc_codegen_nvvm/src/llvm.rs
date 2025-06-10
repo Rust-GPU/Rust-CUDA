@@ -607,7 +607,7 @@ pub mod debuginfo {
 }
 
 /// LLVMRustCodeGenOptLevel
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(C)]
 pub enum CodeGenOptLevel {
     None,
@@ -1924,7 +1924,11 @@ unsafe extern "C" {
     pub(crate) fn LLVMRustModuleBufferFree(p: &'static mut ModuleBuffer);
     pub(crate) fn LLVMRustModuleCost(M: &Module) -> u64;
 
-    pub(crate) fn LLVMRustThinLTOBufferCreate(M: &Module) -> &'static mut ThinLTOBuffer;
+    pub(crate) fn LLVMRustThinLTOBufferCreate(
+        M: &Module,
+        is_thin: bool, 
+        emit_summary: bool
+    ) -> &'static mut ThinLTOBuffer;
     pub(crate) fn LLVMRustThinLTOBufferFree(M: &'static mut ThinLTOBuffer);
     pub(crate) fn LLVMRustThinLTOBufferPtr(M: &ThinLTOBuffer) -> *const c_char;
     pub(crate) fn LLVMRustThinLTOBufferLen(M: &ThinLTOBuffer) -> size_t;

@@ -351,40 +351,68 @@ pub(crate) unsafe fn optimize(
     module: &ModuleCodegen<LlvmMod>,
     config: &ModuleConfig,
 ) -> Result<(), FatalError> {
+    eprintln!("DEBUG: Starting optimize function for module: {}", module.name);
+    
     let _timer = cgcx
         .prof
         .generic_activity_with_arg("LLVM_module_optimize", &module.name[..]);
 
     let llmod = unsafe { &*module.module_llvm.llmod };
+    eprintln!("DEBUG: Got module pointer: {:p}", llmod);
 
     let module_name = module.name.clone();
     let module_name = Some(&module_name[..]);
 
+    eprintln!("DEBUG: Config - emit_no_opt_bc: {}", config.emit_no_opt_bc);
     if config.emit_no_opt_bc {
+        eprintln!("DEBUG: Writing no-opt bitcode file");
         let out = cgcx
             .output_filenames
             .temp_path_ext("no-opt.bc", module_name);
         let out = path_to_c_string(&out);
-        unsafe { llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
+        eprintln!("DEBUG: About to call LLVMWriteBitcodeToFile with path: {:?}", out);
+        unsafe { 
+            let result = llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr());
+            eprintln!("DEBUG: LLVMWriteBitcodeToFile returned: {}", result);
+        }
     }
 
+    eprintln!("DEBUG: Creating target machine factory config");
     let tm_factory_config = TargetMachineFactoryConfig {
         split_dwarf_file: None,
         output_obj_file: None,
     };
 
+    eprintln!("DEBUG: About to create target machine");
     let tm = (cgcx.tm_factory)(tm_factory_config).expect("failed to create target machine");
+    eprintln!("DEBUG: Target machine created successfully: {:p}", tm);
 
+    eprintln!("DEBUG: Config opt_level: {:?}", config.opt_level);
     // LLVM 19: Complete rewrite using new pass manager
     if config.opt_level.is_some() {
+        eprintln!("DEBUG: Starting optimization with new pass manager");
         unsafe {
+            /*eprintln!("DEBUG: About to verify module before optimization");
+            let verify_result = llvm::LLVMVerifyModule(
+                llmod,
+                llvm::LLVMVerifierFailureAction::LLVMPrintMessageAction,
+                std::ptr::null_mut()
+            );
+            eprintln!("DEBUG: Module verification result: {}", verify_result);
+            if verify_result != 0 {
+                eprintln!("DEBUG: WARNING - Module verification failed!");
+            }*/
+
             // Create pass builder options
+            eprintln!("DEBUG: Creating pass builder options");
             let pass_options = llvm::LLVMCreatePassBuilderOptions();
+            eprintln!("DEBUG: Pass builder options created: {:p}", pass_options);
             
             // Configure pass builder options based on config
             let opt_level = config
                 .opt_level
                 .map_or(llvm::CodeGenOptLevel::None, |x| to_llvm_opt_settings(x).0);
+            eprintln!("DEBUG: Mapped opt level: {:?}", opt_level);
             
             // Set various options on the pass builder
             // TODO: support these flags
@@ -398,39 +426,57 @@ pub(crate) unsafe fn optimize(
             }*/
             
             // Build the pass pipeline string based on optimization level and config
+            eprintln!("DEBUG: Building pass pipeline string");
             let mut pass_pipeline = String::new();
             
+            eprintln!("DEBUG: Config no_prepopulate_passes: {}", config.no_prepopulate_passes);
             if !config.no_prepopulate_passes {
                 // Use default optimization pipeline based on level
                 match opt_level {
                     llvm::CodeGenOptLevel::None => {
                         pass_pipeline.push_str("default<O0>");
+                        eprintln!("DEBUG: Using O0 pipeline");
                     },
                     llvm::CodeGenOptLevel::Less => {
                         pass_pipeline.push_str("default<O1>");
+                        eprintln!("DEBUG: Using O1 pipeline");
                     },
                     llvm::CodeGenOptLevel::Default => {
                         pass_pipeline.push_str("default<O2>");
+                        eprintln!("DEBUG: Using O2 pipeline");
                     },
                     llvm::CodeGenOptLevel::Aggressive => {
                         pass_pipeline.push_str("default<O3>");
+                        eprintln!("DEBUG: Using O3 pipeline");
                     },
                 }
             }
             
+            eprintln!("DEBUG: Config custom passes: {:?}", config.passes);
             // Add custom passes from config
             for pass in &config.passes {
                 if !pass_pipeline.is_empty() {
                     pass_pipeline.push(',');
                 }
                 pass_pipeline.push_str(pass);
+                eprintln!("DEBUG: Added custom pass: {}", pass);
             }
+            
+            eprintln!("DEBUG: Final pass pipeline string: '{}'", pass_pipeline);
             
             // Convert pass pipeline string to C string
             let c_pass_pipeline = std::ffi::CString::new(pass_pipeline)
                 .expect("Pass pipeline string contains null byte");
+            eprintln!("DEBUG: Converted to C string successfully");
             
             // Run the passes using the new pass manager
+            eprintln!("DEBUG: About to call LLVMRunPasses - THIS IS THE CRITICAL POINT");
+            eprintln!("DEBUG: Parameters:");
+            eprintln!("DEBUG:   llmod: {:p}", llmod);
+            eprintln!("DEBUG:   pipeline: {:?}", c_pass_pipeline);
+            eprintln!("DEBUG:   tm: {:p}", tm);
+            eprintln!("DEBUG:   pass_options: {:p}", pass_options);
+            
             let result = llvm::LLVMRunPasses(
                 llmod,                          // Module
                 c_pass_pipeline.as_ptr(),       // Pass pipeline string
@@ -438,15 +484,25 @@ pub(crate) unsafe fn optimize(
                 pass_options                    // PassBuilderOptions
             );
             
+            eprintln!("DEBUG: LLVMRunPasses returned: {}", result);
+            
             if result != 0 {
+                eprintln!("DEBUG: LLVMRunPasses failed with result: {}", result);
                 diag_handler.err("Failed to run optimization passes");
+            } else {
+                eprintln!("DEBUG: LLVMRunPasses completed successfully");
             }
             
             // Clean up
+            eprintln!("DEBUG: Cleaning up pass builder options");
             llvm::LLVMDisposePassBuilderOptions(pass_options);
+            eprintln!("DEBUG: Pass builder options disposed");
         }
+    } else {
+        eprintln!("DEBUG: Skipping optimization (no opt_level specified)");
     }
 
+    eprintln!("DEBUG: optimize function completed successfully");
     Ok(())
 }
 

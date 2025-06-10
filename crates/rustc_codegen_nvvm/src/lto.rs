@@ -55,8 +55,10 @@ unsafe impl Sync for ThinBuffer {}
 impl ThinBuffer {
     pub(crate) fn new(m: &llvm::Module) -> ThinBuffer {
         unsafe {
-            let buffer = llvm::LLVMRustThinLTOBufferCreate(m);
-
+            // TODO: do not hardcode these
+            let is_thin = true;
+            let emit_summary = true;
+            let buffer = llvm::LLVMRustThinLTOBufferCreate(m, is_thin, emit_summary);
             ThinBuffer(buffer)
         }
     }
