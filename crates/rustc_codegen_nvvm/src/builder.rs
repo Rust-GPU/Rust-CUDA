@@ -1107,6 +1107,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 args.as_ptr(),
                 args.len() as c_uint,
                 None,
+                unnamed()
             )
         };
         if let Some(fn_abi) = fn_abi {

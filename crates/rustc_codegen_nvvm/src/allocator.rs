@@ -1,3 +1,4 @@
+use crate::builder::unnamed;
 use crate::LlvmMod;
 use crate::llvm;
 use crate::llvm::{False, True};
@@ -89,6 +90,7 @@ pub(crate) unsafe fn codegen(
                     args.as_ptr(),
                     args.len() as c_uint,
                     None,
+                    unnamed()
                 )
             };
             unsafe { llvm::LLVMSetTailCall(ret, True) };
@@ -140,7 +142,8 @@ pub(crate) unsafe fn codegen(
             callee, 
             args.as_ptr(), 
             args.len() as c_uint,
-            None
+            None,
+            unnamed()
         )
     };
     unsafe { llvm::LLVMSetTailCall(ret, True) };

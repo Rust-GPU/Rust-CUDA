@@ -607,35 +607,6 @@ pub mod debuginfo {
     }
 }
 
-// These functions are kind of a hack for the future. They wrap LLVM 7 rust shim functions
-// and turn them into the API that the llvm 12 shim has. This way, if nvidia ever updates their
-// dinosaur llvm version, switching for us should be extremely easy. `Name` is assumed to be
-// a utf8 string
-pub(crate) unsafe fn LLVMRustGetOrInsertFunction<'a>(
-    M: &'a Module,
-    Name: *const c_char,
-    NameLen: usize,
-    FunctionTy: &'a Type,
-) -> &'a Value {
-    unsafe {
-        let str = std::str::from_utf8_unchecked(std::slice::from_raw_parts(Name.cast(), NameLen));
-        let cstring = CString::new(str).expect("str with nul");
-        // TODO: added NameLen
-        __LLVMRustGetOrInsertFunction(M, cstring.as_ptr(), NameLen, FunctionTy)
-    }
-}
-
-// TODO: llvm v19 function in llvm v7 file
-pub(crate) unsafe fn LLVMRustBuildCall<'a>(
-    B: &Builder<'a>,
-    Fn: &'a Value,
-    Args: *const &'a Value,
-    NumArgs: c_uint,
-    Bundle: Option<&OperandBundleDef<'a>>,
-) -> &'a Value {
-    unsafe { __LLVMRustBuildCall(B, Fn, Args, NumArgs, Bundle, unnamed()) }
-}
-
 /// LLVMRustCodeGenOptLevel
 #[derive(Copy, Clone, PartialEq)]
 #[repr(C)]
@@ -682,9 +653,7 @@ pub enum CodeModel {
 }
 
 unsafe extern "C" {
-    // TODO: this is llvm19 format in llvmv7 file
-    #[link_name = "LLVMRustBuildCall"]
-    pub(crate) fn __LLVMRustBuildCall<'a>(
+    pub(crate) fn LLVMRustBuildCall<'a>(
         B: &Builder<'a>,
         Fn: &'a Value,
         Args: *const &'a Value,
@@ -693,9 +662,7 @@ unsafe extern "C" {
         Name: *const c_char,
     ) -> &'a Value;
 
-    // see comment on function before this extern block
-    #[link_name = "LLVMRustGetOrInsertFunction"]
-    fn __LLVMRustGetOrInsertFunction<'a>(
+    pub(crate) fn LLVMRustGetOrInsertFunction<'a>(
         M: &'a Module,
         Name: *const c_char,
         NameLen: size_t, // TODO: llvm19 added this
