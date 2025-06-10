@@ -7,7 +7,15 @@ impl<'ll> CodegenCx<'ll, '_> {
     pub(crate) fn declare_intrinsic(&self, key: &str) -> Option<(&'ll Type, &'ll Value)> {
         let map = self.intrinsics_map.borrow();
         let (args, ret) = map.get(key)?;
-        Some(self.insert_intrinsic(key, Some(args), ret))
+        
+        eprintln!("DEBUG: declare_intrinsic('{}'):", key);
+        eprintln!("  args.len(): {}", args.len());
+        eprintln!("  ret: {:p}", ret);
+        
+        let result = self.insert_intrinsic(key, Some(args), ret);
+        eprintln!("  insert_intrinsic returned: ({:p}, {:p})", result.0, result.1);
+        
+        Some(result)
     }
 
     #[rustfmt::skip] // stop rustfmt from making this 2k lines

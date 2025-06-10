@@ -3,6 +3,7 @@ FROM ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest
 # install git + llvm-19
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     git && \
+    gdb && \
     llvm-19 && \
     libzstd-dev && \
     libpolly-19-dev && \

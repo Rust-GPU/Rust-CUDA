@@ -549,7 +549,11 @@ impl<'tcx> AbiBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
         let val = llvm::get_param(self.llfn(), index as c_uint);
         // trace!("Get param `{:?}`", val);
         let val = unsafe {
-            let llfnty = llvm::LLVMRustGetFunctionType(self.llfn());
+            let llfnty: &Type = llvm::LLVMRustGetFunctionType(self.llfn());
+            let llfnty_ptr = llfnty as *const Type;
+            if llfnty_ptr.is_null() {
+                panic!("LLVMRustGetFunctionType returned null");
+            }
             trace!("llfnty: {:?}", llfnty);
             // destructure so rustc doesnt complain in the call to transmute_llval
             let Self { cx, llbuilder } = self;

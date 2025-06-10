@@ -582,8 +582,19 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
     }
 
     fn abort(&mut self) {
-        trace!("Generate abort call");
-        self.call_intrinsic("llvm.trap", &[]);
+        let (trap_ty, f) = self.get_intrinsic("llvm.trap");
+        
+        eprintln!("DEBUG: get_intrinsic returned:");
+        eprintln!("  trap_ty: {:p}", trap_ty);
+        eprintln!("  f: {:p}", f);
+        
+        // Check if the type is valid before calling
+        unsafe {
+            let kind = llvm::LLVMRustGetTypeKind(trap_ty);
+            eprintln!("DEBUG: trap_ty kind = {:?}", kind);
+        }
+        
+        self.call(trap_ty, None, None, f, &[], None, None);
     }
 
     fn assume(&mut self, val: &'ll Value) {

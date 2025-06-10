@@ -2505,7 +2505,6 @@ extern "C" LLVMValueRef LLVMRustBuildIntCast(LLVMBuilderRef B, LLVMValueRef Val,
 }
 
 // TODO: non-standard
-
 extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,
                                           LLVMValueRef *Args, unsigned NumArgs,
                                           OperandBundleDef *Bundle,

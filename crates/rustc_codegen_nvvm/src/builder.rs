@@ -1098,9 +1098,19 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         _funclet: Option<&Self::Funclet>,
         _instance: Option<Instance<'tcx>>,
     ) -> &'ll Value {
+        eprintln!("DEBUG: Builder::call entered");
+        eprintln!("  llty: {:p}", llty);
+        eprintln!("  llfn: {:p}", llfn);
+        eprintln!("  args.len(): {}", args.len());
+        
         info!("builder::call Calling fn {:?} with args {:?}", llfn, args);
         self.cx.last_call_llfn.set(None);
+        
+        eprintln!("DEBUG: About to call check_call");
         let args = self.check_call("call", llty, llfn, args);
+        eprintln!("DEBUG: check_call completed, new args.len(): {}", args.len());
+        
+        eprintln!("DEBUG: About to call LLVMRustBuildCall");
         let mut call = unsafe {
             llvm::LLVMRustBuildCall(
                 self.llbuilder,
@@ -1111,21 +1121,44 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 unnamed()
             )
         };
+        eprintln!("DEBUG: LLVMRustBuildCall completed");
+
         if let Some(fn_abi) = fn_abi {
+            eprintln!("DEBUG: calling apply_attrs_callsite");
             fn_abi.apply_attrs_callsite(self, call);
+            eprintln!("DEBUG: completed apply_attrs_callsite");
         }
+
+        eprintln!("DEBUG: About to start return type remapping");
 
         // bitcast return type if the type was remapped
         let map = self.cx.remapped_integer_args.borrow();
+        eprintln!("DEBUG: Got remapped_integer_args map");
+
+        eprintln!("DEBUG: About to call val_ty(llfn)");
         let mut fn_ty = self.val_ty(llfn);
+        eprintln!("DEBUG: val_ty returned: {:p}", fn_ty);
+
+        eprintln!("DEBUG: About to enter while loop for pointer unwrapping");
         while self.cx.type_kind(fn_ty) == TypeKind::Pointer {
+            eprintln!("DEBUG: fn_ty is pointer, getting element_type");
             fn_ty = self.cx.element_type(fn_ty);
+            eprintln!("DEBUG: element_type returned: {:p}", fn_ty);
         }
+        eprintln!("DEBUG: Finished pointer unwrapping loop");
+
+        eprintln!("DEBUG: About to check remapped map");
         if let Some((Some(ret_ty), _)) = map.get(fn_ty) {
+            eprintln!("DEBUG: Found remapping, ret_ty: {:p}", ret_ty);
             self.cx.last_call_llfn.set(Some(call));
+            eprintln!("DEBUG: About to call transmute_llval");
             call = transmute_llval(self.llbuilder, self.cx, call, ret_ty);
+            eprintln!("DEBUG: transmute_llval completed");
+        } else {
+            eprintln!("DEBUG: No remapping found for fn_ty: {:p}", fn_ty);
         }
 
+        eprintln!("DEBUG: About to return call: {:p}", call);
         call
     }
 
