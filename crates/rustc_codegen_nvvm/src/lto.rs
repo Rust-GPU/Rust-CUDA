@@ -58,6 +58,7 @@ impl ThinBuffer {
             // TODO: do not hardcode these
             let is_thin = True;
             let emit_summary = True;
+            llvm::LLVMDumpModule(m);
             let buffer = llvm::LLVMRustThinLTOBufferCreate(m, is_thin, emit_summary);
             ThinBuffer(buffer)
         }
