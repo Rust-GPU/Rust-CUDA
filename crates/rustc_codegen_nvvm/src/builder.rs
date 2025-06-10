@@ -451,7 +451,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn atomic_load(
         &mut self,
-        _ty: &'ll Type,
+        ty: &'ll Type,
         _ptr: &'ll Value,
         _order: AtomicOrdering,
         _size: Size,
@@ -472,8 +472,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
         // self.call(vprintf, &[formatlist, valist], None);
 
-        let (ty, f) = self.get_intrinsic("llvm.trap");
-        self.call(ty, None, None, f, &[], None, None);
+        let (trap_ty, f) = self.get_intrinsic("llvm.trap");
+        self.call(trap_ty, None, None, f, &[], None, None);
         //unsafe { llvm::LLVMBuildLoad2(self.llbuilder, ty, ptr, unnamed()) }
         unsafe { llvm::LLVMGetUndef(ty) }
     }
