@@ -276,6 +276,16 @@ impl WriteBackendMethods for NvvmCodegenBackend {
     ) -> (String, Self::ThinBuffer) {
         debug!("Prepare thin");
         unsafe {
+            let mut error_msg = std::ptr::null_mut();
+             let llmod = module.module_llvm.llmod.as_ref().unwrap();
+            let verify_result = llvm::LLVMVerifyModule(
+                llmod,
+                llvm::LLVMVerifierFailureAction::LLVMReturnStatusAction,
+                &mut error_msg
+            );
+            if verify_result != 0 {
+                rustc_middle::bug!("=== MODULE VERIFICATION FAILED ===");
+            }
             (
                 module.name,
                 lto::ThinBuffer::new(module.module_llvm.llmod.as_ref().unwrap()),

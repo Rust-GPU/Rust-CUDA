@@ -1982,4 +1982,10 @@ unsafe extern "C" {
         TM: *const TargetMachine,
         Options: &PassBuilderOptions,
     ) -> Bool;
+
+    pub(crate) fn LLVMVerifyModule(
+        M: &Module,
+        Action: LLVMVerifierFailureAction,
+        OutMessage: *mut *mut c_char,
+    ) -> Bool;
 }

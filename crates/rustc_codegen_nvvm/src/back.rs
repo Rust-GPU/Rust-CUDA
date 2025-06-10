@@ -392,7 +392,7 @@ pub(crate) unsafe fn optimize(
     if config.opt_level.is_some() {
         eprintln!("DEBUG: Starting optimization with new pass manager");
         unsafe {
-            /*eprintln!("DEBUG: About to verify module before optimization");
+            eprintln!("DEBUG: About to verify module before optimization");
             let verify_result = llvm::LLVMVerifyModule(
                 llmod,
                 llvm::LLVMVerifierFailureAction::LLVMPrintMessageAction,
@@ -400,8 +400,8 @@ pub(crate) unsafe fn optimize(
             );
             eprintln!("DEBUG: Module verification result: {}", verify_result);
             if verify_result != 0 {
-                eprintln!("DEBUG: WARNING - Module verification failed!");
-            }*/
+                rustc_middle::bug!("DEBUG: WARNING - Module verification failed!");
+            }
 
             // Create pass builder options
             eprintln!("DEBUG: Creating pass builder options");
