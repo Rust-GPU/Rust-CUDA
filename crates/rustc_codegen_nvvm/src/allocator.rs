@@ -1,4 +1,3 @@
-use crate::builder::unnamed;
 use crate::LlvmMod;
 use crate::llvm;
 use crate::llvm::{False, True};
