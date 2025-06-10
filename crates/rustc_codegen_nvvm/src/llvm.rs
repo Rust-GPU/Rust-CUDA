@@ -1989,4 +1989,8 @@ unsafe extern "C" {
         Action: LLVMVerifierFailureAction,
         OutMessage: *mut *mut c_char,
     ) -> Bool;
+
+    pub(crate) fn LLVMDumpModule(
+        M: &Module,
+    );
 }

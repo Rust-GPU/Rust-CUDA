@@ -74,6 +74,7 @@ use rustc_metadata::EncodedMetadata;
 use rustc_metadata::creader::MetadataLoaderDyn;
 use rustc_middle::util::Providers;
 use rustc_middle::{
+    bug,
     dep_graph::{WorkProduct, WorkProductId},
     ty::TyCtxt,
 };
@@ -281,13 +282,13 @@ impl WriteBackendMethods for NvvmCodegenBackend {
             let llmod = module.module_llvm.llmod.as_ref().unwrap();
             let verify_result = llvm::LLVMVerifyModule(
                 llmod,
-                llvm::LLVMVerifierFailureAction::LLVMReturnStatusAction,
+                llvm::LLVMVerifierFailureAction::LLVMPrintMessageAction,
                 &mut error_msg
             );
             eprintln!("DEBUG: Module verification result: {}", verify_result);
             if verify_result != 0 {
-                let error_str = std::ffi::CStr::from_ptr(error_msg).to_string_lossy();
-                panic!("Module verification failed! error_str = {error_str}");
+                llvm::LLVMDumpModule(llmod);
+                bug!("Module verification failed!");
             }
             (
                 module.name,

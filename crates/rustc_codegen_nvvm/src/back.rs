@@ -16,7 +16,11 @@ use rustc_codegen_ssa::{
 use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_fs_util::path_to_c_string;
 use rustc_middle::mir::mono::{MonoItem, MonoItemData};
-use rustc_middle::{dep_graph, ty::TyCtxt};
+use rustc_middle::{
+    bug,
+    dep_graph, 
+    ty::TyCtxt
+};
 use rustc_session::Session;
 use rustc_session::config::{self, DebugInfo, OutputType};
 use rustc_span::Symbol;
@@ -401,8 +405,8 @@ pub(crate) unsafe fn optimize(
             );
             eprintln!("DEBUG: Module verification result: {}", verify_result);
             if verify_result != 0 {
-                let error_str = std::ffi::CStr::from_ptr(error_msg).to_string_lossy();
-                panic!("Module verification failed! error_str = {error_str}");
+                llvm::LLVMDumpModule(llmod);
+                bug!("Module verification failed!");
             }
 
             // Create pass builder options
