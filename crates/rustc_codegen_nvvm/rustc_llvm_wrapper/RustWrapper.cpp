@@ -2505,17 +2505,26 @@ extern "C" LLVMValueRef LLVMRustBuildIntCast(LLVMBuilderRef B, LLVMValueRef Val,
 }
 
 // TODO: non-standard
-extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,
-                                          LLVMValueRef *Args, unsigned NumArgs,
-                                          OperandBundleDef *Bundle,
-                                          const char *Name)
-{
-  unsigned Len = Bundle ? 1 : 0;
-  ArrayRef<OperandBundleDef> Bundles = ArrayRef<OperandBundleDef>(Bundle, Len);
-  Value *FnVal = unwrap(Fn);
-  FunctionType *FnType = cast<Function>(FnVal)->getFunctionType();
-  return wrap(unwrap(B)->CreateCall(
-      FnType, FnVal, ArrayRef<Value *>(unwrap(Args), NumArgs), Bundles, Name));
+
+// OpBundlesIndirect is an array of pointers (*not* a pointer to an array).
+extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMTypeRef Ty,
+                                          LLVMValueRef Fn, LLVMValueRef *Args,
+                                          unsigned NumArgs,
+                                          OperandBundleDef **OpBundlesIndirect,
+                                          unsigned NumOpBundles) {
+  Value *Callee = unwrap(Fn);
+  FunctionType *FTy = unwrap<FunctionType>(Ty);
+
+  // FIXME: Is there a way around this?
+  SmallVector<OperandBundleDef> OpBundles;
+  OpBundles.reserve(NumOpBundles);
+  for (unsigned i = 0; i < NumOpBundles; ++i) {
+    OpBundles.push_back(*OpBundlesIndirect[i]);
+  }
+
+  return wrap(unwrap(B)->CreateCall(FTy, Callee,
+                                    ArrayRef<Value *>(unwrap(Args), NumArgs),
+                                    ArrayRef<OperandBundleDef>(OpBundles)));
 }
 
 // TODO: non-standard

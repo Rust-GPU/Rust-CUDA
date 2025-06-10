@@ -1114,11 +1114,12 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
        let mut call = unsafe {
            llvm::LLVMRustBuildCall(
                self.llbuilder,
+               llty,
                llfn,
                args.as_ptr(),
                args.len() as c_uint,
-               None,
-               unnamed()
+               [].as_ptr(),
+               0
            )
        };
        eprintln!("DEBUG: LLVMRustBuildCall completed");

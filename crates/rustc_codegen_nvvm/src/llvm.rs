@@ -652,13 +652,14 @@ pub enum CodeModel {
 }
 
 unsafe extern "C" {
-    pub(crate) fn LLVMRustBuildCall<'a>(
+    pub fn LLVMRustBuildCall<'a>(
         B: &Builder<'a>,
+        Ty: &'a Type,
         Fn: &'a Value,
         Args: *const &'a Value,
         NumArgs: c_uint,
-        Bundle: Option<&OperandBundleDef<'a>>,
-        Name: *const c_char,
+        OpBundles: *const &OperandBundleDef<'a>,
+        NumOpBundles: c_uint,
     ) -> &'a Value;
 
     pub(crate) fn LLVMRustGetOrInsertFunction<'a>(

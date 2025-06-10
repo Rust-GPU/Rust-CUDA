@@ -393,14 +393,16 @@ pub(crate) unsafe fn optimize(
         eprintln!("DEBUG: Starting optimization with new pass manager");
         unsafe {
             eprintln!("DEBUG: About to verify module before optimization");
+            let mut error_msg = std::ptr::null_mut();
             let verify_result = llvm::LLVMVerifyModule(
                 llmod,
                 llvm::LLVMVerifierFailureAction::LLVMPrintMessageAction,
-                std::ptr::null_mut()
+                &mut error_msg
             );
             eprintln!("DEBUG: Module verification result: {}", verify_result);
             if verify_result != 0 {
-                rustc_middle::bug!("DEBUG: WARNING - Module verification failed!");
+                let error_str = std::ffi::CStr::from_ptr(error_msg).to_string_lossy();
+                panic!("Module verification failed! error_str = {error_str}");
             }
 
             // Create pass builder options

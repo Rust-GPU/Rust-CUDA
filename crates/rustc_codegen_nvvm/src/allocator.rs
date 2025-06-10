@@ -86,11 +86,12 @@ pub(crate) unsafe fn codegen(
             let ret = unsafe {
                 llvm::LLVMRustBuildCall(
                     llbuilder,
+                    ty,
                     callee,
                     args.as_ptr(),
                     args.len() as c_uint,
-                    None,
-                    unnamed()
+                    [].as_ptr(),
+                    0,
                 )
             };
             unsafe { llvm::LLVMSetTailCall(ret, True) };
@@ -139,11 +140,12 @@ pub(crate) unsafe fn codegen(
     let ret = unsafe {
         llvm::LLVMRustBuildCall(
             llbuilder, 
+            ty,
             callee, 
             args.as_ptr(), 
             args.len() as c_uint,
-            None,
-            unnamed()
+            [].as_ptr(),
+            0
         )
     };
     unsafe { llvm::LLVMSetTailCall(ret, True) };
