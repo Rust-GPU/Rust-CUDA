@@ -1561,12 +1561,16 @@ extern "C" bool LLVMRustPrepareThinLTOImport(const LLVMRustThinLTOData *Data,
 
 extern "C" LLVMRustThinLTOBuffer *
 LLVMRustThinLTOBufferCreate(LLVMModuleRef M, bool is_thin, bool emit_summary) {
+  fprintf(stderr, "DEBUG: LLVMRustThinLTOBufferCreate called with is_thin=%d, emit_summary=%d\n", 
+          is_thin, emit_summary);
+  
   auto Ret = std::make_unique<LLVMRustThinLTOBuffer>();
   {
     auto OS = raw_string_ostream(Ret->data);
     auto ThinLinkOS = raw_string_ostream(Ret->thin_link_data);
     {
       if (is_thin) {
+        fprintf(stderr, "DEBUG: Taking ThinLTO path\n");
         PassBuilder PB;
         LoopAnalysisManager LAM;
         FunctionAnalysisManager FAM;
@@ -1583,8 +1587,11 @@ LLVMRustThinLTOBufferCreate(LLVMModuleRef M, bool is_thin, bool emit_summary) {
         // errors or warnings.
         MPM.addPass(
             ThinLTOBitcodeWriterPass(OS, emit_summary ? &ThinLinkOS : nullptr));
+        fprintf(stderr, "DEBUG: About to run ThinLTO pass\n");
         MPM.run(*unwrap(M), MAM);
+        fprintf(stderr, "DEBUG: ThinLTO pass completed\n");
       } else {
+        fprintf(stderr, "DEBUG: Taking regular bitcode path\n");
         WriteBitcodeToFile(*unwrap(M), OS);
       }
     }

@@ -12,7 +12,7 @@ use rustc_codegen_ssa::{
 use rustc_errors::{DiagCtxtHandle, FatalError};
 use rustc_middle::dep_graph::WorkProduct;
 use tracing::{debug, trace};
-use crate::llvm;
+use crate::llvm::{self, True};
 use crate::common::AsCCharPtr;
 use crate::NvvmCodegenBackend;
 use crate::LlvmMod;
@@ -56,8 +56,8 @@ impl ThinBuffer {
     pub(crate) fn new(m: &llvm::Module) -> ThinBuffer {
         unsafe {
             // TODO: do not hardcode these
-            let is_thin = true;
-            let emit_summary = true;
+            let is_thin = True;
+            let emit_summary = True;
             let buffer = llvm::LLVMRustThinLTOBufferCreate(m, is_thin, emit_summary);
             ThinBuffer(buffer)
         }

@@ -1927,8 +1927,8 @@ unsafe extern "C" {
 
     pub(crate) fn LLVMRustThinLTOBufferCreate(
         M: &Module,
-        is_thin: bool, 
-        emit_summary: bool
+        is_thin: Bool, 
+        emit_summary: Bool
     ) -> &'static mut ThinLTOBuffer;
     pub(crate) fn LLVMRustThinLTOBufferFree(M: &'static mut ThinLTOBuffer);
     pub(crate) fn LLVMRustThinLTOBufferPtr(M: &ThinLTOBuffer) -> *const c_char;
