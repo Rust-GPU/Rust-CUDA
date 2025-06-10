@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::slice;
 use std::sync::Arc;
+use std::ffi::CString;
 
 use libc::{c_char, size_t};
 use rustc_codegen_ssa::back::write::{TargetMachineFactoryConfig, TargetMachineFactoryFn};
@@ -95,9 +96,12 @@ pub fn target_machine_factory(
 
     let code_model = to_llvm_code_model(sess.code_model());
 
-    let triple = sess.target.llvm_target.clone();
-    // let cpu = SmallCStr::new("sm_30");
-    let features = "";
+    let triple = sess.target.llvm_target.clone().to_string();
+    let cpu_string = sess.opts.cg.target_cpu
+        .as_deref()
+        .unwrap_or("sm_35") // Use a more compatible target
+        .to_string();
+    let features_string = "".to_string();
     let trap_unreachable = sess
         .opts
         .unstable_opts
@@ -105,12 +109,21 @@ pub fn target_machine_factory(
         .unwrap_or(sess.target.trap_unreachable);
 
     Arc::new(move |_config: TargetMachineFactoryConfig| {
+        let triple_cstr = CString::new(triple.as_str())
+            .map_err(|e| format!("Invalid triple string: {}", e))?;
+        let cpu_cstr = CString::new(cpu_string.as_str())
+            .map_err(|e| format!("Invalid CPU string: {}", e))?;
+        let features_cstr = CString::new(features_string.as_str())
+            .map_err(|e| format!("Invalid features string: {}", e))?;
+        let abi_cstr = CString::new("").unwrap();
+        let debug_compression_cstr = CString::new("none").unwrap();
+
         let tm = unsafe {
             llvm::LLVMRustCreateTargetMachine(
-                triple.as_c_char_ptr(), //TripleStr
-                std::ptr::null(), // CPU
-                features.as_c_char_ptr(), // feature
-                std::ptr::null(), // ABIStr
+                triple_cstr.as_ptr(), // triple
+                cpu_cstr.as_ptr(), // cpu
+                features_cstr.as_ptr(), // feature
+                abi_cstr.as_ptr(), // abistr
                 code_model, // RustCM
                 reloc_model, // reloc
                 opt_level, // opt
@@ -126,7 +139,7 @@ pub fn target_machine_factory(
                 false, // UseInitArray: bool,
                 std::ptr::null(), // SplitDwarfFile: *const c_char,
                 std::ptr::null(), // OutputObjFile: *const c_char,
-                std::ptr::null(), // DebugInfoCompression: *const c_char,
+                debug_compression_cstr.as_ptr(), // DebugInfoCompression: *const c_char,
                 false, // UseEmulatedTls: bool,
                 std::ptr::null(), // ArgsCstrBuff: *const c_char,
                 0, // ArgsCstrBuffLen: usize,
