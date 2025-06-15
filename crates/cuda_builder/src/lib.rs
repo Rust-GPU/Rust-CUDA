@@ -50,12 +50,14 @@ impl DebugInfo {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EmitOption {
     LlvmIr,
     Bitcode,
 }
 
 /// A builder for easily compiling Rust GPU crates in build.rs
+#[derive(Debug)]
 pub struct CudaBuilder {
     path_to_crate: PathBuf,
     /// Whether to compile the gpu crate for release.
@@ -200,13 +202,23 @@ pub struct CudaBuilder {
 
 impl CudaBuilder {
     pub fn new(path_to_crate_root: impl AsRef<Path>) -> Self {
+        let path_to_crate = path_to_crate_root.as_ref().to_owned();
+        
+        println!("cargo:warning=Creating CudaBuilder for crate at: {}", path_to_crate.display());
+        
         Self {
-            path_to_crate: path_to_crate_root.as_ref().to_owned(),
+            path_to_crate,
             release: true,
             ptx_file_copy_path: None,
             generate_line_info: true,
             nvvm_opts: true,
-            arch: NvvmArch::Compute61,
+            arch: if cfg!(feature = "nvvm-v19") {
+                NvvmArch::Compute120
+            } else if cfg!(feature = "nvvm-v7") {
+                NvvmArch::default()
+            } else {
+                panic!("No NVVM version feature enabled. Enable either 'nvvm-v7' or 'nvvm-v19'");
+            },
             ftz: false,
             fast_sqrt: false,
             fast_div: false,
@@ -225,17 +237,20 @@ impl CudaBuilder {
     pub fn build_args(mut self, args: &[impl AsRef<str>]) -> Self {
         self.build_args
             .extend(args.iter().map(|s| s.as_ref().to_owned()));
+        println!("cargo:warning=Added build args: {:?}", self.build_args);
         self
     }
 
     /// Whether to generate any debug info and what level of info to generate.
-    pub fn debug(mut self, debug: DebugInfo) -> Self {
-        self.debug = debug;
+    pub fn debug(mut self, debug_info: DebugInfo) -> Self {
+        println!("cargo:warning=Setting debug info level: {:?}", debug_info);
+        self.debug = debug_info;
         self
     }
 
     /// Whether to compile the gpu crate for release.
     pub fn release(mut self, release: bool) -> Self {
+        println!("cargo:warning=Setting release mode: {}", release);
         self.release = release;
         self.nvvm_opts = release;
         self
@@ -245,6 +260,7 @@ impl CudaBuilder {
     /// This defaults to `true`, but nothing will be generated
     /// if the gpu crate is built as release.
     pub fn generate_line_info(mut self, generate_line_info: bool) -> Self {
+        println!("cargo:warning=Setting generate_line_info: {}", generate_line_info);
         self.generate_line_info = generate_line_info;
         self
     }
@@ -252,6 +268,7 @@ impl CudaBuilder {
     /// Whether to run libnvvm optimizations. This defaults to `false`
     /// but will be set to `true` if release is specified.
     pub fn nvvm_opts(mut self, nvvm_opts: bool) -> Self {
+        println!("cargo:warning=Setting nvvm_opts: {}", nvvm_opts);
         self.nvvm_opts = nvvm_opts;
         self
     }
@@ -275,49 +292,58 @@ impl CudaBuilder {
     /// The chosen architecture enables target features for conditional compilation.
     /// See the documentation on the `arch` field for more details.
     pub fn arch(mut self, arch: NvvmArch) -> Self {
+        println!("cargo:warning=Setting target architecture: {:?}", arch);
         self.arch = arch;
         self
     }
 
     /// Flush denormal values to zero when performing single-precision floating point operations.
     pub fn ftz(mut self, ftz: bool) -> Self {
+        println!("cargo:warning=Setting flush-to-zero: {}", ftz);
         self.ftz = ftz;
         self
     }
 
     /// Use a fast approximation for single-precision floating point square root.
     pub fn fast_sqrt(mut self, fast_sqrt: bool) -> Self {
+        println!("cargo:warning=Setting fast sqrt: {}", fast_sqrt);
         self.fast_sqrt = fast_sqrt;
         self
     }
 
     /// Use a fast approximation for single-precision floating point division.
     pub fn fast_div(mut self, fast_div: bool) -> Self {
+        println!("cargo:warning=Setting fast div: {}", fast_div);
         self.fast_div = fast_div;
         self
     }
 
     /// Enable FMA (fused multiply-add) contraction.
     pub fn fma_contraction(mut self, fma_contraction: bool) -> Self {
+        println!("cargo:warning=Setting FMA contraction: {}", fma_contraction);
         self.fma_contraction = fma_contraction;
         self
     }
 
     /// Emit LLVM IR, the exact same as rustc's `--emit=llvm-ir`.
     pub fn emit_llvm_ir(mut self, emit_llvm_ir: bool) -> Self {
+        println!("cargo:warning=Setting emit LLVM IR: {}", emit_llvm_ir);
         self.emit = emit_llvm_ir.then_some(EmitOption::LlvmIr);
         self
     }
 
     /// Emit LLVM Bitcode, the exact same as rustc's `--emit=llvm-bc`.
     pub fn emit_llvm_bitcode(mut self, emit_llvm_bitcode: bool) -> Self {
+        println!("cargo:warning=Setting emit LLVM bitcode: {}", emit_llvm_bitcode);
         self.emit = emit_llvm_bitcode.then_some(EmitOption::Bitcode);
         self
     }
 
     /// Copy the final ptx file to this location once finished building.
     pub fn copy_to(mut self, path: impl AsRef<Path>) -> Self {
-        self.ptx_file_copy_path = Some(path.as_ref().to_path_buf());
+        let copy_path = path.as_ref().to_path_buf();
+        println!("cargo:warning=Setting PTX copy destination: {}", copy_path.display());
+        self.ptx_file_copy_path = Some(copy_path);
         self
     }
 
@@ -329,6 +355,7 @@ impl CudaBuilder {
     ///
     /// Code compiled with this option should always work under CUDA, but it might not be the most efficient or practical.
     pub fn optix(mut self, optix: bool) -> Self {
+        println!("cargo:warning=Setting OptiX mode: {}", optix);
         self.optix = optix;
         self
     }
@@ -341,6 +368,7 @@ impl CudaBuilder {
     /// However, this means the overriden functions are likely to not be deterministic, so if you rely on strict
     /// determinism in things like `rapier`, then it may be helpful to disable such a feature.
     pub fn override_libm(mut self, override_libm: bool) -> Self {
+        println!("cargo:warning=Setting libm override: {}", override_libm);
         self.override_libm = override_libm;
         self
     }
@@ -359,6 +387,7 @@ impl CudaBuilder {
     /// Future versions may support smarter placement and user-controlled
     /// packing/spilling strategies.
     pub fn use_constant_memory_space(mut self, use_constant_memory_space: bool) -> Self {
+        println!("cargo:warning=Setting constant memory space usage: {}", use_constant_memory_space);
         self.use_constant_memory_space = use_constant_memory_space;
         self
     }
@@ -366,18 +395,31 @@ impl CudaBuilder {
     /// An optional path where to dump LLVM IR of the final output the codegen will feed to libnvvm. Usually
     /// used for debugging.
     pub fn final_module_path(mut self, path: impl AsRef<Path>) -> Self {
-        self.final_module_path = Some(path.as_ref().to_path_buf());
+        let module_path = path.as_ref().to_path_buf();
+        println!("cargo:warning=Setting final module path: {}", module_path.display());
+        self.final_module_path = Some(module_path);
         self
     }
 
     /// Runs rustc to build the codegen and codegens the gpu crate, returning the path of the final
     /// ptx file. If [`ptx_file_copy_path`](Self::ptx_file_copy_path) is set, this returns the copied path.
     pub fn build(self) -> Result<PathBuf, CudaBuilderError> {
+        println!("cargo:warning=Starting CUDA build process");
+        println!("cargo:warning=Build configuration: {:?}", self);
+        
         println!("cargo:rerun-if-changed={}", self.path_to_crate.display());
+        
         let path = invoke_rustc(&self)?;
-        if let Some(copy_path) = self.ptx_file_copy_path {
-            std::fs::copy(path, &copy_path).map_err(CudaBuilderError::FailedToCopyPtxFile)?;
-            Ok(copy_path)
+        println!("cargo:warning=Build completed successfully, PTX file generated at: {}", path.display());
+
+        if let Some(copy_path) = &self.ptx_file_copy_path {
+            println!("cargo:warning=Copying PTX file from {} to {}", path.display(), copy_path.display());
+            std::fs::copy(&path, copy_path).map_err(|e| {
+                println!("cargo:warning=Failed to copy PTX file: {}", e);
+                CudaBuilderError::FailedToCopyPtxFile(e)
+            })?;
+            println!("cargo:warning=PTX file copied successfully");
+            Ok(copy_path.clone())
         } else {
             Ok(path)
         }
@@ -403,14 +445,34 @@ fn dylib_path() -> Vec<PathBuf> {
 }
 
 fn find_rustc_codegen_nvvm() -> PathBuf {
+    println!("cargo:warning=Looking for rustc_codegen_nvvm library");
+    
+    // Determine which version to look for based on enabled features
+    let version_suffix = if cfg!(feature = "nvvm-v19") {
+        "_v19"
+    } else if cfg!(feature = "nvvm-v7") {
+        "_v7"
+    } else {
+        panic!("No NVVM version feature enabled. Enable either 'nvvm-v7' or 'nvvm-v19'");
+    };
+
     let filename = format!(
-        "{}rustc_codegen_nvvm{}",
+        "{}rustc_codegen_nvvm{}{}",
         env::consts::DLL_PREFIX,
+        version_suffix,
         env::consts::DLL_SUFFIX
     );
-    for mut path in dylib_path() {
+    
+    println!("cargo:warning=Searching for library: {}", filename);
+    
+    let paths = dylib_path();
+    println!("cargo:warning=Library search paths: {:?}", paths);
+    
+    for mut path in paths {
         path.push(&filename);
+        println!("cargo:warning=Checking path: {}", path.display());
         if path.is_file() {
+            println!("cargo:warning=Found rustc_codegen_nvvm at: {}", path.display());
             return path;
         }
     }
@@ -427,6 +489,8 @@ fn join_checking_for_separators(strings: Vec<impl Borrow<str>>, sep: &str) -> St
 }
 
 fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
+    println!("cargo:warning=Invoking rustc for CUDA compilation");
+    
     // see https://github.com/EmbarkStudios/rust-gpu/blob/main/crates/spirv-builder/src/lib.rs#L385-L392
     // on what this does
     let rustc_codegen_nvvm = find_rustc_codegen_nvvm();
@@ -448,46 +512,58 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     }
 
     let mut llvm_args = vec![NvvmOption::Arch(builder.arch).to_string()];
+    println!("cargo:warning=Base LLVM arg - arch: {}", llvm_args[0]);
 
     if !builder.nvvm_opts {
         llvm_args.push("-opt=0".to_string());
+        println!("cargo:warning=Added LLVM arg: -opt=0");
     }
 
     if builder.ftz {
         llvm_args.push("-ftz=1".to_string());
+        println!("cargo:warning=Added LLVM arg: -ftz=1");
     }
 
     if builder.fast_sqrt {
         llvm_args.push("-prec-sqrt=0".to_string());
+        println!("cargo:warning=Added LLVM arg: -prec-sqrt=0");
     }
 
     if builder.fast_div {
         llvm_args.push("-prec-div=0".to_string());
+        println!("cargo:warning=Added LLVM arg: -prec-div=0");
     }
 
     if !builder.fma_contraction {
         llvm_args.push("-fma=0".to_string());
+        println!("cargo:warning=Added LLVM arg: -fma=0");
     }
 
     if builder.override_libm {
         llvm_args.push("--override-libm".to_string());
+        println!("cargo:warning=Added LLVM arg: --override-libm");
     }
 
     if let Some(path) = &builder.final_module_path {
         llvm_args.push("--final-module-path".to_string());
         llvm_args.push(path.to_str().unwrap().to_string());
+        println!("cargo:warning=Added final module path: {}", path.display());
     }
 
     if builder.debug != DebugInfo::None {
         let (nvvm_flag, rustc_flag) = builder.debug.into_nvvm_and_rustc_options();
-        llvm_args.push(nvvm_flag);
-        rustflags.push(rustc_flag);
+        llvm_args.push(nvvm_flag.clone());
+        rustflags.push(rustc_flag.clone());
+        println!("cargo:warning=Added debug flags - NVVM: {}, rustc: {}", nvvm_flag, rustc_flag);
     }
 
     let llvm_args = llvm_args.join(" ");
     if !llvm_args.is_empty() {
         rustflags.push(["-Cllvm-args=", &llvm_args].concat());
+        println!("cargo:warning=Final LLVM args: {}", llvm_args);
     }
+
+    println!("cargo:warning=Final rustflags: {:?}", rustflags);
 
     let mut cargo = Command::new("cargo");
     cargo.args([
@@ -499,9 +575,13 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     ]);
 
     cargo.args(&builder.build_args);
+    println!("cargo:warning=Added cargo build args: {:?}", builder.build_args);
 
     if builder.release {
         cargo.arg("--release");
+        println!("cargo:warning=Building in release mode");
+    } else {
+        println!("cargo:warning=Building in debug mode");
     }
 
     // TODO(RDambrosio016): Remove this once we can get meaningful error messages in panic to work.
@@ -513,6 +593,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
         cargo.arg("-Zunstable-options");
         cargo.arg("--config");
         cargo.arg("optix=\"1\"");
+        println!("cargo:warning=OptiX mode enabled");
     }
 
     // If we're nested in `cargo` invocation, use a different `--target-dir`,
@@ -532,15 +613,22 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
             && dir.ends_with(profile)
             && dir.pop()
         {
-            cargo.arg("--target-dir").arg(dir.join("cuda-builder"));
+            let target_dir = dir.join("cuda-builder");
+            cargo.arg("--target-dir").arg(&target_dir);
+            println!("cargo:warning=Using custom target directory: {}", target_dir.display());
         }
     }
 
     let arch = format!("{:?}0", builder.arch);
-    cargo.env("CUDA_ARCH", arch.strip_prefix("Compute").unwrap());
+    let cuda_arch = arch.strip_prefix("Compute").unwrap();
+    cargo.env("CUDA_ARCH", cuda_arch);
+    println!("cargo:warning=Set CUDA_ARCH environment variable: {}", cuda_arch);
 
     let cargo_encoded_rustflags = join_checking_for_separators(rustflags, "\x1f");
 
+    println!("cargo:warning=Executing cargo command: {:?}", cargo);
+    println!("cargo:warning=Starting cargo build...");
+    
     let build = cargo
         .stderr(Stdio::inherit())
         .current_dir(&builder.path_to_crate)
@@ -552,10 +640,24 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
     // we do that even in case of an error, to let through any useful messages
     // that ended up on stdout instead of stderr.
     let stdout = String::from_utf8(build.stdout).unwrap();
+    println!("cargo:warning=Cargo stdout length: {} bytes", stdout.len());
+    
     let artifact = get_last_artifact(&stdout);
+    
     if build.status.success() {
-        Ok(artifact.expect("Artifact created when compilation succeeded (Did you forget to mark the crate-type as lib/rlib?)"))
+        println!("cargo:warning=Cargo build completed successfully");
+        match artifact {
+            Some(path) => {
+                println!("cargo:warning=Generated PTX artifact: {}", path.display());
+                Ok(path)
+            }
+            None => {
+                println!("cargo:warning=No PTX artifact found despite successful build - did you forget to mark the crate-type as lib/rlib?");
+                Err(CudaBuilderError::BuildFailed)
+            }
+        }
     } else {
+        println!("cargo:warning=Cargo build failed with exit code: {:?}", build.status.code());
         Err(CudaBuilderError::BuildFailed)
     }
 }
@@ -567,7 +669,9 @@ struct RustcOutput {
 }
 
 fn get_last_artifact(out: &str) -> Option<PathBuf> {
-    let last = out
+    println!("cargo:warning=Parsing cargo output for artifacts");
+    
+    let artifacts: Vec<_> = out
         .lines()
         .filter_map(|line| match serde_json::from_str::<RustcOutput>(line) {
             Ok(line) => Some(line),
@@ -578,15 +682,27 @@ fn get_last_artifact(out: &str) -> Option<PathBuf> {
             }
         })
         .filter(|line| line.reason == "compiler-artifact")
-        .next_back()
-        .expect("Did not find output file in rustc output");
+        .collect();
+    
+    println!("cargo:warning=Found {} compiler artifacts", artifacts.len());
+    
+    let last = artifacts.into_iter().next_back()?;
 
     let mut filenames = last
         .filenames
         .unwrap()
         .into_iter()
-        .filter(|v| v.ends_with(".ptx"));
+        .filter(|v| {
+            let is_ptx = v.ends_with(".ptx");
+            if is_ptx {
+                println!("cargo:warning=Found PTX file: {}", v);
+            }
+            is_ptx
+        });
+        
     let filename = filenames.next()?;
     assert_eq!(filenames.next(), None, "Crate had multiple .ptx artifacts");
+    
+    println!("cargo:warning=Selected PTX artifact: {}", filename);
     Some(filename.into())
 }

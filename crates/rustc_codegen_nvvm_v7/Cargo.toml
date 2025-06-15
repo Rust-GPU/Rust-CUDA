@@ -1,5 +1,5 @@
 [package]
-name = "rustc_codegen_nvvm"
+name = "rustc_codegen_nvvm_v7"
 version = "0.3.0"
 authors = [
     "Riccardo D'Ambrosio <rdambrosio016@gmail.com>",

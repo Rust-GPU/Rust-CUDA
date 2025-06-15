@@ -1,5 +1,5 @@
 use rustc_abi as abi;
-use rustc_abi::{self, BackendRepr, Float, HasDataLayout, Primitive};
+use rustc_abi::{self, Float, HasDataLayout, Primitive};
 use rustc_codegen_ssa::errors::InvalidMonomorphization;
 use rustc_codegen_ssa::mir::operand::OperandValue;
 use rustc_codegen_ssa::mir::place::PlaceValue;
@@ -8,18 +8,18 @@ use rustc_codegen_ssa::traits::{
     BaseTypeCodegenMethods, BuilderMethods, ConstCodegenMethods, IntrinsicCallBuilderMethods,
     OverflowOp,
 };
-use rustc_middle::ty::layout::{FnAbiOf, HasTypingEnv, LayoutOf};
+use rustc_middle::ty::layout::{HasTypingEnv, LayoutOf};
 use rustc_middle::ty::{self, Ty};
 use rustc_middle::{bug, span_bug};
 use rustc_span::symbol::kw;
 use rustc_span::{Span, Symbol, sym};
-use rustc_target::callconv::PassMode;
+use rustc_target::callconv::{FnAbi, PassMode};
 use tracing::trace;
 
 use crate::abi::LlvmType;
 use crate::builder::Builder;
 use crate::context::CodegenCx;
-use crate::llvm::{self, Type, Value};
+use crate::llvm::{self, Metadata, Type, Value};
 use crate::ty::LayoutLlvmExt;
 
 // libnvvm does not support some advanced intrinsics for i128 so we just abort on them for now. In the future
@@ -159,8 +159,9 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
     fn codegen_intrinsic_call(
         &mut self,
         instance: ty::Instance<'tcx>,
+        fn_abi: &FnAbi<'tcx, Ty<'tcx>>,
         args: &[OperandRef<'tcx, &'ll Value>],
-        result: PlaceRef<'tcx, &'ll Value>,
+        llresult: &'ll Value,
         span: Span,
     ) -> Result<(), ty::Instance<'tcx>> {
         let tcx = self.tcx;
@@ -183,9 +184,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
         );
 
         let llret_ty = self.layout_of(ret_ty).llvm_type(self);
-
-        // Compute fn_abi for intrinsics that need it
-        let fn_abi = self.cx.fn_abi_of_instance(instance, ty::List::empty());
+        let result = PlaceRef::new_sized(llresult, fn_abi.ret.layout);
 
         let simple = get_simple_intrinsic(self, name);
         let llval = match name {
@@ -245,7 +244,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
 
                 self.call(self.type_i1(), None, None, try_func, &[data], None, None);
                 let ret_align = self.data_layout().i32_align.abi;
-                self.store(self.const_i32(0), result.val.llval, ret_align)
+                self.store(self.const_i32(0), llresult, ret_align)
             }
             sym::breakpoint => {
                 // debugtrap is not supported
@@ -255,7 +254,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 self.call_intrinsic("llvm.va_copy", &[args[0].immediate(), args[1].immediate()])
             }
             sym::va_arg => {
-                match result.layout.backend_repr {
+                match fn_abi.ret.layout.backend_repr {
                     abi::BackendRepr::Scalar(scalar) => {
                         match scalar.primitive() {
                             Primitive::Int(..) => {
@@ -428,16 +427,16 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     match name {
                         sym::ctlz | sym::cttz => {
                             let y = self.const_bool(false);
-                            let llvm_name = format!("llvm.{name}.i{width}");
+                            let llvm_name = format!("llvm.{}.i{}", name, width);
                             self.call_intrinsic(&llvm_name, &[args[0].immediate(), y])
                         }
                         sym::ctlz_nonzero | sym::cttz_nonzero => {
                             let y = self.const_bool(true);
-                            let llvm_name = format!("llvm.{}.i{width}", &name_str[..4]);
+                            let llvm_name = format!("llvm.{}.i{}", &name_str[..4], width);
                             self.call_intrinsic(&llvm_name, &[args[0].immediate(), y])
                         }
                         sym::ctpop => self.call_intrinsic(
-                            &format!("llvm.ctpop.i{width}"),
+                            &format!("llvm.ctpop.i{}", width),
                             &[args[0].immediate()],
                         ),
                         sym::bswap => {
@@ -445,13 +444,13 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                                 args[0].immediate() // byte swap a u8/i8 is just a no-op
                             } else {
                                 self.call_intrinsic(
-                                    &format!("llvm.bswap.i{width}"),
+                                    &format!("llvm.bswap.i{}", width),
                                     &[args[0].immediate()],
                                 )
                             }
                         }
                         sym::bitreverse => self.call_intrinsic(
-                            &format!("llvm.bitreverse.i{width}"),
+                            &format!("llvm.bitreverse.i{}", width),
                             &[args[0].immediate()],
                         ),
                         sym::rotate_left | sym::rotate_right => {
@@ -485,13 +484,14 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 }
             }
             sym::raw_eq => {
+                use abi::BackendRepr::*;
                 use rustc_codegen_ssa::common::IntPredicate;
                 let tp_ty = fn_args.type_at(0);
                 let layout = self.layout_of(tp_ty).layout;
                 let use_integer_compare = match layout.backend_repr() {
-                    BackendRepr::Scalar(_) | BackendRepr::ScalarPair(_, _) => true,
-                    BackendRepr::SimdVector { .. } => false,
-                    BackendRepr::Memory { .. } => {
+                    Scalar(_) | ScalarPair(_, _) => true,
+                    Vector { .. } => false,
+                    Memory { .. } => {
                         // For rusty ABIs, small aggregates are actually passed
                         // as `RegKind::Integer` (see `FnAbi::adjust_for_abi`),
                         // so we re-use that same threshold here.
@@ -582,8 +582,8 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
     }
 
     fn abort(&mut self) {
-        trace!("Generate abort call");
-        self.call_intrinsic("llvm.trap", &[]);
+        let (trap_ty, f) = self.get_intrinsic("llvm.trap");
+        self.call(trap_ty, None, None, f, &[], None, None);
     }
 
     fn assume(&mut self, val: &'ll Value) {
@@ -594,6 +594,11 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
     fn expect(&mut self, cond: &'ll Value, expected: bool) -> &'ll Value {
         trace!("Generate expect call with `{:?}`, {}", cond, expected);
         self.call_intrinsic("llvm.expect.i1", &[cond, self.const_bool(expected)])
+    }
+
+    fn type_test(&mut self, _pointer: &'ll Value, _typeid: &'ll Metadata) -> &'ll Value {
+        // LLVM CFI doesnt make sense on the GPU
+        self.const_i32(0)
     }
 
     fn type_checked_load(
