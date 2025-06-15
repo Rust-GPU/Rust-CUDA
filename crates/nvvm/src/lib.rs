@@ -4,7 +4,6 @@ use std::{
     ffi::{CStr, CString},
     fmt::Display,
     mem::MaybeUninit,
-    ptr::null_mut,
     str::FromStr,
 };
 
@@ -255,6 +254,12 @@ impl FromStr for NvvmOption {
                     "72" => NvvmArch::Compute72,
                     "75" => NvvmArch::Compute75,
                     "80" => NvvmArch::Compute80,
+                    "86" => NvvmArch::Compute86,
+                    "87" => NvvmArch::Compute87,
+                    "89" => NvvmArch::Compute89,
+                    "90" => NvvmArch::Compute90,
+                    "100" => NvvmArch::Compute100,
+                    "120" => NvvmArch::Compute120,
                     _ => return Err("unknown arch"),
                 };
                 Self::Arch(arch)
@@ -279,6 +284,12 @@ pub enum NvvmArch {
     Compute72,
     Compute75,
     Compute80,
+    Compute86,
+    Compute87,
+    Compute89,
+    Compute90,
+    Compute100,
+    Compute120,
 }
 
 impl Display for NvvmArch {
@@ -403,8 +414,21 @@ impl NvvmProgram {
 
     /// Verify the program without actually compiling it. In the case of invalid IR, you can find
     /// more detailed error info by calling [`compiler_log`](Self::compiler_log).
-    pub fn verify(&self) -> Result<(), NvvmError> {
-        unsafe { nvvm_sys::nvvmVerifyProgram(self.raw, 0, null_mut()).to_result() }
+    pub fn verify(&self, options: &[NvvmOption]) -> Result<(), NvvmError> {
+        let option_strings: Vec<_> = options.iter().map(|opt| opt.to_string()).collect();
+        let option_cstrings: Vec<_> = option_strings.iter()
+            .map(|s| std::ffi::CString::new(s.as_str()).unwrap())
+            .collect();
+        let mut option_ptrs: Vec<_> = option_cstrings.iter()
+            .map(|cs| cs.as_ptr())
+            .collect();
+        unsafe { 
+            nvvm_sys::nvvmVerifyProgram(
+                self.raw, 
+                option_ptrs.len() as i32, 
+                option_ptrs.as_mut_ptr()
+            ).to_result() 
+        }
     }
 }
 
@@ -433,6 +457,12 @@ mod tests {
             "-arch=compute_72",
             "-arch=compute_75",
             "-arch=compute_80",
+            "-arch=compute_86",
+            "-arch=compute_87",
+            "-arch=compute_89",
+            "-arch=compute_90",
+            "-arch=compute_100",
+            "-arch=compute_120",
             "-ftz=1",
             "-prec-sqrt=0",
             "-prec-div=0",
@@ -454,6 +484,12 @@ mod tests {
             Arch(Compute72),
             Arch(Compute75),
             Arch(Compute80),
+            Arch(Compute86),
+            Arch(Compute87),
+            Arch(Compute89),
+            Arch(Compute90),
+            Arch(Compute100),
+            Arch(Compute120),
             Ftz,
             FastSqrt,
             FastDiv,
