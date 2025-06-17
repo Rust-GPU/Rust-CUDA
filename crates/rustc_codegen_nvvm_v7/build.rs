@@ -143,6 +143,34 @@ pub fn tracked_env_var_os<K: AsRef<OsStr> + Display>(key: K) -> Option<OsString>
     env::var_os(key)
 }
 
+fn run_llvm_as() {
+    // Check if libintrinsics.ll exists
+    let libintrinsics_path = Path::new("libintrinsics.ll");
+    if !libintrinsics_path.exists() {
+        fail("libintrinsics.ll not found");
+    }
+    
+    println!("cargo:rerun-if-changed=libintrinsics.ll");
+    
+    let mut cmd = Command::new("llvm-as-7");
+    cmd.arg("libintrinsics.ll");
+    
+    let output = match cmd.stderr(Stdio::inherit()).output() {
+        Ok(status) => status,
+        Err(e) => fail(&format!(
+            "failed to execute llvm-as: {:?}\nerror: {}",
+            cmd, e
+        )),
+    };
+    
+    if !output.status.success() {
+        fail(&format!(
+            "llvm-as failed: {:?}\nstatus: {}",
+            cmd, output.status
+        ));
+    }
+}
+
 fn rustc_llvm_build() {
     let target = env::var("TARGET").expect("TARGET was not set");
     let llvm_config = find_llvm_config(&target);
@@ -164,6 +192,9 @@ fn rustc_llvm_build() {
     for component in components.iter() {
         println!("cargo:rustc-cfg=llvm_component=\"{}\"", component);
     }
+
+    // Run llvm-as on libintrinsics.ll
+    run_llvm_as();
 
     // Link in our own LLVM shims, compiled with the same flags as LLVM
     let mut cmd = Command::new(&llvm_config);

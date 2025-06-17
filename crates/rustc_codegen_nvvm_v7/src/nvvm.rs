@@ -113,7 +113,7 @@ pub fn codegen_bitcode_modules(
     // giving it to libnvvm. Then to debug codegen failures, we can just ask the user to provide the corresponding llvm ir
     // file with --emit=llvm-ir
 
-    let verification_res = prog.verify();
+    let verification_res = prog.verify(&args.nvvm_options);
     if verification_res.is_err() {
         let log = prog.compiler_log().unwrap().unwrap_or_default();
         let footer = "If you plan to submit a bug report please re-run the codegen with `RUSTFLAGS=\"--emit=llvm-ir\" and include the .ll file corresponding to the .o file mentioned in the log";
