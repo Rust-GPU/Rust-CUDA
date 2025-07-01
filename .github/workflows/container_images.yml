@@ -29,16 +29,16 @@ jobs:
             arch: arm64
         variance:
           - name: Ubuntu-22.04/CUDA-11.8.0
-            image: "${{ github.repository }}-ubuntu22-cuda11"
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda11"
             dockerfile: ./container/ubuntu22-cuda11/Dockerfile
           - name: Ubuntu-22.04/CUDA-12.8.1
-            image: "${{ github.repository }}-ubuntu22-cuda12"
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda12"
             dockerfile: ./container/ubuntu22-cuda12/Dockerfile
           - name: Ubuntu-24.04/CUDA-12.8.1
-            image: "${{ github.repository }}-ubuntu24-cuda12"
+            image: "rust-gpu/rust-cuda-ubuntu24-cuda12"
             dockerfile: ./container/ubuntu24-cuda12/Dockerfile
           - name: RockyLinux-9/CUDA-12.8.1
-            image: "${{ github.repository }}-rockylinux9-cuda12"
+            image: "rust-gpu/rust-cuda-rockylinux9-cuda12"
             dockerfile: ./container/rockylinux9-cuda12/Dockerfile
     steps:
       - name: Checkout repository
@@ -109,13 +109,13 @@ jobs:
       matrix:
         variance:
           - name: Ubuntu-22.04/CUDA-11.8.0
-            image: "${{ github.repository }}-ubuntu22-cuda11"
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda11"
           - name: Ubuntu-22.04/CUDA-12.8.1
-            image: "${{ github.repository }}-ubuntu22-cuda12"
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda12"
           - name: Ubuntu-24.04/CUDA-12.8.1
-            image: "${{ github.repository }}-ubuntu24-cuda12"
+            image: "rust-gpu/rust-cuda-ubuntu24-cuda12"
           - name: RockyLinux-9/CUDA-12.8.1
-            image: "${{ github.repository }}-rockylinux9-cuda12"
+            image: "rust-gpu/rust-cuda-rockylinux9-cuda12"
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4

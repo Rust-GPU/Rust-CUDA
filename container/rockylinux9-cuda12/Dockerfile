@@ -32,7 +32,7 @@ RUN dnf -y install epel-release && \
     libxml2-devel \
     libedit-devel \
     python3 \
-    ninja-build && \
+    ninja && \
     dnf clean all
 
 # Download and build LLVM 7.1.0 for all architectures (consistency)
