@@ -20,7 +20,6 @@ impl From<PipelineLinkOptions> for optix_sys::OptixPipelineLinkOptions {
     fn from(o: PipelineLinkOptions) -> Self {
         optix_sys::OptixPipelineLinkOptions {
             maxTraceDepth: o.max_trace_depth,
-            debugLevel: o.debug_level as _,
         }
     }
 }
@@ -143,7 +142,7 @@ pub enum CompileOptimizationLevel {
 pub enum CompileDebugLevel {
     #[default]
     None = optix_sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_NONE as i32,
-    LineInfo = optix_sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_LINEINFO as i32,
+    LineInfo = optix_sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_MINIMAL as i32,
     Full = optix_sys::OptixCompileDebugLevel::OPTIX_COMPILE_DEBUG_LEVEL_FULL as i32,
 }
 
@@ -165,12 +164,16 @@ impl From<&ModuleCompileOptions> for optix_sys::OptixModuleCompileOptions {
                     debugLevel: o.debug_level as _,
                     boundValues: std::ptr::null(),
                     numBoundValues: 0,
+                    numPayloadTypes: 0,
+                    payloadTypes: std::ptr::null(),
                 }
             } else {
                 optix_sys::OptixModuleCompileOptions {
                     maxRegisterCount: o.max_register_count,
                     optLevel: o.opt_level as _,
                     debugLevel: o.debug_level as _,
+                    numPayloadTypes: 0,
+                    payloadTypes: std::ptr::null(),
                 }
             }
         }
@@ -193,7 +196,6 @@ bitflags::bitflags! {
         const STACK_OVERFLOW = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_STACK_OVERFLOW as i32;
         const TRACE_DEPTH = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_TRACE_DEPTH as i32;
         const USER = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_USER as i32;
-        const DEBUG = optix_sys::OptixExceptionFlags::OPTIX_EXCEPTION_FLAG_DEBUG as i32;
     }
 }
 
@@ -260,10 +262,8 @@ impl PipelineCompileOptions {
                 std::ptr::null()
             },
             usesPrimitiveTypeFlags: self.primitive_type_flags.bits() as u32,
-            #[cfg(optix_pipeline_compile_options_reserved)]
-            reserved: 0,
-            #[cfg(optix_pipeline_compile_options_reserved)]
-            reserved2: 0,
+            allowOpacityMicromaps: 0,
+            allowClusteredGeometry: 0,
         }
     }
 
@@ -317,7 +317,7 @@ impl Module {
 
         let mut raw = std::ptr::null_mut();
         let res = unsafe {
-            optix_call!(optixModuleCreateFromPTX(
+            optix_call!(optixModuleCreate(
                 ctx.raw,
                 &mopt as *const _,
                 &popt,
@@ -363,6 +363,8 @@ impl Module {
                 PrimitiveType::Triangle => OPTIX_PRIMITIVE_TYPE_TRIANGLE,
             },
             usesMotionBlur: if uses_motion_blur { 1 } else { 0 },
+            buildFlags: 0,
+            curveEndcapFlags: 0,
         };
 
         let mut raw = std::ptr::null_mut();
@@ -501,7 +503,8 @@ impl ProgramGroup {
         unsafe {
             Ok(optix_call!(optixProgramGroupGetStackSize(
                 self.raw,
-                &mut stack_sizes as *mut _ as *mut _
+                &mut stack_sizes as *mut _ as *mut _,
+                std::ptr::null_mut()
             ))
             .map(|_| stack_sizes)?)
         }
@@ -523,10 +526,7 @@ impl ProgramGroup {
         desc: &[ProgramGroupDesc],
     ) -> Result<(Vec<ProgramGroup>, String)> {
         let pg_options = optix_sys::OptixProgramGroupOptions {
-            #[cfg(optix_program_group_options_reserved)]
-            reserved: 0,
-            #[cfg(not(optix_program_group_options_reserved))]
-            placeholder: 0,
+            payloadType: std::ptr::null(),
         };
 
         let mut log = [0u8; 4096];
@@ -569,10 +569,7 @@ impl ProgramGroup {
         desc: &ProgramGroupDesc,
     ) -> Result<(ProgramGroup, String)> {
         let pg_options = optix_sys::OptixProgramGroupOptions {
-            #[cfg(optix_program_group_options_reserved)]
-            reserved: 0,
-            #[cfg(not(optix_program_group_options_reserved))]
-            placeholder: 0,
+            payloadType: std::ptr::null(),
         };
 
         let mut log = [0u8; 4096];

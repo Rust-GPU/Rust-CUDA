@@ -221,7 +221,7 @@ impl Accel {
     /// If this acceleration structure is copied multiple times, the same
     /// [`AccelRelocationInfo`] can also be used on all copies.
     pub fn get_relocation_info(&self, ctx: &DeviceContext) -> Result<AccelRelocationInfo> {
-        let mut inner = optix_sys::OptixAccelRelocationInfo::default();
+        let mut inner = optix_sys::OptixRelocationInfo::default();
         unsafe {
             Ok(optix_call!(optixAccelGetRelocationInfo(
                 ctx.raw,
@@ -828,7 +828,7 @@ impl AccelBuildOptions {
 #[repr(transparent)]
 pub struct AccelRelocationInfo {
     #[allow(dead_code)]
-    inner: optix_sys::OptixAccelRelocationInfo,
+    inner: optix_sys::OptixRelocationInfo,
 }
 
 /// Struct used for OptiX to communicate the necessary buffer sizes for accel
@@ -1096,6 +1096,7 @@ impl BuildInput for CurveArray<'_, '_, '_> {
                 indexStrideInBytes: self.index_stride_in_bytes,
                 flag: self.flags as u32,
                 primitiveIndexOffset: self.primitive_index_offset,
+                endcapFlags: optix_sys::OptixCurveEndcapFlags::OPTIX_CURVE_ENDCAP_DEFAULT as u32,
             };
         };
         v
@@ -1328,6 +1329,8 @@ impl<V: Vertex> BuildInput for TriangleArray<'_, '_, V> {
                 } else {
                     optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_NONE
                 },
+                opacityMicromap: optix_sys::OptixBuildInputOpacityMicromap::default(),
+                displacementMicromap: optix_sys::OptixBuildInputDisplacementMicromap::default(),
             };
         };
         v
@@ -1414,6 +1417,8 @@ impl<V: Vertex, I: IndexTriple> BuildInput for IndexedTriangleArray<'_, '_, V, I
                 } else {
                     optix_sys::OptixTransformFormat::OPTIX_TRANSFORM_FORMAT_NONE
                 },
+                opacityMicromap: optix_sys::OptixBuildInputOpacityMicromap::default(),
+                displacementMicromap: optix_sys::OptixBuildInputDisplacementMicromap::default(),
             };
         };
         v
@@ -1563,7 +1568,8 @@ bitflags::bitflags! {
         const FLIP_TRIANGLE_FACING = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_FLIP_TRIANGLE_FACING as i32;
         const DISABLE_ANYHIT = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_DISABLE_ANYHIT as i32;
         const ENFORCE_ANYHIT = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_ENFORCE_ANYHIT as i32;
-        const DISABLE_TRANSFORM = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_DISABLE_TRANSFORM as i32;
+        const FORCE_OPACITY_MICROMAP_2_STATE = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_FORCE_OPACITY_MICROMAP_2_STATE as i32;
+        const DISABLE_OPACITY_MICROMAPS = optix_sys::OptixInstanceFlags::OPTIX_INSTANCE_FLAG_DISABLE_OPACITY_MICROMAPS as i32;
     }
 }
 
@@ -1656,10 +1662,7 @@ impl BuildInput for InstanceArray<'_, '_> {
             *v.__bindgen_anon_1.instanceArray.as_mut() = optix_sys::OptixBuildInputInstanceArray {
                 instances: self.instances.as_device_ptr().as_raw(),
                 numInstances: self.instances.len() as u32,
-                #[cfg(optix_build_input_instance_array_aabbs)]
-                aabbs: 0,
-                #[cfg(optix_build_input_instance_array_aabbs)]
-                numAabbs: 0,
+                instanceStride: 0,
             };
         };
         v
@@ -1692,10 +1695,7 @@ impl BuildInput for InstancePointerArray<'_> {
             *v.__bindgen_anon_1.instanceArray.as_mut() = optix_sys::OptixBuildInputInstanceArray {
                 instances: self.instances.as_device_ptr().as_raw(),
                 numInstances: self.instances.len() as u32,
-                #[cfg(optix_build_input_instance_array_aabbs)]
-                aabbs: 0,
-                #[cfg(optix_build_input_instance_array_aabbs)]
-                numAabbs: 0,
+                instanceStride: 0,
             };
         };
         v

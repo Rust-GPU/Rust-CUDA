@@ -100,8 +100,10 @@ pub fn optix_is_initialized() -> bool {
 }
 
 extern "C" {
-    pub(crate) static g_optixFunctionTable: optix_sys::OptixFunctionTable;
+    pub(crate) static g_optixFunctionTable_105: optix_sys::OptixFunctionTable;
 }
+#[allow(non_upper_case_globals)]
+pub(crate) use g_optixFunctionTable_105 as g_optixFunctionTable;
 
 /// Call a raw OptiX sys function, making sure that OptiX is initialized. Returning
 /// an OptixNotInitialized error if it is not initialized. See [`optix_is_initialized`].

@@ -73,6 +73,7 @@ impl DenoiserOptions {
         optix_sys::OptixDenoiserOptions {
             guideAlbedo: self.guide_albedo as u32,
             guideNormal: self.guide_normal as u32,
+            denoiseAlpha: optix_sys::OptixDenoiserAlphaMode::OPTIX_DENOISER_ALPHA_MODE_COPY,
         }
     }
 }
@@ -376,6 +377,7 @@ impl Denoiser {
         out.data = out_buffer.as_device_ptr().as_raw();
 
         let layer = optix_sys::OptixDenoiserLayer {
+            type_: optix_sys::OptixDenoiserAOVType::OPTIX_DENOISER_AOV_TYPE_BEAUTY,
             input: input_image.to_raw(),
             previousOutput: null_optix_image(),
             output: out,
@@ -423,7 +425,6 @@ pub struct DenoiserParams<'a> {
 impl DenoiserParams<'_> {
     pub fn to_raw(self) -> optix_sys::OptixDenoiserParams {
         optix_sys::OptixDenoiserParams {
-            denoiseAlpha: self.denoise_alpha as u32,
             hdrIntensity: self
                 .hdr_intensity
                 .map(|x| x.as_device_ptr().as_raw())
@@ -433,6 +434,7 @@ impl DenoiserParams<'_> {
                 .map(|x| x.as_device_ptr().as_raw())
                 .unwrap_or_default(),
             blendFactor: self.blend_factor,
+            temporalModeUsePreviousLayers: 0,
         }
     }
 }
@@ -471,6 +473,9 @@ impl DenoiserGuideImages<'_> {
                 .flow
                 .map(|i| i.to_raw())
                 .unwrap_or_else(null_optix_image),
+            previousOutputInternalGuideLayer: null_optix_image(),
+            outputInternalGuideLayer: null_optix_image(),
+            flowTrustworthiness: null_optix_image(),
         }
     }
 }
