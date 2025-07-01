@@ -322,10 +322,7 @@ impl DynamicAccel {
             let hnd = unsafe { accel_compact(ctx, stream, hnd, &mut buf)? };
 
             Ok(DynamicAccel {
-                accel: Accel {
-                    buf,
-                    hnd,
-                },
+                accel: Accel { buf, hnd },
                 hash,
             })
         } else {
