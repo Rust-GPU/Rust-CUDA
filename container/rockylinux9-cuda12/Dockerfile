@@ -32,10 +32,10 @@ RUN dnf -y install epel-release && \
     libxml2-devel \
     libedit-devel \
     python3 \
-    ninja && \
+    make && \
     dnf clean all
 
-# Download and build LLVM 7.1.0 for all architectures (consistency)
+# Download and build LLVM 7.1.0 for all architectures
 RUN curl -sSf -L -O https://github.com/llvm/llvm-project/releases/download/llvmorg-7.1.0/llvm-7.1.0.src.tar.xz && \
     tar -xf llvm-7.1.0.src.tar.xz && \
     cd llvm-7.1.0.src && \
@@ -46,7 +46,7 @@ RUN curl -sSf -L -O https://github.com/llvm/llvm-project/releases/download/llvmo
     else \
         TARGETS="AArch64;NVPTX"; \
     fi && \
-    cmake -G Ninja \
+    cmake \
         -DCMAKE_BUILD_TYPE=Release \
         -DLLVM_TARGETS_TO_BUILD="$TARGETS" \
         -DLLVM_BUILD_LLVM_DYLIB=ON \
@@ -60,8 +60,8 @@ RUN curl -sSf -L -O https://github.com/llvm/llvm-project/releases/download/llvmo
         -DLLVM_ENABLE_TERMINFO=ON \
         -DCMAKE_INSTALL_PREFIX=/usr \
         .. && \
-    ninja -j$(nproc) && \
-    ninja install && \
+    make -j$(nproc) && \
+    make install && \
     cd ../.. && \
     rm -rf llvm-7.1.0.src* && \
     ln -s /usr/bin/llvm-config /usr/bin/llvm-config-7 && \

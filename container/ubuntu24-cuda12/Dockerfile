@@ -35,7 +35,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     ninja-build && \
     rm -rf /var/lib/apt/lists/*
 
-# Download and build LLVM 7.1.0 for all architectures (consistency)
+# Download and build LLVM 7.1.0 for all architectures
 RUN curl -sSf -L -O https://github.com/llvm/llvm-project/releases/download/llvmorg-7.1.0/llvm-7.1.0.src.tar.xz && \
     tar -xf llvm-7.1.0.src.tar.xz && \
     cd llvm-7.1.0.src && \
