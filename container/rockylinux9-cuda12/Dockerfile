@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.1-cudnn-devel-rockylinux9
+FROM nvcr.io/nvidia/cuda:12.8.1-cudnn-devel-rockylinux9
 
 RUN dnf -y update && \
     dnf -y install \

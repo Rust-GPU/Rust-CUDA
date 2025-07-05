@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     build-essential \

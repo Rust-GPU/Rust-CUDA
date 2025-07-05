@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+FROM nvcr.io/nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install \
     build-essential \
