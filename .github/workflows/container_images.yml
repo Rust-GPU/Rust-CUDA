@@ -83,7 +83,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           ARTIFACT_NAME="${{ matrix.variance.image }}"
-          ARTIFACT_NAME="${ARTIFACT_NAME//\//-}"
+          ARTIFACT_NAME="${ARTIFACT_NAME#*/}"  # Remove everything before and including the slash
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
       - name: Export digest
         if: github.event_name != 'pull_request'
@@ -126,7 +126,7 @@ jobs:
       - name: Set artifact name
         run: |
           ARTIFACT_NAME="${{ matrix.variance.image }}"
-          ARTIFACT_NAME="${ARTIFACT_NAME//\//-}"
+          ARTIFACT_NAME="${ARTIFACT_NAME#*/}"  # Remove everything before and including the slash
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
       - name: Download digests
         uses: actions/download-artifact@v4
