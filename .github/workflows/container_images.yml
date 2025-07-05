@@ -14,32 +14,47 @@ env:
   REGISTRY: ghcr.io
 jobs:
   build-images:
-    name: ${{ matrix.variance.name }}
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.variance.name }} (${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runner }}
     permissions:
       contents: read
       packages: write
-      attestations: write
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
+        platform:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
         variance:
           - name: Ubuntu-22.04/CUDA-11.8.0
-            image: "${{ github.repository }}-ubuntu22-cuda11"
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda11"
             dockerfile: ./container/ubuntu22-cuda11/Dockerfile
           - name: Ubuntu-22.04/CUDA-12.8.1
-            image: "${{ github.repository }}-ubuntu22-cuda12"
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda12"
             dockerfile: ./container/ubuntu22-cuda12/Dockerfile
           - name: Ubuntu-24.04/CUDA-12.8.1
-            image: "${{ github.repository }}-ubuntu24-cuda12"
+            image: "rust-gpu/rust-cuda-ubuntu24-cuda12"
             dockerfile: ./container/ubuntu24-cuda12/Dockerfile
           - name: RockyLinux-9/CUDA-12.8.1
-            image: "${{ github.repository }}-rockylinux9-cuda12"
+            image: "rust-gpu/rust-cuda-rockylinux9-cuda12"
             dockerfile: ./container/rockylinux9-cuda12/Dockerfile
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Validate platform
+        run: |
+          ARCH=$(uname -m)
+          if [[ "${{ matrix.platform.arch }}" == "amd64" && "$ARCH" != "x86_64" ]]; then
+            echo "Error: Expected x86_64 but got $ARCH"
+            exit 1
+          fi
+          if [[ "${{ matrix.platform.arch }}" == "arm64" && "$ARCH" != "aarch64" ]]; then
+            echo "Error: Expected aarch64 but got $ARCH"
+            exit 1
+          fi
+          echo "Platform validation passed: $ARCH matches ${{ matrix.platform.arch }}"
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -51,24 +66,85 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ matrix.variance.image }}
-          tags: |
-            type=ref,event=branch
-            type=sha,format=short
-            type=raw,value=latest
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build and push container images
-        id: push
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.variance.dockerfile }}
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/${{ matrix.platform.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          push: ${{ github.event_name != 'pull_request' }}
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v2
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ matrix.variance.image }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ matrix.variance.image }}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
+          name: digests-${{ matrix.variance.image }}-${{ matrix.platform.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-manifests:
+    name: Create manifest for ${{ matrix.variance.name }}
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    needs: build-images
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        variance:
+          - name: Ubuntu-22.04/CUDA-11.8.0
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda11"
+          - name: Ubuntu-22.04/CUDA-12.8.1
+            image: "rust-gpu/rust-cuda-ubuntu22-cuda12"
+          - name: Ubuntu-24.04/CUDA-12.8.1
+            image: "rust-gpu/rust-cuda-ubuntu24-cuda12"
+          - name: RockyLinux-9/CUDA-12.8.1
+            image: "rust-gpu/rust-cuda-rockylinux9-cuda12"
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ matrix.variance.image }}-*
+          merge-multiple: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.variance.image }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
+            type=raw,value=latest
+      - name: Login to Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ matrix.variance.image }}@sha256:%s ' *)
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ matrix.variance.image }}:${{ steps.meta.outputs.version }}

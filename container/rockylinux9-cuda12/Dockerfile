@@ -1,6 +1,7 @@
 FROM nvidia/cuda:12.8.1-cudnn-devel-rockylinux9
 
-RUN dnf -y install \
+RUN dnf -y update && \
+    dnf -y install \
     clang \
     openssl-devel \
     pkgconfig \
@@ -20,16 +21,50 @@ RUN dnf -y install \
     libXrandr-devel && \
     dnf clean all
 
-# Get LLVM 7 & libffi.so.6
+# Get LLVM 7
 WORKDIR /data/llvm7
-RUN curl -sSf -L -O https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/l/libffi3.1-3.1-36.el9.x86_64.rpm && \
-    curl -sSf -L -O https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/l/llvm7.0-7.0.1-7.el8.x86_64.rpm && \
-    curl -sSf -L -O https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/l/llvm7.0-devel-7.0.1-7.el8.x86_64.rpm && \
-    curl -sSf -L -O https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/l/llvm7.0-libs-7.0.1-7.el8.x86_64.rpm && \
-    curl -sSf -L -O https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/l/llvm7.0-static-7.0.1-7.el8.x86_64.rpm && \
-    dnf -y install ./*.rpm && \
-    ln -s /usr/bin/llvm-config-7-64 /usr/bin/llvm-config && \
-    rm -rf ./*.rpm && \
+
+# Install dependencies for building LLVM
+RUN dnf -y install epel-release && \
+    dnf -y install \
+    libffi-devel \
+    ncurses-devel \
+    libxml2-devel \
+    libedit-devel \
+    python3 \
+    make && \
+    dnf clean all
+
+# Download and build LLVM 7.1.0 for all architectures
+RUN curl -sSf -L -O https://github.com/llvm/llvm-project/releases/download/llvmorg-7.1.0/llvm-7.1.0.src.tar.xz && \
+    tar -xf llvm-7.1.0.src.tar.xz && \
+    cd llvm-7.1.0.src && \
+    mkdir build && cd build && \
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        TARGETS="X86;NVPTX"; \
+    else \
+        TARGETS="AArch64;NVPTX"; \
+    fi && \
+    cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DLLVM_TARGETS_TO_BUILD="$TARGETS" \
+        -DLLVM_BUILD_LLVM_DYLIB=ON \
+        -DLLVM_LINK_LLVM_DYLIB=ON \
+        -DLLVM_ENABLE_ASSERTIONS=OFF \
+        -DLLVM_ENABLE_BINDINGS=OFF \
+        -DLLVM_INCLUDE_EXAMPLES=OFF \
+        -DLLVM_INCLUDE_TESTS=OFF \
+        -DLLVM_INCLUDE_BENCHMARKS=OFF \
+        -DLLVM_ENABLE_ZLIB=ON \
+        -DLLVM_ENABLE_TERMINFO=ON \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        .. && \
+    make -j$(nproc) && \
+    make install && \
+    cd ../.. && \
+    rm -rf llvm-7.1.0.src* && \
+    ln -s /usr/bin/llvm-config /usr/bin/llvm-config-7 && \
     dnf clean all
 
 # Get Rust
