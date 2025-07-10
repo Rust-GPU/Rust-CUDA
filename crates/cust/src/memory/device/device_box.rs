@@ -290,8 +290,8 @@ impl<T: DeviceCopy> DeviceBox<T> {
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
     /// let x = DeviceBox::new(&5).unwrap();
-    /// let ptr = DeviceBox::into_device(x).as_raw_mut();
-    /// let x = unsafe { DeviceBox::from_raw(ptr) };
+    /// let ptr = DeviceBox::into_device(x).as_raw();
+    /// let x: DeviceBox<i32> = unsafe { DeviceBox::from_raw(ptr) };
     /// ```
     pub unsafe fn from_raw(ptr: driver_sys::CUdeviceptr) -> Self {
         DeviceBox {

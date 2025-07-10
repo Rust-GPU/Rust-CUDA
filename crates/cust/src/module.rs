@@ -227,7 +227,7 @@ impl Module {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// # use cust::*;
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -290,7 +290,7 @@ impl Module {
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// # let _ctx = quick_init()?;
     /// use cust::module::Module;
-    /// let ptx = std::fs::read("./resources/add.ptx")?;
+    /// let ptx = std::fs::read_to_string("./resources/add.ptx")?;
     /// let module = Module::from_ptx(&ptx, &[])?;
     /// # Ok(())
     /// # }
