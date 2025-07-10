@@ -118,13 +118,14 @@ fn create_cuda_driver_bindings(
     println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
         .header(header.to_str().expect("header should be valid UTF-8"))
-        .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
-            "cu",
-            outdir,
-            header,
-            sdk.cuda_include_paths().to_owned(),
-        )))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(
+            callbacks::BindgenCallbacks::with_function_renames(callbacks::FunctionRenames::new(
+                "cu",
+                outdir,
+                header,
+                sdk.cuda_include_paths().to_owned(),
+            )),
+        ))
         .clang_args(
             sdk.cuda_include_paths()
                 .iter()
@@ -167,13 +168,14 @@ fn create_cuda_runtime_bindings(
     println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
         .header(header.to_str().expect("header should be valid UTF-8"))
-        .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
-            "cuda",
-            outdir,
-            header,
-            sdk.cuda_include_paths().to_owned(),
-        )))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(
+            callbacks::BindgenCallbacks::with_function_renames(callbacks::FunctionRenames::new(
+                "cuda",
+                outdir,
+                header,
+                sdk.cuda_include_paths().to_owned(),
+            )),
+        ))
         .clang_args(
             sdk.cuda_include_paths()
                 .iter()
@@ -217,13 +219,16 @@ fn create_cublas_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path, manifest
         println!("cargo::rerun-if-changed={}", header.display());
         let bindings = bindgen::Builder::default()
             .header(header.to_str().expect("header should be valid UTF-8"))
-            .parse_callbacks(Box::new(callbacks::FunctionRenames::new(
-                pkg,
-                outdir,
-                header,
-                sdk.cuda_include_paths().to_owned(),
-            )))
-            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+            .parse_callbacks(Box::new(
+                callbacks::BindgenCallbacks::with_function_renames(
+                    callbacks::FunctionRenames::new(
+                        pkg,
+                        outdir,
+                        header.clone(),
+                        sdk.cuda_include_paths().to_owned(),
+                    ),
+                ),
+            ))
             .clang_args(
                 sdk.cuda_include_paths()
                     .iter()
@@ -263,7 +268,7 @@ fn create_nptx_compiler_bindings(
     println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
         .header(header.to_str().expect("header should be valid UTF-8"))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(callbacks::BindgenCallbacks::simple()))
         .clang_args(
             sdk.cuda_include_paths()
                 .iter()
@@ -298,7 +303,7 @@ fn create_nvvm_bindings(sdk: &cuda_sdk::CudaSdk, outdir: &path::Path, manifest_d
     println!("cargo::rerun-if-changed={}", header.display());
     let bindings = bindgen::Builder::default()
         .header(header.to_str().expect("header should be valid UTF-8"))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(callbacks::BindgenCallbacks::simple()))
         .clang_args(
             sdk.nvvm_include_paths()
                 .iter()

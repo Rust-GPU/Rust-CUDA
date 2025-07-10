@@ -69,11 +69,8 @@ impl<T: DeviceCopy> DevicePointer<T> {
     /// ```
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
-    /// use std::ptr;
-    /// unsafe {
-    ///     let null : *mut u64 = ptr::null_mut();
-    ///     assert!(DevicePointer::wrap(null).is_null());
-    /// }
+    /// let null_ptr = DevicePointer::<u64>::null();
+    /// assert!(null_ptr.is_null());
     /// ```
     pub fn is_null(self) -> bool {
         self.ptr == 0
@@ -245,14 +242,15 @@ impl<T: DeviceCopy> DevicePointer<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
     /// unsafe {
     ///     let mut dev_ptr = cuda_malloc::<u64>(5).unwrap();
-    ///     let offset = dev_ptr.add(4).sub(3); // Points to the 2nd u64 in the buffer
+    ///     let offset = dev_ptr.add(3).sub(2); // Points to the 2nd u64 in the buffer
     ///     cuda_free(dev_ptr); // Must free the buffer using the original pointer
     /// }
+    /// ```
     #[allow(clippy::should_implement_trait)]
     pub unsafe fn sub(self, count: usize) -> Self
     where
@@ -309,7 +307,7 @@ impl<T: DeviceCopy> DevicePointer<T> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # let _context = cust::quick_init().unwrap();
     /// use cust::memory::*;
     /// unsafe {

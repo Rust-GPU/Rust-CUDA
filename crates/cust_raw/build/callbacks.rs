@@ -3,7 +3,118 @@ use std::fs;
 use std::path;
 use std::sync;
 
-use bindgen::callbacks::{ItemInfo, ItemKind, MacroParsingBehavior, ParseCallbacks};
+use bindgen::callbacks::{DeriveInfo, ItemInfo, ItemKind, MacroParsingBehavior, ParseCallbacks};
+
+/// Enum to handle different callback combinations
+#[derive(Debug)]
+pub(crate) enum BindgenCallbacks {
+    /// For bindings that need function renaming (driver, runtime, cublas)
+    WithFunctionRenames {
+        function_renames: Box<FunctionRenames>,
+        cargo_callbacks: bindgen::CargoCallbacks,
+    },
+    /// For bindings that only need comment processing (nvptx, nvvm)
+    Simple {
+        cargo_callbacks: bindgen::CargoCallbacks,
+    },
+}
+
+impl BindgenCallbacks {
+    pub fn with_function_renames(function_renames: FunctionRenames) -> Self {
+        Self::WithFunctionRenames {
+            function_renames: Box::new(function_renames),
+            cargo_callbacks: bindgen::CargoCallbacks::new(),
+        }
+    }
+
+    pub fn simple() -> Self {
+        Self::Simple {
+            cargo_callbacks: bindgen::CargoCallbacks::new(),
+        }
+    }
+}
+
+impl ParseCallbacks for BindgenCallbacks {
+    fn process_comment(&self, comment: &str) -> Option<String> {
+        // First replace backslashes with @ to avoid doctest parsing issues
+        let cleaned = comment.replace('\\', "@");
+        // Then transform doxygen syntax to rustdoc
+        match doxygen_bindgen::transform(&cleaned) {
+            Ok(res) => Some(res),
+            Err(err) => {
+                println!(
+                    "cargo:warning=Problem processing doxygen comment: {}\n{}",
+                    comment, err
+                );
+                None
+            }
+        }
+    }
+
+    fn will_parse_macro(&self, name: &str) -> MacroParsingBehavior {
+        match self {
+            Self::WithFunctionRenames {
+                function_renames, ..
+            } => function_renames.will_parse_macro(name),
+            Self::Simple { .. } => MacroParsingBehavior::Default,
+        }
+    }
+
+    fn item_name(&self, original_item_name: &str) -> Option<String> {
+        match self {
+            Self::WithFunctionRenames {
+                function_renames, ..
+            } => function_renames.item_name(original_item_name),
+            Self::Simple { .. } => None,
+        }
+    }
+
+    fn add_derives(&self, info: &DeriveInfo) -> Vec<String> {
+        match self {
+            Self::WithFunctionRenames {
+                function_renames, ..
+            } => ParseCallbacks::add_derives(function_renames.as_ref(), info),
+            Self::Simple { .. } => vec![],
+        }
+    }
+
+    fn generated_name_override(&self, item_info: ItemInfo<'_>) -> Option<String> {
+        match self {
+            Self::WithFunctionRenames {
+                function_renames, ..
+            } => ParseCallbacks::generated_name_override(function_renames.as_ref(), item_info),
+            Self::Simple { .. } => None,
+        }
+    }
+
+    fn generated_link_name_override(&self, item_info: ItemInfo<'_>) -> Option<String> {
+        match self {
+            Self::WithFunctionRenames {
+                function_renames, ..
+            } => ParseCallbacks::generated_link_name_override(function_renames.as_ref(), item_info),
+            Self::Simple { .. } => None,
+        }
+    }
+
+    // Delegate cargo callbacks
+    fn include_file(&self, filename: &str) {
+        match self {
+            Self::WithFunctionRenames {
+                cargo_callbacks, ..
+            }
+            | Self::Simple { cargo_callbacks } => cargo_callbacks.include_file(filename),
+        }
+    }
+
+    fn read_env_var(&self, var: &str) {
+        match self {
+            Self::WithFunctionRenames {
+                cargo_callbacks, ..
+            }
+            | Self::Simple { cargo_callbacks } => cargo_callbacks.read_env_var(var),
+        }
+    }
+}
 
 /// Struct to handle renaming of functions through macro expansion.
 #[derive(Debug)]
@@ -122,5 +233,9 @@ impl ParseCallbacks for FunctionRenames {
             ItemKind::Function => remaps.get_by_left(item_info.name).cloned(),
             _ => None,
         }
+    }
+
+    fn add_derives(&self, _info: &DeriveInfo) -> Vec<String> {
+        vec![]
     }
 }
