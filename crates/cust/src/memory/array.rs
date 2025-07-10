@@ -139,7 +139,7 @@ impl ArrayFormat {
             // there are literally no docs on what nv12 is???
             // it seems to be something with multiplanar arrays, needs some investigation
             CUarray_format_enum::CU_AD_FORMAT_NV12 => panic!("nv12 is not supported yet"),
-            _ => panic!("Unsupported array format: {:?}", raw),
+            _ => panic!("Unsupported array format: {raw:?}"),
         }
     }
 

@@ -26,7 +26,7 @@ fn main() {
 }
 
 fn fail(s: &str) -> ! {
-    println!("\n\n{}\n\n", s);
+    println!("\n\n{s}\n\n");
     std::process::exit(1);
 }
 
@@ -34,10 +34,7 @@ fn fail(s: &str) -> ! {
 pub fn output(cmd: &mut Command) -> String {
     let output = match cmd.stderr(Stdio::inherit()).output() {
         Ok(status) => status,
-        Err(e) => fail(&format!(
-            "failed to execute command: {:?}\nerror: {}",
-            cmd, e
-        )),
+        Err(e) => fail(&format!("failed to execute command: {cmd:?}\nerror: {e}")),
     };
     assert!(
         output.status.success(),
@@ -56,11 +53,10 @@ fn target_to_llvm_prebuilt(target: &str) -> String {
         // NOTE(RDambrosio016): currently disabled because of weird issues with segfaults and building the C++ shim
         // "x86_64-unknown-linux-gnu" => "linux-x86_64",
         _ => panic!(
-            "Unsupported target with no matching prebuilt LLVM: `{}`, install LLVM and set LLVM_CONFIG",
-            target
+            "Unsupported target with no matching prebuilt LLVM: `{target}`, install LLVM and set LLVM_CONFIG"
         ),
     };
-    format!("{}.tar.xz", base)
+    format!("{base}.tar.xz")
 }
 
 fn find_llvm_config(target: &str) -> PathBuf {
@@ -79,8 +75,7 @@ fn find_llvm_config(target: &str) -> PathBuf {
                 return PathBuf::from(path_to_try);
             }
             println!(
-                "cargo:warning=Prebuilt llvm-config version does not start with {}",
-                REQUIRED_MAJOR_LLVM_VERSION
+                "cargo:warning=Prebuilt llvm-config version does not start with {REQUIRED_MAJOR_LLVM_VERSION}"
             );
         } else {
             println!("cargo:warning=Failed to run prebuilt llvm-config");
@@ -94,7 +89,7 @@ fn find_llvm_config(target: &str) -> PathBuf {
         .unwrap_or_else(|| PREBUILT_LLVM_URL.to_string());
 
     let prebuilt_name = target_to_llvm_prebuilt(target);
-    url = format!("{}{}", url, prebuilt_name);
+    url = format!("{url}{prebuilt_name}");
 
     let out = env::var("OUT_DIR").expect("OUT_DIR was not set");
     let mut easy = Easy::new();
@@ -139,7 +134,7 @@ fn detect_llvm_link() -> (&'static str, &'static str) {
 }
 
 pub fn tracked_env_var_os<K: AsRef<OsStr> + Display>(key: K) -> Option<OsString> {
-    println!("cargo:rerun-if-env-changed={}", key);
+    println!("cargo:rerun-if-env-changed={key}");
     env::var_os(key)
 }
 
@@ -156,13 +151,12 @@ fn rustc_llvm_build() {
     for component in required_components {
         assert!(
             components.contains(component),
-            "require llvm component {} but wasn't found",
-            component
+            "require llvm component {component} but wasn't found"
         );
     }
 
     for component in components.iter() {
-        println!("cargo:rustc-cfg=llvm_component=\"{}\"", component);
+        println!("cargo:rustc-cfg=llvm_component=\"{component}\"");
     }
 
     // Link in our own LLVM shims, compiled with the same flags as LLVM
@@ -255,7 +249,7 @@ fn rustc_llvm_build() {
         } else {
             "dylib"
         };
-        println!("cargo:rustc-link-lib={}={}", kind, name);
+        println!("cargo:rustc-link-lib={kind}={name}");
     }
 
     // Link in the system libraries that LLVM depends on
@@ -272,11 +266,11 @@ fn rustc_llvm_build() {
     cmd.arg(llvm_link_arg).arg("--ldflags");
     for lib in output(&mut cmd).split_whitespace() {
         if let Some(stripped) = lib.strip_prefix("-LIBPATH:") {
-            println!("cargo:rustc-link-search=native={}", stripped);
+            println!("cargo:rustc-link-search=native={stripped}");
         } else if let Some(stripped) = lib.strip_prefix("-l") {
-            println!("cargo:rustc-link-lib={}", stripped);
+            println!("cargo:rustc-link-lib={stripped}");
         } else if let Some(stripped) = lib.strip_prefix("-L") {
-            println!("cargo:rustc-link-search=native={}", stripped);
+            println!("cargo:rustc-link-search=native={stripped}");
         }
     }
 
@@ -288,9 +282,9 @@ fn rustc_llvm_build() {
     if let Some(s) = llvm_linker_flags {
         for lib in s.into_string().unwrap().split_whitespace() {
             if let Some(stripped) = lib.strip_prefix("-l") {
-                println!("cargo:rustc-link-lib={}", stripped);
+                println!("cargo:rustc-link-lib={stripped}");
             } else if let Some(stripped) = lib.strip_prefix("-L") {
-                println!("cargo:rustc-link-search=native={}", stripped);
+                println!("cargo:rustc-link-search=native={stripped}");
             }
         }
     }
@@ -330,14 +324,14 @@ fn rustc_llvm_build() {
                 path.parent().unwrap().display()
             );
             if target.contains("windows") {
-                println!("cargo:rustc-link-lib=static-nobundle={}", stdcppname);
+                println!("cargo:rustc-link-lib=static-nobundle={stdcppname}");
             } else {
-                println!("cargo:rustc-link-lib=static={}", stdcppname);
+                println!("cargo:rustc-link-lib=static={stdcppname}");
             }
         } else if cxxflags.contains("stdlib=libc++") {
             println!("cargo:rustc-link-lib=c++");
         } else {
-            println!("cargo:rustc-link-lib={}", stdcppname);
+            println!("cargo:rustc-link-lib={stdcppname}");
         }
     }
 
@@ -365,6 +359,6 @@ fn link_llvm_system_libs(llvm_config: &Path, components: &[&str]) {
             continue;
         };
 
-        println!("cargo:rustc-link-lib=dylib={}", name);
+        println!("cargo:rustc-link-lib=dylib={name}");
     }
 }

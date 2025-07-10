@@ -23,7 +23,7 @@ pub(crate) fn visibility_to_llvm(linkage: Visibility) -> llvm::Visibility {
 
 impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
     fn predefine_static(
-        &self,
+        &mut self,
         def_id: DefId,
         linkage: Linkage,
         visibility: Visibility,
@@ -40,7 +40,7 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
             .unwrap_or_else(|| {
                 self.sess().dcx().span_fatal(
                     self.tcx.def_span(def_id),
-                    format!("symbol `{}` is already defined", symbol_name),
+                    format!("symbol `{symbol_name}` is already defined"),
                 )
             });
 
@@ -53,7 +53,7 @@ impl<'tcx> PreDefineCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
     }
 
     fn predefine_fn(
-        &self,
+        &mut self,
         instance: Instance<'tcx>,
         linkage: Linkage,
         visibility: Visibility,

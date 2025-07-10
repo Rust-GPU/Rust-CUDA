@@ -164,7 +164,7 @@ impl CudaSdk {
         cuda_root: &path::Path,
     ) -> Result<Vec<path::PathBuf>, Box<dyn error::Error>> {
         let (target, triple) = Self::parse_target_triple()?;
-        assert!(triple.len() >= 3, "Invalid target triple: {:?}", triple);
+        assert!(triple.len() >= 3, "Invalid target triple: {triple:?}");
 
         let search_dirs = match [triple[0].as_str(), triple[1].as_str(), triple[2].as_str()] {
             ["x86_64", "pc", "windows"] => {
@@ -248,7 +248,7 @@ impl CudaSdk {
             .ok_or("Cannot find CUDA_VERSION from CUDA header file.")?;
         let version = version
             .parse::<u32>()
-            .map_err(|_| format!("Cannot parse CUDA_VERSION as u32: '{}'", version))?;
+            .map_err(|_| format!("Cannot parse CUDA_VERSION as u32: '{version}'"))?;
         Ok(version)
     }
 
@@ -264,7 +264,7 @@ impl CudaSdk {
             .ok_or("Cannot find CUDART_VERSION from cuda_runtime header file.")?;
         let version = version
             .parse::<u32>()
-            .map_err(|_| format!("Cannot parse CUDART_VERSION as u32: '{}'", version))?;
+            .map_err(|_| format!("Cannot parse CUDART_VERSION as u32: '{version}'"))?;
         Ok(version)
     }
 

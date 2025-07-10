@@ -288,7 +288,7 @@ impl<T: DeviceCopy + Zeroable> DeviceBuffer<T> {
 
 #[cfg(feature = "bytemuck")]
 fn casting_went_wrong(src: &str, err: PodCastError) -> ! {
-    panic!("{}>{:?}", src, err);
+    panic!("{src}>{err:?}");
 }
 
 #[cfg(feature = "bytemuck")]

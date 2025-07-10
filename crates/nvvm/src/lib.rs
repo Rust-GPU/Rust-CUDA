@@ -166,7 +166,7 @@ impl Display for NvvmOption {
             Self::GenDebugInfo => "-g",
             Self::GenLineInfo => "-generate-line-info",
             Self::NoOpts => "-opt=0",
-            Self::Arch(arch) => return f.write_str(&format!("-arch={}", arch)),
+            Self::Arch(arch) => return f.write_str(&format!("-arch={arch}")),
             Self::Ftz => "-ftz=1",
             Self::FastSqrt => "-prec-sqrt=0",
             Self::FastDiv => "-prec-div=0",
@@ -283,7 +283,7 @@ pub enum NvvmArch {
 
 impl Display for NvvmArch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut raw = format!("{:?}", self).to_ascii_lowercase();
+        let mut raw = format!("{self:?}").to_ascii_lowercase();
         raw.insert(7, '_');
         f.write_str(&raw)
     }
@@ -325,10 +325,7 @@ impl NvvmProgram {
     ///
     pub fn compile(&self, options: &[NvvmOption]) -> Result<Vec<u8>, NvvmError> {
         unsafe {
-            let options = options
-                .iter()
-                .map(|x| format!("{}\0", x))
-                .collect::<Vec<_>>();
+            let options = options.iter().map(|x| format!("{x}\0")).collect::<Vec<_>>();
             let mut options_ptr = options
                 .iter()
                 .map(|x| x.as_ptr().cast())

@@ -25,7 +25,7 @@ impl fmt::Display for CudaBuilderError {
             }
             CudaBuilderError::BuildFailed => f.write_str("Build failed"),
             CudaBuilderError::FailedToCopyPtxFile(err) => {
-                f.write_str(&format!("Failed to copy PTX file: {:?}", err))
+                f.write_str(&format!("Failed to copy PTX file: {err:?}"))
             }
         }
     }
@@ -369,19 +369,14 @@ fn find_rustc_codegen_nvvm() -> PathBuf {
             return path;
         }
     }
-    panic!("Could not find {} in library path", filename);
+    panic!("Could not find {filename} in library path");
 }
 
 /// Joins strings together while ensuring none of the strings contain the separator.
 fn join_checking_for_separators(strings: Vec<impl Borrow<str>>, sep: &str) -> String {
     for s in &strings {
         let s = s.borrow();
-        assert!(
-            !s.contains(sep),
-            "{:?} may not contain separator {:?}",
-            s,
-            sep
-        );
+        assert!(!s.contains(sep), "{s:?} may not contain separator {sep:?}");
     }
     strings.join(sep)
 }
@@ -404,7 +399,7 @@ fn invoke_rustc(builder: &CudaBuilder) -> Result<PathBuf, CudaBuilderError> {
             EmitOption::LlvmIr => "llvm-ir",
             EmitOption::Bitcode => "llvm-bc",
         };
-        rustflags.push(format!("--emit={}", string));
+        rustflags.push(format!("--emit={string}"));
     }
 
     let mut llvm_args = vec![NvvmOption::Arch(builder.arch).to_string()];
@@ -533,7 +528,7 @@ fn get_last_artifact(out: &str) -> Option<PathBuf> {
             Ok(line) => Some(line),
             Err(_) => {
                 // Pass through invalid lines
-                println!("{}", line);
+                println!("{line}");
                 None
             }
         })

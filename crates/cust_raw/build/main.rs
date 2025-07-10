@@ -59,12 +59,12 @@ fn main() {
     let metadata_nvvm_include = env::join_paths(sdk.nvvm_include_paths())
         .map(|s| s.to_string_lossy().to_string())
         .expect("Failed to build metadata for nvvm_include.");
-    println!("cargo::metadata=includes={}", metadata_cuda_include);
-    println!("cargo::metadata=nvvm_includes={}", metadata_nvvm_include);
+    println!("cargo::metadata=includes={metadata_cuda_include}");
+    println!("cargo::metadata=nvvm_includes={metadata_nvvm_include}");
     // Re-run build script conditions.
     println!("cargo::rerun-if-changed=build");
     for e in sdk.related_cuda_envs() {
-        println!("cargo::rerun-if-env-changed={}", e);
+        println!("cargo::rerun-if-env-changed={e}");
     }
 
     create_cuda_driver_bindings(&sdk, &outdir, &manifest_dir);
@@ -138,6 +138,12 @@ fn create_cuda_driver_bindings(
         .allowlist_type("^cuda.*")
         .allowlist_var("^CU.*")
         .allowlist_function("^cu.*")
+        .no_partialeq("CUDA_HOST_NODE_PARAMS.*")
+        .no_partialeq("CUDA_KERNEL_NODE_PARAMS.*")
+        .no_hash("CUDA_HOST_NODE_PARAMS.*")
+        .no_hash("CUDA_KERNEL_NODE_PARAMS.*")
+        .no_copy("CUDA_HOST_NODE_PARAMS.*")
+        .no_copy("CUDA_KERNEL_NODE_PARAMS.*")
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })

@@ -305,7 +305,7 @@ pub struct Seed512(pub [u8; 64]);
 
 impl Seed512 {
     /// Return an iterator over the seed.
-    pub fn iter(&self) -> core::slice::Iter<u8> {
+    pub fn iter(&self) -> core::slice::Iter<'_, u8> {
         self.0.iter()
     }
 }

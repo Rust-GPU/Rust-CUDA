@@ -800,7 +800,7 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
 
     // leave the clang LLVM in there just in case, although it shouldnt be needed because
     // gpu stuff is different
-    let producer = format!("clang LLVM ({})", rustc_producer);
+    let producer = format!("clang LLVM ({rustc_producer})");
 
     let name_in_debuginfo = name_in_debuginfo.to_string_lossy();
     let work_dir = tcx
@@ -814,7 +814,8 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
         && let Some(f) = output_filenames.split_dwarf_path(
             tcx.sess.split_debuginfo(),
             tcx.sess.opts.unstable_opts.split_dwarf_kind,
-            Some(codegen_unit_name),
+            codegen_unit_name,
+            None,
         ) {
         // We get a path relative to the working directory from split_dwarf_path
         Some(tcx.sess.source_map().path_mapping().to_real_filename(f))
@@ -844,7 +845,7 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
             0,
         );
 
-        let unit_metadata = llvm::LLVMRustDIBuilderCreateCompileUnit(
+        llvm::LLVMRustDIBuilderCreateCompileUnit(
             debug_context.builder,
             dwarf_const::DW_LANG_Rust,
             compile_unit_file,
@@ -861,9 +862,7 @@ pub(crate) fn build_compile_unit_di_node<'ll, 'tcx>(
             kind,
             0,
             tcx.sess.opts.unstable_opts.split_dwarf_inlining,
-        );
-
-        unit_metadata
+        )
     }
 }
 
@@ -1199,31 +1198,31 @@ fn build_generic_type_param_di_nodes<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     ty: Ty<'tcx>,
 ) -> SmallVec<&'ll DIType> {
-    if let ty::Adt(def, args) = *ty.kind() {
-        if args.types().next().is_some() {
-            let generics = cx.tcx.generics_of(def.did());
-            let names = get_parameter_names(cx, generics);
-            let template_params: SmallVec<_> = iter::zip(args, names)
-                .filter_map(|(kind, name)| {
-                    kind.as_type().map(|ty| {
-                        let actual_type = cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
-                        let actual_type_di_node = type_di_node(cx, actual_type);
-                        let name = name.as_str();
-                        unsafe {
-                            llvm::LLVMRustDIBuilderCreateTemplateTypeParameter(
-                                DIB(cx),
-                                None,
-                                name.as_c_char_ptr(),
-                                name.len(),
-                                actual_type_di_node,
-                            )
-                        }
-                    })
+    if let ty::Adt(def, args) = *ty.kind()
+        && args.types().next().is_some()
+    {
+        let generics = cx.tcx.generics_of(def.did());
+        let names = get_parameter_names(cx, generics);
+        let template_params: SmallVec<_> = iter::zip(args, names)
+            .filter_map(|(kind, name)| {
+                kind.as_type().map(|ty| {
+                    let actual_type = cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
+                    let actual_type_di_node = type_di_node(cx, actual_type);
+                    let name = name.as_str();
+                    unsafe {
+                        llvm::LLVMRustDIBuilderCreateTemplateTypeParameter(
+                            DIB(cx),
+                            None,
+                            name.as_c_char_ptr(),
+                            name.len(),
+                            actual_type_di_node,
+                        )
+                    }
                 })
-                .collect();
+            })
+            .collect();
 
-            return template_params;
-        }
+        return template_params;
     }
 
     return smallvec![];

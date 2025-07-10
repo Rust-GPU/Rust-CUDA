@@ -157,7 +157,7 @@ impl<'ll> CodegenCx<'ll, '_> {
     }
 }
 
-impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'ll, 'tcx> BaseTypeCodegenMethods for CodegenCx<'ll, 'tcx> {
     fn type_i8(&self) -> &'ll Type {
         unsafe { llvm::LLVMInt8TypeInContext(self.llcx) }
     }
@@ -219,8 +219,7 @@ impl<'ll, 'tcx> BaseTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn element_type(&self, ty: &'ll Type) -> &'ll Type {
-        let out = unsafe { llvm::LLVMGetElementType(ty) };
-        out
+        unsafe { llvm::LLVMGetElementType(ty) }
     }
 
     fn vector_length(&self, ty: &'ll Type) -> usize {
@@ -300,7 +299,7 @@ pub(crate) trait LayoutLlvmExt<'tcx> {
 impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
     fn is_llvm_immediate(&self) -> bool {
         match self.backend_repr {
-            BackendRepr::Scalar(_) | BackendRepr::Vector { .. } => true,
+            BackendRepr::Scalar(_) | BackendRepr::SimdVector { .. } => true,
             BackendRepr::ScalarPair(..) => false,
             BackendRepr::Memory { .. } => self.is_zst(),
         }
@@ -309,9 +308,9 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
     fn is_llvm_scalar_pair(&self) -> bool {
         match self.backend_repr {
             BackendRepr::ScalarPair(..) => true,
-            BackendRepr::Scalar(_) | BackendRepr::Vector { .. } | BackendRepr::Memory { .. } => {
-                false
-            }
+            BackendRepr::Scalar(_)
+            | BackendRepr::SimdVector { .. }
+            | BackendRepr::Memory { .. } => false,
         }
     }
 
@@ -515,7 +514,7 @@ fn uncached_llvm_type<'a, 'tcx>(
     trace!("Uncached LLVM type of {:?}", layout);
     match layout.backend_repr {
         BackendRepr::Scalar(_) => bug!("handled elsewhere"),
-        BackendRepr::Vector { element, count } => {
+        BackendRepr::SimdVector { element, count } => {
             let element = layout.scalar_llvm_type_at(cx, element);
             return cx.type_vector(element, count);
         }
@@ -542,10 +541,10 @@ fn uncached_llvm_type<'a, 'tcx>(
             let mut name = with_no_trimmed_paths!(layout.ty.to_string());
             if let (&ty::Adt(def, _), &Variants::Single { index }) =
                 (layout.ty.kind(), &layout.variants)
+                && def.is_enum()
+                && !def.variants().is_empty()
             {
-                if def.is_enum() && !def.variants().is_empty() {
-                    write!(&mut name, "::{}", def.variant(index).name).unwrap();
-                }
+                write!(&mut name, "::{}", def.variant(index).name).unwrap();
             }
             if let (&ty::Coroutine(_, _), &Variants::Single { index }) =
                 (layout.ty.kind(), &layout.variants)

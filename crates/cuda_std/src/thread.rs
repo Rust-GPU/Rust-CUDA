@@ -66,7 +66,7 @@ macro_rules! inbounds {
     }};
     ($func_name:ident, $lower_bound:expr, $upper_bound:expr) => {{
         let val = unsafe { $func_name() };
-        if val < $lower_bound || val > $upper_bound {
+        if !($lower_bound..=$upper_bound).contains(&val) {
             // SAFETY: this condition is declared unreachable by compute capability max bound
             // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#compute-capabilities
             // we do this to potentially allow for better optimizations by LLVM

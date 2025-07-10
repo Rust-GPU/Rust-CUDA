@@ -184,7 +184,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
     // im lazy i know
     pub(crate) fn unsupported(&self, thing: &str) -> ! {
-        self.fatal(format!("{} is unsupported", thing))
+        self.fatal(format!("{thing} is unsupported"))
     }
 
     pub(crate) fn create_used_variable_impl(&self, name: &'static CStr, values: &[&'ll Value]) {
@@ -230,10 +230,6 @@ impl<'ll, 'tcx> MiscCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
 
     fn sess(&self) -> &Session {
         self.tcx.sess
-    }
-
-    fn codegen_unit(&self) -> &'tcx CodegenUnit<'tcx> {
-        self.codegen_unit
     }
 
     fn declare_c_main(
@@ -286,8 +282,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
                 let layout = self.layout_of(ty);
                 if layout.size.bytes() > CONSTANT_MEMORY_SIZE_LIMIT_BYTES {
                     self.tcx.sess.dcx().warn(format!(
-                    "static `{}` exceeds the constant memory limit; placing in global memory (performance may be reduced)",
-                    instance
+                    "static `{instance}` exceeds the constant memory limit; placing in global memory (performance may be reduced)"
                 ));
                     // Place instance in global memory if it is too big for constant memory.
                     AddressSpace(1)
@@ -540,6 +535,19 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
         self.instances.borrow_mut().insert(instance, llfn);
 
         llfn
+    }
+
+    /// Add a global value to a list to be stored in the `llvm.used` variable, an array of i8*.
+    pub fn add_used_global(&self, global: &'ll Value) {
+        let cast = unsafe { llvm::LLVMConstPointerCast(global, self.type_i8p()) };
+        self.used_statics.borrow_mut().push(cast);
+    }
+
+    /// Add a global value to a list to be stored in the `llvm.compiler.used` variable,
+    /// an array of i8*.
+    pub fn add_compiler_used_global(&self, global: &'ll Value) {
+        let cast = unsafe { llvm::LLVMConstPointerCast(global, self.type_i8p()) };
+        self.compiler_used_statics.borrow_mut().push(cast);
     }
 }
 

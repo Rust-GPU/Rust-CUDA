@@ -35,7 +35,7 @@ pub(crate) fn extract_llfns(file: &Path, dir: &Path) {
             let out_file = format!("{}/{}.ll", dir.display(), name);
             let _ = Command::new("llvm-extract")
                 .arg(file)
-                .arg(format!("--func={}", name))
+                .arg(format!("--func={name}"))
                 .arg("-S")
                 .arg("--recursive")
                 .arg("-o")
@@ -52,13 +52,13 @@ pub(crate) fn extract_llfns(file: &Path, dir: &Path) {
 
     for (name, content, failed) in &mut contents {
         if PRINT_EVERY_EXECUTION {
-            println!("Running command over `{}.ll`", name);
+            println!("Running command over `{name}.ll`");
         }
 
         *failed = !run_command_for_each_fn(name, content);
     }
 
     for (name, _, _) in contents.into_iter().filter(|x| !x.2).take(30) {
-        println!("Err: {}", name);
+        println!("Err: {name}");
     }
 }

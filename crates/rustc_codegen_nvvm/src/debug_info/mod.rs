@@ -190,10 +190,6 @@ impl<'ll> DebugInfoBuilderMethods for Builder<'_, 'll, '_> {
             llvm::LLVMSetCurrentDebugLocation(self.llbuilder, None);
         }
     }
-
-    fn get_dbg_loc(&self) -> Option<Self::DILocation> {
-        None // TODO: implement this
-    }
 }
 
 /// A source code location used to generate debug information.
@@ -366,7 +362,7 @@ impl<'ll, 'tcx> DebugInfoCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                 let names = get_parameter_names(cx, generics);
                 iter::zip(args, names)
                     .filter_map(|(kind, name)| {
-                        if let GenericArgKind::Type(ty) = kind.unpack() {
+                        if let GenericArgKind::Type(ty) = kind.kind() {
                             let actual_type = cx.tcx.normalize_erasing_regions(cx.typing_env(), ty);
                             let actual_type_metadata = type_di_node(cx, actual_type);
                             let name = name.as_str();

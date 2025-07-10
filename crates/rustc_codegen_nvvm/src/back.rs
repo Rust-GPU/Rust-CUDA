@@ -29,7 +29,7 @@ use crate::{LlvmMod, NvvmCodegenBackend, builder::Builder, context::CodegenCx, l
 
 pub fn llvm_err(handle: DiagCtxtHandle, msg: &str) -> FatalError {
     match llvm::last_error() {
-        Some(err) => handle.fatal(format!("{}: {}", msg, err)),
+        Some(err) => handle.fatal(format!("{msg}: {err}")),
         None => handle.fatal(msg.to_string()),
     }
 }
@@ -121,7 +121,7 @@ pub fn target_machine_factory(
                 false,
             )
         };
-        tm.ok_or_else(|| format!("Could not create LLVM TargetMachine for triple: {}", triple))
+        tm.ok_or_else(|| format!("Could not create LLVM TargetMachine for triple: {triple}"))
     })
 }
 
@@ -146,7 +146,7 @@ pub extern "C" fn demangle_callback(
         Err(_) => return 0,
     };
 
-    if write!(cursor, "{:#}", demangled).is_err() {
+    if write!(cursor, "{demangled:#}").is_err() {
         // Possible only if provided buffer is not big enough
         return 0;
     }
@@ -176,11 +176,11 @@ pub(crate) unsafe fn codegen(
 
     let llmod = unsafe { module.module_llvm.llmod.as_ref().unwrap() };
     let mod_name = module.name.clone();
-    let module_name = Some(&mod_name[..]);
+    let module_name = &mod_name[..];
 
     let out = cgcx
         .output_filenames
-        .temp_path(OutputType::Object, module_name);
+        .temp_path_for_cgu(OutputType::Object, module_name, None);
 
     // nvvm ir *is* llvm ir so emit_ir fits the expectation of llvm ir which is why we
     // implement this. this is copy and pasted straight from rustc_codegen_llvm
@@ -189,9 +189,9 @@ pub(crate) unsafe fn codegen(
         let _timer = cgcx
             .prof
             .generic_activity_with_arg("NVVM_module_codegen_emit_ir", &module.name[..]);
-        let out = cgcx
-            .output_filenames
-            .temp_path(OutputType::LlvmAssembly, module_name);
+        let out =
+            cgcx.output_filenames
+                .temp_path_for_cgu(OutputType::LlvmAssembly, module_name, None);
         let out = out.to_str().unwrap();
 
         let result = unsafe {
@@ -199,7 +199,7 @@ pub(crate) unsafe fn codegen(
         };
 
         result.into_result().map_err(|()| {
-            let msg = format!("failed to write NVVM IR to {}", out);
+            let msg = format!("failed to write NVVM IR to {out}");
             llvm_err(dcx, &msg)
         })?;
     }
@@ -229,6 +229,7 @@ pub(crate) unsafe fn codegen(
         bytecode: None,
         assembly: None,
         llvm_ir: None,
+        links_from_incr_cache: vec![],
     })
 }
 
@@ -254,7 +255,7 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
         // Instantiate monomorphizations without filling out definitions yet...
         let llvm_module = LlvmMod::new(cgu_name.as_str());
         {
-            let cx = CodegenCx::new(tcx, cgu, &llvm_module);
+            let mut cx = CodegenCx::new(tcx, cgu, &llvm_module);
 
             let mono_items = cx.codegen_unit.items_in_deterministic_order(cx.tcx);
 
@@ -267,22 +268,27 @@ pub fn compile_codegen_unit(tcx: TyCtxt<'_>, cgu_name: Symbol) -> (ModuleCodegen
                 },
             ) in &mono_items
             {
-                mono_item.predefine::<Builder<'_, '_, '_>>(&cx, linkage, visibility);
+                mono_item.predefine::<Builder<'_, '_, '_>>(
+                    &mut cx,
+                    "mono_item",
+                    linkage,
+                    visibility,
+                );
             }
 
             // ... and now that we have everything pre-defined, fill out those definitions.
-            for &(mono_item, _) in &mono_items {
+            for &(mono_item, mono_item_data) in &mono_items {
                 if let MonoItem::Fn(func) = mono_item {
-                    define_or_override_fn(func, &cx);
+                    define_or_override_fn(func, &mut cx);
                 } else {
-                    mono_item.define::<Builder<'_, '_, '_>>(&cx);
+                    mono_item.define::<Builder<'_, '_, '_>>(&mut cx, "mono_item", mono_item_data);
                 }
             }
 
             // a main function for gpu kernels really makes no sense but
             // codegen it anyways.
             // sanitize attrs are not allowed in nvvm so do nothing further.
-            maybe_create_entry_wrapper::<Builder<'_, '_, '_>>(&cx);
+            maybe_create_entry_wrapper::<Builder<'_, '_, '_>>(&cx, cgu);
 
             // Run replace-all-uses-with for statics that need it
             for &(old_g, new_g) in cx.statics_to_rauw.borrow().iter() {
@@ -333,13 +339,8 @@ pub(crate) unsafe fn optimize(
 
     let llmod = unsafe { &*module.module_llvm.llmod };
 
-    let module_name = module.name.clone();
-    let module_name = Some(&module_name[..]);
-
     if config.emit_no_opt_bc {
-        let out = cgcx
-            .output_filenames
-            .temp_path_ext("no-opt.bc", module_name);
+        let out = cgcx.output_filenames.with_extension("no-opt.bc");
         let out = path_to_c_string(&out);
         unsafe { llvm::LLVMWriteBitcodeToFile(llmod, out.as_ptr()) };
     }
@@ -389,7 +390,7 @@ pub(crate) unsafe fn optimize(
 
             for pass in &config.passes {
                 if !addpass(pass) {
-                    diag_handler.warn(format!("unknown pass `{}`, ignoring", pass));
+                    diag_handler.warn(format!("unknown pass `{pass}`, ignoring"));
                 }
             }
 

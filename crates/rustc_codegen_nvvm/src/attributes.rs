@@ -1,8 +1,8 @@
 use crate::llvm::{self, AttributePlace::*, Value};
 use rustc_ast::{LitKind, MetaItemInner, MetaItemLit};
-use rustc_attr_parsing::{InlineAttr, OptimizeAttr};
+use rustc_attr_data_structures::{InlineAttr, OptimizeAttr};
 use rustc_hir::Attribute;
-use rustc_middle::{bug, middle::codegen_fn_attrs::CodegenFnAttrFlags, ty};
+use rustc_middle::{middle::codegen_fn_attrs::CodegenFnAttrFlags, ty};
 use rustc_session::{Session, config::OptLevel};
 use rustc_span::{Symbol, sym};
 
@@ -16,7 +16,7 @@ fn inline(val: &'_ Value, inline: InlineAttr) {
         Always => llvm::Attribute::AlwaysInline.apply_llfn(Function, val),
         Never => llvm::Attribute::NoInline.apply_llfn(Function, val),
         None => {}
-        Force { .. } => bug!("Force inline should have been inlined away by now"), // TODO: Verify this
+        Force { .. } => llvm::Attribute::AlwaysInline.apply_llfn(Function, val),
     }
 }
 

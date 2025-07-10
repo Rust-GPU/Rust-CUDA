@@ -3,13 +3,13 @@
 // make our lives a lot easier for llvm ffi with this. And since rustc's core infra
 // relies on it its almost guaranteed to not be removed/broken
 #![feature(extern_types)]
-#![feature(hash_raw_entry)]
 #![feature(let_chains)]
 #![feature(slice_as_array)]
 
 extern crate rustc_abi;
 extern crate rustc_arena;
 extern crate rustc_ast;
+extern crate rustc_attr_data_structures;
 extern crate rustc_attr_parsing;
 extern crate rustc_codegen_ssa;
 extern crate rustc_data_structures;
@@ -70,7 +70,6 @@ use rustc_codegen_ssa::{
 };
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_errors::{DiagCtxtHandle, FatalError};
-use rustc_metadata::EncodedMetadata;
 use rustc_metadata::creader::MetadataLoaderDyn;
 use rustc_middle::util::Providers;
 use rustc_middle::{
@@ -147,12 +146,7 @@ impl CodegenBackend for NvvmCodegenBackend {
         };
     }
 
-    fn codegen_crate(
-        &self,
-        tcx: TyCtxt<'_>,
-        metadata: EncodedMetadata,
-        need_metadata_module: bool,
-    ) -> Box<dyn std::any::Any> {
+    fn codegen_crate(&self, tcx: TyCtxt<'_>) -> Box<dyn std::any::Any> {
         debug!("Codegen crate");
         Box::new(rustc_codegen_ssa::base::codegen_crate(
             Self,
@@ -163,8 +157,6 @@ impl CodegenBackend for NvvmCodegenBackend {
                 .target_cpu
                 .clone()
                 .unwrap_or_else(|| tcx.sess.target.cpu.to_string()),
-            metadata,
-            need_metadata_module,
         ))
     }
 
@@ -189,6 +181,7 @@ impl CodegenBackend for NvvmCodegenBackend {
         &self,
         sess: &rustc_session::Session,
         codegen_results: rustc_codegen_ssa::CodegenResults,
+        metadata: rustc_metadata::EncodedMetadata,
         outputs: &config::OutputFilenames,
     ) {
         link::link(
@@ -196,6 +189,7 @@ impl CodegenBackend for NvvmCodegenBackend {
             &codegen_results,
             outputs,
             codegen_results.crate_info.local_crate_name.as_str(),
+            metadata,
         );
     }
 }
@@ -245,7 +239,7 @@ impl WriteBackendMethods for NvvmCodegenBackend {
         // Not applicable, nvvm doesnt expose pass timing info, maybe we could print llvm pass stuff here.
     }
 
-    unsafe fn optimize(
+    fn optimize(
         cgcx: &CodegenContext<Self>,
         diag_handler: DiagCtxtHandle<'_>,
         module: &mut ModuleCodegen<Self::Module>,
@@ -254,14 +248,14 @@ impl WriteBackendMethods for NvvmCodegenBackend {
         unsafe { back::optimize(cgcx, diag_handler, module, config) }
     }
 
-    unsafe fn optimize_thin(
+    fn optimize_thin(
         cgcx: &CodegenContext<Self>,
         thin_module: ThinModule<Self>,
     ) -> Result<ModuleCodegen<Self::Module>, FatalError> {
         unsafe { lto::optimize_thin(cgcx, thin_module) }
     }
 
-    unsafe fn codegen(
+    fn codegen(
         cgcx: &CodegenContext<Self>,
         diag_handler: DiagCtxtHandle<'_>,
         module: ModuleCodegen<Self::Module>,
