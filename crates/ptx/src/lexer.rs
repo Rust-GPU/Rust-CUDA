@@ -259,7 +259,7 @@ impl<'src> Lexer<'src> {
             }
             c => {
                 self.next();
-                return Some(Err(format!("Unexpected token `{}`", c)));
+                return Some(Err(format!("Unexpected token `{c}`")));
             }
         }))
     }
@@ -293,7 +293,7 @@ impl<'src> Lexer<'src> {
             let val = string
                 .as_str()
                 .parse::<f64>()
-                .map_err(|_| format!("Failed to parse `{}` as f64 literal", string))?;
+                .map_err(|_| format!("Failed to parse `{string}` as f64 literal"))?;
 
             *self.values.last_mut().unwrap() = Some(TokenValue::Double(val));
             return Ok(Token {
@@ -315,7 +315,7 @@ impl<'src> Lexer<'src> {
                 let val = string
                     .as_str()
                     .parse::<f64>()
-                    .map_err(|_| format!("Failed to parse `{}` as f64 literal", string))?;
+                    .map_err(|_| format!("Failed to parse `{string}` as f64 literal"))?;
 
                 *self.values.last_mut().unwrap() = Some(TokenValue::Double(val));
                 return Ok(Token {
@@ -338,7 +338,7 @@ impl<'src> Lexer<'src> {
                     let val = string
                         .as_str()
                         .parse::<f64>()
-                        .map_err(|_| format!("Failed to parse `{}` as f64 literal", string))?;
+                        .map_err(|_| format!("Failed to parse `{string}` as f64 literal"))?;
 
                     *self.values.last_mut().unwrap() = Some(TokenValue::Double(val));
                     return Ok(Token {
@@ -369,7 +369,7 @@ impl<'src> Lexer<'src> {
                     }
 
                     let raw = u32::from_str_radix(numbers.as_str(), 16).map_err(|_| {
-                        format!("Failed to parse `{}` as a 32 bit hex integer", numbers)
+                        format!("Failed to parse `{numbers}` as a 32 bit hex integer")
                     })?;
 
                     *self.values.last_mut().unwrap() = Some(TokenValue::Float(f32::from_bits(raw)));
@@ -390,7 +390,7 @@ impl<'src> Lexer<'src> {
                     }
 
                     let raw = u64::from_str_radix(numbers.as_str(), 16).map_err(|_| {
-                        format!("Failed to parse `{}` as a 64 bit hex integer", numbers)
+                        format!("Failed to parse `{numbers}` as a 64 bit hex integer")
                     })?;
 
                     *self.values.last_mut().unwrap() =
@@ -557,8 +557,7 @@ impl<'src> Lexer<'src> {
         }
 
         Err(format!(
-            "Expected directive or reserved type, but found `.{}` instead",
-            ident
+            "Expected directive or reserved type, but found `.{ident}` instead"
         ))
     }
 }

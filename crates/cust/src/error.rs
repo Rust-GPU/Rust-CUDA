@@ -105,7 +105,7 @@ impl fmt::Display for CudaError {
                     .to_result()
                     .map_err(|_| fmt::Error)?;
                     let cstr = CStr::from_ptr(ptr);
-                    write!(f, "{:?}", cstr)
+                    write!(f, "{cstr:?}")
                 }
             }
             // This shouldn't happen

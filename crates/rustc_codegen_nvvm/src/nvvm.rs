@@ -118,8 +118,7 @@ pub fn codegen_bitcode_modules(
         let log = prog.compiler_log().unwrap().unwrap_or_default();
         let footer = "If you plan to submit a bug report please re-run the codegen with `RUSTFLAGS=\"--emit=llvm-ir\" and include the .ll file corresponding to the .o file mentioned in the log";
         panic!(
-            "Malformed NVVM IR program rejected by libnvvm, dumping verifier log:\n\n{}\n\n{}",
-            log, footer
+            "Malformed NVVM IR program rejected by libnvvm, dumping verifier log:\n\n{log}\n\n{footer}"
         );
     }
 
@@ -128,8 +127,7 @@ pub fn codegen_bitcode_modules(
         Err(error) => {
             // this should never happen, if it does, something went really bad or its a bug on libnvvm's end
             panic!(
-                "libnvvm returned an error that was not previously caught by the verifier: {:?}",
-                error
+                "libnvvm returned an error that was not previously caught by the verifier: {error:?}"
             );
         }
     };

@@ -169,7 +169,7 @@ fn run_cublas(stream: &stream::Stream) -> Result<(), Box<dyn Error>> {
         let mut mat_c_actual = Array::<f32, _>::zeros((sz, sz));
         mat_c_gpu.copy_to(&mut mat_c_actual.as_slice_mut().unwrap())?;
         let duration = end.elapsed_time_f32(&beg)? / (NUM_RUNS as f32);
-        println!("cuBLAS {}x{}: {:.4}ms", sz, sz, duration);
+        println!("cuBLAS {sz}x{sz}: {duration:.4}ms");
         if sz < 1024 {
             assert_gemm_eq(&mat_a, &mat_b, &mat_c, alpha, beta, &mat_c_actual);
         }
@@ -278,7 +278,7 @@ fn run_gemm_kernel(
         let mut mat_c_actual = Array::<f32, _>::zeros((sz, sz));
         mat_c_gpu.copy_to(&mut mat_c_actual.as_slice_mut().unwrap())?;
         let duration = end.elapsed_time_f32(&beg)? / (NUM_RUNS as f32);
-        println!("{} {}x{}: {:.4}ms", kernel_name, sz, sz, duration);
+        println!("{kernel_name} {sz}x{sz}: {duration:.4}ms");
         if sz < 1024 {
             assert_gemm_eq(&mat_a, &mat_b, &mat_c, alpha, beta, &mat_c_actual);
         }
@@ -315,8 +315,8 @@ fn assert_gemm_eq<T>(
     let mat_c_expect = alpha * mat_a.dot(&mat_b) + beta * mat_c;
     let ok = mat_c_expect.relative_eq(&mat_c_actual, EPS.into(), EPS.into());
     if !ok {
-        println!("Actual: {:?}", mat_c_actual);
-        println!("Expect: {:?}", mat_c_expect);
+        println!("Actual: {mat_c_actual:?}");
+        println!("Expect: {mat_c_expect:?}");
         panic!("GEMM result mismatch");
     }
 }

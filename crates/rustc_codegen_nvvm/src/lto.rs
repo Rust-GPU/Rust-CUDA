@@ -87,6 +87,7 @@ impl Drop for ThinBuffer {
     }
 }
 
+#[allow(dead_code)]
 pub struct ThinData(&'static mut llvm::ThinLTOData);
 
 unsafe impl Send for ThinData {}

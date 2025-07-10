@@ -6,7 +6,7 @@ use libc::{c_char, c_uint};
 use rustc_abi as abi;
 use rustc_abi::{AddressSpace, Align, HasDataLayout, Size, TargetDataLayout, WrappingRange};
 use rustc_codegen_ssa::MemFlags;
-use rustc_codegen_ssa::common::{AtomicOrdering, IntPredicate, RealPredicate, TypeKind};
+use rustc_codegen_ssa::common::{IntPredicate, RealPredicate, TypeKind};
 use rustc_codegen_ssa::mir::operand::{OperandRef, OperandValue};
 use rustc_codegen_ssa::mir::place::PlaceRef;
 use rustc_codegen_ssa::traits::*;
@@ -14,6 +14,7 @@ use rustc_data_structures::small_c_str::SmallCStr;
 use rustc_hir::def_id::DefId;
 use rustc_middle::bug;
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs;
+use rustc_middle::ty::AtomicOrdering;
 use rustc_middle::ty::layout::{
     FnAbiError, FnAbiOfHelpers, FnAbiRequest, HasTypingEnv, LayoutError, LayoutOfHelpers,
     TyAndLayout,
@@ -521,10 +522,10 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                         bx.nonnull_metadata(load);
                     }
 
-                    if let Some(pointee) = layout.pointee_info_at(bx, offset) {
-                        if pointee.safe.is_some() {
-                            bx.align_metadata(load, pointee.align);
-                        }
+                    if let Some(pointee) = layout.pointee_info_at(bx, offset)
+                        && pointee.safe.is_some()
+                    {
+                        bx.align_metadata(load, pointee.align);
                     }
                 }
                 abi::Primitive::Float(_) => {}
@@ -538,14 +539,12 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             let mut const_llval = None;
             let llty = place.layout.llvm_type(self);
             unsafe {
-                if let Some(global) = llvm::LLVMIsAGlobalVariable(place.val.llval) {
-                    if llvm::LLVMIsGlobalConstant(global) == llvm::True {
-                        if let Some(init) = llvm::LLVMGetInitializer(global) {
-                            if self.val_ty(init) == llty {
-                                const_llval = Some(init);
-                            }
-                        }
-                    }
+                if let Some(global) = llvm::LLVMIsAGlobalVariable(place.val.llval)
+                    && llvm::LLVMIsGlobalConstant(global) == llvm::True
+                    && let Some(init) = llvm::LLVMGetInitializer(global)
+                    && self.val_ty(init) == llty
+                {
+                    const_llval = Some(init);
                 }
             }
 
@@ -704,7 +703,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         &mut self,
         _val: &'ll Value,
         ptr: &'ll Value,
-        _order: rustc_codegen_ssa::common::AtomicOrdering,
+        _order: AtomicOrdering,
         _size: Size,
     ) {
         // see comment in atomic_load
@@ -1042,8 +1041,8 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         _dst: &'ll Value,
         _cmp: &'ll Value,
         _src: &'ll Value,
-        _order: rustc_codegen_ssa::common::AtomicOrdering,
-        _failure_order: rustc_codegen_ssa::common::AtomicOrdering,
+        _order: AtomicOrdering,
+        _failure_order: AtomicOrdering,
         _weak: bool,
     ) -> (&'ll Value, &'ll Value) {
         // allowed but only for some things and with restrictions
@@ -1055,7 +1054,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         _op: rustc_codegen_ssa::common::AtomicRmwBinOp,
         _dst: &'ll Value,
         _src: &'ll Value,
-        _order: rustc_codegen_ssa::common::AtomicOrdering,
+        _order: AtomicOrdering,
     ) -> &'ll Value {
         // see cmpxchg comment
         self.fatal("atomic rmw is not supported")
@@ -1063,7 +1062,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn atomic_fence(
         &mut self,
-        _order: rustc_codegen_ssa::common::AtomicOrdering,
+        _order: AtomicOrdering,
         _scope: rustc_codegen_ssa::common::SynchronizationScope,
     ) {
         self.fatal("atomic fence is not supported, use cuda_std intrinsics instead")
@@ -1120,7 +1119,7 @@ impl<'ll, 'tcx, 'a> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         while self.cx.type_kind(fn_ty) == TypeKind::Pointer {
             fn_ty = self.cx.element_type(fn_ty);
         }
-        if let Some((Some(ret_ty), _)) = map.get(fn_ty) {
+        if let Some((Some(ret_ty), _)) = map.get(&fn_ty) {
             self.cx.last_call_llfn.set(Some(call));
             call = transmute_llval(self.llbuilder, self.cx, call, ret_ty);
         }
@@ -1211,9 +1210,7 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
     ) -> Cow<'b, [&'ll Value]> {
         assert!(
             self.cx.type_kind(fn_ty) == TypeKind::Function,
-            "builder::{} not passed a function, but {:?}",
-            typ,
-            fn_ty
+            "builder::{typ} not passed a function, but {fn_ty:?}"
         );
 
         let param_tys = self.cx.func_params_types(fn_ty);

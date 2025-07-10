@@ -14,7 +14,7 @@ use rustc_middle::mir::interpret::{ConstAllocation, GlobalAlloc, Scalar};
 use rustc_middle::ty::layout::LayoutOf;
 use tracing::trace;
 
-impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'ll, 'tcx> ConstCodegenMethods for CodegenCx<'ll, 'tcx> {
     fn const_data_from_alloc(&self, alloc: ConstAllocation) -> &'ll Value {
         const_alloc_to_llvm(self, alloc, /*static*/ false)
     }
@@ -82,8 +82,7 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         let val = *self
             .const_cstr_cache
             .borrow_mut()
-            .raw_entry_mut()
-            .from_key(s)
+            .entry(s.to_string())
             .or_insert_with(|| {
                 let sc = self.const_bytes(s.as_bytes());
                 let sym = self.generate_local_symbol_name("str");
@@ -97,9 +96,8 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
                     llvm::LLVMSetGlobalConstant(g, True);
                     llvm::LLVMRustSetLinkage(g, llvm::Linkage::InternalLinkage);
                 }
-                (s.to_owned(), g)
-            })
-            .1;
+                g
+            });
         let len = s.len();
         let ty = self.type_ptr_to(self.layout_of(self.tcx.types.str_).llvm_type(self));
         let cs = unsafe { llvm::LLVMConstPointerCast(val, ty) };
@@ -245,10 +243,6 @@ impl<'ll, 'tcx> ConstCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
         trace!("{:?}", std::backtrace::Backtrace::force_capture());
 
         val
-    }
-
-    fn is_undef(&self, v: Self::Value) -> bool {
-        unsafe { llvm::LLVMIsUndef(v) == True }
     }
 
     fn const_poison(&self, t: Self::Type) -> Self::Value {

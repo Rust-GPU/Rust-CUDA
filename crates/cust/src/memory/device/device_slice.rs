@@ -445,27 +445,21 @@ pub trait DeviceSliceIndex<T: DeviceCopy> {
 #[cold]
 #[track_caller]
 fn slice_start_index_len_fail(index: usize, len: usize) -> ! {
-    panic!(
-        "range start index {} out of range for slice of length {}",
-        index, len
-    );
+    panic!("range start index {index} out of range for slice of length {len}");
 }
 
 #[inline(never)]
 #[cold]
 #[track_caller]
 fn slice_end_index_len_fail(index: usize, len: usize) -> ! {
-    panic!(
-        "range end index {} out of range for slice of length {}",
-        index, len
-    );
+    panic!("range end index {index} out of range for slice of length {len}");
 }
 
 #[inline(never)]
 #[cold]
 #[track_caller]
 fn slice_index_order_fail(index: usize, end: usize) -> ! {
-    panic!("slice index starts at {} but ends at {}", index, end);
+    panic!("slice index starts at {index} but ends at {end}");
 }
 
 #[inline(never)]

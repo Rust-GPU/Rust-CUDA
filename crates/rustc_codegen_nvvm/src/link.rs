@@ -77,8 +77,8 @@ fn read_metadata(rlib: &Path) -> Result<OwnedSlice, String> {
 
     match read_meta() {
         Ok(Some(m)) => Ok(m),
-        Ok(None) => Err(format!("No .metadata file in rlib: {:?}", rlib)),
-        Err(io) => Err(format!("Failed to read rlib at {:?}: {}", rlib, io)),
+        Ok(None) => Err(format!("No .metadata file in rlib: {rlib:?}")),
+        Err(io) => Err(format!("Failed to read rlib at {rlib:?}: {io}")),
     }
 }
 
@@ -110,6 +110,7 @@ pub fn link(
     codegen_results: &CodegenResults,
     outputs: &OutputFilenames,
     crate_name: &str,
+    metadata: rustc_metadata::EncodedMetadata,
 ) {
     debug!("Linking crate `{}`", crate_name);
     // largely inspired by rust-gpu
@@ -133,10 +134,15 @@ pub fn link(
         if outputs.outputs.should_codegen() {
             let out_filename = out_filename(sess, crate_type, outputs, Symbol::intern(crate_name));
             let out_filename_file_for_writing =
-                out_filename.file_for_writing(outputs, OutputType::Exe, None);
+                out_filename.file_for_writing(outputs, OutputType::Exe, "", None);
             match crate_type {
                 CrateType::Rlib => {
-                    link_rlib(sess, codegen_results, &out_filename_file_for_writing);
+                    link_rlib(
+                        sess,
+                        codegen_results,
+                        &out_filename_file_for_writing,
+                        &metadata,
+                    );
                 }
                 CrateType::Executable | CrateType::Cdylib | CrateType::Dylib => {
                     let _ = link_exe(
@@ -147,13 +153,18 @@ pub fn link(
                         codegen_results,
                     );
                 }
-                other => sess.dcx().fatal(format!("Invalid crate type: {:?}", other)),
+                other => sess.dcx().fatal(format!("Invalid crate type: {other:?}")),
             }
         }
     }
 }
 
-fn link_rlib(sess: &Session, codegen_results: &CodegenResults, out_filename: &Path) {
+fn link_rlib(
+    sess: &Session,
+    codegen_results: &CodegenResults,
+    out_filename: &Path,
+    metadata: &rustc_metadata::EncodedMetadata,
+) {
     debug!("Linking rlib `{:?}`", out_filename);
     let mut file_list = Vec::<&Path>::new();
 
@@ -184,12 +195,7 @@ fn link_rlib(sess: &Session, codegen_results: &CodegenResults, out_filename: &Pa
     }
     trace!("Files linked in rlib:\n{:#?}", file_list);
 
-    create_archive(
-        sess,
-        &file_list,
-        codegen_results.metadata.raw_data(),
-        out_filename,
-    );
+    create_archive(sess, &file_list, metadata.stub_or_full(), out_filename);
 }
 
 fn link_exe(
@@ -304,8 +310,7 @@ fn codegen_into_ptx_file(
 
 fn create_archive(sess: &Session, files: &[&Path], metadata: &[u8], out_filename: &Path) {
     if let Err(err) = try_create_archive(files, metadata, out_filename) {
-        sess.dcx()
-            .fatal(format!("Failed to create archive: {}", err));
+        sess.dcx().fatal(format!("Failed to create archive: {err}"));
     }
 }
 

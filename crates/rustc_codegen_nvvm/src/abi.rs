@@ -2,6 +2,7 @@ use std::cmp;
 
 use libc::c_uint;
 use rustc_abi::BackendRepr::Scalar;
+use rustc_abi::CanonAbi;
 use rustc_abi::Size;
 use rustc_abi::{HasDataLayout, Primitive, Reg, RegKind};
 use rustc_codegen_ssa::mir::operand::OperandRef;
@@ -13,7 +14,7 @@ use rustc_middle::ty::layout::LayoutOf;
 pub use rustc_middle::ty::layout::{WIDE_PTR_ADDR, WIDE_PTR_EXTRA};
 use rustc_middle::ty::{Ty, TyCtxt, TyKind};
 use rustc_target::callconv::{
-    ArgAbi, ArgAttribute, ArgAttributes, ArgExtension, CastTarget, Conv, FnAbi, PassMode,
+    ArgAbi, ArgAttribute, ArgAttributes, ArgExtension, CastTarget, FnAbi, PassMode,
 };
 use tracing::trace;
 
@@ -28,7 +29,7 @@ pub(crate) fn readjust_fn_abi<'tcx>(
     fn_abi: &'tcx FnAbi<'tcx, Ty<'tcx>>,
 ) -> &'tcx FnAbi<'tcx, Ty<'tcx>> {
     // dont override anything in the rust abi for now
-    if fn_abi.conv == Conv::Rust {
+    if fn_abi.conv == CanonAbi::Rust {
         return fn_abi;
     }
     let readjust_arg_abi = |arg: &ArgAbi<'tcx, Ty<'tcx>>| {
@@ -42,14 +43,14 @@ pub(crate) fn readjust_fn_abi<'tcx>(
             arg.mode = PassMode::Ignore;
         }
 
-        if let TyKind::Ref(_, ty, _) = arg.layout.ty.kind() {
-            if matches!(ty.kind(), TyKind::Slice(_)) {
-                let mut ptr_attrs = ArgAttributes::new();
-                if let PassMode::Indirect { attrs, .. } = arg.mode {
-                    ptr_attrs.regular = attrs.regular;
-                }
-                arg.mode = PassMode::Pair(ptr_attrs, ArgAttributes::new());
+        if let TyKind::Ref(_, ty, _) = arg.layout.ty.kind()
+            && matches!(ty.kind(), TyKind::Slice(_))
+        {
+            let mut ptr_attrs = ArgAttributes::new();
+            if let PassMode::Indirect { attrs, .. } = arg.mode {
+                ptr_attrs.regular = attrs.regular;
             }
+            arg.mode = PassMode::Pair(ptr_attrs, ArgAttributes::new());
         }
 
         if arg.layout.ty.is_array() && !matches!(arg.mode, PassMode::Direct { .. }) {
@@ -259,9 +260,6 @@ impl<'ll, 'tcx> ArgAbiBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
         dst: PlaceRef<'tcx, &'ll Value>,
     ) {
         arg_abi.store(self, val, dst)
-    }
-    fn arg_memory_ty(&self, arg_abi: &ArgAbi<'tcx, Ty<'tcx>>) -> &'ll Type {
-        arg_abi.memory_ty(self)
     }
 }
 
@@ -493,11 +491,12 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
             // If the value is a boolean, the range is 0..2 and that ultimately
             // become 0..0 when the type becomes i1, which would be rejected
             // by the LLVM verifier.
-            if let Primitive::Int(..) = scalar.primitive() {
-                if !scalar.is_bool() && !scalar.is_always_valid(bx) {
-                    trace!("apply_attrs_callsite -> range_metadata");
-                    bx.range_metadata(callsite, scalar.valid_range(bx));
-                }
+            if let Primitive::Int(..) = scalar.primitive()
+                && !scalar.is_bool()
+                && !scalar.is_always_valid(bx)
+            {
+                trace!("apply_attrs_callsite -> range_metadata");
+                bx.range_metadata(callsite, scalar.valid_range(bx));
             }
         }
         for arg in self.args.iter() {
@@ -541,7 +540,7 @@ impl<'ll, 'tcx> FnAbiLlvmExt<'ll, 'tcx> for FnAbi<'tcx, Ty<'tcx>> {
     }
 }
 
-impl<'tcx> AbiBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
+impl<'tcx> AbiBuilderMethods for Builder<'_, '_, 'tcx> {
     fn get_param(&mut self, index: usize) -> Self::Value {
         let val = llvm::get_param(self.llfn(), index as c_uint);
         // trace!("Get param `{:?}`", val);
@@ -551,11 +550,11 @@ impl<'tcx> AbiBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
             // destructure so rustc doesnt complain in the call to transmute_llval
             let Self { cx, llbuilder } = self;
             let map = cx.remapped_integer_args.borrow();
-            if let Some((_, key)) = map.get(llfnty) {
-                if let Some((_, new_ty)) = key.iter().find(|t| t.0 == index) {
-                    trace!("Casting irregular param {:?} to {:?}", val, new_ty);
-                    return transmute_llval(llbuilder, cx, val, new_ty);
-                }
+            if let Some((_, key)) = map.get(&llfnty)
+                && let Some((_, new_ty)) = key.iter().find(|t| t.0 == index)
+            {
+                trace!("Casting irregular param {:?} to {:?}", val, new_ty);
+                return transmute_llval(llbuilder, cx, val, new_ty);
             }
             val
         };

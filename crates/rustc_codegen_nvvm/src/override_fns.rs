@@ -9,16 +9,26 @@ use crate::llvm;
 use rustc_codegen_ssa::mono_item::MonoItemExt;
 use rustc_codegen_ssa::traits::{BaseTypeCodegenMethods, BuilderMethods};
 use rustc_hir::def_id::LOCAL_CRATE;
-use rustc_middle::mir::mono::MonoItem;
+use rustc_middle::mir::mono::{Linkage, MonoItem, MonoItemData, Visibility};
 use rustc_middle::ty::layout::FnAbiOf;
 use rustc_middle::ty::{self, Instance};
 
 /// Either override or define a function.
-pub(crate) fn define_or_override_fn<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) {
+pub(crate) fn define_or_override_fn<'tcx>(func: Instance<'tcx>, cx: &mut CodegenCx<'_, 'tcx>) {
     if should_override(func, cx) {
         override_libm_function(func, cx);
     } else {
-        MonoItem::define::<Builder<'_, '_, '_>>(&MonoItem::Fn(func), cx);
+        MonoItem::define::<Builder<'_, '_, '_>>(
+            &MonoItem::Fn(func),
+            cx,
+            "mono_item",
+            MonoItemData {
+                inlined: false,
+                linkage: Linkage::External,
+                visibility: Visibility::Default,
+                size_estimate: 0,
+            },
+        );
     }
 }
 
@@ -40,7 +50,7 @@ fn should_override<'tcx>(func: Instance<'tcx>, cx: &CodegenCx<'_, 'tcx>) -> bool
         return false;
     }
 
-    let libdevice_name = format!("__nv_{}", name);
+    let libdevice_name = format!("__nv_{name}");
     let ld_fn = if let Some((args, ret)) = cx.intrinsics_map.borrow().get(libdevice_name.as_str()) {
         cx.type_func(args, ret)
     } else {

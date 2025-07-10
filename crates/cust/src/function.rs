@@ -213,7 +213,7 @@ unsafe impl Send for Function<'_> {}
 unsafe impl Sync for Function<'_> {}
 
 impl Function<'_> {
-    pub(crate) fn new(inner: CUfunction, _module: &Module) -> Function {
+    pub(crate) fn new(inner: CUfunction, _module: &Module) -> Function<'_> {
         Function {
             inner,
             module: PhantomData,

@@ -186,7 +186,7 @@ fn check_and_apply_linkage<'ll, 'tcx>(
             _ => cx
                 .sess()
                 .dcx()
-                .fatal(format!("Unsupported linkage kind: {:?}", linkage)),
+                .fatal(format!("Unsupported linkage kind: {linkage:?}")),
         }
 
         // If this is a static with a linkage specified, then we need to handle
@@ -276,8 +276,7 @@ impl<'ll> CodegenCx<'ll, '_> {
         assert!(
             !defined_in_current_codegen_unit,
             "consts::get_static() should always hit the cache for \
-                 statics defined in the same CGU, but did not for `{:?}`",
-            def_id
+                 statics defined in the same CGU, but did not for `{def_id:?}`"
         );
 
         let ty = instance.ty(self.tcx, self.typing_env());
@@ -286,10 +285,10 @@ impl<'ll> CodegenCx<'ll, '_> {
 
         let g = if def_id.is_local() && !self.tcx.is_foreign_item(def_id) {
             let llty = self.layout_of(ty).llvm_type(self);
-            if let Some(g) = self.get_declared_value(sym) {
-                if self.val_ty(g) != self.type_ptr_to(llty) {
-                    span_bug!(self.tcx.def_span(def_id), "Conflicting types for static");
-                }
+            if let Some(g) = self.get_declared_value(sym)
+                && self.val_ty(g) != self.type_ptr_to(llty)
+            {
+                span_bug!(self.tcx.def_span(def_id), "Conflicting types for static");
             }
 
             let addrspace = self.static_addrspace(instance);
@@ -336,7 +335,7 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
         gv
     }
 
-    fn codegen_static(&self, def_id: DefId) {
+    fn codegen_static(&mut self, def_id: DefId) {
         unsafe {
             assert!(
                 llvm::LLVMGetInitializer(
@@ -422,23 +421,36 @@ impl<'ll> StaticCodegenMethods for CodegenCx<'ll, '_> {
                 self.unsupported("thread locals");
             }
 
-            if attrs.flags.contains(CodegenFnAttrFlags::USED) {
+            if attrs.flags.contains(CodegenFnAttrFlags::USED_COMPILER) {
+                // `USED` and `USED_LINKER` can't be used together.
+                assert!(!attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER));
+
+                // The semantics of #[used] in Rust only require the symbol to make it into the
+                // object file. It is explicitly allowed for the linker to strip the symbol if it
+                // is dead, which means we are allowed to use `llvm.compiler.used` instead of
+                // `llvm.used` here.
+                //
+                // Additionally, https://reviews.llvm.org/D97448 in LLVM 13 started emitting unique
+                // sections with SHF_GNU_RETAIN flag for llvm.used symbols, which may trigger bugs
+                // in the handling of `.init_array` (the static constructor list) in versions of
+                // the gold linker (prior to the one released with binutils 2.36).
+                //
+                // That said, we only ever emit these when `#[used(compiler)]` is explicitly
+                // requested. This is to avoid similar breakage on other targets, in particular
+                // MachO targets have *their* static constructor lists broken if `llvm.compiler.used`
+                // is emitted rather than `llvm.used`. However, that check happens when assigning
+                // the `CodegenFnAttrFlags` in the `codegen_fn_attrs` query, so we don't need to
+                // take care of it here.
+                self.add_compiler_used_global(g);
+            }
+            if attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER) {
+                // `USED` and `USED_LINKER` can't be used together.
+                assert!(!attrs.flags.contains(CodegenFnAttrFlags::USED_COMPILER));
+
                 self.add_used_global(g);
             }
+
             trace!("Codegen static `{:?}`", g);
         }
-    }
-
-    /// Add a global value to a list to be stored in the `llvm.used` variable, an array of i8*.
-    fn add_used_global(&self, global: &'ll Value) {
-        let cast = unsafe { llvm::LLVMConstPointerCast(global, self.type_i8p()) };
-        self.used_statics.borrow_mut().push(cast);
-    }
-
-    /// Add a global value to a list to be stored in the `llvm.compiler.used` variable,
-    /// an array of i8*.
-    fn add_compiler_used_global(&self, global: &'ll Value) {
-        let cast = unsafe { llvm::LLVMConstPointerCast(global, self.type_i8p()) };
-        self.compiler_used_statics.borrow_mut().push(cast);
     }
 }

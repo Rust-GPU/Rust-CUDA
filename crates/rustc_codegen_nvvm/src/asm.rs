@@ -224,7 +224,7 @@ impl<'tcx> AsmBuilderMethods<'tcx> for Builder<'_, '_, 'tcx> {
 
 impl<'tcx> AsmCodegenMethods<'tcx> for CodegenCx<'_, 'tcx> {
     fn codegen_global_asm(
-        &self,
+        &mut self,
         template: &[InlineAsmTemplatePiece],
         operands: &[GlobalAsmOperandRef],
         _options: InlineAsmOptions,

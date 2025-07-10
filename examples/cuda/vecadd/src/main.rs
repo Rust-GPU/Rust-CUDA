@@ -47,10 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let grid_size = (NUMBERS_LEN as u32).div_ceil(block_size);
 
-    println!(
-        "using {} blocks and {} threads per block",
-        grid_size, block_size
-    );
+    println!("using {grid_size} blocks and {block_size} threads per block");
 
     // Actually launch the GPU kernel. This will queue up the launch on the stream, it will
     // not block the thread until the kernel is finished.

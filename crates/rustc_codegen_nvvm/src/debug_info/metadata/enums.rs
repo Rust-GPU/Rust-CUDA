@@ -189,7 +189,7 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
         |cx, coroutine_type_di_node| {
             let coroutine_layout = cx
                 .tcx
-                .coroutine_layout(coroutine_def_id, coroutine_args.as_coroutine().kind_ty())
+                .coroutine_layout(coroutine_def_id, coroutine_args)
                 .unwrap();
 
             let Variants::Multiple {
@@ -393,7 +393,7 @@ fn build_discr_member_di_node<'ll, 'tcx>(
                     align.bits() as u32,
                     enum_or_coroutine_type_and_layout
                         .fields
-                        .offset(tag_field)
+                        .offset(tag_field.into())
                         .bits(),
                     DIFlags::FlagArtificial,
                     type_di_node(cx, tag_base_type),

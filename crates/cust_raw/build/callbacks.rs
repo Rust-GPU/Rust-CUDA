@@ -42,10 +42,7 @@ impl ParseCallbacks for BindgenCallbacks {
         match doxygen_bindgen::transform(&cleaned) {
             Ok(res) => Some(res),
             Err(err) => {
-                println!(
-                    "cargo:warning=Problem processing doxygen comment: {}\n{}",
-                    comment, err
-                );
+                println!("cargo:warning=Problem processing doxygen comment: {comment}\n{err}");
                 None
             }
         }
@@ -184,7 +181,7 @@ impl FunctionRenames {
 
             let expanded = match build.try_expand() {
                 Ok(expanded) => expanded,
-                Err(e) => panic!("Failed to expand macros: {}", e),
+                Err(e) => panic!("Failed to expand macros: {e}"),
             };
             let expanded = str::from_utf8(&expanded).unwrap();
 
