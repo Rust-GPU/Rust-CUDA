@@ -14,7 +14,7 @@ use optix::{
     shader_binding_table::{SbtRecord, ShaderBindingTable},
 };
 
-use crate::vector::V4f32;
+use glam::{IVec2, Vec4};
 
 pub struct Renderer {
     launch_params: DeviceVariable<LaunchParams>,
@@ -23,7 +23,7 @@ pub struct Renderer {
     buf_hitgroup: DeviceBuffer<HitgroupRecord>,
     buf_miss: DeviceBuffer<MissRecord>,
     pipeline: Pipeline,
-    color_buffer: DeviceBuffer<V4f32>,
+    color_buffer: DeviceBuffer<Vec4>,
     ctx: DeviceContext,
     stream: Stream,
     cuda_context: CuContext,
@@ -144,10 +144,7 @@ impl Renderer {
         let launch_params = DeviceVariable::new(LaunchParams {
             frame_id: 0,
             color_buffer: color_buffer.as_device_ptr(),
-            fb_size: Point2i {
-                x: width as i32,
-                y: height as i32,
-            },
+            fb_size: IVec2::new(width as i32, height as i32),
         })?;
 
         Ok(Renderer {
@@ -193,7 +190,7 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn download_pixels(&self, slice: &mut [V4f32]) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn download_pixels(&self, slice: &mut [Vec4]) -> Result<(), Box<dyn std::error::Error>> {
         self.color_buffer.copy_to(slice)?;
         Ok(())
     }
@@ -201,16 +198,9 @@ impl Renderer {
 
 #[repr(C)]
 #[derive(Copy, Clone, DeviceCopy)]
-struct Point2i {
-    pub x: i32,
-    pub y: i32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, DeviceCopy)]
 struct LaunchParams {
-    pub color_buffer: DevicePointer<V4f32>,
-    pub fb_size: Point2i,
+    pub color_buffer: DevicePointer<Vec4>,
+    pub fb_size: IVec2,
     pub frame_id: i32,
 }
 
