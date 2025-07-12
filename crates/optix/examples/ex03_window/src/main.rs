@@ -3,8 +3,7 @@
 mod renderer;
 use renderer::Renderer;
 
-mod vector;
-pub use vector::*;
+use glam::{IVec2, Vec4};
 mod gl_util;
 use gl_util::FullscreenQuad;
 use glfw::{Action, Context, Key};
@@ -42,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut fsq = FullscreenQuad::new(width, height).unwrap();
 
-    let mut image_data = vec![v4f32(0.0, 0.0, 0.0, 0.0); (width * height) as usize];
+    let mut image_data = vec![Vec4::new(0.0, 0.0, 0.0, 0.0); (width * height) as usize];
 
     unsafe {
         gl::Viewport(0, 0, fb_width, fb_height);
@@ -62,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             renderer.resize(w, h)?;
             width = w;
             height = h;
-            image_data.resize((width * height) as usize, v4f32(0.0, 0.0, 0.0, 0.0));
+            image_data.resize((width * height) as usize, Vec4::new(0.0, 0.0, 0.0, 0.0));
         }
 
         renderer.render()?;
