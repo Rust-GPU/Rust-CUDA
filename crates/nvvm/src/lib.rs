@@ -8,6 +8,8 @@ use std::{
     str::FromStr,
 };
 
+use strum::IntoEnumIterator;
+
 use cust_raw::nvvm_sys;
 
 pub use cust_raw::nvvm_sys::LIBDEVICE_BITCODE;
@@ -255,6 +257,10 @@ impl FromStr for NvvmOption {
                     "72" => NvvmArch::Compute72,
                     "75" => NvvmArch::Compute75,
                     "80" => NvvmArch::Compute80,
+                    "86" => NvvmArch::Compute86,
+                    "87" => NvvmArch::Compute87,
+                    "89" => NvvmArch::Compute89,
+                    "90" => NvvmArch::Compute90,
                     _ => return Err("unknown arch"),
                 };
                 Self::Arch(arch)
@@ -265,7 +271,7 @@ impl FromStr for NvvmOption {
 }
 
 /// Nvvm architecture, default is `Compute52`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::EnumIter)]
 pub enum NvvmArch {
     Compute35,
     Compute37,
@@ -279,6 +285,10 @@ pub enum NvvmArch {
     Compute72,
     Compute75,
     Compute80,
+    Compute86,
+    Compute87,
+    Compute89,
+    Compute90,
 }
 
 impl Display for NvvmArch {
@@ -292,6 +302,53 @@ impl Display for NvvmArch {
 impl Default for NvvmArch {
     fn default() -> Self {
         Self::Compute52
+    }
+}
+
+impl NvvmArch {
+    /// Get the numeric capability value (e.g., 35 for Compute35)
+    pub fn capability_value(&self) -> u32 {
+        match self {
+            Self::Compute35 => 35,
+            Self::Compute37 => 37,
+            Self::Compute50 => 50,
+            Self::Compute52 => 52,
+            Self::Compute53 => 53,
+            Self::Compute60 => 60,
+            Self::Compute61 => 61,
+            Self::Compute62 => 62,
+            Self::Compute70 => 70,
+            Self::Compute72 => 72,
+            Self::Compute75 => 75,
+            Self::Compute80 => 80,
+            Self::Compute86 => 86,
+            Self::Compute87 => 87,
+            Self::Compute89 => 89,
+            Self::Compute90 => 90,
+        }
+    }
+
+    /// Get the target feature string (e.g., "compute_35" for Compute35)
+    pub fn target_feature(&self) -> String {
+        let cap = self.capability_value();
+        format!("compute_{cap}")
+    }
+
+    /// Get all target features up to and including this architecture.
+    /// This ensures that `cfg(target_feature = "compute_50")` works on compute_60+ devices.
+    pub fn all_target_features(&self) -> Vec<String> {
+        let current = self.capability_value();
+
+        NvvmArch::iter()
+            .filter(|arch| arch.capability_value() <= current)
+            .map(|arch| arch.target_feature())
+            .collect()
+    }
+
+    /// Create an iterator over all architectures from Compute35 up to and including this one
+    pub fn iter_up_to(&self) -> impl Iterator<Item = Self> {
+        let current = self.capability_value();
+        NvvmArch::iter().filter(move |arch| arch.capability_value() <= current)
     }
 }
 
@@ -408,6 +465,194 @@ impl NvvmProgram {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+
+    #[test]
+    fn nvvm_arch_capability_value() {
+        use crate::NvvmArch;
+
+        assert_eq!(NvvmArch::Compute35.capability_value(), 35);
+        assert_eq!(NvvmArch::Compute37.capability_value(), 37);
+        assert_eq!(NvvmArch::Compute50.capability_value(), 50);
+        assert_eq!(NvvmArch::Compute52.capability_value(), 52);
+        assert_eq!(NvvmArch::Compute53.capability_value(), 53);
+        assert_eq!(NvvmArch::Compute60.capability_value(), 60);
+        assert_eq!(NvvmArch::Compute61.capability_value(), 61);
+        assert_eq!(NvvmArch::Compute62.capability_value(), 62);
+        assert_eq!(NvvmArch::Compute70.capability_value(), 70);
+        assert_eq!(NvvmArch::Compute72.capability_value(), 72);
+        assert_eq!(NvvmArch::Compute75.capability_value(), 75);
+        assert_eq!(NvvmArch::Compute80.capability_value(), 80);
+        assert_eq!(NvvmArch::Compute86.capability_value(), 86);
+        assert_eq!(NvvmArch::Compute87.capability_value(), 87);
+        assert_eq!(NvvmArch::Compute89.capability_value(), 89);
+        assert_eq!(NvvmArch::Compute90.capability_value(), 90);
+    }
+
+    #[test]
+    fn nvvm_arch_target_feature_format() {
+        use crate::NvvmArch;
+
+        assert_eq!(NvvmArch::Compute35.target_feature(), "compute_35");
+        assert_eq!(NvvmArch::Compute61.target_feature(), "compute_61");
+        assert_eq!(NvvmArch::Compute90.target_feature(), "compute_90");
+    }
+
+    #[test]
+    fn nvvm_arch_all_target_features_includes_lower_capabilities() {
+        use crate::NvvmArch;
+
+        // Compute35 only includes itself
+        let compute35_features = NvvmArch::Compute35.all_target_features();
+        assert_eq!(compute35_features, vec!["compute_35"]);
+
+        // Compute50 includes all lower capabilities
+        let compute50_features = NvvmArch::Compute50.all_target_features();
+        assert_eq!(
+            compute50_features,
+            vec!["compute_35", "compute_37", "compute_50"]
+        );
+
+        // Compute61 includes all lower capabilities
+        let compute61_features = NvvmArch::Compute61.all_target_features();
+        assert_eq!(
+            compute61_features,
+            vec![
+                "compute_35",
+                "compute_37",
+                "compute_50",
+                "compute_52",
+                "compute_53",
+                "compute_60",
+                "compute_61"
+            ]
+        );
+
+        // Compute90 includes all capabilities
+        let compute90_features = NvvmArch::Compute90.all_target_features();
+        assert_eq!(
+            compute90_features,
+            vec![
+                "compute_35",
+                "compute_37",
+                "compute_50",
+                "compute_52",
+                "compute_53",
+                "compute_60",
+                "compute_61",
+                "compute_62",
+                "compute_70",
+                "compute_72",
+                "compute_75",
+                "compute_80",
+                "compute_86",
+                "compute_87",
+                "compute_89",
+                "compute_90"
+            ]
+        );
+    }
+
+    #[test]
+    fn target_feature_synthesis_supports_conditional_compilation_patterns() {
+        use crate::NvvmArch;
+
+        // When targeting Compute61, should enable all lower capabilities
+        let features = NvvmArch::Compute61.all_target_features();
+
+        // Should enable compute_60 (for f64 atomics)
+        assert!(features.contains(&"compute_60".to_string()));
+
+        // Should enable compute_50 (for 64-bit integer atomics)
+        assert!(features.contains(&"compute_50".to_string()));
+
+        // Should enable compute_35 (baseline)
+        assert!(features.contains(&"compute_35".to_string()));
+
+        // Should enable the target itself
+        assert!(features.contains(&"compute_61".to_string()));
+
+        // Should NOT enable higher capabilities
+        assert!(!features.contains(&"compute_62".to_string()));
+        assert!(!features.contains(&"compute_70".to_string()));
+    }
+
+    #[test]
+    fn target_feature_synthesis_enables_correct_cfg_patterns() {
+        use crate::NvvmArch;
+
+        // Test that targeting Compute70 enables appropriate cfg patterns
+        let features = NvvmArch::Compute70.all_target_features();
+
+        // These should all be true for compute_70 target
+        let expected_enabled = [
+            "compute_35",
+            "compute_37",
+            "compute_50",
+            "compute_52",
+            "compute_53",
+            "compute_60",
+            "compute_61",
+            "compute_62",
+            "compute_70",
+        ];
+
+        for feature in expected_enabled {
+            assert!(
+                features.contains(&feature.to_string()),
+                "Compute70 should enable {feature} for cfg(target_feature = \"{feature}\")"
+            );
+        }
+
+        // These should NOT be enabled for compute_70 target
+        let expected_disabled = ["compute_72", "compute_75", "compute_80", "compute_90"];
+
+        for feature in expected_disabled {
+            assert!(
+                !features.contains(&feature.to_string()),
+                "Compute70 should NOT enable {feature}"
+            );
+        }
+    }
+
+    #[test]
+    fn nvvm_arch_iter_up_to_includes_only_lower_or_equal() {
+        use crate::NvvmArch;
+
+        // Compute35 only includes itself
+        let archs: Vec<_> = NvvmArch::Compute35.iter_up_to().collect();
+        assert_eq!(archs, vec![NvvmArch::Compute35]);
+
+        // Compute52 includes all up to 52
+        let archs: Vec<_> = NvvmArch::Compute52.iter_up_to().collect();
+        assert_eq!(
+            archs,
+            vec![
+                NvvmArch::Compute35,
+                NvvmArch::Compute37,
+                NvvmArch::Compute50,
+                NvvmArch::Compute52,
+            ]
+        );
+
+        // Compute75 includes all up to 75
+        let archs: Vec<_> = NvvmArch::Compute75.iter_up_to().collect();
+        assert_eq!(
+            archs,
+            vec![
+                NvvmArch::Compute35,
+                NvvmArch::Compute37,
+                NvvmArch::Compute50,
+                NvvmArch::Compute52,
+                NvvmArch::Compute53,
+                NvvmArch::Compute60,
+                NvvmArch::Compute61,
+                NvvmArch::Compute62,
+                NvvmArch::Compute70,
+                NvvmArch::Compute72,
+                NvvmArch::Compute75,
+            ]
+        );
+    }
 
     #[test]
     fn options_parse_correctly() {

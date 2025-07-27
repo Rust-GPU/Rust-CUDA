@@ -61,7 +61,7 @@ use lto::ThinBuffer;
 use rustc_ast::expand::allocator::AllocatorKind;
 use rustc_ast::expand::autodiff_attrs::AutoDiffItem;
 use rustc_codegen_ssa::{
-    CodegenResults, CompiledModule, ModuleCodegen,
+    CodegenResults, CompiledModule, ModuleCodegen, TargetConfig,
     back::{
         lto::{LtoModuleCodegen, SerializedModule, ThinModule},
         write::{CodegenContext, FatLtoInput, ModuleConfig, OngoingCodegen},
@@ -131,10 +131,28 @@ impl CodegenBackend for NvvmCodegenBackend {
     }
 
     fn provide(&self, providers: &mut Providers) {
-        // FIXME(eddyb) this is currently only passed back to us, specifically
-        // into `target_machine_factory` (which is a noop), but it might make
-        // sense to move some of the target feature parsing into here.
-        providers.global_backend_features = |_tcx, ()| vec![];
+        // Synthesize compute capability target features from the architecture specified in llvm-args.
+        // This enables code to use `#[cfg(target_feature = "compute_60")]` etc. for conditional compilation.
+        // Following NVIDIA semantics, we enable "at least this capability" matching - for example,
+        // when targeting compute_70, we also enable compute_60, compute_50, and all lower capabilities.
+        // This allows libraries to gate features based on minimum required compute capability.
+        providers.global_backend_features = |tcx, ()| {
+            let mut features = vec![];
+
+            // Parse CodegenArgs to get the architecture from llvm-args (e.g., "-arch=compute_70")
+            let args = context::CodegenArgs::from_session(tcx.sess);
+
+            // Find the architecture option and synthesize all implied features
+            for opt in &args.nvvm_options {
+                if let ::nvvm::NvvmOption::Arch(arch) = opt {
+                    // Add all features up to and including the current architecture
+                    features.extend(arch.all_target_features());
+                    break;
+                }
+            }
+
+            features
+        };
 
         providers.fn_abi_of_fn_ptr = |tcx, key| {
             let result = (rustc_interface::DEFAULT_QUERY_PROVIDERS.fn_abi_of_fn_ptr)(tcx, key);
@@ -191,6 +209,32 @@ impl CodegenBackend for NvvmCodegenBackend {
             codegen_results.crate_info.local_crate_name.as_str(),
             metadata,
         );
+    }
+
+    fn target_config(&self, sess: &Session) -> TargetConfig {
+        // Parse target features from command line
+        let cmdline = sess.opts.cg.target_feature.split(',');
+        let cfg = sess.target.options.features.split(',');
+
+        let target_features: Vec<_> = cfg
+            .chain(cmdline)
+            .filter(|l| l.starts_with('+'))
+            .map(|l| &l[1..])
+            .filter(|l| !l.is_empty())
+            .map(rustc_span::Symbol::intern)
+            .collect();
+
+        // For NVPTX, all target features are stable
+        let unstable_target_features = target_features.clone();
+
+        TargetConfig {
+            target_features,
+            unstable_target_features,
+            has_reliable_f16: false,
+            has_reliable_f16_math: false,
+            has_reliable_f128: false,
+            has_reliable_f128_math: false,
+        }
     }
 }
 
