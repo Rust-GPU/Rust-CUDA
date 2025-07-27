@@ -196,6 +196,18 @@ inside of `target/cuda-builder/nvptx64-nvidia-cuda/release/crate_name.ptx`, but 
 what such method does. Finally, `build()` actually runs rustc to compile the crate. This may take a while since it needs to build things like core
 from scratch, but after the first compile, incremental will make it much faster.
 
+You can also specify a different compute capability with `.arch()`:
+
+```rs
+CudaBuilder::new("path/to/gpu/crate")
+    .arch(cuda_builder::NvvmArch::Compute75)  // Target compute 7.5 GPUs
+    .copy_to("kernel.ptx")
+    .build()
+    .unwrap();
+```
+
+The architecture you choose affects which GPU features are available. See the [Compute Capability Gating](./compute_capabilities.md) guide for details on writing code that adapts to different GPU capabilities.
+
 Finally, you can include the PTX as a static string in your program:
 
 ```rs

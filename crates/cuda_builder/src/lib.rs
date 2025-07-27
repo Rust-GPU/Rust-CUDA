@@ -93,6 +93,23 @@ pub struct CudaBuilder {
     /// the GTX 1030, GTX 1050, GTX 1080, Tesla P40, etc. We default to this because
     /// Maxwell (5.x) will be deprecated in CUDA 12 and we anticipate for that. Moreover,
     /// `6.x` contains support for things like f64 atomic add and half precision float ops.
+    ///
+    /// ## Target Features for Conditional Compilation
+    ///
+    /// The chosen architecture enables a target feature that can be used for
+    /// conditional compilation with `#[cfg(target_feature = "compute_XX")]`.
+    /// This feature means "at least this capability", matching NVIDIA's semantics.
+    ///
+    /// For other patterns (exact ranges, maximum capabilities), use boolean `cfg` logic.
+    /// See the compute capabilities guide for examples.
+    ///
+    /// For example, with `.arch(NvvmArch::Compute61)`:
+    /// ```ignore
+    /// #[cfg(target_feature = "compute_61")]
+    /// {
+    ///     // Code that requires compute capability 6.1+
+    /// }
+    /// ```
     pub arch: NvvmArch,
     /// Flush denormal values to zero when performing single-precision floating point operations.
     /// `false` by default.
@@ -229,6 +246,11 @@ impl CudaBuilder {
     /// NOTE that this does not necessarily mean that code using a certain capability
     /// will not work on older capabilities. It means that if it uses certain
     /// features it may not work.
+    ///
+    /// ## Target Features for Conditional Compilation
+    ///
+    /// The chosen architecture enables target features for conditional compilation.
+    /// See the documentation on the `arch` field for more details.
     pub fn arch(mut self, arch: NvvmArch) -> Self {
         self.arch = arch;
         self

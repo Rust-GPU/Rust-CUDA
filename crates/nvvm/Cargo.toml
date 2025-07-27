@@ -10,3 +10,4 @@ readme = "../../README.md"
 
 [dependencies]
 cust_raw = { path = "../cust_raw", default-features = false, features = ["nvvm"] }
+strum = { version = "0.27", features = ["derive"] }

@@ -5,6 +5,7 @@
 - [Frequently Asked Questions](faq.md)
 - [Guide](guide/README.md)
   - [Getting Started](guide/getting_started.md)
+  - [Compute Capability Gating](guide/compute_capabilities.md)
   - [Tips](guide/tips.md)
   - [Kernel ABI](guide/kernel_abi.md)
   - [Safety](guide/safety.md)
