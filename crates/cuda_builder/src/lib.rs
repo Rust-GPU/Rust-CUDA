@@ -71,45 +71,72 @@ pub struct CudaBuilder {
     /// Whether to run libnvvm optimizations. This defaults to `false`
     /// but will be set to `true` if release is specified.
     pub nvvm_opts: bool,
-    /// The virtual compute architecture to target for PTX generation. This
-    /// dictates how certain things are codegenned and may affect performance
-    /// and/or which gpus the code can run on.
+    /// The virtual compute architecture to target for PTX generation. This dictates how
+    /// certain things are codegenned and may affect performance and/or which gpus the
+    /// code can run on.
     ///
-    /// You should generally try to pick an arch that will work with most
-    /// GPUs you want your program to work with. Make sure to also
-    /// use an appropriate compute arch if you are using recent features
-    /// such as tensor cores (which need at least 7.x).
+    /// You should generally try to pick an arch that will work with most GPUs you want
+    /// your program to work with. Make sure to also use an appropriate compute arch if
+    /// you are using recent features such as tensor cores (which need at least 7.x).
     ///
-    /// If you are unsure, either leave this option to default, or pick something around 5.2 to 7.x.
+    /// If you are unsure, either leave this option to default, or pick something around
+    /// 5.2 to 7.x.
     ///
-    /// You can find a list of features supported on each arch and a list of GPUs for every
-    /// arch [`here`](https://en.wikipedia.org/wiki/CUDA#Version_features_and_specifications).
+    /// You can find a list of features supported on each arch and a list of GPUs for
+    /// every arch
+    /// [`here`](https://en.wikipedia.org/wiki/CUDA#Version_features_and_specifications).
     ///
     /// NOTE that this does not necessarily mean that code using a certain capability
-    /// will not work on older capabilities. It means that if it uses certain
-    /// features it may not work.
+    /// will not work on older capabilities. It means that if it uses certain features
+    /// it may not work.
     ///
-    /// This currently defaults to `6.1`. Which corresponds to Pascal, GPUs such as
-    /// the GTX 1030, GTX 1050, GTX 1080, Tesla P40, etc. We default to this because
-    /// Maxwell (5.x) will be deprecated in CUDA 12 and we anticipate for that. Moreover,
-    /// `6.x` contains support for things like f64 atomic add and half precision float ops.
+    /// This currently defaults to `6.1`. Which corresponds to Pascal, GPUs such as the
+    /// GTX 1030, GTX 1050, GTX 1080, Tesla P40, etc. We default to this because Maxwell
+    /// (5.x) will be deprecated in CUDA 12 and we anticipate for that. Moreover, `6.x`
+    /// contains support for things like f64 atomic add and half precision float ops.
     ///
-    /// ## Target Features for Conditional Compilation
+    /// Starting with CUDA 12.9, architectures can have suffixes:
     ///
-    /// The chosen architecture enables a target feature that can be used for
-    /// conditional compilation with `#[cfg(target_feature = "compute_XX")]`.
-    /// This feature means "at least this capability", matching NVIDIA's semantics.
+    /// - **No suffix** (e.g., `Compute70`): Forward-compatible across all future GPUs.
+    ///   Best for general compatibility.
+    /// - **'f' suffix** (e.g., `Compute100f`): Family-specific features,
+    ///   forward-compatible within same major version (10.0, 10.3, etc.) but NOT across
+    ///   major versions.
+    /// - **'a' suffix** (e.g., `Compute100a`): Architecture-specific features (mainly
+    ///   Tensor Cores). Code ONLY runs on that exact compute capability, no
+    ///   compatibility with any other GPU.
     ///
-    /// For other patterns (exact ranges, maximum capabilities), use boolean `cfg` logic.
-    /// See the compute capabilities guide for examples.
+    /// Most applications should use base architectures (no suffix). Only use 'f' or 'a'
+    /// if you need specific features and understand the compatibility trade-offs.
+    ///
+    /// The chosen architecture enables target features for conditional compilation:
+    /// - Base arch: `#[cfg(target_feature = "compute_70")]` - enabled on 7.0+
+    /// - Family variant: `#[cfg(target_feature = "compute_100f")]` - enabled on 10.x family
+    ///   with same or higher minor version
+    /// - Arch variant: `#[cfg(target_feature = "compute_100a")]` - enabled when building for
+    ///   exactly 10.0 (includes all base and family features during compilation)
     ///
     /// For example, with `.arch(NvvmArch::Compute61)`:
     /// ```ignore
     /// #[cfg(target_feature = "compute_61")]
     /// {
-    ///     // Code that requires compute capability 6.1+
+    ///     // Code that requires compute capability 6.1+ will be emitted because it matches
+    ///     // the target architecture.
+    /// }
+    /// #[cfg(target_feature = "compute_51")]
+    /// {
+    ///     // Code that requires compute capability 5.1 will be emitted
+    ///     // because 6.1 is a superset of 5.1.
+    /// }
+    /// #[cfg(target_feature = "compute_71")]
+    /// {
+    ///     // Code that requires compute capability 7.1 will NOT be emitted
+    ///     // because the chosen arch (6.1) is not a superset of 7.1.
     /// }
     /// ```
+    ///
+    /// See:
+    /// <https://developer.nvidia.com/blog/nvidia-blackwell-and-nvidia-cuda-12-9-introduce-family-specific-architecture-features/>
     pub arch: NvvmArch,
     /// Flush denormal values to zero when performing single-precision floating point operations.
     /// `false` by default.
@@ -234,9 +261,7 @@ impl CudaBuilder {
     /// and/or which gpus the code can run on.
     ///
     /// You should generally try to pick an arch that will work with most
-    /// GPUs you want your program to work with. Make sure to also
-    /// use an appropriate compute arch if you are using recent features
-    /// such as tensor cores (which need at least 7.x).
+    /// GPUs you want your program to work with.
     ///
     /// If you are unsure, either leave this option to default, or pick something around 5.2 to 7.x.
     ///
@@ -246,8 +271,6 @@ impl CudaBuilder {
     /// NOTE that this does not necessarily mean that code using a certain capability
     /// will not work on older capabilities. It means that if it uses certain
     /// features it may not work.
-    ///
-    /// ## Target Features for Conditional Compilation
     ///
     /// The chosen architecture enables target features for conditional compilation.
     /// See the documentation on the `arch` field for more details.

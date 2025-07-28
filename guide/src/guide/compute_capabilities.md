@@ -30,31 +30,117 @@ rust-cuda works exclusively with virtual architectures since it only generates P
 
 ## Using Target Features
 
-When you build a CUDA kernel with `cuda_builder`, the architecture you choose (e.g.,
-`NvvmArch::Compute61`) enables target features that you can use for conditional compilation.
+When building your kernel, the `NvvmArch::ComputeXX` variant you choose enables specific
+`target_feature` flags. These can be used with `#[cfg(...)]` to conditionally compile
+code based on the capabilities of the target GPU.
 
-These features follow the pattern `compute_XX` where XX is the capability number without
-the decimal point. The enabled feature means "at least this capability", matching
-NVIDIA's semantics.
-
-### Example: Basic Usage
+For example, this checks whether the target architecture supports running compute 6.0
+code or newer:
 
 ```rust
-use cuda_builder::CudaBuilder;
-
-fn main() {
-    CudaBuilder::new("kernels")
-        .arch(NvvmArch::Compute61)  // Target compute capability 6.1+
-        .build()
-        .unwrap();
-}
+#[cfg(target_feature = "compute_60")]
 ```
 
-This enables only the `compute_61` target feature, meaning the code requires
-at least compute capability 6.1.
+Think of it as asking: “Is the GPU I’m building for at least compute 6.0?” Depending on
+which `NvvmArch::ComputeXX` is used to build the kernel, there is a different answer:
 
-For other targeting patterns (exact ranges, maximum capabilities), use boolean
-`cfg` logic as shown in the examples below.
+- Building for `Compute60` → ✓ Yes (exact match)
+- Building for `Compute70` → ✓ Yes (7.0 GPUs support 6.0 code)
+- Building for `Compute50` → ✗ No (5.0 GPUs can't run 6.0 code)
+
+These features let you write optimized code paths for specific GPU generations while
+still supporting older ones.
+
+## Specifying Compute Capabilites
+
+Starting with CUDA 12.9, NVIDIA introduced architecture suffixes that affect
+compatibility.
+
+### Base Architecture (No Suffix)
+
+Example: `NvvmArch::Compute70`
+
+This is everything mentioned above, and was the only option in CUDA 12.8 and lower.
+
+**When to use**: Default choice for maximum compatibility.
+
+Example usage:
+
+```rust
+// In build.rs
+CudaBuilder::new("kernels")
+    .arch(NvvmArch::Compute70)
+    .build()
+    .unwrap();
+
+// In your kernel code:
+#[cfg(target_feature = "compute_60")]  // ✓ Pass (older compute capability)
+#[cfg(target_feature = "compute_70")]  // ✓ Pass (current compute capability)
+#[cfg(target_feature = "compute_80")]  // ✗ Fail (newer compute capability)
+```
+
+### Family Suffix ('f')
+
+Example: `NvvmArch::Compute101f`
+
+Specifies code compatible with the same major compute capability version and with an
+equal or higher minor compute capability version.
+
+**When to use**: When you need features from a specific minor version but want forward
+compatibility within the family.
+
+Example usage:
+
+```rust
+// In build.rs
+CudaBuilder::new("kernels")
+    .arch(NvvmArch::Compute101f)
+    .build()
+    .unwrap();
+
+// In your kernel code:
+#[cfg(target_feature = "compute_100")]   // ✗ Fail (10.0 < 10.1)
+#[cfg(target_feature = "compute_101")]   // ✓ Pass (equal major, equal minor)
+#[cfg(target_feature = "compute_103")]   // ✓ Pass (equal major, greater minor)
+#[cfg(target_feature = "compute_101f")]  // ✓ Pass (the 'f' variant itself)
+#[cfg(target_feature = "compute_100f")]  // ✗ Fail (other 'f' variant)
+#[cfg(target_feature = "compute_90")]    // ✗ Fail (different major)
+#[cfg(target_feature = "compute_110")]   // ✗ Fail (different major)
+```
+
+### Architecture Suffix ('a')
+
+Example: `NvvmArch::Compute100a`
+
+Specifies code that only runs on GPUs of that specific compute capability and no others.
+However, during compilation, it enables all available instructions for the architecture,
+including all base variants up to the same version and all family variants with the same
+major version and equal or lower minor version.
+
+**When to use**: When you need to use architecture-specific features (like certain
+Tensor Core operations) that are only available on that exact GPU model.
+
+Example usage:
+
+```rust
+// In build.rs
+CudaBuilder::new("kernels")
+    .arch(NvvmArch::Compute100a)
+    .build()
+    .unwrap();
+
+// In your kernel code:
+#[cfg(target_feature = "compute_100a")]  // ✓ Pass (the 'a' variant itself)
+#[cfg(target_feature = "compute_100")]   // ✓ Pass (base variant)
+#[cfg(target_feature = "compute_90")]    // ✓ Pass (lower base variant)
+#[cfg(target_feature = "compute_100f")]  // ✓ Pass (family variant with same major/minor)
+#[cfg(target_feature = "compute_101f")]  // ✗ Fail (family variant with higher minor)
+#[cfg(target_feature = "compute_110")]   // ✗ Fail (higher major version)
+```
+
+Note: While the 'a' variant enables all these features during compilation (allowing you to use all available instructions), the generated PTX code will still only run on the exact GPU architecture specified.
+
+For more details on suffixes, see [NVIDIA's blog post on family-specific architecture features](https://developer.nvidia.com/blog/nvidia-blackwell-and-nvidia-cuda-12-9-introduce-family-specific-architecture-features/).
 
 ### Manual Compilation (Without CudaBuilder)
 
@@ -74,15 +160,14 @@ export RUSTFLAGS="-C llvm-args=-arch=compute_61 -Z codegen-backend=/path/to/libr
 cargo build --target nvptx64-nvidia-cuda
 ```
 
-The codegen backend automatically synthesizes all appropriate target features based on the architecture. For example, targeting `compute_61` will enable `compute_35`, `compute_37`, `compute_50`, `compute_52`, `compute_53`, `compute_60`, and `compute_61` features for conditional compilation.
+The codegen backend automatically synthesizes target features based on the architecture type as described above.
 
-## Conditional Compilation in Kernels
+### Common Patterns for Base Architectures
 
-You can use `#[cfg(target_feature = "compute_XX")]` to conditionally compile code based on the available compute capabilities. With boolean logic, you can express any capability range you need.
-
-### Common Patterns
+These patterns work when using base architectures (no suffix), which enable all lower capabilities:
 
 #### At Least a Capability (Default)
+
 ```rust,no_run
 // Code that requires compute 6.0 or higher
 #[cfg(target_feature = "compute_60")]
@@ -91,14 +176,9 @@ You can use `#[cfg(target_feature = "compute_XX")]` to conditionally compile cod
 }
 ```
 
-#### Exactly One Capability  
-```rust,no_run
-// Code that targets exactly compute 5.0 (not 5.2+)
-#[cfg(all(target_feature = "compute_50", not(target_feature = "compute_52")))]
-{
-    // Optimizations specific to compute 5.0
-}
+#### Exactly One Capability
 
+```rust,no_run
 // Code that targets exactly compute 6.1 (not 6.2+)
 #[cfg(all(target_feature = "compute_61", not(target_feature = "compute_62")))]
 {
@@ -107,82 +187,22 @@ You can use `#[cfg(target_feature = "compute_XX")]` to conditionally compile cod
 ```
 
 #### Up To a Maximum Capability
-```rust,no_run
-// Code that works on compute 5.0 and below (not 5.2+)
-#[cfg(all(target_feature = "compute_35", not(target_feature = "compute_52")))]
-{
-    // Fallback implementation for older GPUs
-}
 
-// Code that works up to compute 6.0 (not 6.1+)  
+```rust,no_run
+// Code that works up to compute 6.0 (not 6.1+)
 #[cfg(all(target_feature = "compute_35", not(target_feature = "compute_61")))]
 {
     // Maximum compatibility implementation
 }
 ```
 
-#### Capability Ranges
+#### Targeting Specific Architecture Ranges
+
 ```rust,no_run
-// Code that works on compute 5.0 through 7.0 (not 7.2+)
-#[cfg(all(target_feature = "compute_50", not(target_feature = "compute_72")))]
+// This block compiles when building for architectures >= 6.0 but < 8.0
+#[cfg(all(target_feature = "compute_60", not(target_feature = "compute_80")))]
 {
-    // Features available in this range
-}
-```
-
-### Complete Example
-
-```rust,no_run
-use cuda_std::*;
-
-#[kernel]
-pub unsafe fn adaptive_kernel(data: *mut f64) {
-    // This code only compiles when targeting compute 6.0 or higher
-    #[cfg(target_feature = "compute_60")]
-    {
-        // f64 atomics are only available on compute 6.0+
-        cuda_std::atomic::atomic_add(data, 1.0);
-    }
-
-    // Fallback for older GPUs
-    #[cfg(not(target_feature = "compute_60"))]
-    {
-        // Manual implementation or alternative approach
-    }
-}
-```
-
-## Best Practices
-
-### 1. Choose the Lowest Viable Architecture
-
-Select the lowest compute capability that provides the features you need. This maximizes GPU compatibility:
-
-```rust,no_run
-// If you only need basic atomics
-.arch(NvvmArch::Compute35)
-
-// If you need 64-bit integer atomics
-.arch(NvvmArch::Compute50)
-
-// If you need f64 atomics
-.arch(NvvmArch::Compute60)
-```
-
-### 2. Provide Fallbacks When Possible
-
-For maximum compatibility, provide alternative implementations for older GPUs:
-
-```rust,no_run
-#[cfg(target_feature = "compute_50")]
-fn fast_path(data: *mut u64) {
-    // Use hardware atomic
-    atomic_min(data, 100);
-}
-
-#[cfg(not(target_feature = "compute_50"))]
-fn fast_path(data: *mut u64) {
-    // Software fallback
+    // Code here can use features from 6.0+ but must not use 8.0+ features
 }
 ```
 
