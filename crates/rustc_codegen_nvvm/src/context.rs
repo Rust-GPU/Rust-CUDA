@@ -551,25 +551,40 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     }
 }
 
+#[derive(Clone)]
+pub enum DisassembleMode {
+    All,
+    Function(String),
+    Entry(String),
+    Globals,
+}
+
 #[derive(Default, Clone)]
 pub struct CodegenArgs {
     pub nvvm_options: Vec<NvvmOption>,
     pub override_libm: bool,
     pub use_constant_memory_space: bool,
     pub final_module_path: Option<PathBuf>,
+    pub disassemble: Option<DisassembleMode>,
 }
 
 impl CodegenArgs {
     pub fn from_session(sess: &Session) -> Self {
-        Self::parse(&sess.opts.cg.llvm_args)
+        Self::parse(&sess.opts.cg.llvm_args, sess)
     }
 
     // we may want to use rustc's own option parsing facilities to have better errors in the future.
-    pub fn parse(args: &[String]) -> Self {
+    pub fn parse(args: &[String], sess: &Session) -> Self {
         // TODO: replace this with a "proper" arg parser.
         let mut cg_args = Self::default();
 
+        let mut skip_next = false;
         for (idx, arg) in args.iter().enumerate() {
+            if skip_next {
+                skip_next = false;
+                continue;
+            }
+
             if let Ok(flag) = NvvmOption::from_str(arg) {
                 cg_args.nvvm_options.push(flag);
             } else if arg == "--override-libm" {
@@ -577,9 +592,40 @@ impl CodegenArgs {
             } else if arg == "--use-constant-memory-space" {
                 cg_args.use_constant_memory_space = true;
             } else if arg == "--final-module-path" {
-                cg_args.final_module_path = Some(PathBuf::from(
-                    args.get(idx + 1).expect("No path for --final-module-path"),
-                ));
+                let path = match args.get(idx + 1) {
+                    Some(p) => p,
+                    None => sess
+                        .dcx()
+                        .fatal("--final-module-path requires a path argument"),
+                };
+                cg_args.final_module_path = Some(PathBuf::from(path));
+                skip_next = true;
+            } else if arg == "--disassemble" {
+                cg_args.disassemble = Some(DisassembleMode::All);
+            } else if arg == "--disassemble-globals" {
+                cg_args.disassemble = Some(DisassembleMode::Globals);
+            } else if arg == "--disassemble-fn" {
+                let func_name = match args.get(idx + 1) {
+                    Some(name) => name.clone(),
+                    None => sess
+                        .dcx()
+                        .fatal("--disassemble-fn requires a function name argument"),
+                };
+                cg_args.disassemble = Some(DisassembleMode::Function(func_name));
+                skip_next = true;
+            } else if let Some(func) = arg.strip_prefix("--disassemble-fn=") {
+                cg_args.disassemble = Some(DisassembleMode::Function(func.to_string()));
+            } else if arg == "--disassemble-entry" {
+                let entry_name = match args.get(idx + 1) {
+                    Some(name) => name.clone(),
+                    None => sess
+                        .dcx()
+                        .fatal("--disassemble-entry requires an entry name argument"),
+                };
+                cg_args.disassemble = Some(DisassembleMode::Entry(entry_name));
+                skip_next = true;
+            } else if let Some(entry) = arg.strip_prefix("--disassemble-entry=") {
+                cg_args.disassemble = Some(DisassembleMode::Entry(entry.to_string()));
             }
         }
 

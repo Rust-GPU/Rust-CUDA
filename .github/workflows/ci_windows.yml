@@ -26,7 +26,18 @@ jobs:
             target: x86_64-pc-windows-msvc
             cuda: "12.8.1"
             linux-local-args: []
-            sub-packages: ["nvcc", "nvrtc", "nvrtc_dev", "cuda_profiler_api", "cudart", "cublas", "cublas_dev", "curand", "curand_dev"]
+            sub-packages:
+              [
+                "nvcc",
+                "nvrtc",
+                "nvrtc_dev",
+                "cuda_profiler_api",
+                "cudart",
+                "cublas",
+                "cublas_dev",
+                "curand",
+                "curand_dev",
+              ]
 
     steps:
       - name: Checkout repository
@@ -41,7 +52,7 @@ jobs:
           linux-local-args: ${{ toJson(matrix.linux-local-args) }}
           use-local-cache: false
           sub-packages: ${{ toJson(matrix.sub-packages) }}
-          log-file-suffix: '${{matrix.os}}-${{matrix.cuda}}'
+          log-file-suffix: "${{matrix.os}}-${{matrix.cuda}}"
 
       - name: Verify CUDA installation
         run: nvcc --version
@@ -76,3 +87,6 @@ jobs:
         env:
           RUSTDOCFLAGS: -Dwarnings
         run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path-tracer" --exclude "denoiser" --exclude "vecadd*" --exclude "gemm*" --exclude "ex*" --exclude "cudnn*" --exclude "cust_raw"
+      # Disabled due to dll issues, someone with  Windows knowledge needed
+      # - name: Compiletest
+      #  run: cargo run -p compiletests --release --no-default-features -- --target-arch compute_61,compute_70,compute_90

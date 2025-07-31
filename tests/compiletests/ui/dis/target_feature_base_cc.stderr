@@ -1,0 +1,31 @@
+.visible .entry test_base_cc_70(
+    .param .u64 test_base_cc_70_param_0
+)
+{
+    .reg .b32     %r<2>;
+    .reg .b64     %rd<3>;
+    .loc    1 10 0
+$L__func_begin0:
+    .loc    1 10 0
+
+
+    ld.param.u64     %rd1, [test_base_cc_70_param_0];
+$L__tmp0:
+    .loc    1 10 31
+    cvta.to.global.u64     %rd2, %rd1;
+$L__tmp1:
+    .loc    1 38 5
+    bra.uni    $L__tmp2;
+$L__tmp2:
+    .loc    2 2180 9
+    mov.u32     %r1, 1124204544;
+    st.volatile.global.u32     [%rd2], %r1;
+$L__tmp3:
+    .loc    1 39 2
+    ret;
+$L__tmp4:
+$L__func_end0:
+
+}
+
+

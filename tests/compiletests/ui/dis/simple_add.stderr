@@ -1,0 +1,39 @@
+.visible .entry simple_add_kernel(
+    .param .u64 simple_add_kernel_param_0,
+    .param .u64 simple_add_kernel_param_1,
+    .param .u64 simple_add_kernel_param_2
+)
+{
+    .reg .f32     %f<4>;
+    .reg .b64     %rd<7>;
+    .loc    1 9 0
+$L__func_begin0:
+    .loc    1 9 0
+
+
+    ld.param.u64     %rd1, [simple_add_kernel_param_0];
+    ld.param.u64     %rd2, [simple_add_kernel_param_1];
+    ld.param.u64     %rd3, [simple_add_kernel_param_2];
+$L__tmp0:
+    .loc    1 9 33
+    cvta.to.global.u64     %rd4, %rd3;
+    cvta.to.global.u64     %rd5, %rd2;
+    cvta.to.global.u64     %rd6, %rd1;
+    .loc    1 10 15
+    ld.global.f32     %f1, [%rd6];
+    .loc    1 10 20
+    ld.global.f32     %f2, [%rd5];
+    .loc    1 10 15
+    add.f32     %f3, %f1, %f2;
+$L__tmp1:
+    .loc    1 11 5
+    st.global.f32     [%rd4], %f3;
+$L__tmp2:
+    .loc    1 12 2
+    ret;
+$L__tmp3:
+$L__func_end0:
+
+}
+
+

@@ -153,3 +153,18 @@ jobs:
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
           echo "Stubbed out"
+  compiletest:
+    name: Compile tests
+    runs-on: ubuntu-latest
+    container:
+      image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run cargo version
+        run: cargo --version
+      - name: Rustfmt compiletests
+        shell: bash
+        run: shopt -s globstar && rustfmt --check tests/compiletests/ui/**/*.rs
+      - name: Compiletest
+        run: cargo run -p compiletests --release --no-default-features -- --target-arch compute_61,compute_70,compute_90
