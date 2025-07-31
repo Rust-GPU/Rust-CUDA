@@ -52,6 +52,7 @@ mod lto;
 mod mono_item;
 mod nvvm;
 mod override_fns;
+mod ptx_filter;
 mod target;
 mod ty;
 
@@ -216,13 +217,29 @@ impl CodegenBackend for NvvmCodegenBackend {
         let cmdline = sess.opts.cg.target_feature.split(',');
         let cfg = sess.target.options.features.split(',');
 
-        let target_features: Vec<_> = cfg
+        let mut target_features: Vec<_> = cfg
             .chain(cmdline)
             .filter(|l| l.starts_with('+'))
             .map(|l| &l[1..])
             .filter(|l| !l.is_empty())
             .map(rustc_span::Symbol::intern)
             .collect();
+
+        // Add backend-synthesized features (e.g., hierarchical compute capabilities)
+        // Parse CodegenArgs to get the architecture from llvm-args
+        let args = context::CodegenArgs::from_session(sess);
+        for opt in &args.nvvm_options {
+            if let ::nvvm::NvvmOption::Arch(arch) = opt {
+                // Add all features up to and including the current architecture
+                let backend_features = arch.all_target_features();
+                target_features.extend(
+                    backend_features
+                        .iter()
+                        .map(|f| rustc_span::Symbol::intern(f)),
+                );
+                break;
+            }
+        }
 
         // For NVPTX, all target features are stable
         let unstable_target_features = target_features.clone();

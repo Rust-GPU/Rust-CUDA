@@ -16,6 +16,8 @@ members = [
   "examples/cuda/path_tracer/kernels",
 
   "examples/optix/*",
+  "tests/compiletests",
+  "tests/compiletests/deps-helper",
 ]
 
 exclude = [
@@ -24,3 +26,7 @@ exclude = [
 
 [profile.dev.package.rustc_codegen_nvvm]
 opt-level = 3
+
+[workspace.dependencies]
+cuda_std = { path = "crates/cuda_std" }
+cuda_builder = { path = "crates/cuda_builder" }

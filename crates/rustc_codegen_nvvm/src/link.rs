@@ -30,6 +30,7 @@ use tracing::{debug, trace};
 
 use crate::LlvmMod;
 use crate::context::CodegenArgs;
+use crate::ptx_filter::{PtxFilter, PtxFilterConfig};
 
 pub(crate) struct NvvmMetadataLoader;
 
@@ -304,6 +305,31 @@ fn codegen_into_ptx_file(
             sess.dcx().fatal(err.to_string())
         }
     };
+
+    // If disassembly is requested, print PTX to stderr
+    if args.disassemble.is_some()
+        && let Ok(ptx_str) = std::str::from_utf8(&ptx_bytes)
+    {
+        let config = PtxFilterConfig::from_codegen_args(&args);
+        let filter = PtxFilter::new(config);
+        let output = filter.filter(ptx_str);
+        if !output.is_empty() {
+            // Check if we're in JSON mode by checking the error format
+            use rustc_session::config::ErrorOutputType;
+            match sess.opts.error_format {
+                ErrorOutputType::Json { .. } => {
+                    sess.dcx()
+                        .err("PTX disassembly output in JSON mode is not supported");
+                }
+                _ => {
+                    // In normal mode, just print to stderr
+                    // Replace tabs with spaces for cleaner output
+                    let output = output.replace('\t', "    ");
+                    eprintln!("{output}");
+                }
+            }
+        }
+    }
 
     std::fs::write(out_filename, ptx_bytes)
 }

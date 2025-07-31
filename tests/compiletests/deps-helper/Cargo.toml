@@ -1,0 +1,12 @@
+[package]
+name = "compiletests-deps-helper"
+description = "Shared dependencies of all the compiletest tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cuda_std = { workspace = true }

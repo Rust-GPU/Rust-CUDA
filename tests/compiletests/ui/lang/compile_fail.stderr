@@ -1,0 +1,11 @@
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `std`
+ --> $DIR/compile_fail.rs:5:14
+  |
+5 |     let _s = std::fs::File::create("foo.txt");
+  |              ^^^ use of unresolved module or unlinked crate `std`
+  |
+  = help: you might be missing a crate named `std`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0433`.
