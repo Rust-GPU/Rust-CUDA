@@ -40,7 +40,7 @@ using namespace llvm::object;
 
 // This opcode is an LLVM detail that could hypothetically change (?), so
 // verify that the hard-coded value in `dwarf_const.rs` still agrees with LLVM.
-static_assert(dwarf::DW_OP_LLVM_fragment == 0x1000);
+static_assert(dwarf::DW_OP_LLVM_fragment == 0x1000, "DW_OP_LLVM_fragment value mismatch");
 
 // LLVMAtomicOrdering is already an enum - don't create another
 // one.
