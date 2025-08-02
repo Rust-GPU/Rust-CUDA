@@ -68,6 +68,7 @@ macro_rules! load {
                 #[allow(clippy::missing_safety_doc)]
                 #[doc = concat!("Performs a ", stringify!($ordering), " atomic load at the ", stringify!($scope), " level with a width of ", stringify!($width), " bits")]
                 pub unsafe fn [<atomic_load_ $ordering _ $width _ $scope>](ptr: *const [<u $width>]) -> [<u $width>] {
+                    // TODO: llvm-v19 needs $scope_asm instead of $scope
                     let mut out;
                     asm!(
                         concat!("ld.", stringify!($ordering), load_scope!($ordering, $scope), ".", stringify!([<u $width>]), " {}, [{}];"),
@@ -115,6 +116,7 @@ macro_rules! store {
                 #[allow(clippy::missing_safety_doc)]
                 #[doc = concat!("Performs a ", stringify!($ordering), " atomic store at the ", stringify!($scope), " level with a width of ", stringify!($width), " bits")]
                 pub unsafe fn [<atomic_store_ $ordering _ $width _ $scope>](ptr: *mut [<u $width>], val: [<u $width>]) {
+                    // TODO: llvm-v19 needs $scope_asm instead of $scope
                     asm!(
                         concat!("st.", stringify!($ordering), load_scope!($ordering, $scope), ".", stringify!([<u $width>]), " [{}], {};"),
                         in(reg64) ptr,

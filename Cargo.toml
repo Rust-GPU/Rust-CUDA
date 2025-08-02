@@ -24,7 +24,10 @@ exclude = [
     "crates/optix/examples/common",
 ]
 
-[profile.dev.package.rustc_codegen_nvvm]
+[profile.dev.package.rustc_codegen_nvvm_v7]
+opt-level = 3
+
+[profile.dev.package.rustc_codegen_nvvm_v19]
 opt-level = 3
 
 [workspace.dependencies]

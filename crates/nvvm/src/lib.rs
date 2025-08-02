@@ -4,7 +4,6 @@ use std::{
     ffi::{CStr, CString},
     fmt::Display,
     mem::MaybeUninit,
-    ptr::null_mut,
     str::FromStr,
 };
 
@@ -339,7 +338,252 @@ impl Display for NvvmArch {
 
 impl Default for NvvmArch {
     fn default() -> Self {
-        Self::Compute52
+        Self::Compute61
+    }
+}
+
+impl NvvmArch {
+    /// Get the numeric capability value (e.g., 35 for Compute35)
+    pub fn capability_value(&self) -> u32 {
+        match self {
+            Self::Compute35 => 35,
+            Self::Compute37 => 37,
+            Self::Compute50 => 50,
+            Self::Compute52 => 52,
+            Self::Compute53 => 53,
+            Self::Compute60 => 60,
+            Self::Compute61 => 61,
+            Self::Compute62 => 62,
+            Self::Compute70 => 70,
+            Self::Compute72 => 72,
+            Self::Compute75 => 75,
+            Self::Compute80 => 80,
+            Self::Compute86 => 86,
+            Self::Compute87 => 87,
+            Self::Compute89 => 89,
+            Self::Compute90 => 90,
+            Self::Compute90a => 90,
+            Self::Compute100 => 100,
+            Self::Compute100f => 100,
+            Self::Compute100a => 100,
+            Self::Compute101 => 101,
+            Self::Compute101f => 101,
+            Self::Compute101a => 101,
+            Self::Compute103 => 103,
+            Self::Compute103f => 103,
+            Self::Compute103a => 103,
+            Self::Compute120 => 120,
+            Self::Compute120f => 120,
+            Self::Compute120a => 120,
+            Self::Compute121 => 121,
+            Self::Compute121f => 121,
+            Self::Compute121a => 121,
+        }
+    }
+
+    /// Get the major version number (e.g., 7 for Compute70)
+    pub fn major_version(&self) -> u32 {
+        self.capability_value() / 10
+    }
+
+    /// Get the minor version number (e.g., 5 for Compute75)
+    pub fn minor_version(&self) -> u32 {
+        self.capability_value() % 10
+    }
+
+    /// Get the target feature string (e.g., "compute_35" for Compute35, "compute_90a" for Compute90a)
+    pub fn target_feature(&self) -> String {
+        match self {
+            Self::Compute35 => "compute_35".to_string(),
+            Self::Compute37 => "compute_37".to_string(),
+            Self::Compute50 => "compute_50".to_string(),
+            Self::Compute52 => "compute_52".to_string(),
+            Self::Compute53 => "compute_53".to_string(),
+            Self::Compute60 => "compute_60".to_string(),
+            Self::Compute61 => "compute_61".to_string(),
+            Self::Compute62 => "compute_62".to_string(),
+            Self::Compute70 => "compute_70".to_string(),
+            Self::Compute72 => "compute_72".to_string(),
+            Self::Compute75 => "compute_75".to_string(),
+            Self::Compute80 => "compute_80".to_string(),
+            Self::Compute86 => "compute_86".to_string(),
+            Self::Compute87 => "compute_87".to_string(),
+            Self::Compute89 => "compute_89".to_string(),
+            Self::Compute90 => "compute_90".to_string(),
+            Self::Compute90a => "compute_90a".to_string(),
+            Self::Compute100 => "compute_100".to_string(),
+            Self::Compute100f => "compute_100f".to_string(),
+            Self::Compute100a => "compute_100a".to_string(),
+            Self::Compute101 => "compute_101".to_string(),
+            Self::Compute101f => "compute_101f".to_string(),
+            Self::Compute101a => "compute_101a".to_string(),
+            Self::Compute103 => "compute_103".to_string(),
+            Self::Compute103f => "compute_103f".to_string(),
+            Self::Compute103a => "compute_103a".to_string(),
+            Self::Compute120 => "compute_120".to_string(),
+            Self::Compute120f => "compute_120f".to_string(),
+            Self::Compute120a => "compute_120a".to_string(),
+            Self::Compute121 => "compute_121".to_string(),
+            Self::Compute121f => "compute_121f".to_string(),
+            Self::Compute121a => "compute_121a".to_string(),
+        }
+    }
+
+    /// Get all target features up to and including this architecture.
+    ///
+    /// # PTX Forward-Compatibility Rules (per NVIDIA documentation):
+    ///
+    /// - **No suffix** (compute_XX): PTX is forward-compatible across all future architectures.
+    ///   Example: compute_70 runs on CC 7.0, 8.x, 9.x, 10.x, 12.x, and all future GPUs.
+    ///
+    /// - **Family-specific 'f' suffix** (compute_XXf): Forward-compatible within the same major
+    ///   version family. Supports devices with same major CC and equal or higher minor CC.
+    ///   Example: compute_100f runs on CC 10.0, 10.3, and future 10.x devices, but NOT on 11.x.
+    ///
+    /// - **Architecture-specific 'a' suffix** (compute_XXa): The code only runs on GPUs of that
+    ///   specific CC and no others. No forward or backward compatibility whatsoever.
+    ///   These features are primarily related to Tensor Core programming.
+    ///   Example: compute_100a ONLY runs on CC 10.0, not on 10.3, 10.1, 9.0, or any other version.
+    ///
+    /// For more details on family and architecture-specific features, see:
+    /// <https://developer.nvidia.com/blog/nvidia-blackwell-and-nvidia-cuda-12-9-introduce-family-specific-architecture-features/>
+    pub fn all_target_features(&self) -> Vec<String> {
+        let mut features: Vec<String> = if self.is_architecture_variant() {
+            // 'a' variants: include all available instructions for the architecture
+            // This means: all base variants up to same version, all 'f' variants with same major and <= minor, plus itself
+            let base_features: Vec<String> = NvvmArch::iter()
+                .filter(|arch| {
+                    arch.is_base_variant() && arch.capability_value() <= self.capability_value()
+                })
+                .map(|arch| arch.target_feature())
+                .collect();
+
+            let family_features: Vec<String> = NvvmArch::iter()
+                .filter(|arch| {
+                    arch.is_family_variant()
+                        && arch.major_version() == self.major_version()
+                        && arch.minor_version() <= self.minor_version()
+                })
+                .map(|arch| arch.target_feature())
+                .collect();
+
+            base_features
+                .into_iter()
+                .chain(family_features)
+                .chain(std::iter::once(self.target_feature()))
+                .collect()
+        } else if self.is_family_variant() {
+            // 'f' variants: same major version with equal or higher minor version
+            NvvmArch::iter()
+                .filter(|arch| {
+                    // Include base variants with same major and >= minor version
+                    arch.is_base_variant()
+                        && arch.major_version() == self.major_version()
+                        && arch.minor_version() >= self.minor_version()
+                })
+                .map(|arch| arch.target_feature())
+                .chain(std::iter::once(self.target_feature())) // Add the 'f' variant itself
+                .collect()
+        } else {
+            // Base variants: all base architectures from lower or equal versions
+            NvvmArch::iter()
+                .filter(|arch| {
+                    arch.is_base_variant() && arch.capability_value() <= self.capability_value()
+                })
+                .map(|arch| arch.target_feature())
+                .collect()
+        };
+
+        features.sort();
+        features
+    }
+
+    /// Create an iterator over all architectures from Compute35 up to and including this one
+    pub fn iter_up_to(&self) -> impl Iterator<Item = Self> {
+        let current = self.capability_value();
+        NvvmArch::iter().filter(move |arch| arch.capability_value() <= current)
+    }
+
+    /// Check if this architecture is a base variant (no suffix)
+    pub fn is_base_variant(&self) -> bool {
+        let feature = self.target_feature();
+        // A base variant doesn't end with any letter suffix
+        !feature
+            .chars()
+            .last()
+            .is_some_and(|c| c.is_ascii_alphabetic())
+    }
+
+    /// Check if this architecture is a family-specific variant (f suffix)
+    /// Family-specific features are supported across devices within the same major compute capability
+    pub fn is_family_variant(&self) -> bool {
+        self.target_feature().ends_with('f')
+    }
+
+    /// Check if this architecture is an architecture-specific variant (a suffix)
+    /// Architecture-specific features are locked to that exact compute capability only
+    pub fn is_architecture_variant(&self) -> bool {
+        self.target_feature().ends_with('a')
+    }
+
+    /// Get the base architecture for this variant (strips f/a suffix if present)
+    pub fn base_architecture(&self) -> Self {
+        match self {
+            // Already base variants
+            Self::Compute35
+            | Self::Compute37
+            | Self::Compute50
+            | Self::Compute52
+            | Self::Compute53
+            | Self::Compute60
+            | Self::Compute61
+            | Self::Compute62
+            | Self::Compute70
+            | Self::Compute72
+            | Self::Compute75
+            | Self::Compute80
+            | Self::Compute86
+            | Self::Compute87
+            | Self::Compute89
+            | Self::Compute90
+            | Self::Compute100
+            | Self::Compute101
+            | Self::Compute103
+            | Self::Compute120
+            | Self::Compute121 => *self,
+
+            // Family-specific variants
+            Self::Compute100f => Self::Compute100,
+            Self::Compute101f => Self::Compute101,
+            Self::Compute103f => Self::Compute103,
+            Self::Compute120f => Self::Compute120,
+            Self::Compute121f => Self::Compute121,
+
+            // Architecture-specific variants
+            Self::Compute90a => Self::Compute90,
+            Self::Compute100a => Self::Compute100,
+            Self::Compute101a => Self::Compute101,
+            Self::Compute103a => Self::Compute103,
+            Self::Compute120a => Self::Compute120,
+            Self::Compute121a => Self::Compute121,
+        }
+    }
+
+    /// Get all available variants for the same base architecture (including the base)
+    pub fn get_variants(&self) -> Vec<Self> {
+        let base = self.base_architecture();
+        let base_value = base.capability_value();
+
+        NvvmArch::iter()
+            .filter(|arch| arch.capability_value() == base_value)
+            .collect()
+    }
+
+    /// Get all available variants for a given capability value
+    pub fn variants_for_capability(capability: u32) -> Vec<Self> {
+        NvvmArch::iter()
+            .filter(|arch| arch.capability_value() == capability)
+            .collect()
     }
 }
 
@@ -693,8 +937,21 @@ impl NvvmProgram {
 
     /// Verify the program without actually compiling it. In the case of invalid IR, you can find
     /// more detailed error info by calling [`compiler_log`](Self::compiler_log).
-    pub fn verify(&self) -> Result<(), NvvmError> {
-        unsafe { nvvm_sys::nvvmVerifyProgram(self.raw, 0, null_mut()).to_result() }
+    pub fn verify(&self, options: &[NvvmOption]) -> Result<(), NvvmError> {
+        let option_strings: Vec<_> = options.iter().map(|opt| opt.to_string()).collect();
+        let option_cstrings: Vec<_> = option_strings.iter()
+            .map(|s| std::ffi::CString::new(s.as_str()).unwrap())
+            .collect();
+        let mut option_ptrs: Vec<_> = option_cstrings.iter()
+            .map(|cs| cs.as_ptr())
+            .collect();
+        unsafe { 
+            nvvm_sys::nvvmVerifyProgram(
+                self.raw, 
+                option_ptrs.len() as i32, 
+                option_ptrs.as_mut_ptr()
+            ).to_result() 
+        }
     }
 }
 
@@ -1029,6 +1286,12 @@ mod tests {
             "-arch=compute_72",
             "-arch=compute_75",
             "-arch=compute_80",
+            "-arch=compute_86",
+            "-arch=compute_87",
+            "-arch=compute_89",
+            "-arch=compute_90",
+            "-arch=compute_100",
+            "-arch=compute_120",
             "-ftz=1",
             "-prec-sqrt=0",
             "-prec-div=0",
@@ -1050,6 +1313,12 @@ mod tests {
             Arch(Compute72),
             Arch(Compute75),
             Arch(Compute80),
+            Arch(Compute86),
+            Arch(Compute87),
+            Arch(Compute89),
+            Arch(Compute90),
+            Arch(Compute100),
+            Arch(Compute120),
             Ftz,
             FastSqrt,
             FastDiv,
