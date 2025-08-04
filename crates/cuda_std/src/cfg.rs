@@ -16,6 +16,12 @@ pub enum ComputeCapability {
     Compute72,
     Compute75,
     Compute80,
+    Compute86,
+    Compute87,
+    Compute89,
+    Compute90,
+    Compute100,
+    Compute120,
 }
 
 impl ComputeCapability {
@@ -42,6 +48,12 @@ impl ComputeCapability {
             "720" => ComputeCapability::Compute72,
             "750" => ComputeCapability::Compute75,
             "800" => ComputeCapability::Compute80,
+            "860" => ComputeCapability::Compute86,  // Ampere (RTX 30 series, A100)
+            "870" => ComputeCapability::Compute87,  // Ampere (Jetson AGX Orin)
+            "890" => ComputeCapability::Compute89,  // Ada Lovelace (RTX 40 series)
+            "900" => ComputeCapability::Compute90,  // Hopper (H100)
+            "1000" => ComputeCapability::Compute100, // Blackwell (RTX 50 series, H200, B100, CUDA 12.6 and later)
+            "1200" => ComputeCapability::Compute120, // Blackwell (RTX 50 series, H200, B100, CUDA 12.8 and later)
             _ => panic!("CUDA_ARCH had an invalid value"),
         }
     }
