@@ -296,11 +296,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                 }
             }
             sym::volatile_load | sym::unaligned_volatile_load => {
-                let mut ptr = args[0].immediate();
-                // Handle cast if the ABI requires it
-                if let PassMode::Cast { cast: ty, .. } = &fn_abi.ret.mode {
-                    ptr = self.pointercast(ptr, self.type_ptr_to(ty.llvm_type(self)));
-                }
+                let ptr = args[0].immediate();
                 let load = self.volatile_load(result.layout.llvm_type(self), ptr);
                 let align = if name == sym::unaligned_volatile_load {
                     1
