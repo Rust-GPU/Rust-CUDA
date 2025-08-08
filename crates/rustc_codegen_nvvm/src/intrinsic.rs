@@ -89,6 +89,8 @@ fn saturating_intrinsic_impl<'ll, 'tcx>(
     is_add: bool,
     args: &[OperandRef<'tcx, &'ll Value>],
 ) -> &'ll Value {
+    use crate::intrinsic::OverflowOp;
+    use rustc_codegen_ssa::common::IntPredicate;
     use rustc_middle::ty::IntTy::*;
     use rustc_middle::ty::UintTy::*;
 
@@ -107,65 +109,54 @@ fn saturating_intrinsic_impl<'ll, 'tcx>(
         _ => unreachable!(),
     };
 
-    // For 128-bit, we need to handle the constants differently
-    if width == 128 {
-        // For 128-bit saturating operations, use LLVM's saturating intrinsics directly
-        let lhs = args[0].immediate();
-        let rhs = args[1].immediate();
-        let llvm_name = format!(
-            "llvm.{}{}.sat.i128",
-            if signed { 's' } else { 'u' },
-            if is_add { "add" } else { "sub" }
-        );
-        return b.call_intrinsic(&llvm_name, &[lhs, rhs]);
-    }
-
-    let unsigned_max_value = match width {
-        8 => u8::MAX as i64,
-        16 => u16::MAX as i64,
-        32 => u32::MAX as i64,
-        64 => u64::MAX as i64,
-        _ => unreachable!(),
-    };
-
-    let (min_value, max_value) = if signed {
-        (-((unsigned_max_value / 2) + 1), (unsigned_max_value / 2))
-    } else {
-        (0, unsigned_max_value)
-    };
-
-    let overflow_op = if is_add {
-        OverflowOp::Add
-    } else {
-        OverflowOp::Sub
-    };
     let llty = b.type_ix(width as u64);
-    let lhs = args[0].immediate();
-    let rhs = args[1].immediate();
+    let a = args[0].immediate();
+    let c = args[1].immediate();
 
-    let (val, overflowed) = b.checked_binop(overflow_op, ty, lhs, rhs);
+    // Perform the add or sub, returning the result and an overflow flag
+    let (val, ov) = b.checked_binop(
+        if is_add {
+            OverflowOp::Add
+        } else {
+            OverflowOp::Sub
+        },
+        ty,
+        a,
+        c,
+    );
 
+    let zero = b.const_int(llty, 0);
+
+    // Unsigned case: overflow means clamp to either max or min value
     if !signed {
-        let select_val = if is_add {
-            b.const_int(llty, -1)
-        } else {
-            b.const_int(llty, 0)
-        };
-        b.select(overflowed, select_val, val)
-    } else {
-        let const_val = b.const_int(llty, (width - 1) as i64);
-        let first_val = if is_add {
-            b.ashr(rhs, const_val)
-        } else {
-            b.lshr(rhs, const_val)
-        };
-        let second_val = if is_add {
-            b.unchecked_uadd(first_val, b.const_int(llty, max_value))
-        } else {
-            b.xor(first_val, b.const_int(llty, min_value))
-        };
-        b.select(overflowed, second_val, val)
+        let all1 = b.not(zero);
+        let clamp = if is_add { all1 } else { zero };
+        return b.select(ov, clamp, val);
     }
+
+    // Signed case: compute INT_MIN and INT_MAX
+    let one = b.const_int(llty, 1);
+    let sh = b.const_int(llty, (width - 1) as i64);
+    let int_min = b.shl(one, sh);
+    let int_max = b.sub(int_min, one);
+
+    // Check if a is negative
+    let a_lt0 = b.icmp(IntPredicate::IntSLT, a, zero);
+
+    // Pick the saturation value depending on operation and operand signs
+    let sat = if is_add {
+        // Add overflow: if a is negative → INT_MIN, else → INT_MAX
+        b.select(a_lt0, int_min, int_max)
+    } else {
+        // Sub overflow: if a is non-negative and c is negative → INT_MAX, else → INT_MIN
+        let a_ge0 = b.not(a_lt0);
+        let c_lt0 = b.icmp(IntPredicate::IntSLT, c, zero);
+        let to_max = b.and(a_ge0, c_lt0);
+        b.select(to_max, int_max, int_min)
+    };
+
+    // Return the saturation value if overflow, else the computed result
+    b.select(ov, sat, val)
 }
 
 fn get_simple_intrinsic<'ll>(
