@@ -286,6 +286,66 @@ start:
 }
 declare {<2 x i64>, i1} @__rust_u128_mulo(<2 x i64>, <2 x i64>) #0
 
+; Division operations from compiler-builtins
+define <2 x i64> @__nvvm_divti3(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call <2 x i64> @__divti3(<2 x i64> %0, <2 x i64> %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__divti3(<2 x i64>, <2 x i64>) #0
+
+define <2 x i64> @__nvvm_udivti3(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call <2 x i64> @__udivti3(<2 x i64> %0, <2 x i64> %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__udivti3(<2 x i64>, <2 x i64>) #0
+
+; Remainder operations from compiler-builtins
+define <2 x i64> @__nvvm_modti3(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call <2 x i64> @__modti3(<2 x i64> %0, <2 x i64> %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__modti3(<2 x i64>, <2 x i64>) #0
+
+define <2 x i64> @__nvvm_umodti3(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call <2 x i64> @__umodti3(<2 x i64> %0, <2 x i64> %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__umodti3(<2 x i64>, <2 x i64>) #0
+
+; Multiplication from compiler-builtins
+define <2 x i64> @__nvvm_multi3(<2 x i64>, <2 x i64>) #0 {
+start:
+  %2 = call <2 x i64> @__multi3(<2 x i64> %0, <2 x i64> %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__multi3(<2 x i64>, <2 x i64>) #0
+
+; Shift operations from compiler-builtins
+define <2 x i64> @__nvvm_ashlti3(<2 x i64>, i32) #0 {
+start:
+  %2 = call <2 x i64> @__ashlti3(<2 x i64> %0, i32 %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__ashlti3(<2 x i64>, i32) #0
+
+define <2 x i64> @__nvvm_ashrti3(<2 x i64>, i32) #0 {
+start:
+  %2 = call <2 x i64> @__ashrti3(<2 x i64> %0, i32 %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__ashrti3(<2 x i64>, i32) #0
+
+define <2 x i64> @__nvvm_lshrti3(<2 x i64>, i32) #0 {
+start:
+  %2 = call <2 x i64> @__lshrti3(<2 x i64> %0, i32 %1)
+  ret <2 x i64> %2
+}
+declare <2 x i64> @__lshrti3(<2 x i64>, i32) #0
+
 ; Required because we need to explicitly generate { i32, i1 } for the following intrinsics
 ; except rustc will not generate them (it will make { i32, i8 }) which libnvvm rejects.
 

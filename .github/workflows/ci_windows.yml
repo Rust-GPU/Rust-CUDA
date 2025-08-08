@@ -77,7 +77,7 @@ jobs:
         run: cargo build --all-features -p cust_raw
 
       - name: Build
-        run: cargo build --workspace --exclude "optix*" --exclude "path-tracer" --exclude "denoiser" --exclude "vecadd*" --exclude "gemm*" --exclude "ex*" --exclude "cudnn*"
+        run: cargo build --workspace --exclude "optix*" --exclude "path-tracer" --exclude "denoiser" --exclude "vecadd*" --exclude "gemm*" --exclude "ex*" --exclude "cudnn*" --exclude "sha2*"
 
       # Don't currently test because many tests rely on the system having a CUDA GPU
       # - name: Test
@@ -86,7 +86,7 @@ jobs:
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -Dwarnings
-        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path-tracer" --exclude "denoiser" --exclude "vecadd*" --exclude "gemm*" --exclude "ex*" --exclude "cudnn*" --exclude "cust_raw"
+        run: cargo doc --workspace --all-features --document-private-items --no-deps --exclude "optix*" --exclude "path-tracer" --exclude "denoiser" --exclude "vecadd*" --exclude "gemm*" --exclude "ex*" --exclude "cudnn*" --exclude "sha2*" --exclude "cust_raw"
       # Disabled due to dll issues, someone with  Windows knowledge needed
       # - name: Compiletest
       #  run: cargo run -p compiletests --release --no-default-features -- --target-arch compute_61,compute_70,compute_90

@@ -89,7 +89,7 @@ impl OptiXSdk {
             .ok_or("Cannot find OPTIX_VERSION from OptiX header file.")?;
         let version = version
             .parse::<u32>()
-            .map_err(|_| format!("Cannot parse OPTIX_VERSION as u32: '{}'", version))?;
+            .map_err(|_| format!("Cannot parse OPTIX_VERSION as u32: '{version}'"))?;
         Ok(version)
     }
 }

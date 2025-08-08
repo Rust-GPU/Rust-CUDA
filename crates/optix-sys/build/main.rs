@@ -16,7 +16,7 @@ fn main() {
 
     println!("cargo::rerun-if-changed=build");
     for e in sdk.related_optix_envs() {
-        println!("cargo::rerun-if-env-changed={}", e);
+        println!("cargo::rerun-if-env-changed={e}");
     }
     // Emit metadata for the build script.
     println!("cargo::metadata=root={}", sdk.optix_root().display());
@@ -36,7 +36,7 @@ fn main() {
     let metadata_optix_include = env::join_paths(sdk.optix_include_paths())
         .map(|s| s.to_string_lossy().to_string())
         .expect("Failed to build metadata for include.");
-    println!("cargo::metadata=include_dir={}", metadata_optix_include);
+    println!("cargo::metadata=include_dir={metadata_optix_include}");
 
     // Generate optix bindings.
     create_optix_bindings(&sdk, &cuda_include_paths);
