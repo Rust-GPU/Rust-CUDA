@@ -115,6 +115,31 @@ impl<'ll> CodegenCx<'ll, '_> {
         ifn!(map, "__nvvm_i8_mulo", fn(t_i8, t_i8) -> t_i8_i1);
         ifn!(map, "__nvvm_u8_mulo", fn(t_i8, t_i8) -> t_i8_i1);
 
+        // i128 arithmetic operations from compiler-builtins
+        // Division and remainder
+        ifn!(map, "__nvvm_divti3", fn(t_i128, t_i128) -> t_i128);
+        ifn!(map, "__nvvm_udivti3", fn(t_i128, t_i128) -> t_i128);
+        ifn!(map, "__nvvm_modti3", fn(t_i128, t_i128) -> t_i128);
+        ifn!(map, "__nvvm_umodti3", fn(t_i128, t_i128) -> t_i128);
+
+        // Multiplication
+        ifn!(map, "__nvvm_multi3", fn(t_i128, t_i128) -> t_i128);
+
+        // Shift operations
+        ifn!(map, "__nvvm_ashlti3", fn(t_i128, t_i32) -> t_i128);
+        ifn!(map, "__nvvm_ashrti3", fn(t_i128, t_i32) -> t_i128);
+        ifn!(map, "__nvvm_lshrti3", fn(t_i128, t_i32) -> t_i128);
+
+        // Add remapping for i128 binary operations (division, remainder, multiplication)
+        // All have the same signature: (i128, i128) -> i128
+        let i128_binary_llfn_ty = self.type_func(&[t_i128, t_i128], t_i128);
+        remapped.insert(i128_binary_llfn_ty, (Some(real_t_i128), vec![(0, real_t_i128), (1, real_t_i128)]));
+
+        // Add remapping for i128 shift operations
+        // All have the same signature: (i128, i32) -> i128
+        let i128_shift_llfn_ty = self.type_func(&[t_i128, t_i32], t_i128);
+        remapped.insert(i128_shift_llfn_ty, (Some(real_t_i128), vec![(0, real_t_i128), (1, t_i32)]));
+
         // see comment in libintrinsics.ll
         // ifn!(map, "__nvvm_i128_trap", fn(t_i128, t_i128) -> t_i128);
 

@@ -2,9 +2,19 @@
 
 The examples in here showcase both the GPU side and the CPU side of writing a tool which uses the GPU.
 
-## [Interactive Path Tracer](cpu/path_tracer)
+## Available Examples
 
-This example showcases a very simple interactive Path Tracer inspired by [Ray Tracing In One Weekend](https://raytracing.github.io/books/RayTracingInOneWeekend.html)
+### [vecadd](vecadd)
+A simple vector addition example demonstrating basic CUDA kernel usage.
+
+### [gemm](gemm)
+General Matrix Multiplication (GEMM) implementation showing more complex CUDA operations.
+
+### [sha2_crates_io](sha2_crates_io)
+Demonstrates using an existing Rust crate ([`sha2`](https://crates.io/crates/sha2) from crates.io) on both CPU and GPU without modification. Shows that the same cryptographic hashing code can run on CUDA, producing identical results to the CPU implementation.
+
+### [Interactive Path Tracer](path_tracer)
+A very simple interactive Path Tracer inspired by [Ray Tracing In One Weekend](https://raytracing.github.io/books/RayTracingInOneWeekend.html)
 which runs on CPU or GPU, with the additional option of running OptiX denoising.
 
 ![Path Tracer](assets/path_tracer.png)

@@ -17,15 +17,67 @@ use rustc_target::callconv::PassMode;
 use tracing::trace;
 
 use crate::abi::LlvmType;
-use crate::builder::Builder;
+use crate::builder::{Builder, CountZerosKind};
 use crate::context::CodegenCx;
 use crate::llvm::{self, Type, Value};
 use crate::ty::LayoutLlvmExt;
 
-// libnvvm does not support some advanced intrinsics for i128 so we just abort on them for now. In the future
-// we should emulate them in software.
-fn handle_128_bit_intrinsic<'ll>(b: &mut Builder<'_, 'll, '_>) -> &'ll Value {
-    b.abort_and_ret_i128()
+fn handle_128_bit_intrinsic<'ll>(
+    b: &mut Builder<'_, 'll, '_>,
+    name: Symbol,
+    args: &[OperandRef<'_, &'ll Value>],
+) -> &'ll Value {
+    match name {
+        sym::ctlz | sym::cttz => {
+            // TODO(@LegNeato): LLVM 7.1 doesn't have llvm.ctlz.i128/llvm.cttz.i128
+            // When we upgrade NVVM, we can call the real intrinsic directly
+            let kind = if name == sym::ctlz {
+                CountZerosKind::Leading
+            } else {
+                CountZerosKind::Trailing
+            };
+            b.emulate_i128_count_zeros(args[0].immediate(), kind, false)
+        }
+        sym::ctlz_nonzero | sym::cttz_nonzero => {
+            // TODO(@LegNeato): LLVM 7.1 doesn't have llvm.ctlz.i128/llvm.cttz.i128
+            // When we upgrade NVVM, we can call the real intrinsic directly
+            let kind = if name == sym::ctlz_nonzero {
+                CountZerosKind::Leading
+            } else {
+                CountZerosKind::Trailing
+            };
+            b.emulate_i128_count_zeros(args[0].immediate(), kind, true)
+        }
+        sym::ctpop => {
+            // TODO(@LegNeato): LLVM 7.1 doesn't have llvm.ctpop.i128
+            // When we upgrade NVVM, we can call the real intrinsic directly
+            b.emulate_i128_ctpop(args[0].immediate())
+        }
+        sym::bswap => {
+            // TODO(@LegNeato): LLVM 7.1 doesn't have llvm.bswap.i128 (added in LLVM 9.0)
+            // When we upgrade NVVM, we can call the real intrinsic directly
+            // For now, emulate it by swapping the two i64 halves and byte-swapping each
+            b.emulate_i128_bswap(args[0].immediate())
+        }
+        sym::bitreverse => {
+            // TODO(@LegNeato): LLVM 7.1 doesn't have llvm.bitreverse.i128
+            // When we upgrade NVVM, we can call the real intrinsic directly
+            b.emulate_i128_bitreverse(args[0].immediate())
+        }
+        sym::rotate_left | sym::rotate_right => {
+            // TODO(@LegNeato): LLVM 7.1 doesn't have llvm.fshl.i128/llvm.fshr.i128
+            // When we upgrade NVVM, we can call the real intrinsic directly
+            let is_left = name == sym::rotate_left;
+            let val = args[0].immediate();
+            let shift = args[1].immediate();
+            b.emulate_i128_rotate(val, shift, is_left)
+        }
+        _ => {
+            // For any unsupported 128-bit intrinsics, return a fatal error
+            // This shouldn't happen with the current set of intrinsics
+            b.fatal(format!("unsupported 128-bit intrinsic: {name}"))
+        }
+    }
 }
 
 // llvm 7 does not have saturating intrinsics, so we reimplement them right here.
@@ -54,6 +106,19 @@ fn saturating_intrinsic_impl<'ll, 'tcx>(
         (false, 128) => Ty::new_uint(tcx, U128),
         _ => unreachable!(),
     };
+
+    // For 128-bit, we need to handle the constants differently
+    if width == 128 {
+        // For 128-bit saturating operations, use LLVM's saturating intrinsics directly
+        let lhs = args[0].immediate();
+        let rhs = args[1].immediate();
+        let llvm_name = format!(
+            "llvm.{}{}.sat.i128",
+            if signed { 's' } else { 'u' },
+            if is_add { "add" } else { "sub" }
+        );
+        return b.call_intrinsic(&llvm_name, &[lhs, rhs]);
+    }
 
     let unsigned_max_value = match width {
         8 => u8::MAX as i64,
@@ -400,7 +465,7 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                         args,
                     )
                 } else if width == 128 {
-                    handle_128_bit_intrinsic(self)
+                    handle_128_bit_intrinsic(self, name, args)
                 } else {
                     match name {
                         sym::ctlz | sym::cttz => {
