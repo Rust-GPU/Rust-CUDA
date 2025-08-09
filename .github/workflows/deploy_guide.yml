@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   deploy:
     # Only run on the main repository, not on forks
