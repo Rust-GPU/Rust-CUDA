@@ -7,6 +7,8 @@ on:
 
 jobs:
   deploy:
+    # Only run on the main repository, not on forks
+    if: github.repository == 'rust-gpu/Rust-CUDA'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,7 +36,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "book"
+          path: "guide/book"
 
       - name: Deploy to GitHub Pages
         id: deployment
