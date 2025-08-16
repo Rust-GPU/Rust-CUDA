@@ -12,12 +12,40 @@
 //! Threads are the fundamental element of GPU computing. Threads execute the same kernel
 //! at the same time, controlling their task by retrieving their corresponding global thread ID.
 //!
-//! # Thread Blocks
+//! ## Thread Blocks
 //!
-//! The most important structure after threads, thread blocks arrange
-
-// TODO: write some docs about the terms used in this module.
-
+//! The most important structure after threads. Thread blocks arrange threads into one-dimensional,
+//! two-dimensional, or three-dimensional blocks. The dimensionality of the thread block
+//! typically corresponds to the dimensionality of the data being worked with. The number of
+//! threads in the block is configurable. The maximum number of threads in a black is
+//! device-specific, but 1024 is a typical maximum on current GPUs.
+//!
+//! Thread blocks the primary elements for GPU scheduling. A thread block may be scheduled for
+//! execution on any of the GPUs available streaming multiprocessors. If a GPU does not have
+//! a streaming multiprocessor available to run the block, it will be queued for scheduling. Because
+//! thread blocks are the fundamental scheduling element, they are required to execute
+//! independently and in any order.
+//!
+//! Threads within a block can share data between each other via shared memory and barrier
+//! synchronization.
+//!
+//! The kernel can retrieve the index of a given thread within a block via the
+//! `thread_idx_x`, `thread_idx_y`, and `thread_idx_z` functions (depending on the dimensionality
+//! of the thread block).
+//!
+//! ## Grids
+//!
+//! Multiple thread blocks make up the grid, the highest level of the CUDA thread model. Like thread
+//! blocks, grids can arrange thread blocks into one-dimensional, two-dimensional, or
+//! three-dimensional grids.
+//!
+//! The kernel can retrieve the index of a given block within a grid via the
+//! `block_idx_x`, `block_idx_y`, and `block_idx_z` functions (depending on the dimensionality
+//! of the grid). Additionally, the dimensionality of the block can be retrieved via the
+//! `block_dim_x`, `block_dim_y`, and `block_dim_z` functions. These functions, along with the
+//! `thread_*` functions mentioned previously, can be used to identify portions of the data the
+//! kernel should operate on.
+//!
 use cuda_std_macros::gpu_only;
 use glam::{UVec2, UVec3};
 
