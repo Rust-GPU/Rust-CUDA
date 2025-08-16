@@ -1,50 +1,61 @@
 //! Functions for dealing with the parallel thread execution model employed by CUDA.
 //!
-//! # CUDA Thread model
+//! # CUDA thread model
 //!
-//! The CUDA thread model is based on 3 main structures:
+//! CUDA organizes execution into three hierarchical levels:
 //! - Threads
-//! - Thread Blocks
+//! - Thread blocks
 //! - Grids
 //!
 //! ## Threads
 //!
-//! Threads are the fundamental element of GPU computing. Threads execute the same kernel
-//! at the same time, controlling their task by retrieving their corresponding global thread ID.
+//! Threads are the fundamental unit of execution. Every thread runs the same kernel
+//! code, typically operating on different data. Threads identify their work via
+//! their indices and the dimensions of their block and grid.
 //!
-//! ## Thread Blocks
+//! ## Thread blocks
 //!
-//! The most important structure after threads. Thread blocks arrange threads into one-dimensional,
-//! two-dimensional, or three-dimensional blocks. The dimensionality of the thread block
-//! typically corresponds to the dimensionality of the data being worked with. The number of
-//! threads in the block is configurable. The maximum number of threads in a black is
-//! device-specific, but 1024 is a typical maximum on current GPUs.
+//! Threads are arranged into one-, two-, or three-dimensional blocks. The dimensionality
+//! of a block usually mirrors the data layout (e.g., 2D blocks for images). The number of
+//! threads per block is configurable and device-dependent (commonly up to 1024 total threads).
 //!
-//! Thread blocks the primary elements for GPU scheduling. A thread block may be scheduled for
-//! execution on any of the GPUs available streaming multiprocessors. If a GPU does not have
-//! a streaming multiprocessor available to run the block, it will be queued for scheduling. Because
-//! thread blocks are the fundamental scheduling element, they are required to execute
-//! independently and in any order.
+//! Thread blocks are the primary unit of scheduling. Any block can be scheduled on any of the
+//! GPU’s streaming multiprocessors (SMs). If no SM is available, the block waits in a queue.
+//! Because blocks may execute in any order and at different times, they must be designed to run
+//! independently of one another.
 //!
-//! Threads within a block can share data between each other via shared memory and barrier
-//! synchronization.
-//!
-//! The kernel can retrieve the index of a given thread within a block via the
-//! `thread_idx_x`, `thread_idx_y`, and `thread_idx_z` functions (depending on the dimensionality
-//! of the thread block).
+//! Threads within the same block can cooperate via shared memory and block-wide barriers.
+//! The kernel can retrieve a thread’s index within its block via `thread_idx_x`, `thread_idx_y`,
+//! and `thread_idx_z`, and the block’s dimensions via `block_dim_x`, `block_dim_y`, and
+//! `block_dim_z`.
 //!
 //! ## Grids
 //!
-//! Multiple thread blocks make up the grid, the highest level of the CUDA thread model. Like thread
-//! blocks, grids can arrange thread blocks into one-dimensional, two-dimensional, or
-//! three-dimensional grids.
+//! A grid is an array (1D/2D/3D) of thread blocks. Grids define how many blocks are launched
+//! and how they are arranged.
 //!
-//! The kernel can retrieve the index of a given block within a grid via the
-//! `block_idx_x`, `block_idx_y`, and `block_idx_z` functions (depending on the dimensionality
-//! of the grid). Additionally, the dimensionality of the block can be retrieved via the
-//! `block_dim_x`, `block_dim_y`, and `block_dim_z` functions. These functions, along with the
-//! `thread_*` functions mentioned previously, can be used to identify portions of the data the
-//! kernel should operate on.
+//! The kernel can retrieve the block’s index within the grid via `block_idx_x`, `block_idx_y`,
+//! and `block_idx_z`, and the grid’s dimensions via `grid_dim_x`, `grid_dim_y`, and `grid_dim_z`.
+//! Combined with the `thread_*` and `block_dim_*` values, these indices are used to compute
+//! which portion of the input data a thread should process.
+//!
+//! ## Computing global indices (examples)
+//!
+//! 1D global thread index:
+//! ```rust
+//! use cuda_std::thread;
+//! let gx = thread::block_idx_x() * thread::block_dim_x() + thread::thread_idx_x();
+//! ```
+//!
+//! 2D global coordinates (x, y):
+//! ```rust
+//! use cuda_std::thread;
+//! let x = thread::block_idx_x() * thread::block_dim_x() + thread::thread_idx_x();
+//! let y = thread::block_idx_y() * thread::block_dim_y() + thread::thread_idx_y();
+//! ```
+//!
+//! Note: Hardware limits for block dimensions, grid dimensions, and total threads per block
+//! vary by device. Query device properties when you need exact limits.
 //!
 use cuda_std_macros::gpu_only;
 use glam::{UVec2, UVec3};
