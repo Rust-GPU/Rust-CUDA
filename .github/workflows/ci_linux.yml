@@ -23,7 +23,7 @@ env:
 jobs:
   build:
     name: Build / ${{ matrix.variance.name }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.variance.runner }}
     container:
       image: ${{ matrix.variance.image }}
     strategy:
@@ -32,12 +32,22 @@ jobs:
         variance:
           # - name: Ubuntu-22.04/CUDA-11.8.0
           #   image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
-          - name: Ubuntu-22.04 / CUDA-12.8.1
+          #   runner: ubuntu-latest
+          - name: Ubuntu-22.04 / CUDA-12.8.1 / x86_64
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
-          - name: Ubuntu-24.04 / CUDA-12.8.1
+            runner: ubuntu-latest
+          - name: Ubuntu-22.04 / CUDA-12.8.1 / ARM64
+            image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
+            runner: ubuntu-22.04-arm
+          - name: Ubuntu-24.04 / CUDA-12.8.1 / x86_64
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
-          - name: RockyLinux-9 / CUDA-12.8.1
+            runner: ubuntu-latest
+          - name: Ubuntu-24.04 / CUDA-12.8.1 / ARM64
+            image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
+            runner: ubuntu-24.04-arm
+          - name: RockyLinux-9 / CUDA-12.8.1 / x86_64
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
+            runner: ubuntu-latest
     outputs:
       # Output the result of the permission check
       actor_has_write_permission: ${{ steps.check_access.outputs.require-result }}
@@ -119,7 +129,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (github.event_name == 'pull_request' && needs.build.outputs.actor_has_write_permission == 'true')
       )
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.variance.runner }}
     # Use the exact same container image as the build job
     container:
       image: ${{ matrix.variance.image }}
@@ -129,14 +139,24 @@ jobs:
       matrix:
         variance:
           # Must match the build job's matrix definition
-          # - name: Ubuntu-22.04 / CUDA-11.8.0 image:
-          #   "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
-          - name: Ubuntu-22.04 / CUDA-12.8.1
+          # - name: Ubuntu-22.04 / CUDA-11.8.0
+          #   image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda11:latest"
+          #   runner: ubuntu-latest
+          - name: Ubuntu-22.04 / CUDA-12.8.1 / x86_64
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
-          - name: Ubuntu-24.04 / CUDA-12.8.1
+            runner: ubuntu-latest
+          - name: Ubuntu-22.04 / CUDA-12.8.1 / ARM64
+            image: "ghcr.io/rust-gpu/rust-cuda-ubuntu22-cuda12:latest"
+            runner: ubuntu-22.04-arm
+          - name: Ubuntu-24.04 / CUDA-12.8.1 / x86_64
             image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
-          - name: RockyLinux-9 / CUDA-12.8.1
+            runner: ubuntu-latest
+          - name: Ubuntu-24.04 / CUDA-12.8.1 / ARM64
+            image: "ghcr.io/rust-gpu/rust-cuda-ubuntu24-cuda12:latest"
+            runner: ubuntu-24.04-arm
+          - name: RockyLinux-9 / CUDA-12.8.1 / x86_64
             image: "ghcr.io/rust-gpu/rust-cuda-rockylinux9-cuda12:latest"
+            runner: ubuntu-latest
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
