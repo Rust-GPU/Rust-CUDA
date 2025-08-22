@@ -131,14 +131,14 @@ pub extern "C" fn demangle_callback(
     output_ptr: *mut c_char,
     output_len: size_t,
 ) -> size_t {
-    let input = unsafe { slice::from_raw_parts(input_ptr as *const u8, input_len) };
+    let input = unsafe { slice::from_raw_parts(input_ptr.cast::<u8>(), input_len) };
 
     let input = match std::str::from_utf8(input) {
         Ok(s) => s,
         Err(_) => return 0,
     };
 
-    let output = unsafe { slice::from_raw_parts_mut(output_ptr as *mut u8, output_len) };
+    let output = unsafe { slice::from_raw_parts_mut(output_ptr.cast::<u8>(), output_len) };
     let mut cursor = io::Cursor::new(output);
 
     let demangled = match rustc_demangle::try_demangle(input) {
