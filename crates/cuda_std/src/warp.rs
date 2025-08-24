@@ -733,6 +733,16 @@ pub enum WarpShuffleMode {
     Xor,
 }
 
+// C-compatible struct to match LLVM IR's {i32, i8} return type
+// This fixes an ABI mismatch where Rust would represent (u32, bool) as [2 x i32]
+// but the LLVM intrinsic returns {i32, i8} (a struct, not an array)
+#[doc(hidden)]
+#[repr(C)]
+pub struct WarpShuffleResult {
+    value: u32,
+    predicate: u8,
+}
+
 #[gpu_only]
 unsafe fn warp_shuffle_32(
     mode: WarpShuffleMode,
@@ -743,8 +753,8 @@ unsafe fn warp_shuffle_32(
 ) -> (u32, bool) {
     extern "C" {
         // see libintrinsics.ll
-        #[allow(improper_ctypes)]
-        fn __nvvm_warp_shuffle(mask: u32, mode: u32, a: u32, b: u32, c: u32) -> (u32, bool);
+        // Returns {i32, i8} in LLVM IR, which maps to our WarpShuffleResult struct
+        fn __nvvm_warp_shuffle(mask: u32, mode: u32, a: u32, b: u32, c: u32) -> WarpShuffleResult;
     }
 
     assert!(
@@ -757,7 +767,8 @@ unsafe fn warp_shuffle_32(
     c |= 0b11111;
     c |= (32 - width) << 8;
 
-    __nvvm_warp_shuffle(mask, mode as u32, value, b, c)
+    let result = __nvvm_warp_shuffle(mask, mode as u32, value, b, c);
+    (result.value, result.predicate != 0)
 }
 
 unsafe fn warp_shuffle_128(
